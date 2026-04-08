@@ -1,0 +1,23 @@
+<svg width="90" height="28" viewBox="0 0 90 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gDark" x1="0" y1="0" x2="90" y2="28" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Icon -->
+  <circle cx="14" cy="14" r="10" fill="url(#gDark)" />
+  <path d="M10 18L14 10L18 18H16.5L15.5 16H12.5L11.5 18H10Z" fill="white"/>
+
+  <!-- Text -->
+  <text
+    x="30"
+    y="14"
+    fill="white"
+    font-size="16"
+    font-weight="600"
+    font-family="Inter, Arial, sans-serif"
+    dominant-baseline="central"
+  >affiliar</text>
+</svg>

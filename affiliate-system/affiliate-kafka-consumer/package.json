@@ -1,0 +1,23 @@
+{
+  "name": "affiliate-kafka-consumer",
+  "version": "1.0.0",
+  "description": "Kafka consumer for affiliate casino transaction events",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "produce": "node scripts/test-producer.js",
+    "produce:multi": "node scripts/test-producer.js --count 10 --interval 200"
+  },
+  "dependencies": {
+    "@clickhouse/client": "^1.4.0",
+    "dotenv": "^16.4.5",
+    "kafkajs": "^2.2.4",
+    "mongodb": "^6.8.0",
+    "zod": "^4.3.6"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

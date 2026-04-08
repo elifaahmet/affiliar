@@ -1,0 +1,562 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  box-shadow: inset 0 0 5px rgb(212, 209, 209);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(177, 164, 173, 0.6);
+  border-radius: 10px;
+  -webkit-border-radius: 10px;
+  -moz-border-radius: 10px;
+  -ms-border-radius: 10px;
+  -o-border-radius: 10px;
+}
+
+.text-purple {
+  color: #b66fed !important;
+}
+input[type='date']::-webkit-calendar-picker-indicator {
+  color: rgba(0, 0, 0, 0);
+  opacity: 1;
+  display: block;
+  background: url(./assets//icons/calendar.svg) no-repeat center;
+  background-size: 20px 20px;
+  width: 20px;
+  height: 20px;
+  border-width: thin;
+}
+
+.ag-theme-custom {
+  --Background-and-text-Gray-500: #99a1b7;
+  --Background-and-text-Gray-400: #dce6ff;
+} /* Apply Gilroy to AG Grid globally */
+
+.ag-cell {
+  --ag-internal-padded-row-height: auto !important;
+}
+
+input[class^='ag-'] {
+  margin: 0;
+  border: none !important;
+  min-height: 28px !important;
+  background-color: #fcfcfc !important;
+  border: 1px solid #d4d9e6 !important;
+  border-radius: 6px !important;
+}
+.ag-header {
+  border-bottom: 1px solid #f1f1f4 !important;
+}
+.ag-pinned-right-header {
+  border-left: none !important;
+}
+.ag-header-row:not(:first-child) .ag-header-cell:not(.ag-header-span-height.ag-header-span-total),
+.ag-header-row:not(:first-child) .ag-header-group-cell.ag-header-group-cell-with-group {
+  border-top: none !important;
+  background: #eef2f4 !important;
+}
+.ag-theme-quartz .ag-header-cell {
+  padding: 0 7px !important;
+  background: #eef2f4 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+.ag-theme-quartz .ag-header-cell-label {
+  display: flex !important;
+  width: 100% !important;
+  padding: 0 5px;
+  align-items: center !important;
+  /* justify-content: center !important; */
+}
+.ag-header-cell-left {
+  justify-content: flex-start !important;
+}
+.ag-theme-quartz .ag-cell-label-container {
+  background: #eef2f4 !important;
+}
+.ag-theme-quartz .ag-ltr input[class^='ag-'][type='text'] {
+  background: #fcfcfc !important;
+  border: 1px solid #d4d9e6 !important;
+}
+/* AG Grid Quartz Theme Customization */
+/* Apply dotted row borders */
+.ag-theme-quartz .ag-row {
+  border: none !important;
+}
+
+/* Remove last column border to avoid double lines */
+.ag-theme-quartz .ag-cell:last-child {
+  border: none !important;
+}
+
+/* Optional: Add border around the entire grid */
+.ag-theme-quartz .ag-root-wrapper {
+  border: 1px solid #f1f1f4 !important;
+  border-radius: 8px !important;
+}
+.ag-header-cell-container {
+  background: var(--Background-and-text-Gray-400, red) !important;
+}
+.row-light {
+  background-color: #f8faff !important;
+}
+.row-white {
+  background-color: #fff !important;
+}
+.ag-theme-quartz .ag-cell {
+  border: none !important;
+}
+.ag-sticky-bottom {
+  border: none !important;
+}
+.ag-sticky-bottom .ag-cell {
+  background-color: #dbe3f9 !important;
+  border: none !important;
+}
+.ag-row-footer .ag-cell {
+  background-color: #dbe3f9 !important;
+  border: none !important;
+}
+.ag-row-footer .ag-cell.grand-total {
+  border: none !important;
+}
+.ag-sticky-bottom .ag-cell.grand-total {
+  border: none !important;
+}
+.ag-theme-custom .ag-header-cell {
+  font-weight: bold;
+  /* background: red !important; */
+  color: #1d243e; /* Change header text color */
+}
+.ag-paging-panel {
+  color: #78829d !important;
+  display: flex !important;
+  justify-content: space-between !important; /* Push first item to start, rest to end */
+  align-items: center !important;
+  padding: 8px 12px; /* Adjust padding */
+  border: none !important; /* Remove border */
+  height: 64px !important;
+}
+
+/* Ensure the first span (Page Size selector) aligns to the left */
+.ag-paging-page-size {
+  margin-right: auto !important; /* Pushes it to the left */
+}
+/* Change the select dropdown wrapper */
+.ag-picker-field-wrapper {
+  background-color: #ffffff !important; /* Change background color */
+  border: none !important; /* Change border */
+  border-radius: 8px !important; /* Round corners */
+  padding: 4px 8px !important;
+  min-width: 63px !important;
+}
+
+/* Change the text inside the select */
+.ag-picker-field-display {
+  font-family: 'Manrope', sans-serif;
+  color: #78829d !important;
+  font-weight: 500 !important;
+}
+
+/* Change the arrow icon color */
+.ag-picker-field-icon span {
+  color: #78829d !important;
+}
+
+/* Change the dropdown menu background and text */
+.ag-select-list {
+  background-color: #ffffff !important; /* Dropdown background */
+  border-radius: 6px !important;
+  border: 1px solid #d1d5db !important;
+  overflow: hidden;
+}
+
+/* Change dropdown options */
+.ag-select-list-item {
+  color: #78829d !important;
+  padding: 8px !important;
+  font-size: 14px !important;
+}
+
+/* Highlight selected option */
+.ag-select-list-item.ag-selected {
+  background-color: #3b82f6 !important; /* Highlight color */
+  color: #78829d !important;
+}
+
+/* Hover effect on dropdown options */
+.ag-select-list-item:hover {
+  background-color: #ebe5e5 !important;
+}
+.ag-picker-field-icon {
+  display: none !important;
+}
+/* Base styling for the dropdown wrapper */
+.ag-picker-field-wrapper {
+  position: relative;
+  border: 1px solid #dbdfe9 !important;
+  border-radius: 6px !important;
+}
+
+/* Custom SVG dropdown icon */
+.ag-picker-field-wrapper::after {
+  content: '';
+  position: absolute;
+  right: 10px; /* Adjust position */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 11px; /* SVG width */
+  height: 6px; /* SVG height */
+  transition: transform 0.3s ease; /* Smooth transition */
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="11" height="6" viewBox="0 0 11 6" fill="none"><path d="M5.34273 5.46668C5.255 5.46718 5.16802 5.45037 5.0868 5.41719C5.00557 5.38401 4.93169 5.33513 4.8694 5.27334L0.869401 1.27334C0.807242 1.21118 0.757935 1.13739 0.724295 1.05618C0.690654 0.974961 0.67334 0.887916 0.67334 0.800009C0.67334 0.622475 0.743865 0.452212 0.869401 0.326676C0.994937 0.20114 1.1652 0.130615 1.34273 0.130615C1.52027 0.130615 1.69053 0.20114 1.81607 0.326676L5.34273 3.85334L8.8694 0.326676C8.93156 0.264517 9.00535 0.21521 9.08657 0.181569C9.16778 0.147929 9.25483 0.130615 9.34273 0.130615C9.43064 0.130615 9.51768 0.147929 9.5989 0.181569C9.68011 0.21521 9.75391 0.264517 9.81607 0.326676C9.87823 0.388835 9.92753 0.462629 9.96117 0.543844C9.99481 0.625058 10.0121 0.712103 10.0121 0.800009C10.0121 0.887916 9.99481 0.974961 9.96117 1.05618C9.92753 1.13739 9.87823 1.21118 9.81607 1.27334L5.81607 5.27334C5.75377 5.33513 5.6799 5.38401 5.59867 5.41719C5.51745 5.45037 5.43047 5.46718 5.34273 5.46668Z" fill="%2399A1B7"/></svg>');
+  background-repeat: no-repeat;
+  background-size: contain;
+  pointer-events: none;
+}
+
+/* Rotate the icon when dropdown is open */
+.ag-picker-field-wrapper[aria-expanded='true']::after {
+  transform: translateY(-50%) rotate(180deg); /* Rotate when expanded */
+}
+/* Ensure row summary and pagination buttons align to the right */
+.ag-paging-row-summary-panel,
+.ag-paging-page-summary-panel {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px; /* Adjust spacing between elements */
+}
+.custom-phone-input {
+  display: flex;
+  align-items: center;
+}
+.react-tel-input .country-list {
+  position: absolute;
+  top: 40px;
+  left: 0;
+  z-index: 9999 !important;
+}
+.flag-selector .react-tel-input .form-control {
+  margin-left: 59px;
+}
+input[type='date']::-webkit-inner-spin-button,
+input[type='date']::-webkit-clear-button {
+  display: none;
+}
+input[type='datetime-local']::-webkit-calendar-picker-indicator {
+  display: none;
+  -webkit-appearance: none;
+}
+
+input[type='datetime-local'] {
+  pointer-events: auto;
+}
+
+.ag-cell {
+  border: none !important;
+  box-shadow:
+    inset 0 -0.5px 0 0 #f1f1f4,
+    inset 0 0.5px 0 0 #f1f1f4,
+    inset 0.5px 0 0 0 #f1f1f4,
+    inset -0.5px 0 0 0 #f1f1f4;
+}
+
+.ag-row {
+  border: none !important;
+}
+.ag-cell-focus {
+  border: 1px solid #f1f1f4 !important;
+  box-shadow: none !important;
+}
+.ag-cell-range-selected {
+  border: 1px solid #45a9ef !important;
+}
+.ag-pinned-left-header {
+  border: none !important;
+}
+.custom-header {
+  color: var(--Gray-Gray-600, #78829d);
+  font-family: 'Manrope', sans-serif;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1.1em;
+  font-size: clamp(8px, 1.5vw, 12px);
+}
+.header-ellipsis .ag-header-cell-label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ag-theme-quartz .ag-header-cell-text {
+  color: #78829d !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  font-style: normal;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.ag-row.ag-row-disabled {
+  background-color: #fff1f2 !important;
+}
+
+/* manrope */
+@font-face {
+  font-family: 'Manrope';
+  src: url('./assets/fonts/Manrope-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Manrope';
+  src: url('./assets/fonts/Manrope-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Manrope';
+  src: url('./assets/fonts/Manrope-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Manrope';
+  src: url('./assets/fonts/Manrope-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+}
+
+body {
+  font-family: 'Manrope', sans-serif !important;
+}
+
+.ag-theme-quartz {
+  font-family: 'Manrope', sans-serif !important;
+}
+
+/* Ensure all AG Grid text elements use Gilroy */
+.ag-header,
+.ag-header-cell,
+.ag-header-group-cell,
+.ag-cell,
+.ag-row,
+.ag-paging-panel {
+  font-family: 'Manrope', sans-serif !important;
+}
+.loader {
+  animation: spin 1s linear infinite;
+  border: 4px solid #45a9ef;
+  border-top: 4px solid transparent;
+  border-radius: 50%;
+  width: 58px;
+  height: 58px;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.main-no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.main-no-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.react-resizable-handle {
+  width: 40px !important;
+  height: 40px !important;
+  bottom: 12px !important;
+  right: 12px !important;
+  position: absolute;
+  z-index: 50 !important;
+  cursor: se-resize;
+  background-color: #ffffff;
+  border: 1px solid #f1f1f4;
+  filter: drop-shadow(0px 2px 6px rgba(0, 0, 0, 0.15)) !important;
+  border-radius: 4px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+.react-resizable-handle svg {
+  width: 24px;
+  height: 24px;
+  transform: rotate(90deg);
+}
+.custom-calendar {
+  display: flex !important;
+  gap: 4px;
+  font-size: 14px;
+  color: #333;
+}
+
+.react-datepicker {
+  border: none !important;
+}
+
+.react-datepicker__month-container {
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+.react-datepicker__header {
+  background-color: transparent;
+  border-bottom: none;
+}
+
+.react-datepicker__current-month {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.react-datepicker__day {
+  border-radius: 8px !important;
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--in-selecting-range,
+.react-datepicker__day--in-range {
+  background-color: #329ef0 !important;
+  color: white !important;
+  border-radius: 8px !important;
+}
+
+.react-datepicker__day:hover {
+  background-color: #a4d7ff;
+  border-radius: 8px;
+}
+
+.react-datepicker-time__caption,
+.react-datepicker-time__input {
+  font-size: 13px;
+}
+
+.react-datepicker__time-container {
+  border-left: none;
+}
+
+.react-datepicker__triangle {
+  display: none;
+}
+
+.react-datepicker__header {
+  background-color: white !important;
+  border-bottom: none !important;
+  padding-top: 8px;
+  padding-bottom: 0;
+}
+
+.react-datepicker__current-month {
+  font-weight: 500;
+  font-size: 14px;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.react-datepicker__day-names {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.react-datepicker__day-name {
+  font-weight: 400;
+  color: #999;
+  font-size: 12px;
+}
+.react-datepicker__day--outside-month {
+  display: none;
+}
+
+.tag-badge {
+  @apply bg-[#EDF2FF] shrink-0 rounded-md text-gray-700 font-bold text-[13px] py-[8px] px-3;
+}
+
+.tag-badge-warning {
+  @apply bg-warning-light shrink-0 rounded-md text-warning font-bold text-[13px] py-[8px] px-3;
+}
+
+.modal-tag-badge {
+  @apply bg-[#F7F7F9] shrink-0 rounded text-gray-700 font-bold text-[13px] py-[8px] px-3 w-full;
+}
+
+.modal-tag-badge-warning {
+  @apply bg-[#FFF8F4] shrink-0 rounded text-warning font-bold text-[13px] py-[8px] px-3 w-full;
+}
+
+.custom-disabled {
+  @apply opacity-50 cursor-not-allowed pointer-events-none;
+}
+
+.link-button-class {
+  @apply text-primary text-sm font-bold underline w-fit;
+}
+
+@layer base {
+  button:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+}
+
+.ag-tooltip {
+  background-color: #fff !important;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  padding: 8px 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  white-space: normal;
+}
+
+.success-icon-arrow svg path {
+  fill: #11ac46;
+}
+
+.warning-icon-arrow svg path {
+  fill: #ff6e1d;
+}
+
+.danger-icon-arrow svg path {
+  fill: #eb454e;
+}
+
+.ag-theme-quartz .ag-row-detail,
+.ag-theme-quartz .ag-row-detail .ag-row,
+.ag-theme-quartz .ag-row-detail .ag-detail-cell {
+  display: flex;
+  align-items: center;
+}

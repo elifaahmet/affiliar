@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Affiliar — Affiliate Management Platform for iGaming Operators</title>
+
+  <!-- ── SEO ──────────────────────────────────────────────────────── -->
+  <meta name="description" content="Affiliar is the complete affiliate management platform for iGaming operators. RevShare, CPA, Hybrid and Tiered commission plans, real-time ClickHouse analytics, sub-affiliate networks, and automated payment workflows — all in one place." />
+  <meta name="keywords" content="affiliate management, iGaming affiliate, casino affiliate software, affiliate platform, RevShare, CPA, commission engine, affiliate tracking, iGaming operator" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://affiliar.co/" />
+
+  <!-- ── Open Graph ────────────────────────────────────────────────── -->
+  <meta property="og:type"        content="website" />
+  <meta property="og:url"         content="https://affiliar.co/" />
+  <meta property="og:title"       content="Affiliar — Affiliate Management for iGaming Operators" />
+  <meta property="og:description" content="Complete affiliate management: flexible commission plans, real-time analytics, sub-affiliate networks and payment workflows built for iGaming." />
+  <meta property="og:image"       content="https://affiliar.co/og-image.png" />
+  <meta property="og:image:width"  content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:locale"      content="en_US" />
+  <meta property="og:site_name"   content="Affiliar" />
+
+  <!-- ── Twitter Card ─────────────────────────────────────────────── -->
+  <meta name="twitter:card"        content="summary_large_image" />
+  <meta name="twitter:site"        content="@affiliar_co" />
+  <meta name="twitter:title"       content="Affiliar — Affiliate Management for iGaming Operators" />
+  <meta name="twitter:description" content="Complete affiliate management: flexible commission plans, real-time analytics, sub-affiliate networks and payment workflows." />
+  <meta name="twitter:image"       content="https://affiliar.co/og-image.png" />
+
+  <!-- ── Structured Data ──────────────────────────────────────────── -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Affiliar",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web",
+    "url": "https://affiliar.co",
+    "description": "Affiliate management platform for iGaming operators. Commission engine, real-time analytics, sub-affiliate networks and payment workflows.",
+    "offers": {
+      "@type": "Offer",
+      "priceCurrency": "EUR",
+      "price": "0",
+      "description": "Free trial available"
+    },
+    "featureList": [
+      "RevShare commission plans",
+      "CPA commission plans",
+      "Hybrid commission plans",
+      "Tiered RevShare commission plans",
+      "Sub-affiliate network with override commissions",
+      "Real-time analytics powered by ClickHouse",
+      "Kafka event ingestion",
+      "Commission approval workflow",
+      "Affiliate self-service portal",
+      "Bulk affiliate import"
+    ],
+    "applicationSubCategory": "iGaming Affiliate Management"
+  }
+  </script>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#4F6EF7',
+            'primary-dark': '#3B55D4',
+            'primary-light': '#EEF1FE',
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      },
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    html { scroll-behavior: smooth; }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50%       { transform: translateY(-10px); }
+    }
+    .float { animation: float 5s ease-in-out infinite; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up   { animation: fadeUp 0.6s ease both; }
+    .fade-up-2 { animation: fadeUp 0.6s 0.12s ease both; }
+    .fade-up-3 { animation: fadeUp 0.6s 0.24s ease both; }
+    .hero-gradient {
+      background: radial-gradient(ellipse 70% 50% at 50% 0%, #dde4fd 0%, #f8f9ff 60%, #ffffff 100%);
+    }
+    .card-hover {
+      transition: box-shadow 0.2s, transform 0.2s;
+    }
+    .card-hover:hover {
+      box-shadow: 0 8px 40px rgba(79,110,247,0.12);
+      transform: translateY(-2px);
+    }
+    .grid-dots {
+      background-image: radial-gradient(circle, #c7d0f8 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+  </style>
+</head>
+<body class="font-sans bg-white text-gray-900 antialiased">
+
+  <!-- NAV -->
+  <nav class="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
+    <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white font-black text-sm">A</div>
+        <span class="font-bold text-gray-900 text-lg tracking-tight">Affiliar</span>
+      </div>
+      <div class="hidden md:flex items-center gap-8 text-sm text-gray-500">
+        <a href="#features"     class="hover:text-gray-900 transition-colors">Features</a>
+        <a href="#how-it-works" class="hover:text-gray-900 transition-colors">How it works</a>
+        <a href="#screenshots"  class="hover:text-gray-900 transition-colors">Screenshots</a>
+        <a href="guide.html"   class="hover:text-gray-900 transition-colors">Guide</a>
+        <a href="docs.html"    class="hover:text-gray-900 transition-colors">Docs</a>
+        <a href="pricing.html" class="hover:text-gray-900 transition-colors">Pricing</a>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="#" class="text-sm text-gray-500 hover:text-gray-900 transition-colors hidden sm:block">Log in</a>
+        <a href="#cta" class="text-sm font-semibold bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg transition-colors shadow-sm">
+          Get started
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero-gradient grid-dots pt-32 pb-28 px-6 relative overflow-hidden">
+    <div class="max-w-5xl mx-auto text-center relative">
+
+      <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/20 bg-primary/8 text-primary text-xs font-semibold mb-8 fade-up">
+        <span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+        Built for iGaming operators
+      </div>
+
+      <h1 class="text-5xl sm:text-6xl md:text-[72px] font-black tracking-tight leading-[1.05] text-gray-900 mb-6 fade-up-2">
+        Affiliate management<br />
+        <span class="text-primary">that actually works.</span>
+      </h1>
+
+      <p class="text-lg sm:text-xl text-gray-500 max-w-2xl mx-auto mb-10 leading-relaxed fade-up-3">
+        Affiliar is the complete affiliate platform for iGaming operators — real-time analytics,
+        flexible commission structures, sub-affiliate networks and automated payment workflows.
+      </p>
+
+      <div class="flex flex-col sm:flex-row gap-4 justify-center mb-20 fade-up-3">
+        <a href="#cta" class="bg-primary hover:bg-primary-dark text-white font-bold px-8 py-4 rounded-xl text-base transition-all hover:shadow-lg hover:shadow-primary/20 hover:-translate-y-0.5">
+          Start free trial →
+        </a>
+        <a href="#how-it-works" class="border border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50 font-semibold px-8 py-4 rounded-xl text-base transition-colors">
+          See how it works
+        </a>
+      </div>
+
+      <!-- Dashboard preview -->
+      <div class="float">
+        <div class="rounded-2xl border border-gray-200 overflow-hidden shadow-2xl shadow-gray-200/80 bg-white text-left">
+          <!-- Browser chrome -->
+          <div class="flex items-center gap-2 px-4 py-3 border-b border-gray-100 bg-gray-50">
+            <div class="w-3 h-3 rounded-full bg-red-400"></div>
+            <div class="w-3 h-3 rounded-full bg-yellow-400"></div>
+            <div class="w-3 h-3 rounded-full bg-green-400"></div>
+            <div class="flex-1 mx-4 h-5 rounded-md bg-gray-200 text-xs text-gray-400 flex items-center px-3">app.affiliar.co/dashboard</div>
+          </div>
+          <!-- KPI row -->
+          <div class="p-5 grid grid-cols-2 sm:grid-cols-4 gap-4 border-b border-gray-100">
+            <div class="bg-gray-50 rounded-xl p-4">
+              <p class="text-xs text-gray-400 mb-1">Total NGR</p>
+              <p class="text-xl font-bold text-gray-900">€284,920</p>
+              <p class="text-xs text-green-600 mt-1 font-medium">↑ 18.3% this month</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+              <p class="text-xs text-gray-400 mb-1">Active Affiliates</p>
+              <p class="text-xl font-bold text-gray-900">142</p>
+              <p class="text-xs text-green-600 mt-1 font-medium">↑ 12 new</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+              <p class="text-xs text-gray-400 mb-1">Commission Due</p>
+              <p class="text-xl font-bold text-gray-900">€31,440</p>
+              <p class="text-xs text-yellow-600 mt-1 font-medium">Pending approval</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+              <p class="text-xs text-gray-400 mb-1">FTDs</p>
+              <p class="text-xl font-bold text-gray-900">893</p>
+              <p class="text-xs text-green-600 mt-1 font-medium">↑ 6.1% vs last month</p>
+            </div>
+          </div>
+          <!-- Chart row -->
+          <div class="p-5">
+            <p class="text-xs text-gray-400 mb-4 font-medium">NGR by affiliate · Last 30 days</p>
+            <div class="flex items-end gap-1.5 h-20">
+              <div class="flex-1 rounded-t bg-primary/20" style="height:40%"></div>
+              <div class="flex-1 rounded-t bg-primary/30" style="height:55%"></div>
+              <div class="flex-1 rounded-t bg-primary/20" style="height:35%"></div>
+              <div class="flex-1 rounded-t bg-primary/40" style="height:70%"></div>
+              <div class="flex-1 rounded-t bg-primary/30" style="height:48%"></div>
+              <div class="flex-1 rounded-t bg-primary/50" style="height:85%"></div>
+              <div class="flex-1 rounded-t bg-primary/60" style="height:95%"></div>
+              <div class="flex-1 rounded-t bg-primary/40" style="height:65%"></div>
+              <div class="flex-1 rounded-t bg-primary/35" style="height:50%"></div>
+              <div class="flex-1 rounded-t bg-primary/50" style="height:78%"></div>
+              <div class="flex-1 rounded-t bg-primary"    style="height:100%"></div>
+              <div class="flex-1 rounded-t bg-primary/60" style="height:82%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SOCIAL PROOF -->
+  <section class="py-14 border-y border-gray-100 bg-gray-50">
+    <div class="max-w-5xl mx-auto px-6 text-center">
+      <p class="text-xs text-gray-400 mb-8 uppercase tracking-widest font-semibold">Trusted by iGaming operators worldwide</p>
+      <div class="flex flex-wrap justify-center gap-10 items-center opacity-40">
+        <div class="text-base font-black tracking-tight text-gray-500">SPINBET</div>
+        <div class="text-base font-black tracking-tight text-gray-500">LUCKYWIN</div>
+        <div class="text-base font-black tracking-tight text-gray-500">BETVERSE</div>
+        <div class="text-base font-black tracking-tight text-gray-500">CASINOX</div>
+        <div class="text-base font-black tracking-tight text-gray-500">JACKPOTCLUB</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features" class="py-24 px-6 bg-white">
+    <div class="max-w-7xl mx-auto">
+      <div class="text-center mb-16">
+        <p class="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Everything you need</p>
+        <h2 class="text-4xl sm:text-5xl font-black tracking-tight text-gray-900 mb-4">One platform, full control.</h2>
+        <p class="text-gray-500 text-lg max-w-xl mx-auto">
+          Everything your team needs to run, grow, and pay out your affiliate program — without the spreadsheets.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+        <div class="border border-gray-100 rounded-2xl p-7 card-hover bg-white">
+          <div class="w-11 h-11 rounded-xl bg-primary-light flex items-center justify-center mb-5">
+            <svg class="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h3 class="font-bold text-lg text-gray-900 mb-2">Flexible Commission Engine</h3>
+          <p class="text-gray-500 text-sm leading-relaxed mb-4">
+            RevShare, CPA, Hybrid, and Tiered RevShare — all in one engine. Set different plans per affiliate or apply a default across your network.
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <span class="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 text-xs font-semibold">RevShare</span>
+            <span class="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-600 text-xs font-semibold">CPA</span>
+            <span class="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-600 text-xs font-semibold">Hybrid</span>
+            <span class="px-2.5 py-1 rounded-lg bg-cyan-50 text-cyan-600 text-xs font-semibold">Tiered</span>
+          </div>
+        </div>
+
+        <div class="border border-gray-100 rounded-2xl p-7 card-hover bg-white">
+          <div class="w-11 h-11 rounded-xl bg-green-50 flex items-center justify-center mb-5">
+            <svg class="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </div>
+          <h3 class="font-bold text-lg text-gray-900 mb-2">Sub-Affiliate Networks</h3>
+          <p class="text-gray-500 text-sm leading-relaxed mb-4">
+            Let affiliates recruit their own sub-affiliates. You control the override rate — earn a percentage of the sub's NGR automatically. Max 2 levels, zero complexity.
+          </p>
+          <div class="flex flex-wrap gap-3 text-xs text-gray-500">
+            <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-[10px]">✓</span> 2-level hierarchy</span>
+            <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-[10px]">✓</span> Custom override rates</span>
+          </div>
+        </div>
+
+        <div class="border border-gray-100 rounded-2xl p-7 card-hover bg-white">
+          <div class="w-11 h-11 rounded-xl bg-orange-50 flex items-center justify-center mb-5">
+            <svg class="w-5 h-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+          <h3 class="font-bold text-lg text-gray-900 mb-2">Real-time Analytics</h3>
+          <p class="text-gray-500 text-sm leading-relaxed mb-4">
+            Powered by ClickHouse. Track GGR, NGR, FTDs, deposits, registrations and player counts in real time — broken down by affiliate, brand, campaign, and day.
+          </p>
+          <span class="flex items-center gap-1.5 text-xs text-gray-500">
+            <span class="w-4 h-4 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center text-[10px]">✓</span> Sub-second query latency
+          </span>
+        </div>
+
+        <div class="border border-gray-100 rounded-2xl p-7 card-hover bg-white">
+          <div class="w-11 h-11 rounded-xl bg-violet-50 flex items-center justify-center mb-5">
+            <svg class="w-5 h-5 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+          </div>
+          <h3 class="font-bold text-lg text-gray-900 mb-2">Commission Approval Workflow</h3>
+          <p class="text-gray-500 text-sm leading-relaxed mb-4">
+            Monthly commission reports with a built-in review process. Draft → Submit → Approve → Mark Paid. Every step tracked and audited.
+          </p>
+          <div class="flex gap-1 items-center text-xs flex-wrap">
+            <span class="px-2 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">Draft</span>
+            <span class="text-gray-300">→</span>
+            <span class="px-2 py-0.5 rounded bg-yellow-50 text-yellow-700 font-medium">Pending</span>
+            <span class="text-gray-300">→</span>
+            <span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-medium">Approved</span>
+            <span class="text-gray-300">→</span>
+            <span class="px-2 py-0.5 rounded bg-green-50 text-green-700 font-medium">Paid</span>
+          </div>
+        </div>
+
+        <div class="border border-gray-100 rounded-2xl p-7 card-hover bg-white">
+          <div class="w-11 h-11 rounded-xl bg-pink-50 flex items-center justify-center mb-5">
+            <svg class="w-5 h-5 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </div>
+          <h3 class="font-bold text-lg text-gray-900 mb-2">Affiliate Self-Service Portal</h3>
+          <p class="text-gray-500 text-sm leading-relaxed mb-4">
+            Affiliates get their own dashboard — referral links, tracking codes, commission statements, performance charts, and sub-affiliate management. No emails back and forth.
+          </p>
+          <span class="flex items-center gap-1.5 text-xs text-gray-500">
+            <span class="w-4 h-4 rounded-full bg-pink-100 text-pink-500 flex items-center justify-center text-[10px]">✓</span> White-labeled per operator
+          </span>
+        </div>
+
+        <div class="border border-gray-100 rounded-2xl p-7 card-hover bg-white">
+          <div class="w-11 h-11 rounded-xl bg-teal-50 flex items-center justify-center mb-5">
+            <svg class="w-5 h-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <h3 class="font-bold text-lg text-gray-900 mb-2">Event-Driven Data Pipeline</h3>
+          <p class="text-gray-500 text-sm leading-relaxed mb-4">
+            Connect via Kafka or REST API. Every player event — registration, deposit, round, withdrawal — is ingested, deduplicated, and attributed to the right affiliate automatically.
+          </p>
+          <span class="flex items-center gap-1.5 text-xs text-gray-500">
+            <span class="w-4 h-4 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center text-[10px]">✓</span> Idempotent · exactly-once attribution
+          </span>
+        </div>
+
+        <div class="border border-gray-100 rounded-2xl p-7 card-hover bg-white">
+          <div class="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center mb-5">
+            <svg class="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+            </svg>
+          </div>
+          <h3 class="font-bold text-lg text-gray-900 mb-2">Campaign Tracking</h3>
+          <p class="text-gray-500 text-sm leading-relaxed mb-4">
+            UTM-style traffic segmentation built in. Affiliates tag their links with campaign names like &ldquo;instagram_april&rdquo; or &ldquo;youtube_review&rdquo; and every event is attributed automatically. Group reports by campaign to see what converts.
+          </p>
+          <div class="flex flex-wrap gap-3 text-xs text-gray-500">
+            <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-[10px]">✓</span> Campaign-based reporting</span>
+            <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-[10px]">✓</span> Sub-source &amp; click tracking</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section id="how-it-works" class="py-24 px-6 bg-gray-50 border-y border-gray-100">
+    <div class="max-w-5xl mx-auto">
+      <div class="text-center mb-16">
+        <p class="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Simple by design</p>
+        <h2 class="text-4xl sm:text-5xl font-black tracking-tight text-gray-900 mb-4">Up and running in a day.</h2>
+        <p class="text-gray-500 text-lg max-w-xl mx-auto">Two integration paths. Pick what fits your stack.</p>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-6 mb-16">
+        <div class="border border-gray-200 rounded-2xl p-8 bg-white shadow-sm">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center">
+              <svg class="w-5 h-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+            </div>
+            <div>
+              <h3 class="font-bold text-gray-900">Kafka Integration</h3>
+              <p class="text-xs text-gray-400">For high-volume, real-time stacks</p>
+            </div>
+          </div>
+          <ol class="space-y-4">
+            <li class="flex gap-3">
+              <span class="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
+              <p class="text-sm text-gray-600">Produce a canonical event to your Kafka topic on every player action</p>
+            </li>
+            <li class="flex gap-3">
+              <span class="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
+              <p class="text-sm text-gray-600">Affiliar consumer validates, deduplicates and resolves the affiliate</p>
+            </li>
+            <li class="flex gap-3">
+              <span class="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
+              <p class="text-sm text-gray-600">Data lands in ClickHouse — your dashboards update in seconds</p>
+            </li>
+          </ol>
+        </div>
+        <div class="border border-gray-200 rounded-2xl p-8 bg-white shadow-sm">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 rounded-xl bg-primary-light flex items-center justify-center">
+              <svg class="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+            </div>
+            <div>
+              <h3 class="font-bold text-gray-900">REST API Integration</h3>
+              <p class="text-xs text-gray-400">For any platform, any language</p>
+            </div>
+          </div>
+          <ol class="space-y-4">
+            <li class="flex gap-3">
+              <span class="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
+              <p class="text-sm text-gray-600">POST player events to our integration endpoint with your API key</p>
+            </li>
+            <li class="flex gap-3">
+              <span class="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
+              <p class="text-sm text-gray-600">Affiliar validates, attributes and stores — idempotent by event ID</p>
+            </li>
+            <li class="flex gap-3">
+              <span class="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
+              <p class="text-sm text-gray-600">Reports and commissions calculate automatically each month</p>
+            </li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
+        <div>
+          <div class="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center mx-auto mb-3 font-black shadow-lg shadow-primary/25">1</div>
+          <p class="text-sm font-semibold text-gray-900 mb-1">Add your affiliates</p>
+          <p class="text-xs text-gray-400">Bulk import or invite via link</p>
+        </div>
+        <div>
+          <div class="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center mx-auto mb-3 font-black shadow-lg shadow-primary/25">2</div>
+          <p class="text-sm font-semibold text-gray-900 mb-1">Assign commission plans</p>
+          <p class="text-xs text-gray-400">Per affiliate or default rate</p>
+        </div>
+        <div>
+          <div class="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center mx-auto mb-3 font-black shadow-lg shadow-primary/25">3</div>
+          <p class="text-sm font-semibold text-gray-900 mb-1">Connect your platform</p>
+          <p class="text-xs text-gray-400">Kafka or REST — data flows in</p>
+        </div>
+        <div>
+          <div class="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center mx-auto mb-3 font-black shadow-lg shadow-primary/25">4</div>
+          <p class="text-sm font-semibold text-gray-900 mb-1">Pay commissions</p>
+          <p class="text-xs text-gray-400">Monthly reports, one-click approve</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMMISSION ENGINE -->
+  <section id="commission" class="py-24 px-6 bg-white">
+    <div class="max-w-6xl mx-auto">
+      <div class="grid lg:grid-cols-2 gap-16 items-center">
+        <div>
+          <p class="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Commission Engine</p>
+          <h2 class="text-4xl font-black tracking-tight text-gray-900 mb-6">Every deal structure, handled.</h2>
+          <p class="text-gray-500 leading-relaxed mb-8">
+            No two affiliate deals are the same. Affiliar's commission engine handles them all —
+            without custom code, spreadsheets, or month-end panic.
+          </p>
+          <div class="space-y-5">
+            <div class="flex gap-4">
+              <div class="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                <div class="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
+              </div>
+              <div>
+                <p class="font-semibold text-sm text-gray-900 mb-1">Revenue Share</p>
+                <p class="text-gray-500 text-sm">Earn a % of NGR (or GGR). Configure negative carryover rules per affiliate.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="w-9 h-9 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
+                <div class="w-2.5 h-2.5 rounded-full bg-purple-500"></div>
+              </div>
+              <div>
+                <p class="font-semibold text-sm text-gray-900 mb-1">CPA (Cost Per Acquisition)</p>
+                <p class="text-gray-500 text-sm">Fixed payout per qualifying FTD. Set minimum deposit thresholds.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
+                <div class="w-2.5 h-2.5 rounded-full bg-indigo-500"></div>
+              </div>
+              <div>
+                <p class="font-semibold text-sm text-gray-900 mb-1">Hybrid (RevShare + CPA)</p>
+                <p class="text-gray-500 text-sm">Combine both models. CPA on acquisition plus ongoing RevShare.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="w-9 h-9 rounded-xl bg-cyan-50 flex items-center justify-center shrink-0">
+                <div class="w-2.5 h-2.5 rounded-full bg-cyan-500"></div>
+              </div>
+              <div>
+                <p class="font-semibold text-sm text-gray-900 mb-1">Tiered Revenue Share</p>
+                <p class="text-gray-500 text-sm">Higher NGR = higher rate. Affiliates move up tiers automatically each month.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tiered plan card -->
+        <div class="border border-gray-200 rounded-2xl p-7 shadow-sm bg-white">
+          <p class="text-xs text-gray-400 mb-1 font-semibold uppercase tracking-widest">Example</p>
+          <h3 class="font-bold text-xl text-gray-900 mb-6">Growth Tier Plan</h3>
+          <div class="space-y-3">
+            <div class="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-gray-100">
+              <div>
+                <p class="text-xs text-gray-400 mb-0.5">NGR €0 – €5,000</p>
+                <p class="font-semibold text-gray-900">Starter</p>
+              </div>
+              <div class="text-right">
+                <p class="text-3xl font-black text-blue-600">25%</p>
+                <p class="text-xs text-gray-400">RevShare</p>
+              </div>
+            </div>
+            <div class="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-gray-100">
+              <div>
+                <p class="text-xs text-gray-400 mb-0.5">NGR €5,001 – €20,000</p>
+                <p class="font-semibold text-gray-900">Growth</p>
+              </div>
+              <div class="text-right">
+                <p class="text-3xl font-black text-indigo-600">32%</p>
+                <p class="text-xs text-gray-400">RevShare</p>
+              </div>
+            </div>
+            <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
+              <div>
+                <p class="text-xs text-gray-400 mb-0.5">NGR €20,001+</p>
+                <p class="font-semibold text-gray-900">Elite <span class="text-xs text-primary ml-1.5 font-bold">★ Top tier</span></p>
+              </div>
+              <div class="text-right">
+                <p class="text-3xl font-black text-primary">40%</p>
+                <p class="text-xs text-gray-400">RevShare</p>
+              </div>
+            </div>
+          </div>
+          <p class="text-xs text-gray-400 mt-4">Tier applied automatically based on monthly NGR. No manual recalculation.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ANALYTICS -->
+  <section id="analytics" class="py-24 px-6 bg-gray-50 border-y border-gray-100">
+    <div class="max-w-6xl mx-auto">
+      <div class="grid lg:grid-cols-2 gap-16 items-center">
+
+        <!-- Analytics mockup -->
+        <div class="border border-gray-200 rounded-2xl overflow-hidden shadow-sm bg-white order-2 lg:order-1">
+          <div class="border-b border-gray-100 px-5 py-3 flex items-center justify-between bg-gray-50">
+            <p class="text-xs font-semibold text-gray-500">Affiliate Performance · April 2026</p>
+            <span class="text-xs text-gray-400 bg-orange-50 text-orange-500 px-2 py-0.5 rounded font-medium">ClickHouse</span>
+          </div>
+          <div class="p-5 space-y-4">
+            <div class="grid grid-cols-3 gap-3">
+              <div class="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
+                <p class="text-xs text-gray-400 mb-1">Registrations</p>
+                <p class="font-black text-lg text-gray-900">1,284</p>
+              </div>
+              <div class="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
+                <p class="text-xs text-gray-400 mb-1">FTDs</p>
+                <p class="font-black text-lg text-gray-900">347</p>
+              </div>
+              <div class="bg-green-50 rounded-xl p-3 text-center border border-green-100">
+                <p class="text-xs text-gray-400 mb-1">NGR</p>
+                <p class="font-black text-lg text-green-700">€84K</p>
+              </div>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
+              <p class="text-xs text-gray-400 mb-3 font-medium">Top affiliates by NGR</p>
+              <div class="space-y-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-[10px] font-bold">1</div>
+                  <div class="flex-1">
+                    <div class="flex justify-between text-xs mb-1.5">
+                      <span class="font-medium text-gray-700">partner_xyz</span>
+                      <span class="text-green-600 font-semibold">€24,820</span>
+                    </div>
+                    <div class="h-1.5 bg-gray-200 rounded-full">
+                      <div class="h-1.5 bg-primary rounded-full" style="width:85%"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3">
+                  <div class="w-6 h-6 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center text-[10px] font-bold">2</div>
+                  <div class="flex-1">
+                    <div class="flex justify-between text-xs mb-1.5">
+                      <span class="font-medium text-gray-700">casino_king</span>
+                      <span class="text-green-600 font-semibold">€18,340</span>
+                    </div>
+                    <div class="h-1.5 bg-gray-200 rounded-full">
+                      <div class="h-1.5 bg-primary/60 rounded-full" style="width:63%"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3">
+                  <div class="w-6 h-6 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center text-[10px] font-bold">3</div>
+                  <div class="flex-1">
+                    <div class="flex justify-between text-xs mb-1.5">
+                      <span class="font-medium text-gray-700">slots_media</span>
+                      <span class="text-green-600 font-semibold">€12,910</span>
+                    </div>
+                    <div class="h-1.5 bg-gray-200 rounded-full">
+                      <div class="h-1.5 bg-primary/40 rounded-full" style="width:44%"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="order-1 lg:order-2">
+          <p class="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Real-time Analytics</p>
+          <h2 class="text-4xl font-black tracking-tight text-gray-900 mb-6">Data at the speed of play.</h2>
+          <p class="text-gray-500 leading-relaxed mb-8">
+            Built on ClickHouse — the fastest columnar database on the planet. Every player action flows
+            through Kafka and lands in your dashboards in seconds, not hours.
+          </p>
+          <div class="space-y-4">
+            <div class="flex gap-3 items-start">
+              <span class="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">✓</span>
+              <p class="text-sm text-gray-600">GGR, NGR, deposits, FTDs, player count — aggregated per affiliate, per day</p>
+            </div>
+            <div class="flex gap-3 items-start">
+              <span class="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">✓</span>
+              <p class="text-sm text-gray-600">Filter by date range, brand, campaign, or referral code</p>
+            </div>
+            <div class="flex gap-3 items-start">
+              <span class="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">✓</span>
+              <p class="text-sm text-gray-600">Affiliates see their own numbers in real time via the self-service portal</p>
+            </div>
+            <div class="flex gap-3 items-start">
+              <span class="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">✓</span>
+              <p class="text-sm text-gray-600">Idempotent event ingestion — duplicate events never corrupt your data</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SUB-AFFILIATE -->
+  <section class="py-24 px-6 bg-white">
+    <div class="max-w-5xl mx-auto text-center mb-14">
+      <p class="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Sub-affiliate network</p>
+      <h2 class="text-4xl sm:text-5xl font-black tracking-tight text-gray-900 mb-4">Grow your network exponentially.</h2>
+      <p class="text-gray-500 text-lg max-w-2xl mx-auto">
+        Let your top affiliates recruit sub-affiliates. You sit at the top, earn override commissions on every level, and stay in full control.
+      </p>
+    </div>
+
+    <div class="max-w-2xl mx-auto">
+      <!-- Operator -->
+      <div class="flex justify-center mb-6">
+        <div class="border-2 border-primary bg-primary/5 rounded-2xl px-8 py-4 text-center shadow-sm shadow-primary/10">
+          <p class="text-xs text-primary font-bold uppercase tracking-widest mb-0.5">Operator</p>
+          <p class="font-black text-gray-900">You</p>
+        </div>
+      </div>
+      <div class="flex justify-center"><div class="w-px h-6 bg-gray-200"></div></div>
+
+      <!-- Level 1 -->
+      <div class="flex justify-center gap-6 mb-0">
+        <div class="flex flex-col items-center">
+          <div class="border border-gray-200 bg-white rounded-xl px-6 py-3 text-center shadow-sm">
+            <p class="text-xs text-gray-400">Affiliate</p>
+            <p class="font-bold text-gray-900 text-sm">jane_xyz</p>
+            <p class="text-xs text-green-600 font-semibold mt-0.5">30% RevShare</p>
+          </div>
+        </div>
+        <div class="flex flex-col items-center">
+          <div class="border border-gray-200 bg-white rounded-xl px-6 py-3 text-center shadow-sm">
+            <p class="text-xs text-gray-400">Affiliate</p>
+            <p class="font-bold text-gray-900 text-sm">casino_k</p>
+            <p class="text-xs text-green-600 font-semibold mt-0.5">25% RevShare</p>
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-center gap-6"><div class="w-px h-6 bg-gray-200"></div><div class="w-px h-6 bg-gray-200"></div></div>
+
+      <!-- Level 2 -->
+      <div class="flex justify-center gap-4 flex-wrap">
+        <div class="border border-gray-100 bg-gray-50 rounded-xl px-4 py-3 text-center">
+          <p class="text-xs text-gray-400">Sub-affiliate</p>
+          <p class="font-semibold text-gray-700 text-sm">slots_m</p>
+          <p class="text-xs text-purple-600 font-medium mt-0.5">10% override → jane</p>
+        </div>
+        <div class="border border-gray-100 bg-gray-50 rounded-xl px-4 py-3 text-center">
+          <p class="text-xs text-gray-400">Sub-affiliate</p>
+          <p class="font-semibold text-gray-700 text-sm">spin_pro</p>
+          <p class="text-xs text-purple-600 font-medium mt-0.5">10% override → jane</p>
+        </div>
+        <div class="border border-gray-100 bg-gray-50 rounded-xl px-4 py-3 text-center">
+          <p class="text-xs text-gray-400">Sub-affiliate</p>
+          <p class="font-semibold text-gray-700 text-sm">betfan</p>
+          <p class="text-xs text-purple-600 font-medium mt-0.5">8% override → casino_k</p>
+        </div>
+      </div>
+      <p class="text-center text-xs text-gray-400 mt-5">Max 2 levels. Override rates configured by you per sub-affiliate.</p>
+    </div>
+  </section>
+
+  <!-- SCREENSHOTS -->
+  <section id="screenshots" class="py-24 px-6 bg-gray-50 border-y border-gray-100">
+    <div class="max-w-7xl mx-auto">
+      <div class="text-center mb-16">
+        <p class="text-primary text-sm font-semibold uppercase tracking-widest mb-3">See it in action</p>
+        <h2 class="text-4xl sm:text-5xl font-black tracking-tight text-gray-900 mb-4">Every view, purpose-built.</h2>
+        <p class="text-gray-500 text-lg max-w-xl mx-auto">From operator dashboards to affiliate portals — every screen is designed for clarity and speed.</p>
+      </div>
+
+      <div class="space-y-20">
+
+        <!-- Screenshot 1 — Operator Affiliates Table -->
+        <div class="grid lg:grid-cols-2 gap-12 items-center">
+          <div>
+            <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary-light px-3 py-1 rounded-full mb-4">Operator Dashboard</span>
+            <h3 class="text-2xl font-black text-gray-900 mb-3">Full visibility over your affiliate network</h3>
+            <p class="text-gray-500 leading-relaxed mb-5">See every affiliate's status, commission plan, parent relationship, and referral codes at a glance. Assign plans and set sub-affiliate override rates without leaving the table.</p>
+            <ul class="space-y-2 text-sm text-gray-600">
+              <li class="flex gap-2 items-center"><span class="w-4 h-4 rounded-full bg-primary/10 text-primary text-[10px] flex items-center justify-center font-bold">✓</span> Inline plan assignment</li>
+              <li class="flex gap-2 items-center"><span class="w-4 h-4 rounded-full bg-primary/10 text-primary text-[10px] flex items-center justify-center font-bold">✓</span> Copy invite link for pending affiliates</li>
+              <li class="flex gap-2 items-center"><span class="w-4 h-4 rounded-full bg-primary/10 text-primary text-[10px] flex items-center justify-center font-bold">✓</span> Parent affiliate + override rate per row</li>
+            </ul>
+          </div>
+          <div class="rounded-2xl border border-gray-200 overflow-hidden shadow-xl shadow-gray-200/60 bg-white">
+            <!-- Browser chrome -->
+            <div class="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 bg-gray-50">
+              <div class="w-2.5 h-2.5 rounded-full bg-red-400"></div><div class="w-2.5 h-2.5 rounded-full bg-yellow-400"></div><div class="w-2.5 h-2.5 rounded-full bg-green-400"></div>
+              <div class="flex-1 mx-3 h-5 rounded bg-gray-200 text-[10px] text-gray-400 flex items-center px-3">app.affiliar.co/affiliates</div>
+            </div>
+            <!-- Tab bar -->
+            <div class="flex gap-1 p-3 bg-white border-b border-gray-100">
+              <span class="px-3 py-1.5 rounded-md bg-primary text-white text-xs font-semibold">Affiliates</span>
+              <span class="px-3 py-1.5 rounded-md text-gray-400 text-xs">Invite Affiliate</span>
+              <span class="px-3 py-1.5 rounded-md text-gray-400 text-xs">Add Affiliate</span>
+              <span class="px-3 py-1.5 rounded-md text-gray-400 text-xs">Bulk Import</span>
+            </div>
+            <!-- Table header -->
+            <div class="px-4 py-2 bg-gray-50 border-b border-gray-100 grid grid-cols-5 gap-2">
+              <span class="text-[10px] font-bold text-gray-400 uppercase">Name</span>
+              <span class="text-[10px] font-bold text-gray-400 uppercase">Status</span>
+              <span class="text-[10px] font-bold text-gray-400 uppercase">Commission Plan</span>
+              <span class="text-[10px] font-bold text-gray-400 uppercase">Parent</span>
+              <span class="text-[10px] font-bold text-gray-400 uppercase">Joined</span>
+            </div>
+            <!-- Rows -->
+            <div class="divide-y divide-gray-50">
+              <div class="px-4 py-3 grid grid-cols-5 gap-2 items-center">
+                <div><p class="text-xs font-semibold text-gray-800">Jane Doe</p><p class="text-[10px] text-gray-400">jane_doe</p></div>
+                <span class="inline-flex w-fit px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-semibold">active</span>
+                <span class="inline-flex w-fit px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-semibold">RevShare 30%</span>
+                <span class="text-[10px] text-gray-400">—</span>
+                <span class="text-[10px] text-gray-400">Jan 2026</span>
+              </div>
+              <div class="px-4 py-3 grid grid-cols-5 gap-2 items-center bg-gray-50/50">
+                <div><p class="text-xs font-semibold text-gray-800">Mark Spencer</p><p class="text-[10px] text-gray-400">slots_m</p></div>
+                <span class="inline-flex w-fit px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-semibold">active</span>
+                <span class="inline-flex w-fit px-2 py-0.5 rounded bg-purple-50 text-purple-700 text-[10px] font-semibold">CPA €50</span>
+                <div><p class="text-[10px] text-gray-700 font-medium">jane_doe</p><p class="text-[10px] text-gray-400">10% override</p></div>
+                <span class="text-[10px] text-gray-400">Feb 2026</span>
+              </div>
+              <div class="px-4 py-3 grid grid-cols-5 gap-2 items-center">
+                <div><p class="text-xs font-semibold text-gray-800">Alex Kim</p><p class="text-[10px] text-gray-400">casino_k</p></div>
+                <span class="inline-flex w-fit px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-[10px] font-semibold">pending</span>
+                <span class="inline-flex w-fit px-2 py-0.5 rounded bg-gray-100 text-gray-500 text-[10px] font-semibold">Default</span>
+                <span class="text-[10px] text-gray-400">—</span>
+                <span class="text-[10px] text-gray-400">Mar 2026</span>
+              </div>
+              <div class="px-4 py-3 grid grid-cols-5 gap-2 items-center bg-gray-50/50">
+                <div><p class="text-xs font-semibold text-gray-800">Sara Nils</p><p class="text-[10px] text-gray-400">spin_pro</p></div>
+                <span class="inline-flex w-fit px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-semibold">active</span>
+                <span class="inline-flex w-fit px-2 py-0.5 rounded bg-cyan-50 text-cyan-700 text-[10px] font-semibold">Tiered 25–40%</span>
+                <div><p class="text-[10px] text-gray-700 font-medium">jane_doe</p><p class="text-[10px] text-gray-400">8% override</p></div>
+                <span class="text-[10px] text-gray-400">Mar 2026</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Screenshot 2 — Commission Reports -->
+        <div class="grid lg:grid-cols-2 gap-12 items-center">
+          <div class="order-2 lg:order-1 rounded-2xl border border-gray-200 overflow-hidden shadow-xl shadow-gray-200/60 bg-white">
+            <div class="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 bg-gray-50">
+              <div class="w-2.5 h-2.5 rounded-full bg-red-400"></div><div class="w-2.5 h-2.5 rounded-full bg-yellow-400"></div><div class="w-2.5 h-2.5 rounded-full bg-green-400"></div>
+              <div class="flex-1 mx-3 h-5 rounded bg-gray-200 text-[10px] text-gray-400 flex items-center px-3">app.affiliar.co/commission/reports</div>
+            </div>
+            <!-- Summary cards -->
+            <div class="grid grid-cols-3 gap-3 p-4 border-b border-gray-100">
+              <div class="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
+                <p class="text-[10px] text-gray-400 mb-0.5">Total Commission Due</p>
+                <p class="text-base font-black text-gray-900">€31,440</p>
+              </div>
+              <div class="bg-blue-50 rounded-xl p-3 text-center border border-blue-100">
+                <p class="text-[10px] text-gray-400 mb-0.5">Approved</p>
+                <p class="text-base font-black text-blue-700">€18,200</p>
+              </div>
+              <div class="bg-green-50 rounded-xl p-3 text-center border border-green-100">
+                <p class="text-[10px] text-gray-400 mb-0.5">Paid Out</p>
+                <p class="text-base font-black text-green-700">€94,820</p>
+              </div>
+            </div>
+            <!-- Report table -->
+            <div class="px-4 py-2 bg-gray-50 border-b border-gray-100 grid grid-cols-5 gap-1">
+              <span class="text-[10px] font-bold text-gray-400 uppercase">Affiliate</span>
+              <span class="text-[10px] font-bold text-gray-400 uppercase">Period</span>
+              <span class="text-[10px] font-bold text-gray-400 uppercase">NGR</span>
+              <span class="text-[10px] font-bold text-gray-400 uppercase">Total</span>
+              <span class="text-[10px] font-bold text-gray-400 uppercase">Status</span>
+            </div>
+            <div class="divide-y divide-gray-50">
+              <div class="px-4 py-2.5 grid grid-cols-5 gap-1 items-center">
+                <span class="text-xs font-medium text-gray-700">jane_doe</span>
+                <span class="text-[10px] text-gray-500">Apr 2026</span>
+                <span class="text-[10px] text-gray-700">€24,820</span>
+                <span class="text-[10px] font-semibold text-gray-900">€7,446</span>
+                <span class="inline-flex w-fit px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-semibold">approved</span>
+              </div>
+              <div class="px-4 py-2.5 grid grid-cols-5 gap-1 items-center bg-gray-50/50">
+                <span class="text-xs font-medium text-gray-700">slots_m</span>
+                <span class="text-[10px] text-gray-500">Apr 2026</span>
+                <span class="text-[10px] text-gray-700">€18,340</span>
+                <span class="text-[10px] font-semibold text-gray-900">€5,502</span>
+                <span class="inline-flex w-fit px-1.5 py-0.5 rounded-full bg-yellow-50 text-yellow-700 text-[10px] font-semibold">pending</span>
+              </div>
+              <div class="px-4 py-2.5 grid grid-cols-5 gap-1 items-center">
+                <span class="text-xs font-medium text-gray-700">spin_pro</span>
+                <span class="text-[10px] text-gray-500">Apr 2026</span>
+                <span class="text-[10px] text-gray-700">€9,100</span>
+                <span class="text-[10px] font-semibold text-gray-900">€2,730</span>
+                <span class="inline-flex w-fit px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 text-[10px] font-semibold">draft</span>
+              </div>
+              <div class="px-4 py-2.5 grid grid-cols-5 gap-1 items-center bg-gray-50/50">
+                <span class="text-xs font-medium text-gray-700">casino_k</span>
+                <span class="text-[10px] text-gray-500">Mar 2026</span>
+                <span class="text-[10px] text-gray-700">€31,200</span>
+                <span class="text-[10px] font-semibold text-gray-900">€9,360</span>
+                <span class="inline-flex w-fit px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 text-[10px] font-semibold">paid</span>
+              </div>
+            </div>
+          </div>
+          <div class="order-1 lg:order-2">
+            <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-700 bg-violet-50 px-3 py-1 rounded-full mb-4">Commission Reports</span>
+            <h3 class="text-2xl font-black text-gray-900 mb-3">One-click from calculation to payment</h3>
+            <p class="text-gray-500 leading-relaxed mb-5">Calculate reports for any month with a single API call. Your finance team reviews, approves, and marks as paid — all within Affiliar. A full audit trail is kept automatically.</p>
+            <ul class="space-y-2 text-sm text-gray-600">
+              <li class="flex gap-2 items-center"><span class="w-4 h-4 rounded-full bg-violet-100 text-violet-600 text-[10px] flex items-center justify-center font-bold">✓</span> Draft → Pending → Approved → Paid</li>
+              <li class="flex gap-2 items-center"><span class="w-4 h-4 rounded-full bg-violet-100 text-violet-600 text-[10px] flex items-center justify-center font-bold">✓</span> Direct commission + override breakdown</li>
+              <li class="flex gap-2 items-center"><span class="w-4 h-4 rounded-full bg-violet-100 text-violet-600 text-[10px] flex items-center justify-center font-bold">✓</span> Plan snapshot preserved at calculation time</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Screenshot 3 — Affiliate Portal -->
+        <div class="grid lg:grid-cols-2 gap-12 items-center">
+          <div>
+            <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-pink-700 bg-pink-50 px-3 py-1 rounded-full mb-4">Affiliate Portal</span>
+            <h3 class="text-2xl font-black text-gray-900 mb-3">Affiliates manage themselves</h3>
+            <p class="text-gray-500 leading-relaxed mb-5">A dedicated portal scoped to each affiliate — their own KPIs, referral links, commission history, and sub-affiliate management. No more forwarding reports via email.</p>
+            <ul class="space-y-2 text-sm text-gray-600">
+              <li class="flex gap-2 items-center"><span class="w-4 h-4 rounded-full bg-pink-100 text-pink-600 text-[10px] flex items-center justify-center font-bold">✓</span> Real-time NGR, FTDs, registrations</li>
+              <li class="flex gap-2 items-center"><span class="w-4 h-4 rounded-full bg-pink-100 text-pink-600 text-[10px] flex items-center justify-center font-bold">✓</span> Referral link + code copy in one click</li>
+              <li class="flex gap-2 items-center"><span class="w-4 h-4 rounded-full bg-pink-100 text-pink-600 text-[10px] flex items-center justify-center font-bold">✓</span> Commission statement per month</li>
+            </ul>
+          </div>
+          <div class="rounded-2xl border border-gray-200 overflow-hidden shadow-xl shadow-gray-200/60 bg-white">
+            <div class="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 bg-gray-50">
+              <div class="w-2.5 h-2.5 rounded-full bg-red-400"></div><div class="w-2.5 h-2.5 rounded-full bg-yellow-400"></div><div class="w-2.5 h-2.5 rounded-full bg-green-400"></div>
+              <div class="flex-1 mx-3 h-5 rounded bg-gray-200 text-[10px] text-gray-400 flex items-center px-3">app.affiliar.co/affiliate/dashboard</div>
+            </div>
+            <div class="flex h-48">
+              <!-- Sidebar -->
+              <div class="w-14 bg-gray-900 flex flex-col items-center py-4 gap-5 shrink-0">
+                <div class="w-7 h-7 rounded-lg bg-primary flex items-center justify-center text-white font-black text-xs">A</div>
+                <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center"><div class="w-3 h-3 rounded bg-white/60"></div></div>
+                <div class="w-8 h-8 rounded-lg flex items-center justify-center"><div class="w-3 h-3 rounded bg-white/20"></div></div>
+                <div class="w-8 h-8 rounded-lg flex items-center justify-center"><div class="w-3 h-3 rounded bg-white/20"></div></div>
+                <div class="w-8 h-8 rounded-lg flex items-center justify-center"><div class="w-3 h-3 rounded bg-white/20"></div></div>
+              </div>
+              <!-- Content -->
+              <div class="flex-1 p-4 bg-gray-50 overflow-hidden">
+                <p class="text-[10px] font-bold text-gray-500 mb-3 uppercase tracking-wider">Dashboard</p>
+                <div class="grid grid-cols-3 gap-2 mb-3">
+                  <div class="bg-white rounded-lg p-2.5 border border-gray-100 shadow-sm">
+                    <p class="text-[9px] text-gray-400">NGR</p>
+                    <p class="text-sm font-black text-gray-900">€24,820</p>
+                    <p class="text-[9px] text-green-600 font-medium">↑ 14%</p>
+                  </div>
+                  <div class="bg-white rounded-lg p-2.5 border border-gray-100 shadow-sm">
+                    <p class="text-[9px] text-gray-400">FTDs</p>
+                    <p class="text-sm font-black text-gray-900">84</p>
+                    <p class="text-[9px] text-green-600 font-medium">↑ 8%</p>
+                  </div>
+                  <div class="bg-white rounded-lg p-2.5 border border-gray-100 shadow-sm">
+                    <p class="text-[9px] text-gray-400">Earned</p>
+                    <p class="text-sm font-black text-primary">€7,446</p>
+                    <p class="text-[9px] text-gray-400">this month</p>
+                  </div>
+                </div>
+                <!-- Mini chart -->
+                <div class="bg-white rounded-lg p-2.5 border border-gray-100 shadow-sm">
+                  <p class="text-[9px] text-gray-400 mb-2">Registrations · Last 14 days</p>
+                  <div class="flex items-end gap-0.5 h-8">
+                    <div class="flex-1 rounded-t bg-primary/20" style="height:50%"></div>
+                    <div class="flex-1 rounded-t bg-primary/30" style="height:65%"></div>
+                    <div class="flex-1 rounded-t bg-primary/20" style="height:40%"></div>
+                    <div class="flex-1 rounded-t bg-primary/40" style="height:80%"></div>
+                    <div class="flex-1 rounded-t bg-primary/30" style="height:55%"></div>
+                    <div class="flex-1 rounded-t bg-primary/50" style="height:90%"></div>
+                    <div class="flex-1 rounded-t bg-primary/60" style="height:100%"></div>
+                    <div class="flex-1 rounded-t bg-primary/40" style="height:70%"></div>
+                    <div class="flex-1 rounded-t bg-primary/35" style="height:60%"></div>
+                    <div class="flex-1 rounded-t bg-primary/50" style="height:85%"></div>
+                    <div class="flex-1 rounded-t bg-primary"    style="height:100%"></div>
+                    <div class="flex-1 rounded-t bg-primary/60" style="height:78%"></div>
+                    <div class="flex-1 rounded-t bg-primary/70" style="height:95%"></div>
+                    <div class="flex-1 rounded-t bg-primary/55" style="height:72%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Screenshot 4 — Commission Plans Builder -->
+        <div class="grid lg:grid-cols-2 gap-12 items-center">
+          <div class="order-2 lg:order-1 rounded-2xl border border-gray-200 overflow-hidden shadow-xl shadow-gray-200/60 bg-white">
+            <div class="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 bg-gray-50">
+              <div class="w-2.5 h-2.5 rounded-full bg-red-400"></div><div class="w-2.5 h-2.5 rounded-full bg-yellow-400"></div><div class="w-2.5 h-2.5 rounded-full bg-green-400"></div>
+              <div class="flex-1 mx-3 h-5 rounded bg-gray-200 text-[10px] text-gray-400 flex items-center px-3">app.affiliar.co/commission/plans</div>
+            </div>
+            <div class="p-4 space-y-2.5">
+              <div class="flex items-center justify-between p-3 rounded-xl border border-gray-100 bg-gray-50">
+                <div class="flex items-center gap-3">
+                  <span class="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center">
+                    <span class="text-blue-600 text-[10px] font-black">RS</span>
+                  </span>
+                  <div>
+                    <p class="text-xs font-semibold text-gray-900">Standard RevShare</p>
+                    <p class="text-[10px] text-gray-400">30% of NGR · Default plan</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded font-semibold">Default</span>
+                  <span class="inline-flex px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-semibold">revshare</span>
+                </div>
+              </div>
+              <div class="flex items-center justify-between p-3 rounded-xl border border-primary/20 bg-primary-light">
+                <div class="flex items-center gap-3">
+                  <span class="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center">
+                    <span class="text-indigo-600 text-[10px] font-black">T</span>
+                  </span>
+                  <div>
+                    <p class="text-xs font-semibold text-gray-900">Growth Tier Plan</p>
+                    <p class="text-[10px] text-gray-400">25% → 32% → 40% by NGR</p>
+                  </div>
+                </div>
+                <span class="inline-flex px-2 py-0.5 rounded bg-cyan-50 text-cyan-700 text-[10px] font-semibold">tiered</span>
+              </div>
+              <div class="flex items-center justify-between p-3 rounded-xl border border-gray-100 bg-gray-50">
+                <div class="flex items-center gap-3">
+                  <span class="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center">
+                    <span class="text-purple-600 text-[10px] font-black">H</span>
+                  </span>
+                  <div>
+                    <p class="text-xs font-semibold text-gray-900">Hybrid VIP</p>
+                    <p class="text-[10px] text-gray-400">20% RevShare + €50 CPA per FTD</p>
+                  </div>
+                </div>
+                <span class="inline-flex px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[10px] font-semibold">hybrid</span>
+              </div>
+              <div class="flex items-center justify-between p-3 rounded-xl border border-gray-100 bg-gray-50">
+                <div class="flex items-center gap-3">
+                  <span class="w-7 h-7 rounded-lg bg-green-100 flex items-center justify-center">
+                    <span class="text-green-700 text-[10px] font-black">C</span>
+                  </span>
+                  <div>
+                    <p class="text-xs font-semibold text-gray-900">CPA Basic</p>
+                    <p class="text-[10px] text-gray-400">€30 per qualifying FTD</p>
+                  </div>
+                </div>
+                <span class="inline-flex px-2 py-0.5 rounded bg-green-50 text-green-700 text-[10px] font-semibold">cpa</span>
+              </div>
+            </div>
+          </div>
+          <div class="order-1 lg:order-2">
+            <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 px-3 py-1 rounded-full mb-4">Commission Plans</span>
+            <h3 class="text-2xl font-black text-gray-900 mb-3">Any deal structure, no custom code</h3>
+            <p class="text-gray-500 leading-relaxed mb-5">Create as many plans as you need. Set one as the network default, override per affiliate. Switch plans mid-month — the old snapshot is preserved in every historical report.</p>
+            <ul class="space-y-2 text-sm text-gray-600">
+              <li class="flex gap-2 items-center"><span class="w-4 h-4 rounded-full bg-blue-100 text-blue-600 text-[10px] flex items-center justify-center font-bold">✓</span> RevShare, CPA, Hybrid, Tiered in one UI</li>
+              <li class="flex gap-2 items-center"><span class="w-4 h-4 rounded-full bg-blue-100 text-blue-600 text-[10px] flex items-center justify-center font-bold">✓</span> Plan snapshot in every commission report</li>
+              <li class="flex gap-2 items-center"><span class="w-4 h-4 rounded-full bg-blue-100 text-blue-600 text-[10px] flex items-center justify-center font-bold">✓</span> One-click assign to any affiliate</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Screenshot 5 — Campaign Tracking -->
+        <div class="grid lg:grid-cols-2 gap-12 items-center">
+          <div>
+            <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 px-3 py-1 rounded-full mb-4">Campaign Tracking</span>
+            <h3 class="text-2xl font-black text-gray-900 mb-3">See which traffic sources actually convert</h3>
+            <p class="text-gray-500 leading-relaxed mb-5">Affiliates tag their referral links with a campaign parameter &mdash; like &ldquo;instagram_april&rdquo; or &ldquo;youtube_review&rdquo;. Every player event carries that tag through the pipeline, so you can group reports by campaign and instantly see which sources drive the most registrations, FTDs, and NGR.</p>
+            <ul class="space-y-2 text-sm text-gray-600">
+              <li class="flex gap-2 items-center"><span class="w-4 h-4 rounded-full bg-amber-100 text-amber-600 text-[10px] flex items-center justify-center font-bold">✓</span> UTM-style tracking parameters</li>
+              <li class="flex gap-2 items-center"><span class="w-4 h-4 rounded-full bg-amber-100 text-amber-600 text-[10px] flex items-center justify-center font-bold">✓</span> Campaign-grouped performance reports</li>
+              <li class="flex gap-2 items-center"><span class="w-4 h-4 rounded-full bg-amber-100 text-amber-600 text-[10px] flex items-center justify-center font-bold">✓</span> Sub-source &amp; click ID support</li>
+            </ul>
+          </div>
+          <div class="rounded-2xl border border-gray-200 overflow-hidden shadow-xl shadow-gray-200/60 bg-white">
+            <div class="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 bg-gray-50">
+              <div class="w-2.5 h-2.5 rounded-full bg-red-400"></div><div class="w-2.5 h-2.5 rounded-full bg-yellow-400"></div><div class="w-2.5 h-2.5 rounded-full bg-green-400"></div>
+              <div class="flex-1 mx-3 h-5 rounded bg-gray-200 text-[10px] text-gray-400 flex items-center px-3">app.affiliar.co/reports/campaigns</div>
+            </div>
+            <!-- Action bar -->
+            <div class="flex items-center justify-between p-3 border-b border-gray-100">
+              <span class="text-xs font-bold text-gray-700">Campaign Report</span>
+              <span class="px-3 py-1.5 rounded-md bg-gray-100 text-gray-600 text-xs font-semibold">Apr 1 &ndash; Apr 30, 2026</span>
+            </div>
+            <!-- Table header -->
+            <div class="px-4 py-2 bg-gray-50 border-b border-gray-100 grid grid-cols-5 gap-2">
+              <span class="text-[10px] font-bold text-gray-400 uppercase">Campaign</span>
+              <span class="text-[10px] font-bold text-gray-400 uppercase">Regs</span>
+              <span class="text-[10px] font-bold text-gray-400 uppercase">FTDs</span>
+              <span class="text-[10px] font-bold text-gray-400 uppercase">Deposits</span>
+              <span class="text-[10px] font-bold text-gray-400 uppercase">NGR</span>
+            </div>
+            <!-- Rows -->
+            <div class="divide-y divide-gray-50">
+              <div class="px-4 py-2.5 grid grid-cols-5 gap-2 items-center">
+                <span class="text-xs font-semibold text-gray-800">instagram_april</span>
+                <span class="text-[10px] text-gray-700">312</span>
+                <span class="text-[10px] text-gray-700">89</span>
+                <span class="text-[10px] text-gray-700">&euro;24,500</span>
+                <span class="text-[10px] text-gray-700 font-semibold">&euro;8,120</span>
+              </div>
+              <div class="px-4 py-2.5 grid grid-cols-5 gap-2 items-center bg-gray-50/50">
+                <span class="text-xs font-semibold text-gray-800">youtube_review</span>
+                <span class="text-[10px] text-gray-700">187</span>
+                <span class="text-[10px] text-gray-700">54</span>
+                <span class="text-[10px] text-gray-700">&euro;15,200</span>
+                <span class="text-[10px] text-gray-700 font-semibold">&euro;5,340</span>
+              </div>
+              <div class="px-4 py-2.5 grid grid-cols-5 gap-2 items-center">
+                <span class="text-xs font-semibold text-gray-800">email_q2</span>
+                <span class="text-[10px] text-gray-700">95</span>
+                <span class="text-[10px] text-gray-700">31</span>
+                <span class="text-[10px] text-gray-700">&euro;9,800</span>
+                <span class="text-[10px] text-gray-700 font-semibold">&euro;3,210</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section id="cta" class="py-24 px-6 bg-primary">
+    <div class="max-w-3xl mx-auto text-center">
+      <p class="text-white/60 text-sm font-semibold uppercase tracking-widest mb-4">Ready to ship?</p>
+      <h2 class="text-4xl sm:text-5xl font-black tracking-tight text-white mb-5">
+        Your affiliate program,<br />finally under control.
+      </h2>
+      <p class="text-white/70 text-lg mb-10 max-w-xl mx-auto">
+        Join operators who trust Affiliar to run their affiliate networks — from onboarding to payout.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <a href="mailto:hello@affiliar.co" class="bg-white text-primary font-bold px-8 py-4 rounded-xl text-base transition-all hover:shadow-xl hover:-translate-y-0.5 hover:bg-gray-50">
+          Book a demo →
+        </a>
+        <a href="mailto:hello@affiliar.co" class="border border-white/30 text-white hover:bg-white/10 font-semibold px-8 py-4 rounded-xl text-base transition-colors">
+          Talk to sales
+        </a>
+      </div>
+      <p class="text-white/40 text-xs mt-6">No credit card required. Setup in under a day.</p>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-gray-100 py-10 px-6 bg-white">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <div class="w-7 h-7 rounded-lg bg-primary flex items-center justify-center text-white font-black text-xs">A</div>
+        <span class="font-bold text-gray-900">Affiliar</span>
+        <span class="text-gray-400 text-sm ml-3">Affiliate management for iGaming operators.</span>
+      </div>
+      <p class="text-xs text-gray-400">© 2026 Affiliar. All rights reserved.</p>
+    </div>
+  </footer>
+
+</body>
+</html>

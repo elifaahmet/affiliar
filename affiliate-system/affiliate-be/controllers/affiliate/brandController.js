@@ -1,0 +1,93 @@
+const Brand = require("../../models/Brand");
+
+/**
+ * GET /api/brands
+ * Returns all brands belonging to the authenticated operator.
+ */
+exports.list = async (req, res) => {
+  const operator = req.affiliateUser;
+  if (operator.role !== "operator") {
+    return res.status(403).json({ error: "Only operators can access brands" });
+  }
+
+  try {
+    const brands = await Brand.find({ operatorId: operator._id })
+      .select("id name url enabled")
+      .sort({ id: 1 })
+      .lean();
+
+    return res.json({ brands });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * POST /api/brands
+ * Create a new brand for the authenticated operator.
+ * Body: { name, url?, enabled? }
+ */
+exports.create = async (req, res) => {
+  const operator = req.affiliateUser;
+  if (operator.role !== "operator") {
+    return res.status(403).json({ error: "Only operators can manage brands" });
+  }
+
+  const { name, url, enabled } = req.body;
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: "name is required" });
+  }
+
+  try {
+    // Auto-increment id within this operator's brands
+    const last = await Brand.findOne({ operatorId: operator._id }).sort({ id: -1 }).lean();
+    const nextId = (last?.id ?? 0) + 1;
+
+    const brand = await Brand.create({
+      id: nextId,
+      name: name.trim(),
+      url: url?.trim() || null,
+      enabled: enabled !== undefined ? Boolean(enabled) : true,
+      operatorId: operator._id,
+    });
+
+    return res.status(201).json({ brand });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * PATCH /api/brands/:id
+ * Update a brand (name, url, enabled).
+ */
+exports.update = async (req, res) => {
+  const operator = req.affiliateUser;
+  if (operator.role !== "operator") {
+    return res.status(403).json({ error: "Only operators can manage brands" });
+  }
+
+  const { name, url, enabled } = req.body;
+  const updates = {};
+  if (name !== undefined)    updates.name    = name.trim();
+  if (url !== undefined)     updates.url     = url.trim() || null;
+  if (enabled !== undefined) updates.enabled = Boolean(enabled);
+
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json({ error: "No fields to update" });
+  }
+
+  try {
+    const brand = await Brand.findOneAndUpdate(
+      { _id: req.params.id, operatorId: operator._id },
+      updates,
+      { new: true }
+    ).select("id name url enabled");
+
+    if (!brand) return res.status(404).json({ error: "Brand not found" });
+
+    return res.json({ brand });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};

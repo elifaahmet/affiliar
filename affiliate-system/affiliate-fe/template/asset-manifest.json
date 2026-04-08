@@ -1,0 +1,21 @@
+{
+  "files": {
+    "main.css": "/static/css/main.362eb0e1.css",
+    "main.js": "/static/js/main.02f21e2d.js",
+    "static/media/SFProDisplay-Medium.woff": "/static/media/SFProDisplay-Medium.4d218a5ef8ff6d9b6e57.woff",
+    "static/media/SFProDisplay-Bold.woff": "/static/media/SFProDisplay-Bold.cabfee52f9927cf3371d.woff",
+    "static/media/SFProDisplay-Regular.woff": "/static/media/SFProDisplay-Regular.459ad3e5769325487e06.woff",
+    "static/media/SFProDisplay-Bold.woff2": "/static/media/SFProDisplay-Bold.b8f3f4d9de8956eef6dc.woff2",
+    "static/media/SFProDisplay-Medium.woff2": "/static/media/SFProDisplay-Medium.758d8ff4ccfd738c0aec.woff2",
+    "static/media/SFProDisplay-Regular.woff2": "/static/media/SFProDisplay-Regular.db83c51649cbeb7e0514.woff2",
+    "static/media/logo.png": "/static/media/logo.7c5b4332078e0cd289b4.png",
+    "static/media/calendar.svg": "/static/media/calendar.8fc5f1210a375864a272.svg",
+    "index.html": "/index.html",
+    "main.362eb0e1.css.map": "/static/css/main.362eb0e1.css.map",
+    "main.02f21e2d.js.map": "/static/js/main.02f21e2d.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.362eb0e1.css",
+    "static/js/main.02f21e2d.js"
+  ]
+}

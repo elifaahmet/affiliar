@@ -1,0 +1,1835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Affiliar User Guide — Help Center</title>
+
+  <!-- SEO -->
+  <meta name="description" content="Step-by-step user guide for Affiliar — the affiliate management platform for iGaming operators. Learn how to manage affiliates, commission plans, reports, sub-affiliates, and more." />
+  <meta name="keywords" content="affiliar guide, affiliate management help, iGaming affiliate tutorial, commission plans guide, sub-affiliate setup" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://affiliar.co/guide" />
+
+  <!-- Open Graph -->
+  <meta property="og:type"        content="website" />
+  <meta property="og:url"         content="https://affiliar.co/guide" />
+  <meta property="og:title"       content="Affiliar User Guide — Help Center" />
+  <meta property="og:description" content="Step-by-step guide for operators using Affiliar. Manage affiliates, commissions, reports, and more." />
+  <meta property="og:image"       content="https://affiliar.co/og-image.png" />
+  <meta property="og:site_name"   content="Affiliar" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#4F6EF7',
+            'primary-dark': '#3B55D4',
+            'primary-light': '#EEF1FE',
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+          },
+        },
+      },
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    html { scroll-behavior: smooth; }
+
+    /* Sidebar active */
+    .nav-link { display: block; padding: 5px 10px; border-radius: 6px; font-size: 13px; color: #6b7280; transition: all 0.15s; }
+    .nav-link:hover { color: #111827; background: #f3f4f6; }
+    .nav-link.active { color: #4F6EF7; background: #EEF1FE; font-weight: 600; }
+
+    /* Content headings anchor offset */
+    .content section { scroll-margin-top: 80px; }
+
+    /* Code blocks */
+    pre { background: #0f1117; color: #e2e8f0; border-radius: 10px; padding: 18px 20px; overflow-x: auto; font-size: 13px; line-height: 1.7; }
+    code { font-family: 'JetBrains Mono', monospace; }
+    p code, li code, td code {
+      background: #f3f4f6; color: #374151; padding: 2px 6px; border-radius: 4px;
+      font-size: 12.5px; font-family: 'JetBrains Mono', monospace; border: 1px solid #e5e7eb;
+    }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    th { background: #f9fafb; text-align: left; padding: 10px 14px; border-bottom: 2px solid #e5e7eb; font-weight: 600; color: #374151; }
+    td { padding: 10px 14px; border-bottom: 1px solid #f3f4f6; color: #4b5563; vertical-align: top; }
+
+    /* Callouts */
+    .callout-info  { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13.5px; color: #1e40af; }
+    .callout-warn  { background: #fffbeb; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13.5px; color: #92400e; }
+    .callout-tip   { background: #f0fdf4; border-left: 3px solid #22c55e; padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13.5px; color: #166534; }
+
+    /* Step number */
+    .step-num { width: 28px; height: 28px; border-radius: 50%; background: #4F6EF7; color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+
+    /* UI Mockup */
+    .ui-mockup { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; font-size: 13px; }
+    .ui-mockup-bar { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 8px 14px; display: flex; align-items: center; gap: 6px; }
+    .ui-mockup-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .ui-mockup-body { padding: 16px 20px; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+
+    /* Mobile sidebar */
+    #sidebar { transition: transform 0.25s ease; }
+    @media (max-width: 1024px) {
+      #sidebar { position: fixed; top: 56px; left: 0; bottom: 0; z-index: 40; transform: translateX(-100%); }
+      #sidebar.open { transform: translateX(0); }
+    }
+  </style>
+</head>
+<body class="font-sans bg-white text-gray-900 antialiased">
+
+  <!-- TOP NAV -->
+  <nav class="fixed top-0 left-0 right-0 z-50 h-14 bg-white border-b border-gray-200 flex items-center px-4 gap-4">
+    <button id="menuBtn" class="lg:hidden p-1.5 rounded-md hover:bg-gray-100 text-gray-500" onclick="document.getElementById('sidebar').classList.toggle('open')">
+      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <a href="index.html" class="flex items-center gap-2 shrink-0">
+      <div class="w-7 h-7 rounded-lg bg-primary flex items-center justify-center text-white font-black text-xs">A</div>
+      <span class="font-bold text-gray-900">Affiliar</span>
+    </a>
+    <span class="text-gray-300 text-lg hidden sm:block">|</span>
+    <span class="text-sm text-gray-500 hidden sm:block">User Guide</span>
+    <div class="flex-1"></div>
+    <div class="hidden sm:flex items-center gap-4 text-xs text-gray-400">
+      <a href="index.html" class="hover:text-gray-700 transition-colors">Home</a>
+      <a href="docs.html" class="hover:text-gray-700 transition-colors">API Docs</a>
+      <a href="pricing.html" class="hover:text-gray-700 transition-colors">Pricing</a>
+      <a href="guide.html" class="text-primary font-semibold">Guide</a>
+    </div>
+    <a href="#" class="text-xs font-semibold bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary-dark transition-colors">Get started</a>
+  </nav>
+
+  <div class="flex pt-14 min-h-screen">
+
+    <!-- SIDEBAR -->
+    <aside id="sidebar" class="w-64 shrink-0 border-r border-gray-100 bg-white overflow-y-auto h-[calc(100vh-56px)] sticky top-14 hidden lg:block">
+      <div class="p-4 space-y-6">
+
+        <div>
+          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Getting Started</p>
+          <a href="#creating-account"      class="nav-link active">Creating your account</a>
+          <a href="#first-login"           class="nav-link">First login &amp; dashboard</a>
+          <a href="#sidebar-nav"           class="nav-link">Sidebar navigation</a>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Managing Affiliates</p>
+          <a href="#add-affiliate"         class="nav-link">Adding an affiliate</a>
+          <a href="#bulk-import"           class="nav-link">Bulk CSV import</a>
+          <a href="#invite-link"           class="nav-link">Invite via link</a>
+          <a href="#affiliates-table"      class="nav-link">Affiliates table</a>
+          <a href="#copy-invite"           class="nav-link">Copy invite link</a>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Commission Plans</p>
+          <a href="#plan-revshare"         class="nav-link">RevShare plan</a>
+          <a href="#plan-cpa"              class="nav-link">CPA plan</a>
+          <a href="#plan-hybrid"           class="nav-link">Hybrid plan</a>
+          <a href="#plan-tiered"           class="nav-link">Tiered RevShare</a>
+          <a href="#plan-default"          class="nav-link">Default plan</a>
+          <a href="#plan-assign"           class="nav-link">Assign to affiliate</a>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Sub-Affiliates</p>
+          <a href="#sub-what"              class="nav-link">What are sub-affiliates</a>
+          <a href="#sub-setup"             class="nav-link">Setting up parents</a>
+          <a href="#sub-recruit"           class="nav-link">Recruit link</a>
+          <a href="#sub-override"          class="nav-link">Override commission</a>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Commission Reports</p>
+          <a href="#report-calculate"      class="nav-link">Calculating reports</a>
+          <a href="#report-statuses"       class="nav-link">Report statuses</a>
+          <a href="#report-approve"        class="nav-link">Reviewing &amp; approving</a>
+          <a href="#report-paid"           class="nav-link">Marking as paid</a>
+          <a href="#report-breakdown"      class="nav-link">Breakdown details</a>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Campaign Tracking</p>
+          <a href="#campaign-tracking"      class="nav-link">What are campaigns</a>
+          <a href="#campaign-links"         class="nav-link">Building tracking links</a>
+          <a href="#campaign-params"        class="nav-link">Tracking parameters</a>
+          <a href="#campaign-reports"       class="nav-link">Campaign reports</a>
+          <a href="#campaign-best"          class="nav-link">Best practices</a>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Affiliate Portal</p>
+          <a href="#portal-dashboard"      class="nav-link">Dashboard</a>
+          <a href="#portal-marketing"      class="nav-link">Marketing tools</a>
+          <a href="#portal-commission"     class="nav-link">Commission page</a>
+          <a href="#portal-sub-affiliates" class="nav-link">Sub-affiliates page</a>
+          <a href="#portal-profile"        class="nav-link">Profile page</a>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Reports &amp; Analytics</p>
+          <a href="#analytics-overview"    class="nav-link">Overview dashboard</a>
+          <a href="#analytics-performance" class="nav-link">Performance reports</a>
+          <a href="#analytics-traffic"     class="nav-link">Traffic reports</a>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 min-w-0">
+      <div class="max-w-3xl mx-auto px-6 py-12 content space-y-16">
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             GETTING STARTED
+             ═══════════════════════════════════════════════════════════════ -->
+
+        <section id="creating-account">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-light text-primary text-xs font-semibold mb-4">Getting Started</div>
+          <h1 class="text-4xl font-black text-gray-900 mb-4">Affiliar User Guide</h1>
+          <p class="text-gray-500 text-lg leading-relaxed mb-8">
+            Welcome to the Affiliar help center. This guide walks you through every feature of the platform, step by step.
+            Whether you are setting up your first affiliate programme or managing hundreds of partners, you will find what you need here.
+          </p>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+            <a href="#add-affiliate" class="border border-gray-200 rounded-xl p-4 hover:border-primary/40 hover:bg-primary-light/30 transition-colors group">
+              <p class="font-semibold text-gray-900 mb-1 group-hover:text-primary transition-colors">Manage Affiliates &rarr;</p>
+              <p class="text-xs text-gray-400">Add, invite, and organise your affiliates</p>
+            </a>
+            <a href="#plan-revshare" class="border border-gray-200 rounded-xl p-4 hover:border-primary/40 hover:bg-primary-light/30 transition-colors group">
+              <p class="font-semibold text-gray-900 mb-1 group-hover:text-primary transition-colors">Commission Plans &rarr;</p>
+              <p class="text-xs text-gray-400">RevShare, CPA, Hybrid, Tiered</p>
+            </a>
+            <a href="#report-calculate" class="border border-gray-200 rounded-xl p-4 hover:border-primary/40 hover:bg-primary-light/30 transition-colors group">
+              <p class="font-semibold text-gray-900 mb-1 group-hover:text-primary transition-colors">Reports &rarr;</p>
+              <p class="text-xs text-gray-400">Calculate, approve, and pay commissions</p>
+            </a>
+          </div>
+
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">1. Creating your operator account</h2>
+          <p class="text-gray-500 mb-6">Your operator account is the top-level entity in Affiliar. All affiliates, plans, and reports live under it.</p>
+
+          <div class="space-y-5">
+            <div class="flex gap-4">
+              <div class="step-num">1</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Go to the sign-up page</p>
+                <p class="text-gray-500 text-sm">Visit <code>app.affiliar.co/register</code> and choose <strong>Operator Account</strong>.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">2</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Fill in your details</p>
+                <p class="text-gray-500 text-sm">Enter your company name, email, and a strong password. Your company name becomes the operator display name visible to affiliates.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">3</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Verify your email</p>
+                <p class="text-gray-500 text-sm">Check your inbox for a verification link. Click it to activate your account.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">4</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Complete onboarding</p>
+                <p class="text-gray-500 text-sm">After verifying, you will be asked to set your default currency and configure basic settings. You can change these later.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout-tip mt-6">
+            <strong>Tip:</strong> Keep your verification email. If you ever need to reset your account or transfer ownership, you will need access to this email address. Contact <code>hello@affiliar.co</code> for account recovery.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- FIRST LOGIN -->
+        <section id="first-login">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">2. First login &amp; dashboard overview</h2>
+          <p class="text-gray-500 mb-6">When you log in for the first time, you will land on the operator dashboard. Here is what you will see:</p>
+
+          <!-- UI Mockup: Dashboard -->
+          <div class="ui-mockup mb-6">
+            <div class="ui-mockup-bar">
+              <div class="ui-mockup-dot bg-red-400"></div>
+              <div class="ui-mockup-dot bg-yellow-400"></div>
+              <div class="ui-mockup-dot bg-green-400"></div>
+              <span class="text-xs text-gray-400 ml-2">app.affiliar.co/dashboard</span>
+            </div>
+            <div class="ui-mockup-body">
+              <div class="flex gap-4 mb-4">
+                <div class="flex-1 bg-white rounded-lg border border-gray-200 p-3">
+                  <p class="text-[11px] text-gray-400 uppercase font-semibold">Total Affiliates</p>
+                  <p class="text-2xl font-bold text-gray-900">0</p>
+                </div>
+                <div class="flex-1 bg-white rounded-lg border border-gray-200 p-3">
+                  <p class="text-[11px] text-gray-400 uppercase font-semibold">Active Players</p>
+                  <p class="text-2xl font-bold text-gray-900">0</p>
+                </div>
+                <div class="flex-1 bg-white rounded-lg border border-gray-200 p-3">
+                  <p class="text-[11px] text-gray-400 uppercase font-semibold">Total NGR</p>
+                  <p class="text-2xl font-bold text-gray-900">&euro;0.00</p>
+                </div>
+                <div class="flex-1 bg-white rounded-lg border border-gray-200 p-3">
+                  <p class="text-[11px] text-gray-400 uppercase font-semibold">Commissions Due</p>
+                  <p class="text-2xl font-bold text-gray-900">&euro;0.00</p>
+                </div>
+              </div>
+              <div class="bg-white rounded-lg border border-gray-200 p-3 h-24 flex items-center justify-center text-gray-300 text-sm">
+                Revenue chart will appear once you start receiving player data
+              </div>
+            </div>
+          </div>
+
+          <p class="text-gray-500 text-sm mb-4">The dashboard shows four key metrics at the top:</p>
+          <ul class="list-disc list-inside space-y-1 text-sm text-gray-600 mb-4">
+            <li><strong>Total Affiliates</strong> -- how many affiliates are registered under your operator.</li>
+            <li><strong>Active Players</strong> -- players attributed to your affiliates who have been active this month.</li>
+            <li><strong>Total NGR</strong> -- net gaming revenue for the current calendar month.</li>
+            <li><strong>Commissions Due</strong> -- total pending commission across all affiliates.</li>
+          </ul>
+
+          <div class="callout-info">
+            <strong>Note:</strong> All figures are real-time. As soon as player events flow in (via Kafka or REST), these numbers update automatically.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- SIDEBAR NAV -->
+        <section id="sidebar-nav">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">3. Understanding the sidebar navigation</h2>
+          <p class="text-gray-500 mb-6">The sidebar is your main way to navigate Affiliar. Here is what each section does:</p>
+
+          <div class="overflow-x-auto rounded-xl border border-gray-100 mb-6">
+            <table>
+              <thead>
+                <tr><th>Menu Item</th><th>What it does</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><strong>Dashboard</strong></td><td>Overview of KPIs, revenue chart, and recent activity.</td></tr>
+                <tr><td><strong>Affiliates</strong></td><td>View, add, import, invite, and manage all your affiliates.</td></tr>
+                <tr><td><strong>Commission Plans</strong></td><td>Create and manage RevShare, CPA, Hybrid, and Tiered plans.</td></tr>
+                <tr><td><strong>Reports</strong></td><td>Calculate, review, approve, and mark commission reports as paid.</td></tr>
+                <tr><td><strong>Analytics</strong></td><td>Traffic reports, affiliate performance, and player analytics.</td></tr>
+                <tr><td><strong>Settings</strong></td><td>Operator settings, API keys, integration config, and team management.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout-tip">
+            <strong>Tip:</strong> On mobile, tap the hamburger menu icon in the top-left to open the sidebar. It slides in from the left.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             MANAGING AFFILIATES
+             ═══════════════════════════════════════════════════════════════ -->
+
+        <section id="add-affiliate">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-light text-primary text-xs font-semibold mb-4">Managing Affiliates</div>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">4. Adding a single affiliate</h2>
+          <p class="text-gray-500 mb-6">The quickest way to onboard a new affiliate is to add them manually.</p>
+
+          <div class="space-y-5 mb-6">
+            <div class="flex gap-4">
+              <div class="step-num">1</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Navigate to Affiliates</p>
+                <p class="text-gray-500 text-sm">Click <strong>Affiliates</strong> in the sidebar, then click the <strong>+ Add Affiliate</strong> button in the top-right.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">2</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Fill in the form</p>
+                <p class="text-gray-500 text-sm">The form has the following fields:</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- UI Mockup: Add Affiliate Form -->
+          <div class="ui-mockup mb-6">
+            <div class="ui-mockup-bar">
+              <div class="ui-mockup-dot bg-red-400"></div>
+              <div class="ui-mockup-dot bg-yellow-400"></div>
+              <div class="ui-mockup-dot bg-green-400"></div>
+              <span class="text-xs text-gray-400 ml-2">Add Affiliate</span>
+            </div>
+            <div class="ui-mockup-body space-y-3">
+              <div>
+                <label class="text-xs font-medium text-gray-500 block mb-1">Username *</label>
+                <div class="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-400">e.g. jane_doe</div>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-500 block mb-1">Email *</label>
+                <div class="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-400">e.g. jane@example.com</div>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-500 block mb-1">Full Name</label>
+                <div class="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-400">e.g. Jane Doe</div>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-500 block mb-1">Commission Plan</label>
+                <div class="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-400 flex justify-between items-center">
+                  <span>Select a plan (or leave as default)</span>
+                  <svg class="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </div>
+              </div>
+              <div class="pt-2">
+                <div class="inline-flex px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold">Create Affiliate</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto rounded-xl border border-gray-100 mb-6">
+            <table>
+              <thead>
+                <tr><th>Field</th><th>Required</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>Username</code></td><td>Yes</td><td>Unique username for the affiliate. Used for login and referral code generation.</td></tr>
+                <tr><td><code>Email</code></td><td>Yes</td><td>The affiliate's email. An invitation email will be sent to this address.</td></tr>
+                <tr><td><code>Full Name</code></td><td>No</td><td>Display name. Appears in reports and the affiliate portal.</td></tr>
+                <tr><td><code>Commission Plan</code></td><td>No</td><td>Assign a specific plan. If left empty, the operator's default plan is used.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="flex gap-4 mb-4">
+            <div class="step-num">3</div>
+            <div class="flex-1">
+              <p class="font-semibold text-gray-900 mb-1">Click "Create Affiliate"</p>
+              <p class="text-gray-500 text-sm">A referral code is generated automatically. The affiliate receives an email with login credentials and their referral link.</p>
+            </div>
+          </div>
+
+          <div class="callout-info">
+            <strong>Note:</strong> The affiliate's initial status will be <code>pending</code> until they log in and accept the invitation. You can still track players against a pending affiliate.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- BULK IMPORT -->
+        <section id="bulk-import">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">5. Bulk importing affiliates via CSV</h2>
+          <p class="text-gray-500 mb-6">If you are migrating from another platform or onboarding many affiliates at once, use the CSV import feature.</p>
+
+          <div class="space-y-5 mb-6">
+            <div class="flex gap-4">
+              <div class="step-num">1</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Download the CSV template</p>
+                <p class="text-gray-500 text-sm">Go to <strong>Affiliates</strong> &rarr; click the <strong>Import</strong> button &rarr; click <strong>Download Template</strong>.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">2</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Fill in the CSV</p>
+                <p class="text-gray-500 text-sm">The template has the following columns:</p>
+              </div>
+            </div>
+          </div>
+
+          <pre class="mb-6"><code>username,email,name,commission_plan
+jane_doe,jane@example.com,Jane Doe,RevShare 30%
+john_smith,john@example.com,John Smith,
+maria_g,maria@example.com,Maria Garcia,CPA $50</code></pre>
+
+          <div class="overflow-x-auto rounded-xl border border-gray-100 mb-6">
+            <table>
+              <thead>
+                <tr><th>Column</th><th>Required</th><th>Notes</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>username</code></td><td>Yes</td><td>Must be unique across your operator.</td></tr>
+                <tr><td><code>email</code></td><td>Yes</td><td>Must be a valid email address.</td></tr>
+                <tr><td><code>name</code></td><td>No</td><td>Display name for the affiliate.</td></tr>
+                <tr><td><code>commission_plan</code></td><td>No</td><td>Name of an existing plan. Leave blank to use the default plan.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="space-y-5 mb-6">
+            <div class="flex gap-4">
+              <div class="step-num">3</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Upload the file</p>
+                <p class="text-gray-500 text-sm">Drag and drop your CSV or click to browse. Affiliar validates the file before importing.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">4</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Review and confirm</p>
+                <p class="text-gray-500 text-sm">You will see a preview showing how many affiliates will be created and any validation errors (e.g. duplicate emails). Fix errors and re-upload, or click <strong>Confirm Import</strong>.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout-warn">
+            <strong>Warning:</strong> If an email already exists in your operator, that row will be skipped. The import will not overwrite existing affiliates.
+          </div>
+
+          <div class="callout-tip mt-4">
+            <strong>Tip:</strong> For large imports (1,000+ affiliates), the process runs in the background. You will receive an email at your operator email when it completes.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- INVITE LINK -->
+        <section id="invite-link">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">6. Inviting affiliates via link</h2>
+          <p class="text-gray-500 mb-6">Instead of adding affiliates manually, you can share a self-service sign-up link. Affiliates register themselves and appear in your dashboard automatically.</p>
+
+          <div class="space-y-5 mb-6">
+            <div class="flex gap-4">
+              <div class="step-num">1</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Find your invite link</p>
+                <p class="text-gray-500 text-sm">Go to <strong>Settings</strong> &rarr; <strong>Affiliate Registration</strong>. Your unique invite URL is displayed here.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">2</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Share the link</p>
+                <p class="text-gray-500 text-sm">Copy the link and share it via email, your website, or social media. It looks like:</p>
+              </div>
+            </div>
+          </div>
+
+          <pre class="mb-6"><code>https://app.affiliar.co/register/affiliate?op=YOUR_OPERATOR_ID</code></pre>
+
+          <div class="flex gap-4 mb-6">
+            <div class="step-num">3</div>
+            <div class="flex-1">
+              <p class="font-semibold text-gray-900 mb-1">Affiliates sign up</p>
+              <p class="text-gray-500 text-sm">When someone visits the link, they see a registration form pre-linked to your operator. Once they sign up, they appear in your Affiliates table with <code>pending</code> status.</p>
+            </div>
+          </div>
+
+          <div class="callout-info">
+            <strong>Note:</strong> Self-registered affiliates are assigned your default commission plan automatically. You can change their plan individually afterwards.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- AFFILIATES TABLE -->
+        <section id="affiliates-table">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">7. Viewing &amp; filtering the affiliates table</h2>
+          <p class="text-gray-500 mb-6">The Affiliates page is your central hub for managing all affiliates.</p>
+
+          <!-- UI Mockup: Affiliates Table -->
+          <div class="ui-mockup mb-6">
+            <div class="ui-mockup-bar">
+              <div class="ui-mockup-dot bg-red-400"></div>
+              <div class="ui-mockup-dot bg-yellow-400"></div>
+              <div class="ui-mockup-dot bg-green-400"></div>
+              <span class="text-xs text-gray-400 ml-2">Affiliates</span>
+            </div>
+            <div class="ui-mockup-body">
+              <!-- Filter bar -->
+              <div class="flex items-center gap-3 mb-4">
+                <div class="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-400 flex-1">Search by name, email, or referral code...</div>
+                <div class="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-500">Status: All</div>
+                <div class="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-500">Plan: All</div>
+              </div>
+              <!-- Table -->
+              <div class="bg-white rounded-lg border border-gray-200 overflow-hidden text-xs">
+                <div class="grid grid-cols-6 gap-2 p-2 bg-gray-50 font-semibold text-gray-500 border-b border-gray-200">
+                  <span>Username</span><span>Email</span><span>Status</span><span>Plan</span><span>Players</span><span>Actions</span>
+                </div>
+                <div class="grid grid-cols-6 gap-2 p-2 border-b border-gray-100 text-gray-600">
+                  <span class="font-medium text-gray-900">jane_doe</span>
+                  <span>jane@ex.com</span>
+                  <span><span class="px-1.5 py-0.5 rounded bg-green-100 text-green-700 text-[10px] font-semibold">Active</span></span>
+                  <span>RevShare 30%</span>
+                  <span>142</span>
+                  <span class="text-primary font-medium">Edit</span>
+                </div>
+                <div class="grid grid-cols-6 gap-2 p-2 border-b border-gray-100 text-gray-600">
+                  <span class="font-medium text-gray-900">john_smith</span>
+                  <span>john@ex.com</span>
+                  <span><span class="px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 text-[10px] font-semibold">Pending</span></span>
+                  <span>Default</span>
+                  <span>0</span>
+                  <span class="text-primary font-medium">Edit</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-sm text-gray-600 mb-4">You can filter affiliates by:</p>
+          <ul class="list-disc list-inside space-y-1 text-sm text-gray-600 mb-4">
+            <li><strong>Search</strong> -- type a name, email, username, or referral code.</li>
+            <li><strong>Status</strong> -- filter by Active, Pending, or Suspended.</li>
+            <li><strong>Plan</strong> -- show only affiliates on a specific commission plan.</li>
+          </ul>
+
+          <div class="callout-tip">
+            <strong>Tip:</strong> Click any column header to sort the table. Click again to reverse the sort order.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- COPY INVITE LINK -->
+        <section id="copy-invite">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">8. Copy invite link for pending affiliates</h2>
+          <p class="text-gray-500 mb-6">If an affiliate has not yet accepted their invitation, you can re-send or copy their personal invite link.</p>
+
+          <div class="space-y-5 mb-6">
+            <div class="flex gap-4">
+              <div class="step-num">1</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Find the affiliate</p>
+                <p class="text-gray-500 text-sm">In the Affiliates table, locate the affiliate with <code>Pending</code> status.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">2</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Click the copy icon</p>
+                <p class="text-gray-500 text-sm">In the <strong>Actions</strong> column, click the clipboard icon next to the affiliate. This copies their personal invite link to your clipboard.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">3</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Share the link</p>
+                <p class="text-gray-500 text-sm">Send the link directly to the affiliate via email, Slack, or any other channel. When they click it, they can set their password and activate their account.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout-info">
+            <strong>Note:</strong> The invite link is unique per affiliate and expires after 7 days. If it expires, you can generate a new one from the same actions menu.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             COMMISSION PLANS
+             ═══════════════════════════════════════════════════════════════ -->
+
+        <section id="plan-revshare">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-light text-primary text-xs font-semibold mb-4">Commission Plans</div>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">9. Creating a RevShare plan</h2>
+          <p class="text-gray-500 mb-6">Revenue Share (RevShare) pays affiliates a percentage of the net gaming revenue (NGR) generated by their referred players each month.</p>
+
+          <div class="space-y-5 mb-6">
+            <div class="flex gap-4">
+              <div class="step-num">1</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Go to Commission Plans</p>
+                <p class="text-gray-500 text-sm">Click <strong>Commission Plans</strong> in the sidebar, then click <strong>+ Create Plan</strong>.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">2</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Select "RevShare" as the plan type</p>
+                <p class="text-gray-500 text-sm">Choose <strong>RevShare</strong> from the type dropdown.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">3</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Configure the plan</p>
+                <p class="text-gray-500 text-sm">Fill in the following fields:</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- UI Mockup: RevShare Form -->
+          <div class="ui-mockup mb-6">
+            <div class="ui-mockup-bar">
+              <div class="ui-mockup-dot bg-red-400"></div>
+              <div class="ui-mockup-dot bg-yellow-400"></div>
+              <div class="ui-mockup-dot bg-green-400"></div>
+              <span class="text-xs text-gray-400 ml-2">Create Commission Plan</span>
+            </div>
+            <div class="ui-mockup-body space-y-3">
+              <div>
+                <label class="text-xs font-medium text-gray-500 block mb-1">Plan Name *</label>
+                <div class="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700">RevShare 30%</div>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-500 block mb-1">Type</label>
+                <div class="bg-white border border-primary rounded-lg px-3 py-2 text-sm text-primary font-medium">RevShare</div>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-500 block mb-1">Revenue Share Percentage *</label>
+                <div class="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 flex items-center justify-between">
+                  <span>30</span><span class="text-gray-400">%</span>
+                </div>
+              </div>
+              <div class="pt-2">
+                <div class="inline-flex px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold">Save Plan</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto rounded-xl border border-gray-100 mb-6">
+            <table>
+              <thead>
+                <tr><th>Field</th><th>Description</th><th>Example</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>Plan Name</code></td><td>A descriptive name for your plan. Visible to affiliates.</td><td>RevShare 30%</td></tr>
+                <tr><td><code>Type</code></td><td>The commission model. Select "RevShare".</td><td>RevShare</td></tr>
+                <tr><td><code>Percentage</code></td><td>The % of monthly NGR paid to the affiliate.</td><td>30</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout-info">
+            <strong>How NGR is calculated:</strong> NGR = Total Bets - Total Wins - Bonuses - Platform Fees. Only players attributed to the affiliate are included.
+          </div>
+
+          <div class="callout-tip mt-4">
+            <strong>Tip:</strong> A common starting point is 25-35% RevShare. You can create multiple RevShare plans at different percentages and assign them to different affiliate tiers.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- CPA PLAN -->
+        <section id="plan-cpa">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">10. Creating a CPA plan</h2>
+          <p class="text-gray-500 mb-6">Cost Per Acquisition (CPA) pays affiliates a fixed amount for each qualifying player they refer. A "qualifying player" is typically one who makes a first-time deposit (FTD).</p>
+
+          <div class="space-y-5 mb-6">
+            <div class="flex gap-4">
+              <div class="step-num">1</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Create a new plan and select "CPA"</p>
+                <p class="text-gray-500 text-sm">Go to <strong>Commission Plans</strong> &rarr; <strong>+ Create Plan</strong> &rarr; select <strong>CPA</strong> as the type.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">2</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Configure the plan</p>
+                <p class="text-gray-500 text-sm">Set the following fields:</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto rounded-xl border border-gray-100 mb-6">
+            <table>
+              <thead>
+                <tr><th>Field</th><th>Description</th><th>Example</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>Plan Name</code></td><td>Descriptive name for the plan.</td><td>CPA $50</td></tr>
+                <tr><td><code>Type</code></td><td>Select "CPA".</td><td>CPA</td></tr>
+                <tr><td><code>CPA Amount</code></td><td>Fixed amount paid per qualifying player.</td><td>50.00</td></tr>
+                <tr><td><code>Currency</code></td><td>Currency for the CPA payment.</td><td>EUR</td></tr>
+                <tr><td><code>Qualifying Event</code></td><td>What triggers the CPA. Usually "First Deposit" (FTD).</td><td>First Deposit</td></tr>
+                <tr><td><code>Min Deposit</code></td><td>Optional minimum deposit amount for the player to qualify.</td><td>20.00</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout-warn">
+            <strong>Warning:</strong> If you set a minimum deposit requirement, make sure your affiliates know about it. Players who deposit less than the minimum will not count toward CPA.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- HYBRID PLAN -->
+        <section id="plan-hybrid">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">11. Creating a Hybrid plan</h2>
+          <p class="text-gray-500 mb-6">A Hybrid plan combines both CPA and RevShare. The affiliate earns a one-time CPA payment for each qualifying player, plus an ongoing percentage of NGR.</p>
+
+          <div class="space-y-5 mb-6">
+            <div class="flex gap-4">
+              <div class="step-num">1</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Create a new plan and select "Hybrid"</p>
+                <p class="text-gray-500 text-sm">Go to <strong>Commission Plans</strong> &rarr; <strong>+ Create Plan</strong> &rarr; select <strong>Hybrid</strong>.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">2</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Configure both CPA and RevShare components</p>
+                <p class="text-gray-500 text-sm">You will see fields for both. For example:</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto rounded-xl border border-gray-100 mb-6">
+            <table>
+              <thead>
+                <tr><th>Field</th><th>Description</th><th>Example</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>Plan Name</code></td><td>Descriptive name.</td><td>Hybrid $25 + 20%</td></tr>
+                <tr><td><code>CPA Amount</code></td><td>One-time payment per qualifying player.</td><td>25.00</td></tr>
+                <tr><td><code>RevShare %</code></td><td>Ongoing monthly percentage of NGR.</td><td>20</td></tr>
+                <tr><td><code>Qualifying Event</code></td><td>What triggers the CPA portion.</td><td>First Deposit</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout-tip">
+            <strong>Tip:</strong> Hybrid plans are great for attracting affiliates who want guaranteed upfront income while also benefiting from long-term player value. Offer a lower CPA and RevShare than you would individually to balance your costs.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- TIERED REVSHARE -->
+        <section id="plan-tiered">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">12. Creating a Tiered RevShare plan</h2>
+          <p class="text-gray-500 mb-6">Tiered RevShare rewards high-performing affiliates with increasing revenue share percentages based on the NGR they generate.</p>
+
+          <div class="space-y-5 mb-6">
+            <div class="flex gap-4">
+              <div class="step-num">1</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Create a new plan and select "Tiered RevShare"</p>
+                <p class="text-gray-500 text-sm">Go to <strong>Commission Plans</strong> &rarr; <strong>+ Create Plan</strong> &rarr; select <strong>Tiered RevShare</strong>.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">2</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Define your tiers</p>
+                <p class="text-gray-500 text-sm">Add one or more tiers. Each tier specifies an NGR range and the RevShare percentage for that range.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- UI Mockup: Tiered RevShare -->
+          <div class="ui-mockup mb-6">
+            <div class="ui-mockup-bar">
+              <div class="ui-mockup-dot bg-red-400"></div>
+              <div class="ui-mockup-dot bg-yellow-400"></div>
+              <div class="ui-mockup-dot bg-green-400"></div>
+              <span class="text-xs text-gray-400 ml-2">Tiered RevShare Configuration</span>
+            </div>
+            <div class="ui-mockup-body">
+              <div class="bg-white rounded-lg border border-gray-200 overflow-hidden text-xs mb-3">
+                <div class="grid grid-cols-4 gap-2 p-2 bg-gray-50 font-semibold text-gray-500 border-b border-gray-200">
+                  <span>Tier</span><span>Min NGR</span><span>Max NGR</span><span>RevShare %</span>
+                </div>
+                <div class="grid grid-cols-4 gap-2 p-2 border-b border-gray-100 text-gray-600">
+                  <span class="font-medium text-gray-900">Tier 1</span>
+                  <span>&euro;0</span><span>&euro;5,000</span><span class="font-semibold text-primary">25%</span>
+                </div>
+                <div class="grid grid-cols-4 gap-2 p-2 border-b border-gray-100 text-gray-600">
+                  <span class="font-medium text-gray-900">Tier 2</span>
+                  <span>&euro;5,001</span><span>&euro;15,000</span><span class="font-semibold text-primary">30%</span>
+                </div>
+                <div class="grid grid-cols-4 gap-2 p-2 text-gray-600">
+                  <span class="font-medium text-gray-900">Tier 3</span>
+                  <span>&euro;15,001</span><span>Unlimited</span><span class="font-semibold text-primary">40%</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="inline-flex px-3 py-1.5 rounded-lg border border-dashed border-gray-300 text-xs text-gray-400 cursor-pointer hover:border-primary hover:text-primary">+ Add Tier</div>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-sm text-gray-600 mb-4">In this example:</p>
+          <ul class="list-disc list-inside space-y-1 text-sm text-gray-600 mb-6">
+            <li>If an affiliate's players generate <strong>&euro;3,000 NGR</strong> this month, they earn 25% = &euro;750.</li>
+            <li>If they generate <strong>&euro;10,000 NGR</strong>, they earn 30% = &euro;3,000.</li>
+            <li>If they generate <strong>&euro;25,000 NGR</strong>, they earn 40% = &euro;10,000.</li>
+          </ul>
+
+          <div class="callout-info">
+            <strong>How tiers work:</strong> The tier is determined by total monthly NGR. The entire commission is calculated at the highest qualifying tier's percentage -- it is not split across tiers. This is simpler for affiliates to understand and more motivating.
+          </div>
+
+          <div class="callout-warn mt-4">
+            <strong>Warning:</strong> Make sure your tier ranges do not overlap and there are no gaps. The "Max NGR" of one tier should be exactly one cent below the "Min NGR" of the next tier.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- DEFAULT PLAN -->
+        <section id="plan-default">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">13. Setting a default plan</h2>
+          <p class="text-gray-500 mb-6">The default plan is automatically assigned to new affiliates who are added without specifying a plan (including self-registered affiliates).</p>
+
+          <div class="space-y-5 mb-6">
+            <div class="flex gap-4">
+              <div class="step-num">1</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Go to Commission Plans</p>
+                <p class="text-gray-500 text-sm">In the sidebar, click <strong>Commission Plans</strong>.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">2</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Find the plan you want as default</p>
+                <p class="text-gray-500 text-sm">Locate it in the plans list.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">3</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Click "Set as Default"</p>
+                <p class="text-gray-500 text-sm">Click the three-dot menu (...) on the plan row, then select <strong>Set as Default</strong>. A star badge will appear next to the plan name.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout-tip">
+            <strong>Tip:</strong> You can only have one default plan at a time. Setting a new default automatically removes the default status from the previous one. Existing affiliates are not affected -- only new affiliates get the default.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ASSIGN PLAN -->
+        <section id="plan-assign">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">14. Assigning a plan to a specific affiliate</h2>
+          <p class="text-gray-500 mb-6">You can override the default plan for any individual affiliate.</p>
+
+          <div class="space-y-5 mb-6">
+            <div class="flex gap-4">
+              <div class="step-num">1</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Go to the affiliate's detail page</p>
+                <p class="text-gray-500 text-sm">In the Affiliates table, click on the affiliate's name or the <strong>Edit</strong> button.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">2</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Change the commission plan</p>
+                <p class="text-gray-500 text-sm">In the affiliate detail view, find the <strong>Commission Plan</strong> dropdown and select the plan you want.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">3</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Save changes</p>
+                <p class="text-gray-500 text-sm">Click <strong>Save</strong>. The new plan takes effect immediately for future commission calculations.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout-info">
+            <strong>Note:</strong> Changing a plan does not retroactively recalculate previous reports. It only applies to future report periods. If you need to recalculate a past month, you must regenerate that month's report.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             SUB-AFFILIATES
+             ═══════════════════════════════════════════════════════════════ -->
+
+        <section id="sub-what">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-light text-primary text-xs font-semibold mb-4">Sub-Affiliates</div>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">15. What are sub-affiliates and how do they work</h2>
+          <p class="text-gray-500 mb-6">Sub-affiliates allow your existing affiliates to recruit new affiliates. The parent affiliate earns an override commission on top of their own earnings, based on the performance of the affiliates they recruited.</p>
+
+          <!-- Diagram -->
+          <div class="ui-mockup mb-6">
+            <div class="ui-mockup-bar">
+              <div class="ui-mockup-dot bg-red-400"></div>
+              <div class="ui-mockup-dot bg-yellow-400"></div>
+              <div class="ui-mockup-dot bg-green-400"></div>
+              <span class="text-xs text-gray-400 ml-2">Sub-Affiliate Structure</span>
+            </div>
+            <div class="ui-mockup-body text-center py-6">
+              <div class="inline-flex flex-col items-center gap-1 mb-3">
+                <div class="bg-primary text-white text-xs font-semibold px-4 py-2 rounded-lg">Parent Affiliate (Jane)</div>
+                <div class="text-gray-300 text-xs">Earns own commission + override</div>
+              </div>
+              <div class="flex items-center justify-center gap-1 text-gray-300 mb-3">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+                <span class="text-xs">recruits</span>
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+              </div>
+              <div class="flex justify-center gap-4">
+                <div class="inline-flex flex-col items-center gap-1">
+                  <div class="bg-gray-100 text-gray-700 text-xs font-semibold px-4 py-2 rounded-lg">Sub-Affiliate (Tom)</div>
+                  <div class="text-gray-300 text-[10px]">Earns own commission</div>
+                </div>
+                <div class="inline-flex flex-col items-center gap-1">
+                  <div class="bg-gray-100 text-gray-700 text-xs font-semibold px-4 py-2 rounded-lg">Sub-Affiliate (Sara)</div>
+                  <div class="text-gray-300 text-[10px]">Earns own commission</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-sm text-gray-600 mb-4">In this example:</p>
+          <ul class="list-disc list-inside space-y-1 text-sm text-gray-600 mb-4">
+            <li>Jane is the <strong>parent affiliate</strong>. She recruits Tom and Sara.</li>
+            <li>Tom and Sara earn their own commissions based on their plans.</li>
+            <li>Jane earns an <strong>override commission</strong> -- an additional percentage based on what Tom and Sara generate.</li>
+            <li>The override is paid by the operator, not deducted from the sub-affiliate's earnings.</li>
+          </ul>
+
+          <div class="callout-info">
+            <strong>Important:</strong> Sub-affiliates earn their full commission as defined by their plan. The override is an additional cost to the operator -- it does not reduce sub-affiliate earnings.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- SUB SETUP -->
+        <section id="sub-setup">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">16. Setting a parent affiliate + override rate</h2>
+          <p class="text-gray-500 mb-6">You assign the parent-child relationship and override rate from the affiliate detail page.</p>
+
+          <div class="space-y-5 mb-6">
+            <div class="flex gap-4">
+              <div class="step-num">1</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Open the sub-affiliate's detail page</p>
+                <p class="text-gray-500 text-sm">In the Affiliates table, click on the affiliate you want to set as a sub-affiliate (e.g. Tom).</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">2</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Set the parent affiliate</p>
+                <p class="text-gray-500 text-sm">In the <strong>Sub-Affiliate Settings</strong> section, use the <strong>Parent Affiliate</strong> dropdown to select the parent (e.g. Jane).</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">3</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Set the override rate</p>
+                <p class="text-gray-500 text-sm">Enter the override percentage. For example, <code>10</code> means the parent earns 10% of the NGR generated by this sub-affiliate's players.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">4</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Save</p>
+                <p class="text-gray-500 text-sm">Click <strong>Save</strong>. The relationship is now active. Future commission reports will include the override calculations.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout-tip">
+            <strong>Tip:</strong> You can set different override rates for different sub-affiliates under the same parent. This lets you reward top recruiters with higher overrides.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- RECRUIT LINK -->
+        <section id="sub-recruit">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">17. How the recruit link works</h2>
+          <p class="text-gray-500 mb-6">Parent affiliates can recruit new sub-affiliates using a special recruit link available in their affiliate portal.</p>
+
+          <div class="space-y-5 mb-6">
+            <div class="flex gap-4">
+              <div class="step-num">1</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Affiliate logs into their portal</p>
+                <p class="text-gray-500 text-sm">The affiliate navigates to the <strong>Sub-Affiliates</strong> section in their portal.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">2</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Copies the recruit link</p>
+                <p class="text-gray-500 text-sm">The link looks like:</p>
+              </div>
+            </div>
+          </div>
+
+          <pre class="mb-6"><code>https://app.affiliar.co/register/affiliate?op=OPERATOR_ID&ref=PARENT_AFFILIATE_CODE</code></pre>
+
+          <div class="flex gap-4 mb-6">
+            <div class="step-num">3</div>
+            <div class="flex-1">
+              <p class="font-semibold text-gray-900 mb-1">New affiliate signs up via the link</p>
+              <p class="text-gray-500 text-sm">When someone registers through this link, they are automatically set up as a sub-affiliate of the referring parent. The parent-child relationship and default override rate are applied automatically.</p>
+            </div>
+          </div>
+
+          <div class="callout-info">
+            <strong>Note:</strong> The default override rate for recruit-link registrations is configured in <strong>Settings</strong> &rarr; <strong>Sub-Affiliate Defaults</strong>. You can always adjust individual override rates afterwards.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- OVERRIDE COMMISSION -->
+        <section id="sub-override">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">18. How override commission is calculated</h2>
+          <p class="text-gray-500 mb-6">Here is a concrete example of how override commission works in a monthly report.</p>
+
+          <div class="ui-mockup mb-6">
+            <div class="ui-mockup-bar">
+              <div class="ui-mockup-dot bg-red-400"></div>
+              <div class="ui-mockup-dot bg-yellow-400"></div>
+              <div class="ui-mockup-dot bg-green-400"></div>
+              <span class="text-xs text-gray-400 ml-2">Override Calculation Example</span>
+            </div>
+            <div class="ui-mockup-body space-y-3 text-sm">
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Scenario</p>
+                <ul class="space-y-1 text-gray-600">
+                  <li>Parent: <strong>Jane</strong> (RevShare 30%, override rate: 10%)</li>
+                  <li>Sub-Affiliate: <strong>Tom</strong> (RevShare 25%)</li>
+                  <li>Tom's players generated <strong>&euro;10,000 NGR</strong> this month</li>
+                </ul>
+              </div>
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Result</p>
+                <ul class="space-y-1 text-gray-600">
+                  <li>Tom earns: &euro;10,000 x 25% = <strong>&euro;2,500</strong> (his own commission)</li>
+                  <li>Jane earns override: &euro;10,000 x 10% = <strong>&euro;1,000</strong> (override on Tom's NGR)</li>
+                  <li>Jane also earns her own direct commission from her own players separately</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout-warn">
+            <strong>Warning:</strong> Override commission is calculated on the sub-affiliate's NGR, not on their commission. In the example above, Jane's override is 10% of &euro;10,000 (the NGR), not 10% of &euro;2,500 (Tom's commission).
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             COMMISSION REPORTS
+             ═══════════════════════════════════════════════════════════════ -->
+
+        <section id="report-calculate">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-light text-primary text-xs font-semibold mb-4">Commission Reports</div>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">19. Calculating reports for a month</h2>
+          <p class="text-gray-500 mb-6">Commission reports are generated per affiliate, per calendar month. You trigger the calculation manually when you are ready.</p>
+
+          <div class="space-y-5 mb-6">
+            <div class="flex gap-4">
+              <div class="step-num">1</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Go to Reports</p>
+                <p class="text-gray-500 text-sm">Click <strong>Reports</strong> in the sidebar.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">2</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Select the month</p>
+                <p class="text-gray-500 text-sm">Use the month picker to select the period you want to calculate (e.g. "March 2026").</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">3</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Click "Calculate Reports"</p>
+                <p class="text-gray-500 text-sm">Affiliar processes all player activity for that month and generates a report for every active affiliate. This usually takes a few seconds.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout-tip">
+            <strong>Tip:</strong> You can recalculate reports for a month at any time (as long as they are still in Draft status). This is useful if late player data comes in after your initial calculation.
+          </div>
+
+          <div class="callout-warn mt-4">
+            <strong>Warning:</strong> Only calculate reports after the month has ended and all player data has been ingested. Calculating mid-month will produce incomplete results.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- REPORT STATUSES -->
+        <section id="report-statuses">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">20. Understanding report statuses</h2>
+          <p class="text-gray-500 mb-6">Every commission report moves through a workflow of four statuses:</p>
+
+          <div class="flex flex-wrap items-center gap-3 mb-6">
+            <div class="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
+              <div class="w-2.5 h-2.5 rounded-full bg-gray-400"></div>
+              <span class="text-sm font-semibold text-gray-600">Draft</span>
+            </div>
+            <svg class="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            <div class="flex items-center gap-2 px-3 py-2 bg-yellow-50 rounded-lg">
+              <div class="w-2.5 h-2.5 rounded-full bg-yellow-400"></div>
+              <span class="text-sm font-semibold text-yellow-700">Pending</span>
+            </div>
+            <svg class="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            <div class="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg">
+              <div class="w-2.5 h-2.5 rounded-full bg-blue-400"></div>
+              <span class="text-sm font-semibold text-blue-700">Approved</span>
+            </div>
+            <svg class="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            <div class="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-lg">
+              <div class="w-2.5 h-2.5 rounded-full bg-green-500"></div>
+              <span class="text-sm font-semibold text-green-700">Paid</span>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto rounded-xl border border-gray-100 mb-6">
+            <table>
+              <thead>
+                <tr><th>Status</th><th>Meaning</th><th>What you can do</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><strong>Draft</strong></td><td>Just calculated. Not yet reviewed.</td><td>Edit, recalculate, or move to Pending.</td></tr>
+                <tr><td><strong>Pending</strong></td><td>Submitted for review. Awaiting approval.</td><td>Approve or reject (move back to Draft).</td></tr>
+                <tr><td><strong>Approved</strong></td><td>Reviewed and approved for payment.</td><td>Mark as Paid after processing payment.</td></tr>
+                <tr><td><strong>Paid</strong></td><td>Payment has been sent to the affiliate.</td><td>View only. This is the final state.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout-info">
+            <strong>Note:</strong> Affiliates can see their report status in their portal. Reports marked as "Pending" or "Approved" are visible to affiliates, so they know their commission is being processed.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- APPROVE REPORTS -->
+        <section id="report-approve">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">21. Reviewing and approving reports</h2>
+          <p class="text-gray-500 mb-6">Before paying affiliates, review the reports to ensure accuracy.</p>
+
+          <div class="space-y-5 mb-6">
+            <div class="flex gap-4">
+              <div class="step-num">1</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Open the reports for the month</p>
+                <p class="text-gray-500 text-sm">Go to <strong>Reports</strong> and select the month.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">2</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Review individual reports</p>
+                <p class="text-gray-500 text-sm">Click on any affiliate's report row to see the full breakdown: NGR, player count, direct commission, override commission (if applicable), and total.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">3</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Approve reports</p>
+                <p class="text-gray-500 text-sm">You can approve reports individually by clicking <strong>Approve</strong> on each one, or use the <strong>Approve All</strong> button to approve all Draft/Pending reports at once.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout-tip">
+            <strong>Tip:</strong> If something looks wrong, click <strong>Reject</strong> to move the report back to Draft status. You can then adjust the affiliate's plan or player data and recalculate.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- MARK PAID -->
+        <section id="report-paid">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">22. Marking reports as paid</h2>
+          <p class="text-gray-500 mb-6">After you have processed the payment (via bank transfer, crypto, or your preferred method), mark the reports as paid.</p>
+
+          <div class="space-y-5 mb-6">
+            <div class="flex gap-4">
+              <div class="step-num">1</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Filter by Approved status</p>
+                <p class="text-gray-500 text-sm">In the Reports view, filter by <strong>Approved</strong> to see all reports ready for payment.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">2</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Process payment externally</p>
+                <p class="text-gray-500 text-sm">Use your payment system to send the affiliate their commission. Affiliar does not process payments directly -- it is a tracking and calculation platform.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="step-num">3</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Mark as Paid</p>
+                <p class="text-gray-500 text-sm">Click <strong>Mark as Paid</strong> on each report (or use <strong>Mark All as Paid</strong>). The affiliate will see the updated status in their portal.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout-warn">
+            <strong>Warning:</strong> Marking a report as Paid is a final action. You cannot undo this. Make sure payment has actually been processed before marking.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- REPORT BREAKDOWN -->
+        <section id="report-breakdown">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">23. Understanding the breakdown (direct vs override)</h2>
+          <p class="text-gray-500 mb-6">When you open a commission report for an affiliate who is also a parent affiliate, you will see two sections:</p>
+
+          <!-- UI Mockup: Report Breakdown -->
+          <div class="ui-mockup mb-6">
+            <div class="ui-mockup-bar">
+              <div class="ui-mockup-dot bg-red-400"></div>
+              <div class="ui-mockup-dot bg-yellow-400"></div>
+              <div class="ui-mockup-dot bg-green-400"></div>
+              <span class="text-xs text-gray-400 ml-2">Commission Report - Jane Doe - March 2026</span>
+            </div>
+            <div class="ui-mockup-body space-y-3">
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Direct Commission</p>
+                <div class="grid grid-cols-3 gap-2 text-xs">
+                  <div><p class="text-gray-400">NGR</p><p class="font-semibold text-gray-900">&euro;8,200</p></div>
+                  <div><p class="text-gray-400">Rate</p><p class="font-semibold text-gray-900">30%</p></div>
+                  <div><p class="text-gray-400">Commission</p><p class="font-semibold text-primary">&euro;2,460</p></div>
+                </div>
+              </div>
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Override Commission</p>
+                <div class="bg-gray-50 rounded p-2 text-xs mb-2">
+                  <div class="grid grid-cols-4 gap-2 text-gray-400 font-semibold mb-1">
+                    <span>Sub-Affiliate</span><span>Their NGR</span><span>Override Rate</span><span>Override Earned</span>
+                  </div>
+                  <div class="grid grid-cols-4 gap-2 text-gray-600">
+                    <span>Tom</span><span>&euro;10,000</span><span>10%</span><span class="text-primary font-semibold">&euro;1,000</span>
+                  </div>
+                  <div class="grid grid-cols-4 gap-2 text-gray-600">
+                    <span>Sara</span><span>&euro;4,500</span><span>10%</span><span class="text-primary font-semibold">&euro;450</span>
+                  </div>
+                </div>
+                <div class="text-xs text-gray-400">Total Override: <span class="font-semibold text-primary">&euro;1,450</span></div>
+              </div>
+              <div class="bg-primary-light rounded-lg p-3 flex justify-between items-center">
+                <span class="text-sm font-semibold text-gray-700">Total Commission</span>
+                <span class="text-lg font-bold text-primary">&euro;3,910</span>
+              </div>
+            </div>
+          </div>
+
+          <ul class="list-disc list-inside space-y-1 text-sm text-gray-600 mb-4">
+            <li><strong>Direct Commission</strong> -- earned from the affiliate's own referred players.</li>
+            <li><strong>Override Commission</strong> -- earned from the performance of their sub-affiliates.</li>
+            <li><strong>Total Commission</strong> -- the sum of both, which is the amount you pay the affiliate.</li>
+          </ul>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             CAMPAIGN TRACKING
+             ═══════════════════════════════════════════════════════════════ -->
+
+        <section id="campaign-tracking">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold mb-4">Campaign Tracking</div>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">29. What are campaigns?</h2>
+          <p class="text-gray-500 mb-6">A campaign is a <strong>tracking metadata identifier</strong> &mdash; a free-text string that affiliates append to their referral URLs to segment traffic by source. Think of it like UTM parameters: it tells you <em>where</em> the traffic came from so you can compare performance across channels.</p>
+
+          <p class="text-sm text-gray-600 mb-4">Campaigns are <strong>not</strong> promotional offers, bonuses, or database entities. They are simply labels that flow through the data pipeline:</p>
+          <ol class="list-decimal list-inside space-y-2 text-sm text-gray-600 mb-6">
+            <li>Affiliate adds a <code>campaign</code> query parameter to their referral link.</li>
+            <li>Player clicks the link and registers &mdash; your platform captures the parameter.</li>
+            <li>The campaign value is attached to the player and included in every Kafka/REST event.</li>
+            <li>Affiliar&apos;s consumer stores the campaign in ClickHouse.</li>
+            <li>Reports can be filtered and grouped by campaign to compare traffic source performance.</li>
+          </ol>
+
+          <div class="callout-tip">
+            <strong>Why use campaigns?</strong> Without campaign tracking, you know <em>which</em> affiliate drove a player, but not <em>how</em>. Campaigns answer questions like: &ldquo;Does this affiliate&apos;s Instagram traffic convert better than their YouTube traffic?&rdquo;
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <section id="campaign-links">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">30. Building tracking links</h2>
+          <p class="text-gray-500 mb-6">Affiliates create tracking links by appending query parameters to their referral URL. No configuration is needed &mdash; any string passed as the <code>campaign</code> parameter is automatically captured.</p>
+
+          <h3 class="font-semibold text-gray-900 mb-2">URL format</h3>
+          <pre><code>https://yourbrand.com<span class="tok-url">?ref=GYPVCT5M&amp;campaign=instagram_april&amp;sub=story_1</span></code></pre>
+
+          <div class="space-y-5 mt-8 mb-8">
+            <div class="flex gap-3">
+              <div class="step-num">1</div>
+              <div>
+                <p class="font-semibold text-gray-900 text-sm">Start with the referral link</p>
+                <p class="text-sm text-gray-500">Copy the base referral URL from the affiliate portal Marketing Tools page (e.g. <code>https://yourbrand.com/?ref=GYPVCT5M</code>).</p>
+              </div>
+            </div>
+            <div class="flex gap-3">
+              <div class="step-num">2</div>
+              <div>
+                <p class="font-semibold text-gray-900 text-sm">Append a campaign parameter</p>
+                <p class="text-sm text-gray-500">Add <code>&amp;campaign=your_campaign_name</code> to the URL. Use a descriptive, consistent naming convention (see best practices below).</p>
+              </div>
+            </div>
+            <div class="flex gap-3">
+              <div class="step-num">3</div>
+              <div>
+                <p class="font-semibold text-gray-900 text-sm">Optionally add sub-source tracking</p>
+                <p class="text-sm text-gray-500">Add <code>&amp;sub=placement_name</code> to track specific placements within a campaign (e.g. &ldquo;story_1&rdquo;, &ldquo;banner_top&rdquo;).</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout-info">
+            If no <code>campaign</code> parameter is provided, the value defaults to an empty string. All events still flow through normally &mdash; campaign is purely optional metadata.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <section id="campaign-params">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">31. Tracking parameters explained</h2>
+          <p class="text-gray-500 mb-6">The following query parameters are supported on referral links.</p>
+          <div class="overflow-x-auto rounded-xl border border-gray-100 mb-6">
+            <table>
+              <thead><tr><th>Parameter</th><th>Required</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td><code>ref</code> / <code>aff</code></td><td>Yes</td><td>Affiliate referral code (e.g. <code>GYPVCT5M</code>)</td></tr>
+                <tr><td><code>campaign</code></td><td>No</td><td>Traffic source identifier (e.g. &ldquo;instagram_april&rdquo;, &ldquo;youtube_review&rdquo;, &ldquo;email_blast_q2&rdquo;)</td></tr>
+                <tr><td><code>sub</code> / <code>subId</code></td><td>No</td><td>Sub-source or placement (e.g. &ldquo;story_1&rdquo;, &ldquo;banner_top&rdquo;)</td></tr>
+                <tr><td><code>clickId</code></td><td>No</td><td>Unique click identifier for postback tracking</td></tr>
+                <tr><td><code>source</code></td><td>No</td><td>Traffic source category</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 class="font-semibold text-gray-900 mb-2">How campaign data appears in the Kafka event</h3>
+          <pre><code>{
+  <span class="tok-key">"affiliate"</span>: {
+    <span class="tok-key">"affiliateCode"</span>: <span class="tok-str">"GYPVCT5M"</span>,
+    <span class="tok-key">"campaign"</span>:      <span class="tok-str">"instagram_april"</span>,
+    <span class="tok-key">"subId"</span>:         <span class="tok-str">"story_1"</span>
+  }
+}</code></pre>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <section id="campaign-reports">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">32. Campaign reports</h2>
+          <p class="text-gray-500 mb-6">Campaign reports aggregate player activity grouped by campaign string. Use these to compare which traffic sources drive the most registrations, FTDs, deposits, and NGR.</p>
+
+          <!-- UI Mockup: Campaign Report -->
+          <div class="ui-mockup mb-6">
+            <div class="ui-mockup-bar">
+              <div class="ui-mockup-dot bg-red-400"></div>
+              <div class="ui-mockup-dot bg-yellow-400"></div>
+              <div class="ui-mockup-dot bg-green-400"></div>
+              <span class="text-xs text-gray-400 ml-2">Reports &gt; Campaign Report</span>
+            </div>
+            <div class="ui-mockup-body">
+              <div class="bg-white rounded-lg border border-gray-200 overflow-hidden text-xs">
+                <div class="grid grid-cols-5 gap-2 p-2 bg-gray-50 font-semibold text-gray-500 border-b border-gray-200">
+                  <span>Campaign</span><span>Regs</span><span>FTDs</span><span>Deposits</span><span>NGR</span>
+                </div>
+                <div class="grid grid-cols-5 gap-2 p-2 border-b border-gray-100 text-gray-600">
+                  <span class="font-semibold">instagram_april</span><span>312</span><span>89</span><span>&euro;24,500</span><span class="font-semibold">&euro;8,120</span>
+                </div>
+                <div class="grid grid-cols-5 gap-2 p-2 border-b border-gray-100 text-gray-600">
+                  <span class="font-semibold">youtube_review</span><span>187</span><span>54</span><span>&euro;15,200</span><span class="font-semibold">&euro;5,340</span>
+                </div>
+                <div class="grid grid-cols-5 gap-2 p-2 text-gray-600">
+                  <span class="font-semibold">email_q2</span><span>95</span><span>31</span><span>&euro;9,800</span><span class="font-semibold">&euro;3,210</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-sm text-gray-600 mb-4">Operators can access campaign reports at <code>GET /api/reports/campaigns</code>. Affiliates see their own campaign data at <code>GET /api/affiliate-portal/campaign-reports</code>. Both endpoints accept <code>from</code>, <code>to</code>, <code>brandId</code>, and <code>campaign</code> query parameters for filtering.</p>
+
+          <div class="callout-tip">
+            <strong>Tip:</strong> Compare campaigns side by side to identify which channels are worth investing more time in. A campaign with fewer registrations but higher FTD rate may be more valuable than one with high volume but low conversion.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <section id="campaign-best">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">33. Best practices for campaign naming</h2>
+          <p class="text-gray-500 mb-6">Consistent naming makes campaign reports much easier to read and compare over time.</p>
+
+          <div class="overflow-x-auto rounded-xl border border-gray-100 mb-6">
+            <table>
+              <thead><tr><th>Pattern</th><th>Example</th><th>When to use</th></tr></thead>
+              <tbody>
+                <tr><td><code>source_month</code></td><td><code>instagram_april</code></td><td>Monthly traffic from a specific platform</td></tr>
+                <tr><td><code>platform_type</code></td><td><code>youtube_review</code></td><td>Content format on a platform</td></tr>
+                <tr><td><code>channel_quarter</code></td><td><code>email_blast_q2</code></td><td>Quarterly campaigns on a channel</td></tr>
+                <tr><td><code>event_name</code></td><td><code>webinar_launch2026</code></td><td>One-off events or promotions</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <ul class="list-disc list-inside space-y-2 text-sm text-gray-600 mb-6">
+            <li>Use lowercase and underscores &mdash; avoid spaces and special characters.</li>
+            <li>Keep names short but descriptive.</li>
+            <li>Include the time period so you can compare across months or quarters.</li>
+            <li>Use <code>sub</code> / <code>subId</code> for placements within a campaign rather than creating separate campaign names.</li>
+          </ul>
+
+          <div class="callout-info">
+            <strong>Remember:</strong> Campaigns are just strings &mdash; there is no need to &ldquo;create&rdquo; them in advance. Any value passed in the URL is automatically tracked and appears in reports.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             AFFILIATE PORTAL
+             ═══════════════════════════════════════════════════════════════ -->
+
+        <section id="portal-dashboard">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-light text-primary text-xs font-semibold mb-4">Affiliate Portal</div>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">24. Dashboard -- what affiliates see</h2>
+          <p class="text-gray-500 mb-6">When your affiliates log into their portal, they see a personalised dashboard with their own performance data.</p>
+
+          <!-- UI Mockup: Affiliate Dashboard -->
+          <div class="ui-mockup mb-6">
+            <div class="ui-mockup-bar">
+              <div class="ui-mockup-dot bg-red-400"></div>
+              <div class="ui-mockup-dot bg-yellow-400"></div>
+              <div class="ui-mockup-dot bg-green-400"></div>
+              <span class="text-xs text-gray-400 ml-2">Affiliate Portal - Dashboard</span>
+            </div>
+            <div class="ui-mockup-body">
+              <div class="flex gap-3 mb-4">
+                <div class="flex-1 bg-white rounded-lg border border-gray-200 p-3">
+                  <p class="text-[10px] text-gray-400 uppercase font-semibold">My Players</p>
+                  <p class="text-xl font-bold text-gray-900">142</p>
+                </div>
+                <div class="flex-1 bg-white rounded-lg border border-gray-200 p-3">
+                  <p class="text-[10px] text-gray-400 uppercase font-semibold">This Month's NGR</p>
+                  <p class="text-xl font-bold text-gray-900">&euro;8,200</p>
+                </div>
+                <div class="flex-1 bg-white rounded-lg border border-gray-200 p-3">
+                  <p class="text-[10px] text-gray-400 uppercase font-semibold">Commission (Est.)</p>
+                  <p class="text-xl font-bold text-primary">&euro;2,460</p>
+                </div>
+              </div>
+              <div class="bg-white rounded-lg border border-gray-200 p-3 h-16 flex items-center justify-center text-gray-300 text-xs">
+                Player registrations & revenue chart
+              </div>
+            </div>
+          </div>
+
+          <p class="text-sm text-gray-600 mb-4">The affiliate dashboard includes:</p>
+          <ul class="list-disc list-inside space-y-1 text-sm text-gray-600 mb-4">
+            <li>Total referred players and new registrations this month.</li>
+            <li>Current month's NGR from their players.</li>
+            <li>Estimated commission based on their plan (final amount is set when you calculate reports).</li>
+            <li>A chart showing registration and revenue trends over time.</li>
+          </ul>
+
+          <div class="callout-info">
+            <strong>Note:</strong> The estimated commission is real-time but unofficial. The final amount is determined when you calculate and approve the monthly report.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- PORTAL MARKETING -->
+        <section id="portal-marketing">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">25. Marketing Tools -- referral links and tracking</h2>
+          <p class="text-gray-500 mb-6">The Marketing Tools page gives affiliates everything they need to drive traffic.</p>
+
+          <p class="text-sm text-gray-600 mb-4">Affiliates can access:</p>
+          <ul class="list-disc list-inside space-y-2 text-sm text-gray-600 mb-6">
+            <li><strong>Referral Link</strong> -- their unique tracking URL (e.g. <code>https://yourbrand.com/?ref=GYPVCT5M</code>). Clicking "Copy" copies it to their clipboard.</li>
+            <li><strong>Referral Code</strong> -- the short code (e.g. <code>GYPVCT5M</code>) that can be shared verbally or in content.</li>
+            <li><strong>QR Code</strong> -- a downloadable QR code that encodes their referral link.</li>
+            <li><strong>Campaign Tracking</strong> -- affiliates can append <code>&amp;campaign=instagram_april&amp;sub=story_1</code> to their link to segment traffic by source and placement in their analytics.</li>
+          </ul>
+
+          <div class="callout-tip">
+            <strong>Tip:</strong> Encourage your affiliates to use campaign parameters. It helps both you and them understand which traffic sources drive the most registrations and revenue.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- PORTAL COMMISSION -->
+        <section id="portal-commission">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">26. Commission page -- how affiliates view their earnings</h2>
+          <p class="text-gray-500 mb-6">The Commission page in the affiliate portal shows all historical commission reports.</p>
+
+          <!-- UI Mockup: Commission Table -->
+          <div class="ui-mockup mb-6">
+            <div class="ui-mockup-bar">
+              <div class="ui-mockup-dot bg-red-400"></div>
+              <div class="ui-mockup-dot bg-yellow-400"></div>
+              <div class="ui-mockup-dot bg-green-400"></div>
+              <span class="text-xs text-gray-400 ml-2">Affiliate Portal - Commission</span>
+            </div>
+            <div class="ui-mockup-body">
+              <div class="bg-white rounded-lg border border-gray-200 overflow-hidden text-xs">
+                <div class="grid grid-cols-5 gap-2 p-2 bg-gray-50 font-semibold text-gray-500 border-b border-gray-200">
+                  <span>Period</span><span>NGR</span><span>Commission</span><span>Status</span><span>Details</span>
+                </div>
+                <div class="grid grid-cols-5 gap-2 p-2 border-b border-gray-100 text-gray-600">
+                  <span>Mar 2026</span><span>&euro;8,200</span><span class="font-semibold">&euro;2,460</span>
+                  <span><span class="px-1.5 py-0.5 rounded bg-green-100 text-green-700 text-[10px] font-semibold">Paid</span></span>
+                  <span class="text-primary font-medium">View</span>
+                </div>
+                <div class="grid grid-cols-5 gap-2 p-2 border-b border-gray-100 text-gray-600">
+                  <span>Feb 2026</span><span>&euro;6,400</span><span class="font-semibold">&euro;1,920</span>
+                  <span><span class="px-1.5 py-0.5 rounded bg-green-100 text-green-700 text-[10px] font-semibold">Paid</span></span>
+                  <span class="text-primary font-medium">View</span>
+                </div>
+                <div class="grid grid-cols-5 gap-2 p-2 text-gray-600">
+                  <span>Jan 2026</span><span>&euro;5,100</span><span class="font-semibold">&euro;1,530</span>
+                  <span><span class="px-1.5 py-0.5 rounded bg-green-100 text-green-700 text-[10px] font-semibold">Paid</span></span>
+                  <span class="text-primary font-medium">View</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-sm text-gray-600 mb-4">Affiliates can:</p>
+          <ul class="list-disc list-inside space-y-1 text-sm text-gray-600">
+            <li>View a summary of each month's NGR, commission, and status.</li>
+            <li>Click "View" to see a detailed breakdown (including override commission if they have sub-affiliates).</li>
+            <li>See which reports are still pending vs. paid.</li>
+          </ul>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- PORTAL SUB-AFFILIATES -->
+        <section id="portal-sub-affiliates">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">27. Sub-Affiliates page -- how affiliates manage their network</h2>
+          <p class="text-gray-500 mb-6">If an affiliate has sub-affiliates, they can view and manage them from their portal.</p>
+
+          <p class="text-sm text-gray-600 mb-4">The Sub-Affiliates page shows:</p>
+          <ul class="list-disc list-inside space-y-1 text-sm text-gray-600 mb-6">
+            <li>A list of all sub-affiliates they have recruited.</li>
+            <li>Each sub-affiliate's player count and NGR generated.</li>
+            <li>The override commission earned from each sub-affiliate this month.</li>
+            <li>The recruit link to share with potential new sub-affiliates.</li>
+          </ul>
+
+          <div class="callout-info">
+            <strong>Note:</strong> Affiliates cannot see their sub-affiliates' detailed player data or commission amounts -- only aggregated NGR and the override they earn from it. This protects sub-affiliate privacy.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- PORTAL PROFILE -->
+        <section id="portal-profile">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">28. Profile page</h2>
+          <p class="text-gray-500 mb-6">The profile page lets affiliates manage their personal information.</p>
+
+          <p class="text-sm text-gray-600 mb-4">Affiliates can update:</p>
+          <ul class="list-disc list-inside space-y-1 text-sm text-gray-600 mb-6">
+            <li><strong>Display name</strong> -- their name as shown in reports and communications.</li>
+            <li><strong>Phone number</strong> -- optional contact number.</li>
+            <li><strong>Payment details</strong> -- bank account, crypto wallet, or preferred payment method for receiving commissions.</li>
+            <li><strong>Password</strong> -- change their login password.</li>
+          </ul>
+
+          <p class="text-sm text-gray-600 mb-4">Read-only information visible on the profile:</p>
+          <ul class="list-disc list-inside space-y-1 text-sm text-gray-600 mb-4">
+            <li><strong>Email</strong> -- cannot be changed by the affiliate (contact operator to update).</li>
+            <li><strong>Referral code</strong> -- their assigned tracking code.</li>
+            <li><strong>Commission plan</strong> -- the name and type of their current plan.</li>
+            <li><strong>Account status</strong> -- Active, Pending, or Suspended.</li>
+          </ul>
+
+          <div class="callout-tip">
+            <strong>Tip:</strong> If an affiliate needs to change their email address, they should contact you at <code>hello@affiliar.co</code> or via your operator support channel. Email changes require operator approval for security reasons.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             REPORTS & ANALYTICS
+             ═══════════════════════════════════════════════════════════════ -->
+
+        <section id="analytics-overview">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-light text-primary text-xs font-semibold mb-4">Reports &amp; Analytics</div>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">29. Overview dashboard -- KPIs explained</h2>
+          <p class="text-gray-500 mb-6">The Analytics Overview gives you a bird's-eye view of your affiliate programme's health.</p>
+
+          <!-- UI Mockup: Analytics KPIs -->
+          <div class="ui-mockup mb-6">
+            <div class="ui-mockup-bar">
+              <div class="ui-mockup-dot bg-red-400"></div>
+              <div class="ui-mockup-dot bg-yellow-400"></div>
+              <div class="ui-mockup-dot bg-green-400"></div>
+              <span class="text-xs text-gray-400 ml-2">Analytics - Overview</span>
+            </div>
+            <div class="ui-mockup-body">
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                <div class="bg-white rounded-lg border border-gray-200 p-3">
+                  <p class="text-[10px] text-gray-400 uppercase font-semibold">Total Registrations</p>
+                  <p class="text-xl font-bold text-gray-900">1,284</p>
+                  <p class="text-[10px] text-green-600 font-medium">+12% vs last month</p>
+                </div>
+                <div class="bg-white rounded-lg border border-gray-200 p-3">
+                  <p class="text-[10px] text-gray-400 uppercase font-semibold">First-Time Deposits</p>
+                  <p class="text-xl font-bold text-gray-900">467</p>
+                  <p class="text-[10px] text-green-600 font-medium">+8% vs last month</p>
+                </div>
+                <div class="bg-white rounded-lg border border-gray-200 p-3">
+                  <p class="text-[10px] text-gray-400 uppercase font-semibold">Total NGR</p>
+                  <p class="text-xl font-bold text-gray-900">&euro;142,500</p>
+                  <p class="text-[10px] text-green-600 font-medium">+15% vs last month</p>
+                </div>
+                <div class="bg-white rounded-lg border border-gray-200 p-3">
+                  <p class="text-[10px] text-gray-400 uppercase font-semibold">Total Commissions</p>
+                  <p class="text-xl font-bold text-primary">&euro;38,200</p>
+                  <p class="text-[10px] text-gray-400">26.8% of NGR</p>
+                </div>
+              </div>
+              <div class="bg-white rounded-lg border border-gray-200 p-3 h-20 flex items-center justify-center text-gray-300 text-xs">
+                Revenue & registration trend chart (last 12 months)
+              </div>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto rounded-xl border border-gray-100 mb-6">
+            <table>
+              <thead>
+                <tr><th>KPI</th><th>What it measures</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><strong>Total Registrations</strong></td><td>New player sign-ups attributed to all affiliates in the selected period.</td></tr>
+                <tr><td><strong>First-Time Deposits (FTD)</strong></td><td>Players who made their very first deposit. Key metric for CPA plans.</td></tr>
+                <tr><td><strong>Total NGR</strong></td><td>Net gaming revenue across all affiliate-referred players.</td></tr>
+                <tr><td><strong>Total Commissions</strong></td><td>Sum of all commissions owed (or paid) to affiliates for the period.</td></tr>
+                <tr><td><strong>Conversion Rate</strong></td><td>Registrations that converted to FTD. Shown in the detailed view.</td></tr>
+                <tr><td><strong>Avg. Revenue per Player</strong></td><td>Total NGR divided by active players. Indicates player quality.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout-tip">
+            <strong>Tip:</strong> Use the date range picker to compare different periods. The percentage change indicators help you spot trends quickly.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- PERFORMANCE REPORTS -->
+        <section id="analytics-performance">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">30. Affiliate performance reports</h2>
+          <p class="text-gray-500 mb-6">The performance report lets you compare affiliates side by side.</p>
+
+          <p class="text-sm text-gray-600 mb-4">The report includes a sortable table with the following columns for each affiliate:</p>
+          <ul class="list-disc list-inside space-y-1 text-sm text-gray-600 mb-6">
+            <li><strong>Affiliate name</strong></li>
+            <li><strong>Registrations</strong> -- total player sign-ups.</li>
+            <li><strong>FTDs</strong> -- first-time depositing players.</li>
+            <li><strong>NGR</strong> -- net gaming revenue from their players.</li>
+            <li><strong>Commission</strong> -- total commission earned (direct + override).</li>
+            <li><strong>Commission %</strong> -- commission as a percentage of NGR (your effective cost).</li>
+            <li><strong>Avg. Player Value</strong> -- NGR per active player.</li>
+          </ul>
+
+          <div class="callout-info">
+            <strong>Note:</strong> You can export the performance report as a CSV file by clicking the <strong>Export</strong> button in the top-right corner of the report.
+          </div>
+
+          <div class="callout-tip mt-4">
+            <strong>Tip:</strong> Sort by "Commission %" to identify your most cost-effective affiliates. Affiliates with high NGR and relatively low commission percentage are your best value partners.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- TRAFFIC REPORTS -->
+        <section id="analytics-traffic">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">31. Traffic reports</h2>
+          <p class="text-gray-500 mb-6">Traffic reports show you the volume and quality of traffic your affiliates are driving.</p>
+
+          <p class="text-sm text-gray-600 mb-4">Key metrics in the traffic report:</p>
+          <ul class="list-disc list-inside space-y-1 text-sm text-gray-600 mb-6">
+            <li><strong>Clicks</strong> -- how many times referral links were clicked (if click tracking is enabled).</li>
+            <li><strong>Registrations</strong> -- player sign-ups from referral links.</li>
+            <li><strong>Click-to-Registration rate</strong> -- percentage of clicks that resulted in sign-ups.</li>
+            <li><strong>FTD rate</strong> -- percentage of registrations that made a first deposit.</li>
+            <li><strong>By Campaign</strong> -- if affiliates use campaign parameters in their referral links, you can break down traffic by campaign to see which sources perform best.</li>
+            <li><strong>By Date</strong> -- see daily traffic trends to identify peak periods.</li>
+          </ul>
+
+          <div class="callout-info">
+            <strong>Note:</strong> Click tracking requires your site to call the Affiliar tracking endpoint when a referral link is clicked. See the <a href="docs.html" class="underline font-medium">API Documentation</a> for integration details.
+          </div>
+
+          <div class="callout-tip mt-4">
+            <strong>Tip:</strong> Compare traffic reports with commission reports to identify affiliates who drive lots of clicks but few conversions. This can indicate low-quality traffic or targeting issues worth discussing with the affiliate.
+          </div>
+        </section>
+
+        <!-- FOOTER SPACER -->
+        <div class="h-8"></div>
+
+        <!-- HELP FOOTER -->
+        <div class="border-t border-gray-100 pt-8 pb-4">
+          <p class="text-sm text-gray-400 text-center">
+            Need more help? Contact us at <a href="mailto:hello@affiliar.co" class="text-primary hover:underline">hello@affiliar.co</a>
+            &nbsp;&middot;&nbsp;
+            <a href="docs.html" class="text-primary hover:underline">API Documentation</a>
+            &nbsp;&middot;&nbsp;
+            <a href="index.html" class="text-primary hover:underline">Back to site</a>
+          </p>
+        </div>
+
+        <div class="h-8"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Active link highlight on scroll -->
+  <script>
+    const sections = document.querySelectorAll('.content section[id]');
+    const links    = document.querySelectorAll('.nav-link');
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          links.forEach(l => l.classList.remove('active'));
+          const active = document.querySelector(`.nav-link[href="#${e.target.id}"]`);
+          if (active) active.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+
+    sections.forEach(s => observer.observe(s));
+  </script>
+</body>
+</html>

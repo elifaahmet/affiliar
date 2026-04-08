@@ -1,0 +1,203 @@
+{
+  "name": "pixup-play-admin-ui",
+  "version": "0.1.141",
+  "private": true,
+  "homepage": "/",
+  "dependencies": {
+    "@babel/core": "^7.16.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@headlessui/react": "^2.1.2",
+    "@heroicons/react": "^2.1.5",
+    "@hookform/resolvers": "^5.1.1",
+    "@pmmmwh/react-refresh-webpack-plugin": "^0.6.1",
+    "@reduxjs/toolkit": "^2.2.7",
+    "@svgr/webpack": "^5.5.0",
+    "@tanstack/react-query": "^5.81.5",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.0.12",
+    "@types/react": "^18.3.23",
+    "@types/react-dom": "^18.3.7",
+    "@types/react-redux": "^7.1.33",
+    "ag-grid-enterprise": "^34.0.1",
+    "ag-grid-react": "^34.0.1",
+    "ajv": "^8.12.0",
+    "ajv-keywords": "^5.1.0",
+    "axios": "^1.10.0",
+    "babel-jest": "^30.0.4",
+    "babel-loader": "^8.4.1",
+    "babel-plugin-named-asset-import": "^0.3.8",
+    "babel-preset-react-app": "^10.0.1",
+    "bfj": "^9.1.2",
+    "browserslist": "^4.18.1",
+    "camelcase": "^8.0.0",
+    "case-sensitive-paths-webpack-plugin": "^2.4.0",
+    "classnames": "^2.5.1",
+    "css-loader": "^7.1.2",
+    "css-minimizer-webpack-plugin": "^7.0.2",
+    "dayjs": "^1.11.13",
+    "dotenv": "^17.1.0",
+    "dotenv-expand": "^12.0.2",
+    "file-loader": "^6.2.0",
+    "fs-extra": "^11.3.0",
+    "html-webpack-plugin": "^5.5.0",
+    "i18next": "^25.3.2",
+    "i18next-browser-languagedetector": "^8.0.0",
+    "i18next-http-backend": "^3.0.2",
+    "identity-obj-proxy": "^3.0.0",
+    "jest": "^30.0.4",
+    "jest-resolve": "^30.0.2",
+    "jest-watch-typeahead": "^3.0.1",
+    "jwt-decode": "^4.0.0",
+    "mini-css-extract-plugin": "^2.4.5",
+    "postcss": "^8.4.4",
+    "postcss-flexbugs-fixes": "^5.0.2",
+    "postcss-loader": "^8.1.1",
+    "postcss-normalize": "^13.0.1",
+    "postcss-preset-env": "^10.2.4",
+    "prompts": "^2.4.2",
+    "react": "^18.3.1",
+    "react-app-polyfill": "^3.0.0",
+    "react-beautiful-dnd": "^13.1.1",
+    "react-datepicker": "^7.6.0",
+    "react-dev-utils": "^12.0.1",
+    "react-dom": "^18.3.1",
+    "react-google-charts": "^5.2.1",
+    "react-grid-layout": "^1.5.1",
+    "react-helmet-async": "^2.0.5",
+    "react-hook-form": "^7.60.0",
+    "react-i18next": "^15.6.0",
+    "react-phone-input-2": "^2.15.1",
+    "react-redux": "^9.1.2",
+    "react-refresh": "^0.11.0",
+    "react-router-dom": "^7.6.3",
+    "react-tailwindcss-datepicker": "^1.7.3",
+    "react-time-picker": "^7.0.0",
+    "recharts": "^3.1.0",
+    "redux": "^5.0.1",
+    "resolve": "^1.20.0",
+    "resolve-url-loader": "^5.0.0",
+    "sass-loader": "^16.0.5",
+    "secure-ls": "^2.0.0",
+    "semver": "^7.3.5",
+    "source-map-loader": "^5.0.0",
+    "style-loader": "^4.0.0",
+    "terser-webpack-plugin": "^5.2.5",
+    "uuid": "^11.1.0",
+    "webpack": "^5.100.0",
+    "webpack-dev-server": "^4.15.2",
+    "webpack-manifest-plugin": "^5.0.1",
+    "workbox-webpack-plugin": "^7.3.0"
+  },
+  "scripts": {
+    "start": "node scripts/start.js",
+    "build": "DISABLE_ESLINT_PLUGIN=true node scripts/build.js",
+    "test": "node scripts/test.js",
+    "release": "standard-version",
+    "prepare": "husky install",
+    "lint": "eslint 'src/**/*.{ts,tsx}' --fix"
+  },
+  "lint-staged": {
+    "**/*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "eslint --max-warnings=0"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@svgr/webpack": "^8.1.0",
+    "@types/react-beautiful-dnd": "^13.1.8",
+    "@types/react-grid-layout": "^1.3.5",
+    "customize-cra": "^1.0.0",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-config-react-app": "^7.0.1",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-prettier": "^5.5.1",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "eslint-plugin-unused-imports": "^4.1.4",
+    "eslint-webpack-plugin": "^3.2.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.2",
+    "prettier": "^3.6.2",
+    "react-dropzone": "^14.2.3",
+    "standard-version": "^9.5.0",
+    "swiper": "^11.2.10",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.8.3",
+    "web-vitals": "^5.0.3",
+    "yup": "^1.4.0"
+  },
+  "jest": {
+    "roots": [
+      "<rootDir>/src"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.{js,jsx,ts,tsx}",
+      "!src/**/*.d.ts"
+    ],
+    "setupFiles": [
+      "react-app-polyfill/jsdom"
+    ],
+    "setupFilesAfterEnv": [],
+    "testMatch": [
+      "<rootDir>/src/**/__tests__/**/*.{js,jsx,ts,tsx}",
+      "<rootDir>/src/**/*.{spec,test}.{js,jsx,ts,tsx}"
+    ],
+    "testEnvironment": "jsdom",
+    "transform": {
+      "^.+\\.(js|jsx|mjs|cjs|ts|tsx)$": "<rootDir>/config/jest/babelTransform.js",
+      "^.+\\.css$": "<rootDir>/config/jest/cssTransform.js",
+      "^(?!.*\\.(js|jsx|mjs|cjs|ts|tsx|css|json)$)": "<rootDir>/config/jest/fileTransform.js"
+    },
+    "transformIgnorePatterns": [
+      "[/\\\\]node_modules[/\\\\].+\\.(js|jsx|mjs|cjs|ts|tsx)$",
+      "^.+\\.module\\.(css|sass|scss)$"
+    ],
+    "modulePaths": [
+      "/Users/elifaahmet/projects/pixupPlay/new-pixup/admin-system/admin-frontend/src"
+    ],
+    "moduleNameMapper": {
+      "^react-native$": "react-native-web",
+      "^.+\\.module\\.(css|sass|scss)$": "identity-obj-proxy"
+    },
+    "moduleFileExtensions": [
+      "web.js",
+      "js",
+      "web.ts",
+      "ts",
+      "web.tsx",
+      "tsx",
+      "json",
+      "web.jsx",
+      "jsx",
+      "node"
+    ],
+    "watchPlugins": [
+      "jest-watch-typeahead/filename",
+      "jest-watch-typeahead/testname"
+    ],
+    "resetMocks": true
+  },
+  "babel": {
+    "presets": [
+      "react-app"
+    ]
+  }
+}

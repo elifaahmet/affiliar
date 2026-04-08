@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Affiliar Docs</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#4F6EF7',
+            'primary-dark': '#3B55D4',
+            'primary-light': '#EEF1FE',
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+          },
+        },
+      },
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    html { scroll-behavior: smooth; }
+
+    /* Sidebar active */
+    .nav-link { display: block; padding: 5px 10px; border-radius: 6px; font-size: 13px; color: #6b7280; transition: all 0.15s; }
+    .nav-link:hover { color: #111827; background: #f3f4f6; }
+    .nav-link.active { color: #4F6EF7; background: #EEF1FE; font-weight: 600; }
+
+    /* Content headings anchor offset */
+    .content section { scroll-margin-top: 80px; }
+
+    /* Code blocks */
+    pre { background: #0f1117; color: #e2e8f0; border-radius: 10px; padding: 18px 20px; overflow-x: auto; font-size: 13px; line-height: 1.7; }
+    code { font-family: 'JetBrains Mono', monospace; }
+    p code, li code, td code {
+      background: #f3f4f6; color: #374151; padding: 2px 6px; border-radius: 4px;
+      font-size: 12.5px; font-family: 'JetBrains Mono', monospace; border: 1px solid #e5e7eb;
+    }
+
+    /* Syntax colors */
+    .tok-key   { color: #7dd3fc; }
+    .tok-str   { color: #86efac; }
+    .tok-num   { color: #fbbf24; }
+    .tok-cmt   { color: #6b7280; font-style: italic; }
+    .tok-kw    { color: #c084fc; }
+    .tok-url   { color: #67e8f9; }
+    .tok-mth   { color: #fb923c; }
+    .tok-hdr   { color: #94a3b8; }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    th { background: #f9fafb; text-align: left; padding: 10px 14px; border-bottom: 2px solid #e5e7eb; font-weight: 600; color: #374151; }
+    td { padding: 10px 14px; border-bottom: 1px solid #f3f4f6; color: #4b5563; vertical-align: top; }
+
+    /* Callouts */
+    .callout-info  { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13.5px; color: #1e40af; }
+    .callout-warn  { background: #fffbeb; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13.5px; color: #92400e; }
+    .callout-tip   { background: #f0fdf4; border-left: 3px solid #22c55e; padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13.5px; color: #166534; }
+
+    /* Badge */
+    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .badge-get    { background: #dbeafe; color: #1d4ed8; }
+    .badge-post   { background: #dcfce7; color: #15803d; }
+    .badge-patch  { background: #fef9c3; color: #854d0e; }
+    .badge-delete { background: #fee2e2; color: #b91c1c; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+
+    /* Mobile sidebar */
+    #sidebar { transition: transform 0.25s ease; }
+    @media (max-width: 1024px) {
+      #sidebar { position: fixed; top: 56px; left: 0; bottom: 0; z-index: 40; transform: translateX(-100%); }
+      #sidebar.open { transform: translateX(0); }
+    }
+  </style>
+</head>
+<body class="font-sans bg-white text-gray-900 antialiased">
+
+  <!-- TOP NAV -->
+  <nav class="fixed top-0 left-0 right-0 z-50 h-14 bg-white border-b border-gray-200 flex items-center px-4 gap-4">
+    <button id="menuBtn" class="lg:hidden p-1.5 rounded-md hover:bg-gray-100 text-gray-500" onclick="document.getElementById('sidebar').classList.toggle('open')">
+      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <a href="index.html" class="flex items-center gap-2 shrink-0">
+      <div class="w-7 h-7 rounded-lg bg-primary flex items-center justify-center text-white font-black text-xs">A</div>
+      <span class="font-bold text-gray-900">Affiliar</span>
+    </a>
+    <span class="text-gray-300 text-lg hidden sm:block">|</span>
+    <span class="text-sm text-gray-500 hidden sm:block">Documentation</span>
+    <div class="flex-1"></div>
+    <a href="index.html"   class="text-xs text-gray-400 hover:text-gray-700 transition-colors hidden sm:block">Home</a>
+    <a href="guide.html"   class="text-xs text-gray-400 hover:text-gray-700 transition-colors hidden sm:block">Guide</a>
+    <a href="pricing.html" class="text-xs text-gray-400 hover:text-gray-700 transition-colors hidden sm:block">Pricing</a>
+    <a href="#" class="text-xs font-semibold bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary-dark transition-colors">Get started</a>
+  </nav>
+
+  <div class="flex pt-14 min-h-screen">
+
+    <!-- SIDEBAR -->
+    <aside id="sidebar" class="w-64 shrink-0 border-r border-gray-100 bg-white overflow-y-auto h-[calc(100vh-56px)] sticky top-14 hidden lg:block">
+      <div class="p-4 space-y-6">
+
+        <div>
+          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Getting Started</p>
+          <a href="#overview"        class="nav-link active">Overview</a>
+          <a href="#quickstart"      class="nav-link">Quickstart</a>
+          <a href="#concepts"        class="nav-link">Core Concepts</a>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Integration</p>
+          <a href="#kafka"           class="nav-link">Kafka Integration</a>
+          <a href="#rest-api"        class="nav-link">REST API</a>
+          <a href="#event-schema"       class="nav-link">Event Schema</a>
+          <a href="#campaign-tracking" class="nav-link">Campaign Tracking</a>
+          <a href="#idempotency"       class="nav-link">Idempotency</a>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Affiliates</p>
+          <a href="#managing"        class="nav-link">Managing Affiliates</a>
+          <a href="#referral-codes"  class="nav-link">Referral Codes</a>
+          <a href="#sub-affiliates"  class="nav-link">Sub-Affiliates</a>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Commission</p>
+          <a href="#plans"           class="nav-link">Commission Plans</a>
+          <a href="#revshare"        class="nav-link">RevShare</a>
+          <a href="#cpa"             class="nav-link">CPA</a>
+          <a href="#hybrid"          class="nav-link">Hybrid</a>
+          <a href="#tiered"          class="nav-link">Tiered RevShare</a>
+          <a href="#override"        class="nav-link">Override Commission</a>
+          <a href="#reports"         class="nav-link">Commission Reports</a>
+          <a href="#workflow"        class="nav-link">Approval Workflow</a>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Reports</p>
+          <a href="#campaign-reports"  class="nav-link">Campaign Reports</a>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Affiliate Portal</p>
+          <a href="#portal-overview" class="nav-link">Portal Overview</a>
+          <a href="#portal-register" class="nav-link">Registration Flow</a>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">API Reference</p>
+          <a href="#api-auth"        class="nav-link">Authentication</a>
+          <a href="#api-affiliates"  class="nav-link">Affiliates</a>
+          <a href="#api-commission"  class="nav-link">Commission</a>
+          <a href="#api-reports"     class="nav-link">Reports</a>
+          <a href="#api-campaigns"   class="nav-link">Campaign Reports</a>
+          <a href="#api-portal"      class="nav-link">Affiliate Portal</a>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 min-w-0">
+      <div class="max-w-3xl mx-auto px-6 py-12 content space-y-16">
+
+        <!-- ─── OVERVIEW ─────────────────────────────────────────────────── -->
+        <section id="overview">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-light text-primary text-xs font-semibold mb-4">Getting Started</div>
+          <h1 class="text-4xl font-black text-gray-900 mb-4">Affiliar Documentation</h1>
+          <p class="text-gray-500 text-lg leading-relaxed mb-6">
+            Affiliar is a multi-tenant affiliate management platform built for iGaming operators.
+            It handles everything from affiliate onboarding and referral tracking to commission calculation and payment workflows.
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <a href="#quickstart" class="border border-gray-200 rounded-xl p-4 hover:border-primary/40 hover:bg-primary-light/30 transition-colors group">
+              <p class="font-semibold text-gray-900 mb-1 group-hover:text-primary transition-colors">Quickstart →</p>
+              <p class="text-xs text-gray-400">Connect and send your first event in minutes</p>
+            </a>
+            <a href="#kafka" class="border border-gray-200 rounded-xl p-4 hover:border-primary/40 hover:bg-primary-light/30 transition-colors group">
+              <p class="font-semibold text-gray-900 mb-1 group-hover:text-primary transition-colors">Kafka Integration →</p>
+              <p class="text-xs text-gray-400">High-throughput real-time event streaming</p>
+            </a>
+            <a href="#plans" class="border border-gray-200 rounded-xl p-4 hover:border-primary/40 hover:bg-primary-light/30 transition-colors group">
+              <p class="font-semibold text-gray-900 mb-1 group-hover:text-primary transition-colors">Commission Plans →</p>
+              <p class="text-xs text-gray-400">RevShare, CPA, Hybrid, Tiered</p>
+            </a>
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── QUICKSTART ────────────────────────────────────────────────── -->
+        <section id="quickstart">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Quickstart</h2>
+          <p class="text-gray-500 mb-6">Get up and running in three steps.</p>
+
+          <div class="space-y-6">
+            <div class="flex gap-4">
+              <div class="w-8 h-8 rounded-full bg-primary text-white font-bold flex items-center justify-center text-sm shrink-0">1</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Create your operator account</p>
+                <p class="text-gray-500 text-sm mb-3">Sign up and retrieve your <code>operatorId</code> and API credentials from the Operator Settings page.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="w-8 h-8 rounded-full bg-primary text-white font-bold flex items-center justify-center text-sm shrink-0">2</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Add your first affiliate</p>
+                <p class="text-gray-500 text-sm mb-3">Create an affiliate via the dashboard or the API. A referral code is generated automatically.</p>
+                <pre><code><span class="tok-mth">POST</span> <span class="tok-url">/api/affiliates</span>
+<span class="tok-hdr">Authorization: Bearer &lt;token&gt;</span>
+<span class="tok-hdr">Content-Type: application/json</span>
+
+{
+  <span class="tok-key">"email"</span>:    <span class="tok-str">"jane@example.com"</span>,
+  <span class="tok-key">"username"</span>: <span class="tok-str">"jane_doe"</span>,
+  <span class="tok-key">"name"</span>:     <span class="tok-str">"Jane Doe"</span>
+}</code></pre>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="w-8 h-8 rounded-full bg-primary text-white font-bold flex items-center justify-center text-sm shrink-0">3</div>
+              <div class="flex-1">
+                <p class="font-semibold text-gray-900 mb-1">Send player events</p>
+                <p class="text-gray-500 text-sm mb-3">Send events via Kafka or the REST integration endpoint. Affiliar attributes them automatically.</p>
+                <pre><code><span class="tok-mth">POST</span> <span class="tok-url">/api/integration/event</span>
+<span class="tok-hdr">Authorization: Bearer &lt;token&gt;</span>
+
+{
+  <span class="tok-key">"eventId"</span>:   <span class="tok-str">"evt_abc123"</span>,
+  <span class="tok-key">"eventType"</span>: <span class="tok-str">"registration"</span>,
+  <span class="tok-key">"tenantId"</span>:  <span class="tok-str">"operator_id"</span>,
+  <span class="tok-key">"affiliate"</span>: { <span class="tok-key">"affiliateCode"</span>: <span class="tok-str">"GYPVCT5M"</span> },
+  <span class="tok-key">"player"</span>:    { <span class="tok-key">"playerId"</span>: <span class="tok-str">"player_001"</span> },
+  <span class="tok-key">"timestamp"</span>: <span class="tok-str">"2026-04-06T10:00:00Z"</span>
+}</code></pre>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── CONCEPTS ───────────────────────────────────────────────────── -->
+        <section id="concepts">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Core Concepts</h2>
+          <p class="text-gray-500 mb-6">Understanding the data model before you integrate.</p>
+          <div class="space-y-4">
+            <div class="border border-gray-100 rounded-xl p-5">
+              <p class="font-semibold text-gray-900 mb-1">Operator</p>
+              <p class="text-sm text-gray-500">The iGaming company using Affiliar. Each operator has their own isolated tenant, affiliates, plans, and reports.</p>
+            </div>
+            <div class="border border-gray-100 rounded-xl p-5">
+              <p class="font-semibold text-gray-900 mb-1">Affiliate</p>
+              <p class="text-sm text-gray-500">A partner who drives player registrations. Each affiliate has one or more referral codes and is assigned a commission plan.</p>
+            </div>
+            <div class="border border-gray-100 rounded-xl p-5">
+              <p class="font-semibold text-gray-900 mb-1">Referral Code</p>
+              <p class="text-sm text-gray-500">The token embedded in player registration links (e.g. <code>?ref=GYPVCT5M</code>). Used to attribute players to affiliates. One affiliate can have multiple codes.</p>
+            </div>
+            <div class="border border-gray-100 rounded-xl p-5">
+              <p class="font-semibold text-gray-900 mb-1">Commission Plan</p>
+              <p class="text-sm text-gray-500">Defines how an affiliate earns money — RevShare, CPA, Hybrid or Tiered. Assigned per affiliate; falls back to the operator default.</p>
+            </div>
+            <div class="border border-gray-100 rounded-xl p-5">
+              <p class="font-semibold text-gray-900 mb-1">Commission Report</p>
+              <p class="text-sm text-gray-500">One report per affiliate per calendar month. Calculated on demand; follows an approval workflow before payment.</p>
+            </div>
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── KAFKA ──────────────────────────────────────────────────────── -->
+        <section id="kafka">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Kafka Integration</h2>
+          <p class="text-gray-500 mb-6">The recommended integration for high-volume, real-time iGaming platforms.</p>
+
+          <div class="callout-info mb-6">
+            <strong>Topic naming:</strong> produce to <code>igaming.player.events</code> (configurable). Partition by <code>tenantId</code> for ordering guarantees per operator.
+          </div>
+
+          <h3 class="font-semibold text-gray-900 mb-3">Message format</h3>
+          <pre><code>{
+  <span class="tok-key">"eventId"</span>:   <span class="tok-str">"uuid-v4"</span>,           <span class="tok-cmt">// required — used for deduplication</span>
+  <span class="tok-key">"eventType"</span>: <span class="tok-str">"registration"</span>,      <span class="tok-cmt">// registration | deposit | round | withdrawal</span>
+  <span class="tok-key">"tenantId"</span>:  <span class="tok-str">"operator_object_id"</span>, <span class="tok-cmt">// your operator _id</span>
+  <span class="tok-key">"timestamp"</span>: <span class="tok-str">"2026-04-06T10:00:00Z"</span>,
+  <span class="tok-key">"affiliate"</span>: {
+    <span class="tok-key">"affiliateId"</span>:   <span class="tok-str">"user_object_id"</span>,  <span class="tok-cmt">// preferred — User._id</span>
+    <span class="tok-key">"affiliateCode"</span>: <span class="tok-str">"GYPVCT5M"</span>,        <span class="tok-cmt">// fallback if affiliateId unknown</span>
+    <span class="tok-key">"campaign"</span>:      <span class="tok-str">"instagram_april"</span>, <span class="tok-cmt">// optional — tracking metadata</span>
+    <span class="tok-key">"subId"</span>:         <span class="tok-str">"story_1"</span>          <span class="tok-cmt">// optional — sub-source</span>
+  },
+  <span class="tok-key">"player"</span>: {
+    <span class="tok-key">"playerId"</span>: <span class="tok-str">"player_001"</span>,
+    <span class="tok-key">"brandId"</span>:  <span class="tok-str">"brand_123"</span>          <span class="tok-cmt">// optional</span>
+  },
+  <span class="tok-key">"data"</span>: {
+    <span class="tok-key">"amountCents"</span>: <span class="tok-num">5000</span>,             <span class="tok-cmt">// for deposit / round events</span>
+    <span class="tok-key">"currency"</span>:    <span class="tok-str">"EUR"</span>
+  }
+}</code></pre>
+
+          <h3 class="font-semibold text-gray-900 mt-8 mb-3">Consumer behaviour</h3>
+          <ol class="list-decimal list-inside space-y-2 text-sm text-gray-600">
+            <li>Validates schema with Zod — malformed messages go to a dead-letter topic.</li>
+            <li>Checks inbox for duplicate <code>eventId</code> — skips if already processed.</li>
+            <li>Resolves <code>affiliateId</code> from <code>affiliateCode</code> if not provided (cached in memory).</li>
+            <li>Upserts an hourly bucket in <code>affiliar.activity_hourly</code> (ClickHouse).</li>
+            <li>Marks the inbox entry as processed.</li>
+          </ol>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── REST API ───────────────────────────────────────────────────── -->
+        <section id="rest-api">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">REST API Integration</h2>
+          <p class="text-gray-500 mb-6">Use the integration endpoint for platforms where Kafka is not available.</p>
+          <pre><code><span class="tok-mth">POST</span> <span class="tok-url">/api/integration/event</span>
+<span class="tok-hdr">Authorization: Bearer &lt;api-key&gt;</span>
+<span class="tok-hdr">Content-Type: application/json</span></code></pre>
+          <p class="text-sm text-gray-500 mt-4">The body is identical to the Kafka message format. Events are idempotent — re-sending the same <code>eventId</code> is safe.</p>
+          <h3 class="font-semibold text-gray-900 mt-6 mb-3">Bulk events</h3>
+          <pre><code><span class="tok-mth">POST</span> <span class="tok-url">/api/integration/player/bulk</span>
+
+[
+  { <span class="tok-key">"eventId"</span>: <span class="tok-str">"evt_1"</span>, <span class="tok-key">"eventType"</span>: <span class="tok-str">"registration"</span>, ... },
+  { <span class="tok-key">"eventId"</span>: <span class="tok-str">"evt_2"</span>, <span class="tok-key">"eventType"</span>: <span class="tok-str">"deposit"</span>, ... }
+]</code></pre>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── EVENT SCHEMA ───────────────────────────────────────────────── -->
+        <section id="event-schema">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Event Schema</h2>
+          <p class="text-gray-500 mb-6">Supported event types and their required fields.</p>
+          <div class="overflow-x-auto rounded-xl border border-gray-100">
+            <table>
+              <thead>
+                <tr><th>eventType</th><th>Required fields in <code>data</code></th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>registration</code></td><td>—</td><td>Player created an account via referral link</td></tr>
+                <tr><td><code>deposit</code></td><td><code>amountCents</code>, <code>currency</code></td><td>Player made a deposit (FTD automatically detected)</td></tr>
+                <tr><td><code>round</code></td><td><code>amountCents</code>, <code>ggrCents</code></td><td>Casino round completed — contributes to GGR/NGR</td></tr>
+                <tr><td><code>withdrawal</code></td><td><code>amountCents</code>, <code>currency</code></td><td>Player withdrawal — reduces NGR</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── IDEMPOTENCY ────────────────────────────────────────────────── -->
+        <section id="idempotency">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Idempotency</h2>
+          <p class="text-gray-500 mb-4">Every event must include a unique <code>eventId</code>. Affiliar stores processed IDs in an inbox collection and silently ignores duplicates. This means:</p>
+          <ul class="list-disc list-inside space-y-2 text-sm text-gray-600 mb-4">
+            <li>It is safe to retry failed requests without double-counting.</li>
+            <li>Kafka at-least-once delivery is handled automatically.</li>
+            <li>Use a UUID v4 or a stable hash of your internal transaction ID.</li>
+          </ul>
+          <div class="callout-warn">
+            <strong>Do not reuse event IDs</strong> across different events even if they have different content — the second event will be silently dropped.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── MANAGING AFFILIATES ────────────────────────────────────────── -->
+        <section id="managing">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Managing Affiliates</h2>
+          <p class="text-gray-500 mb-6">Affiliates can be created individually, bulk-imported via CSV, or invited to self-register.</p>
+
+          <h3 class="font-semibold text-gray-900 mb-2">Create single affiliate (operator-initiated)</h3>
+          <p class="text-sm text-gray-500 mb-3">Creates a <code>pending</code> account. The affiliate must activate it via the link you share.</p>
+          <pre><code><span class="tok-mth">POST</span> <span class="tok-url">/api/affiliates</span>
+
+{
+  <span class="tok-key">"email"</span>:    <span class="tok-str">"jane@example.com"</span>,
+  <span class="tok-key">"username"</span>: <span class="tok-str">"jane_doe"</span>,
+  <span class="tok-key">"name"</span>:     <span class="tok-str">"Jane Doe"</span>,
+  <span class="tok-key">"mobileNumber"</span>:     <span class="tok-str">"+905550000000"</span>,   <span class="tok-cmt">// optional</span>
+  <span class="tok-key">"referralCodes"</span>:    <span class="tok-str">["LEGACY_CODE"]</span>    <span class="tok-cmt">// optional legacy codes</span>
+}</code></pre>
+          <p class="text-xs text-gray-400 mt-2 mb-6">Response includes <code>activateUrl</code> — share this with the affiliate so they can set their password.</p>
+
+          <h3 class="font-semibold text-gray-900 mb-2">Bulk import</h3>
+          <p class="text-sm text-gray-500 mb-3">Send up to 500 affiliates in one request. Returns per-row success/failure.</p>
+          <pre><code><span class="tok-mth">POST</span> <span class="tok-url">/api/affiliates/bulk</span>
+
+[
+  { <span class="tok-key">"email"</span>: <span class="tok-str">"a@x.com"</span>, <span class="tok-key">"username"</span>: <span class="tok-str">"aff1"</span>, <span class="tok-key">"name"</span>: <span class="tok-str">"Aff One"</span> },
+  { <span class="tok-key">"email"</span>: <span class="tok-str">"b@x.com"</span>, <span class="tok-key">"username"</span>: <span class="tok-str">"aff2"</span>, <span class="tok-key">"name"</span>: <span class="tok-str">"Aff Two"</span> }
+]</code></pre>
+
+          <h3 class="font-semibold text-gray-900 mt-6 mb-2">Self-registration</h3>
+          <p class="text-sm text-gray-500 mb-3">Share your operator invite link. Affiliates register themselves and are immediately active.</p>
+          <pre><code><span class="tok-url">https://app.affiliar.co/register?operatorId=&lt;your_operator_id&gt;</span></code></pre>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── REFERRAL CODES ─────────────────────────────────────────────── -->
+        <section id="referral-codes">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Referral Codes</h2>
+          <p class="text-gray-500 mb-4">Each affiliate gets an auto-generated 8-character code (e.g. <code>GYPVCT5M</code>). Additional legacy codes can be attached at creation time.</p>
+          <p class="text-sm text-gray-600 mb-4">Player registration links should pass the code as the <code>ref</code> query parameter:</p>
+          <pre><code><span class="tok-url">https://yourcasino.com/register?ref=GYPVCT5M</span></code></pre>
+          <p class="text-sm text-gray-500 mt-4">When a player event arrives with an <code>affiliateCode</code>, Affiliar looks it up in <code>AffiliateProfile.referralCodes</code> and resolves the owner. All subsequent events from that <code>playerId</code> are attributed to the same affiliate.</p>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── SUB-AFFILIATES ─────────────────────────────────────────────── -->
+        <section id="sub-affiliates">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Sub-Affiliates</h2>
+          <p class="text-gray-500 mb-6">Affiliar supports a 2-level affiliate hierarchy. A parent affiliate earns an <em>override commission</em> on their sub-affiliates' NGR.</p>
+
+          <div class="callout-tip mb-6">
+            Max depth is <strong>2 levels</strong>. A parent affiliate cannot itself have a parent. This is enforced at both registration and via the operator API.
+          </div>
+
+          <h3 class="font-semibold text-gray-900 mb-2">Assign a parent via operator dashboard</h3>
+          <pre><code><span class="tok-mth">PATCH</span> <span class="tok-url">/api/affiliates/:id/parent</span>
+
+{
+  <span class="tok-key">"parentAffiliateId"</span>: <span class="tok-str">"user_object_id"</span>,
+  <span class="tok-key">"overrideRate"</span>:      <span class="tok-num">10</span>   <span class="tok-cmt">// 10% of sub's NGR goes to parent</span>
+}</code></pre>
+
+          <h3 class="font-semibold text-gray-900 mt-6 mb-2">Sub-affiliate self-registration</h3>
+          <p class="text-sm text-gray-500 mb-3">Affiliates can recruit sub-affiliates via a recruit link that includes their referral code as <code>parentCode</code>:</p>
+          <pre><code><span class="tok-url">https://app.affiliar.co/register?parentCode=GYPVCT5M</span></code></pre>
+          <p class="text-sm text-gray-500 mt-3">On registration, Affiliar automatically resolves the parent affiliate, validates the depth limit, and sets the <code>parentAffiliate</code> link.</p>
+
+          <h3 class="font-semibold text-gray-900 mt-6 mb-2">List sub-affiliates</h3>
+          <pre><code><span class="tok-mth">GET</span> <span class="tok-url">/api/affiliates/:id/sub-affiliates</span></code></pre>
+
+          <h3 class="font-semibold text-gray-900 mt-6 mb-2">Override commission calculation</h3>
+          <p class="text-sm text-gray-500">When monthly commission reports are calculated, the engine:</p>
+          <ol class="list-decimal list-inside space-y-2 text-sm text-gray-600 mt-3">
+            <li>Calculates each affiliate's direct commission (RevShare / CPA / etc).</li>
+            <li>For each sub-affiliate with a parent and <code>overrideRate &gt; 0</code>, computes <code>floor(max(0, subNgrCents) × overrideRate / 100)</code>.</li>
+            <li>Adds this to the parent's <code>overrideCents</code> and <code>totalCents</code>.</li>
+            <li>Creates a zero-direct parent report if the parent had no player activity that month.</li>
+          </ol>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── COMMISSION PLANS ───────────────────────────────────────────── -->
+        <section id="plans">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Commission Plans</h2>
+          <p class="text-gray-500 mb-6">Plans define how affiliates earn. One plan is marked as the operator default; individual affiliates can be assigned a different plan at any time.</p>
+          <pre><code><span class="tok-mth">POST</span> <span class="tok-url">/api/commission/plans</span>
+
+{
+  <span class="tok-key">"name"</span>:      <span class="tok-str">"Standard RevShare"</span>,
+  <span class="tok-key">"type"</span>:      <span class="tok-str">"revshare"</span>,       <span class="tok-cmt">// revshare | cpa | hybrid | tiered_revshare</span>
+  <span class="tok-key">"isDefault"</span>: <span class="tok-kw">true</span>,
+  <span class="tok-key">"revshare"</span>:  { <span class="tok-key">"rate"</span>: <span class="tok-num">30</span>, <span class="tok-key">"basis"</span>: <span class="tok-str">"ngr"</span> }
+}</code></pre>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── REVSHARE ───────────────────────────────────────────────────── -->
+        <section id="revshare">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">RevShare</h2>
+          <p class="text-gray-500 mb-4">The affiliate earns a fixed percentage of NGR (Net Gaming Revenue) or GGR (Gross Gaming Revenue) each month.</p>
+          <pre><code>{
+  <span class="tok-key">"type"</span>:     <span class="tok-str">"revshare"</span>,
+  <span class="tok-key">"revshare"</span>: {
+    <span class="tok-key">"rate"</span>:  <span class="tok-num">30</span>,     <span class="tok-cmt">// percentage (0–100)</span>
+    <span class="tok-key">"basis"</span>: <span class="tok-str">"ngr"</span>  <span class="tok-cmt">// "ngr" or "ggr"</span>
+  }
+}</code></pre>
+          <p class="text-sm text-gray-500 mt-4"><strong>Commission =</strong> <code>ngrCents × rate / 100</code></p>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── CPA ────────────────────────────────────────────────────────── -->
+        <section id="cpa">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">CPA — Cost Per Acquisition</h2>
+          <p class="text-gray-500 mb-4">A fixed payout for each qualifying First-Time Depositor (FTD).</p>
+          <pre><code>{
+  <span class="tok-key">"type"</span>: <span class="tok-str">"cpa"</span>,
+  <span class="tok-key">"cpa"</span>:  {
+    <span class="tok-key">"payoutCents"</span>:     <span class="tok-num">5000</span>,  <span class="tok-cmt">// €50.00 per qualifying FTD</span>
+    <span class="tok-key">"minDepositCents"</span>: <span class="tok-num">2000</span>   <span class="tok-cmt">// minimum deposit to qualify (optional)</span>
+  }
+}</code></pre>
+          <p class="text-sm text-gray-500 mt-4"><strong>Commission =</strong> <code>ftdCount × payoutCents</code></p>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── HYBRID ─────────────────────────────────────────────────────── -->
+        <section id="hybrid">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Hybrid</h2>
+          <p class="text-gray-500 mb-4">Combines both RevShare and CPA in a single plan.</p>
+          <pre><code>{
+  <span class="tok-key">"type"</span>:     <span class="tok-str">"hybrid"</span>,
+  <span class="tok-key">"revshare"</span>: { <span class="tok-key">"rate"</span>: <span class="tok-num">20</span>, <span class="tok-key">"basis"</span>: <span class="tok-str">"ngr"</span> },
+  <span class="tok-key">"cpa"</span>:      { <span class="tok-key">"payoutCents"</span>: <span class="tok-num">3000</span> }
+}</code></pre>
+          <p class="text-sm text-gray-500 mt-4"><strong>Commission =</strong> <code>(ngrCents × rate / 100) + (ftdCount × payoutCents)</code></p>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── TIERED ─────────────────────────────────────────────────────── -->
+        <section id="tiered">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Tiered RevShare</h2>
+          <p class="text-gray-500 mb-4">The RevShare rate increases as the affiliate's monthly NGR crosses defined thresholds. The applicable tier is determined each month independently.</p>
+          <pre><code>{
+  <span class="tok-key">"type"</span>: <span class="tok-str">"tiered_revshare"</span>,
+  <span class="tok-key">"tiers"</span>: [
+    { <span class="tok-key">"minNgrCents"</span>: <span class="tok-num">0</span>,      <span class="tok-key">"maxNgrCents"</span>: <span class="tok-num">500000</span>,  <span class="tok-key">"rate"</span>: <span class="tok-num">25</span> },
+    { <span class="tok-key">"minNgrCents"</span>: <span class="tok-num">500001</span>, <span class="tok-key">"maxNgrCents"</span>: <span class="tok-num">2000000</span>, <span class="tok-key">"rate"</span>: <span class="tok-num">32</span> },
+    { <span class="tok-key">"minNgrCents"</span>: <span class="tok-num">2000001</span>,<span class="tok-key">"maxNgrCents"</span>: <span class="tok-kw">null</span>,     <span class="tok-key">"rate"</span>: <span class="tok-num">40</span> }
+  ]
+}</code></pre>
+          <div class="callout-info mt-4">
+            Set <code>maxNgrCents: null</code> on the last tier to make it open-ended. Gaps between tiers are allowed — NGR in a gap earns 0%.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── OVERRIDE ───────────────────────────────────────────────────── -->
+        <section id="override">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Override Commission</h2>
+          <p class="text-gray-500 mb-4">When a sub-affiliate generates NGR, their parent earns an additional percentage on top of their own commission. This is funded by the operator — the sub-affiliate's earnings are unaffected.</p>
+          <div class="overflow-x-auto rounded-xl border border-gray-100 mb-4">
+            <table>
+              <thead><tr><th>Field</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td><code>overrideRate</code></td><td>% of sub's NGR that flows to parent. Set by operator per sub-affiliate (0–100).</td></tr>
+                <tr><td><code>overrideCents</code></td><td>Total override earned in the report period.</td></tr>
+                <tr><td><code>directCents</code></td><td>Commission from the parent's own player activity.</td></tr>
+                <tr><td><code>totalCents</code></td><td><code>directCents + overrideCents</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── REPORTS ────────────────────────────────────────────────────── -->
+        <section id="reports">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Commission Reports</h2>
+          <p class="text-gray-500 mb-4">One report is generated per affiliate per calendar month. Reports are <strong>not</strong> created automatically — trigger calculation via the API or dashboard.</p>
+          <pre><code><span class="tok-mth">POST</span> <span class="tok-url">/api/commission/reports/calculate</span>
+
+{
+  <span class="tok-key">"year"</span>:  <span class="tok-num">2026</span>,
+  <span class="tok-key">"month"</span>: <span class="tok-num">4</span>    <span class="tok-cmt">// 1–12</span>
+}</code></pre>
+          <p class="text-sm text-gray-500 mt-4">This calculates reports for all affiliates in your operator account for the given month. Existing <code>draft</code> or <code>pending_approval</code> reports are overwritten. <code>approved</code> and <code>paid</code> reports are protected.</p>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── WORKFLOW ───────────────────────────────────────────────────── -->
+        <section id="workflow">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Approval Workflow</h2>
+          <p class="text-gray-500 mb-6">Commission reports move through a structured lifecycle before payment.</p>
+          <div class="overflow-x-auto rounded-xl border border-gray-100 mb-6">
+            <table>
+              <thead><tr><th>Status</th><th>Meaning</th><th>Endpoint</th></tr></thead>
+              <tbody>
+                <tr><td><span class="badge badge-get">draft</span></td><td>Calculated, not yet submitted</td><td><code>POST /calculate</code></td></tr>
+                <tr><td><span class="badge" style="background:#fef9c3;color:#854d0e">pending_approval</span></td><td>Submitted for review</td><td><code>POST /submit</code></td></tr>
+                <tr><td><span class="badge" style="background:#dbeafe;color:#1d4ed8">approved</span></td><td>Approved by operator</td><td><code>POST /approve</code></td></tr>
+                <tr><td><span class="badge" style="background:#dcfce7;color:#15803d">paid</span></td><td>Payment confirmed</td><td><code>POST /mark-paid</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout-warn">
+            Approved and paid reports cannot be recalculated. To amend, reset the status manually via the operator dashboard.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── CAMPAIGN TRACKING ──────────────────────────────────────────── -->
+        <section id="campaign-tracking">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Campaign Tracking</h2>
+          <p class="text-gray-500 mb-6">A campaign is a <strong>tracking metadata identifier</strong> &mdash; a free-text string that affiliates append to their referral URLs to segment traffic sources. It is not a promotional offer or a database entity; it is simply a label that flows through the data pipeline and enables campaign-level reporting.</p>
+
+          <h3 class="font-semibold text-gray-900 mb-2">Tracking URL format</h3>
+          <pre><code>https://yourbrand.com<span class="tok-url">?ref=GYPVCT5M&amp;campaign=instagram_april&amp;sub=story_1</span></code></pre>
+
+          <h3 class="font-semibold text-gray-900 mt-8 mb-2">Tracking parameters</h3>
+          <div class="overflow-x-auto rounded-xl border border-gray-100 mb-6">
+            <table>
+              <thead><tr><th>Parameter</th><th>Required</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td><code>ref</code> / <code>aff</code></td><td>Yes</td><td>Affiliate referral code (e.g. <code>GYPVCT5M</code>)</td></tr>
+                <tr><td><code>campaign</code></td><td>No</td><td>Traffic source identifier (e.g. &ldquo;instagram_april&rdquo;, &ldquo;youtube_review&rdquo;, &ldquo;email_blast_q2&rdquo;)</td></tr>
+                <tr><td><code>sub</code> / <code>subId</code></td><td>No</td><td>Sub-source or placement (e.g. &ldquo;story_1&rdquo;, &ldquo;banner_top&rdquo;)</td></tr>
+                <tr><td><code>clickId</code></td><td>No</td><td>Unique click identifier for postback tracking</td></tr>
+                <tr><td><code>source</code></td><td>No</td><td>Traffic source category</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 class="font-semibold text-gray-900 mt-8 mb-2">How it flows</h3>
+          <ol class="list-decimal list-inside space-y-2 text-sm text-gray-600 mb-6">
+            <li>Affiliate adds <code>campaign</code> parameter to their referral URL.</li>
+            <li>Player clicks the link and registers &mdash; your platform captures the query parameters.</li>
+            <li>The <code>campaign</code> value is attached to the player record and included in every Kafka/REST event.</li>
+            <li>The Affiliar consumer stores the campaign field in ClickHouse&apos;s <code>activity_hourly</code> table.</li>
+            <li>Reports can be filtered and grouped by campaign to compare traffic source performance.</li>
+          </ol>
+
+          <h3 class="font-semibold text-gray-900 mt-8 mb-2">Kafka event with campaign field</h3>
+          <pre><code>{
+  <span class="tok-key">"affiliate"</span>: {
+    <span class="tok-key">"affiliateCode"</span>: <span class="tok-str">"GYPVCT5M"</span>,
+    <span class="tok-key">"campaign"</span>:      <span class="tok-str">"instagram_april"</span>,
+    <span class="tok-key">"subId"</span>:         <span class="tok-str">"story_1"</span>
+  }
+}</code></pre>
+
+          <div class="callout-info mt-6">
+            If a referral link does not include a <code>campaign</code> parameter, the value defaults to an empty string. All events still flow through normally &mdash; campaign is purely optional metadata.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── CAMPAIGN REPORTS ───────────────────────────────────────────── -->
+        <section id="campaign-reports">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Campaign Reports</h2>
+          <p class="text-gray-500 mb-6">Campaign reports aggregate player activity grouped by campaign string. Use these to compare which traffic sources drive the most registrations, FTDs, deposits, and NGR.</p>
+
+          <h3 class="font-semibold text-gray-900 mb-2">Operator endpoint</h3>
+          <pre><code><span class="tok-mth">GET</span> <span class="tok-url">/api/reports/campaigns</span>
+<span class="tok-hdr">Authorization: Bearer &lt;token&gt;</span></code></pre>
+
+          <h3 class="font-semibold text-gray-900 mt-6 mb-2">Query parameters</h3>
+          <div class="overflow-x-auto rounded-xl border border-gray-100 mb-6">
+            <table>
+              <thead><tr><th>Param</th><th>Type</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td><code>from</code></td><td>ISO 8601</td><td>Start date (inclusive)</td></tr>
+                <tr><td><code>to</code></td><td>ISO 8601</td><td>End date (inclusive)</td></tr>
+                <tr><td><code>affiliateId</code></td><td>string</td><td>Filter by affiliate (optional)</td></tr>
+                <tr><td><code>brandId</code></td><td>string</td><td>Filter by brand (optional)</td></tr>
+                <tr><td><code>campaign</code></td><td>string</td><td>Filter by exact campaign name (optional)</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 class="font-semibold text-gray-900 mt-6 mb-2">Response example</h3>
+          <pre><code>{
+  <span class="tok-key">"data"</span>: [
+    {
+      <span class="tok-key">"campaign"</span>:      <span class="tok-str">"instagram_april"</span>,
+      <span class="tok-key">"registrations"</span>: <span class="tok-num">312</span>,
+      <span class="tok-key">"ftds"</span>:          <span class="tok-num">89</span>,
+      <span class="tok-key">"depositCents"</span>:  <span class="tok-num">2450000</span>,
+      <span class="tok-key">"ngrCents"</span>:      <span class="tok-num">812000</span>,
+      <span class="tok-key">"players"</span>:       <span class="tok-num">312</span>
+    },
+    {
+      <span class="tok-key">"campaign"</span>:      <span class="tok-str">"youtube_review"</span>,
+      <span class="tok-key">"registrations"</span>: <span class="tok-num">187</span>,
+      <span class="tok-key">"ftds"</span>:          <span class="tok-num">54</span>,
+      <span class="tok-key">"depositCents"</span>:  <span class="tok-num">1520000</span>,
+      <span class="tok-key">"ngrCents"</span>:      <span class="tok-num">534000</span>,
+      <span class="tok-key">"players"</span>:       <span class="tok-num">187</span>
+    }
+  ]
+}</code></pre>
+
+          <h3 class="font-semibold text-gray-900 mt-8 mb-2">Affiliate portal endpoint</h3>
+          <pre><code><span class="tok-mth">GET</span> <span class="tok-url">/api/affiliate-portal/campaign-reports</span>
+<span class="tok-hdr">Authorization: Bearer &lt;token&gt;</span></code></pre>
+          <p class="text-sm text-gray-500 mt-4">Same response shape, but scoped to the authenticated affiliate&apos;s data only. Accepts the same <code>from</code>, <code>to</code>, <code>brandId</code>, and <code>campaign</code> query parameters.</p>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── AFFILIATE PORTAL ───────────────────────────────────────────── -->
+        <section id="portal-overview">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Affiliate Portal</h2>
+          <p class="text-gray-500 mb-4">Affiliates log in to their own self-service portal with a separate role-scoped session. The portal exposes read-only analytics and commission data scoped strictly to the authenticated affiliate.</p>
+          <div class="overflow-x-auto rounded-xl border border-gray-100">
+            <table>
+              <thead><tr><th>Page</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td>Dashboard</td><td>KPI cards (NGR, FTDs, commission earned), daily trend chart</td></tr>
+                <tr><td>Marketing Tools</td><td>Referral links + codes, campaign tracking parameters</td></tr>
+                <tr><td>Commission</td><td>Monthly report history, direct vs override breakdown</td></tr>
+                <tr><td>Sub-Affiliates</td><td>List of sub-affiliates, recruit link generator</td></tr>
+                <tr><td>Profile</td><td>Name, phone, read-only commission plan details</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── REGISTRATION FLOW ──────────────────────────────────────────── -->
+        <section id="portal-register">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Registration Flow</h2>
+          <p class="text-gray-500 mb-4">There are three ways an affiliate can create an account:</p>
+          <div class="space-y-4">
+            <div class="border border-gray-100 rounded-xl p-5">
+              <p class="font-semibold text-gray-900 mb-1">1. Operator invite link</p>
+              <p class="text-sm text-gray-500 mb-2">Affiliate self-registers, immediately active.</p>
+              <code class="block bg-gray-50 p-3 rounded-lg text-xs">/register?operatorId=&lt;id&gt;</code>
+            </div>
+            <div class="border border-gray-100 rounded-xl p-5">
+              <p class="font-semibold text-gray-900 mb-1">2. Operator-created (pending)</p>
+              <p class="text-sm text-gray-500 mb-2">Operator creates the account; affiliate activates by setting a password.</p>
+              <code class="block bg-gray-50 p-3 rounded-lg text-xs">/activate?userId=&lt;id&gt;</code>
+            </div>
+            <div class="border border-gray-100 rounded-xl p-5">
+              <p class="font-semibold text-gray-900 mb-1">3. Sub-affiliate recruit link</p>
+              <p class="text-sm text-gray-500 mb-2">Existing affiliate recruits a sub-affiliate. Operator and parent resolved automatically from the referral code.</p>
+              <code class="block bg-gray-50 p-3 rounded-lg text-xs">/register?parentCode=GYPVCT5M</code>
+            </div>
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── API REFERENCE ──────────────────────────────────────────────── -->
+        <section id="api-auth">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">API Authentication</h2>
+          <p class="text-gray-500 mb-4">All operator API endpoints require a JWT Bearer token obtained from the login endpoint.</p>
+          <pre><code><span class="tok-mth">POST</span> <span class="tok-url">/api/auth/login</span>
+
+{
+  <span class="tok-key">"email"</span>:    <span class="tok-str">"operator@example.com"</span>,
+  <span class="tok-key">"password"</span>: <span class="tok-str">"your_password"</span>
+}
+
+<span class="tok-cmt">// Response</span>
+{
+  <span class="tok-key">"token"</span>: <span class="tok-str">"eyJhbGciOiJIUzI1NiIs..."</span>
+}</code></pre>
+          <p class="text-sm text-gray-500 mt-4">Pass the token as: <code>Authorization: Bearer &lt;token&gt;</code></p>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── API AFFILIATES ─────────────────────────────────────────────── -->
+        <section id="api-affiliates">
+          <h2 class="text-2xl font-bold text-gray-900 mb-4">Affiliates API</h2>
+          <div class="space-y-4">
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-get">GET</span>
+              <code class="text-sm">/api/affiliates</code>
+              <span class="text-sm text-gray-400 ml-auto">List all affiliates (paginated)</span>
+            </div>
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-post">POST</span>
+              <code class="text-sm">/api/affiliates</code>
+              <span class="text-sm text-gray-400 ml-auto">Create single affiliate</span>
+            </div>
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-post">POST</span>
+              <code class="text-sm">/api/affiliates/bulk</code>
+              <span class="text-sm text-gray-400 ml-auto">Bulk create (max 500)</span>
+            </div>
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-get">GET</span>
+              <code class="text-sm">/api/affiliates/:id</code>
+              <span class="text-sm text-gray-400 ml-auto">Get affiliate detail</span>
+            </div>
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-patch">PATCH</span>
+              <code class="text-sm">/api/affiliates/:id/parent</code>
+              <span class="text-sm text-gray-400 ml-auto">Set parent + override rate</span>
+            </div>
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-get">GET</span>
+              <code class="text-sm">/api/affiliates/:id/sub-affiliates</code>
+              <span class="text-sm text-gray-400 ml-auto">List sub-affiliates</span>
+            </div>
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── API COMMISSION ─────────────────────────────────────────────── -->
+        <section id="api-commission">
+          <h2 class="text-2xl font-bold text-gray-900 mb-4">Commission API</h2>
+          <div class="space-y-4">
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-get">GET</span>
+              <code class="text-sm">/api/commission/plans</code>
+              <span class="text-sm text-gray-400 ml-auto">List all plans</span>
+            </div>
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-post">POST</span>
+              <code class="text-sm">/api/commission/plans</code>
+              <span class="text-sm text-gray-400 ml-auto">Create a plan</span>
+            </div>
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-patch">PATCH</span>
+              <code class="text-sm">/api/commission/plans/:id/default</code>
+              <span class="text-sm text-gray-400 ml-auto">Set as operator default</span>
+            </div>
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-patch">PATCH</span>
+              <code class="text-sm">/api/commission/affiliates/:id/plan</code>
+              <span class="text-sm text-gray-400 ml-auto">Assign plan to affiliate</span>
+            </div>
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── API REPORTS ────────────────────────────────────────────────── -->
+        <section id="api-reports">
+          <h2 class="text-2xl font-bold text-gray-900 mb-4">Reports API</h2>
+          <div class="space-y-4">
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-get">GET</span>
+              <code class="text-sm">/api/commission/reports</code>
+              <span class="text-sm text-gray-400 ml-auto">List reports (filter by month, status)</span>
+            </div>
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-post">POST</span>
+              <code class="text-sm">/api/commission/reports/calculate</code>
+              <span class="text-sm text-gray-400 ml-auto">Calculate reports for a month</span>
+            </div>
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-post">POST</span>
+              <code class="text-sm">/api/commission/reports/submit</code>
+              <span class="text-sm text-gray-400 ml-auto">Submit for approval</span>
+            </div>
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-post">POST</span>
+              <code class="text-sm">/api/commission/reports/approve</code>
+              <span class="text-sm text-gray-400 ml-auto">Approve reports</span>
+            </div>
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-post">POST</span>
+              <code class="text-sm">/api/commission/reports/mark-paid</code>
+              <span class="text-sm text-gray-400 ml-auto">Mark as paid</span>
+            </div>
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── API CAMPAIGNS ──────────────────────────────────────────────── -->
+        <section id="api-campaigns">
+          <h2 class="text-2xl font-bold text-gray-900 mb-4">Campaign Reports API</h2>
+          <div class="space-y-4">
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-get">GET</span>
+              <code class="text-sm">/api/reports/campaigns</code>
+              <span class="text-sm text-gray-400 ml-auto">Campaign performance report (operator)</span>
+            </div>
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-get">GET</span>
+              <code class="text-sm">/api/affiliate-portal/campaign-reports</code>
+              <span class="text-sm text-gray-400 ml-auto">Affiliate&apos;s own campaign report</span>
+            </div>
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── API PORTAL ─────────────────────────────────────────────────── -->
+        <section id="api-portal">
+          <h2 class="text-2xl font-bold text-gray-900 mb-4">Affiliate Portal API</h2>
+          <p class="text-sm text-gray-500 mb-4">These endpoints are scoped to the authenticated affiliate (role: <code>affiliate</code>).</p>
+          <div class="space-y-4">
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-get">GET</span>
+              <code class="text-sm">/api/affiliate-portal/overview</code>
+              <span class="text-sm text-gray-400 ml-auto">KPIs + commission summary</span>
+            </div>
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-get">GET</span>
+              <code class="text-sm">/api/affiliate-portal/commission</code>
+              <span class="text-sm text-gray-400 ml-auto">Own commission reports</span>
+            </div>
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-get">GET</span>
+              <code class="text-sm">/api/affiliate-portal/profile</code>
+              <span class="text-sm text-gray-400 ml-auto">Own profile + plan</span>
+            </div>
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-patch">PATCH</span>
+              <code class="text-sm">/api/affiliate-portal/profile</code>
+              <span class="text-sm text-gray-400 ml-auto">Update name / phone</span>
+            </div>
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-get">GET</span>
+              <code class="text-sm">/api/affiliate-portal/sub-affiliates</code>
+              <span class="text-sm text-gray-400 ml-auto">Own sub-affiliates + commission totals</span>
+            </div>
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-get">GET</span>
+              <code class="text-sm">/api/affiliate-portal/campaign-reports</code>
+              <span class="text-sm text-gray-400 ml-auto">Own campaign performance report</span>
+            </div>
+          </div>
+        </section>
+
+        <div class="h-16"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Active link highlight on scroll -->
+  <script>
+    const sections = document.querySelectorAll('.content section[id]');
+    const links    = document.querySelectorAll('.nav-link');
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          links.forEach(l => l.classList.remove('active'));
+          const active = document.querySelector(`.nav-link[href="#${e.target.id}"]`);
+          if (active) active.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+
+    sections.forEach(s => observer.observe(s));
+  </script>
+</body>
+</html>

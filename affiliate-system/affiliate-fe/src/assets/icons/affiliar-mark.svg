@@ -1,0 +1,14 @@
+<svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#38BDF8"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect width="36" height="36" rx="10" fill="url(#grad)"/>
+  <!-- A letterform -->
+  <path d="M11 26L18 10L25 26H22.5L21 22.5H15L13.5 26H11Z
+           M15.9 20.5H20.1L18 15.2L15.9 20.5Z"
+        fill="white"/>
+</svg>

@@ -1,0 +1,5 @@
+[[redirects]]
+  from = "https://docs.affiliar.co/*"
+  to = "/docs.html"
+  status = 200
+  force = true

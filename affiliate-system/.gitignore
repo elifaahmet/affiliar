@@ -1,0 +1,30 @@
+# Root ignores for combined affiliate-fe + affiliate-be workspace
+
+# Dependencies
+node_modules/
+affiliate-fe/node_modules/
+affiliate-be/node_modules/
+
+# Environment files
+.env
+*.env.local
+affiliate-fe/.env
+affiliate-be/.env
+
+# Build output
+build/
+dist/
+coverage/
+affiliate-fe/build/
+affiliate-fe/dist/
+affiliate-be/dist/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS / editor
+.DS_Store
+.vscode/

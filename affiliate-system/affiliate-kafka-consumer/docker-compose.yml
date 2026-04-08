@@ -1,0 +1,39 @@
+services:
+  mongodb:
+    image: mongo:7
+    container_name: affiliate-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: affiliate
+    command: ["mongod", "--config", "/etc/mongod.conf"]
+    volumes:
+      - mongodb-data:/data/db
+      - ./logs/mongodb:/var/log/mongodb
+      - ./config/mongod.conf:/etc/mongod.conf
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.2
+    container_name: affiliate-clickhouse
+    restart: unless-stopped
+    ports:
+      - "8123:8123"   # HTTP interface
+      - "9000:9000"   # Native TCP interface
+    environment:
+      CLICKHOUSE_DB: affiliate
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./logs/clickhouse:/var/log/clickhouse-server
+      - ./scripts/clickhouse-init.sql:/docker-entrypoint-initdb.d/clickhouse-init.sql
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+volumes:
+  mongodb-data:
+  clickhouse-data:
