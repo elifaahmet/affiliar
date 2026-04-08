@@ -86,7 +86,7 @@ function AuthLayout({ children }: AuthLayoutProps) {
 
       <footer className="h-auto py-4 w-full bg-gray-300 text-gray-700 text-sm font-bold flex items-center justify-center">
         <div className="flex justify-between items-center w-full max-w-[1700px] px-10">
-          <Icon iconName="affiliar" svgProps={{ width: '280px', height: '56px' }} />
+          <Icon iconName="affiliarDark" svgProps={{ width: '280px', height: '56px' }} />
           <div className="flex flex-col text-center gap-2 sm:flex-row sm:text-left sm:gap-6 lg:gap-16">
             {footerLinks.map((link, index) => (
               <Link key={index} to={link.to} className="underline">
