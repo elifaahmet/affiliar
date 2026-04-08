@@ -98,7 +98,7 @@ exports.overview = async (req, res) => {
       // Overall totals
       queryRows(
         `SELECT ${METRIC_COLS}
-         FROM affiliar.activity_hourly FINAL
+         FROM affiliate.activity_hourly FINAL
          WHERE ${where}`,
         params,
       ),
@@ -107,7 +107,7 @@ exports.overview = async (req, res) => {
         `SELECT
            formatDateTime(from_ts, '%Y-%m-%d', 'UTC') AS date,
            ${METRIC_COLS}
-         FROM affiliar.activity_hourly FINAL
+         FROM affiliate.activity_hourly FINAL
          WHERE ${where}
          GROUP BY date
          ORDER BY date ASC`,
@@ -191,7 +191,7 @@ exports.affiliates = async (req, res) => {
         affiliate_code AS affiliateCode,
         campaign,
         ${METRIC_COLS}
-      FROM affiliar.activity_hourly FINAL
+      FROM affiliate.activity_hourly FINAL
       WHERE ${where}
       GROUP BY affiliate_id, affiliate_code, campaign
     `;
@@ -258,7 +258,7 @@ exports.campaignReport = async (req, res) => {
          SUM(casino_ggr_cents)    AS ggrCents,
          SUM(casino_ngr_cents)    AS ngrCents,
          uniqExact(player_id)     AS playerCount
-       FROM affiliar.activity_hourly FINAL
+       FROM affiliate.activity_hourly FINAL
        WHERE ${where}
        GROUP BY campaign, affiliate_id, affiliate_code
        ORDER BY SUM(casino_ngr_cents) DESC`,
@@ -325,7 +325,7 @@ exports.portalCampaignReport = async (req, res) => {
          SUM(casino_ggr_cents)    AS ggrCents,
          SUM(casino_ngr_cents)    AS ngrCents,
          uniqExact(player_id)     AS playerCount
-       FROM affiliar.activity_hourly FINAL
+       FROM affiliate.activity_hourly FINAL
        WHERE ${where}
        GROUP BY campaign, affiliate_id, affiliate_code
        ORDER BY SUM(casino_ngr_cents) DESC`,
@@ -377,7 +377,7 @@ exports.traffic = async (req, res) => {
         SUM(deposits_count)                         AS depositsCount,
         SUM(deposits_sum_cents)                     AS depositsSumCents,
         uniqExact(player_id)                        AS playerCount
-      FROM affiliar.activity_hourly FINAL
+      FROM affiliate.activity_hourly FINAL
       WHERE ${where}
       GROUP BY date, affiliate_id, affiliate_code, campaign, sub_id
     `;

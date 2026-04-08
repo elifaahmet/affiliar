@@ -262,8 +262,8 @@ async function main() {
 
   const ch = createClient({
     url:      process.env.CLICKHOUSE_HOST      || "http://localhost:8123",
-    database: process.env.CLICKHOUSE_DATABASE  || "affiliar",
-    username: process.env.CLICKHOUSE_USERNAME  || "affiliar",
+    database: process.env.CLICKHOUSE_DATABASE  || "affiliate",
+    username: process.env.CLICKHOUSE_USERNAME  || "affiliate",
     password: process.env.CLICKHOUSE_PASSWORD  || "affiliar123",
   });
 
@@ -272,14 +272,14 @@ async function main() {
   for (let i = 0; i < rows.length; i += CHUNK) {
     const chunk = rows.slice(i, i + CHUNK);
     await ch.insert({
-      table:  "affiliar.activity_hourly",
+      table:  "affiliate.activity_hourly",
       values: chunk,
       format: "JSONEachRow",
     });
     process.stdout.write(`  Inserted ${Math.min(i + CHUNK, rows.length)}/${rows.length} rows\r`);
   }
 
-  console.log(`\n✓ Done — ${rows.length} rows inserted into affiliar.activity_hourly\n`);
+  console.log(`\n✓ Done — ${rows.length} rows inserted into affiliate.activity_hourly\n`);
   await ch.close();
 }
 

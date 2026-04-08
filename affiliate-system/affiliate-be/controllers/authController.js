@@ -84,7 +84,9 @@ const groupPermissions = (permissions = []) => {
 };
 
 exports.login = async (req, res) => {
-  const { identifier, password } = req.body;
+  const { identifier: rawId, password: rawPw } = req.body;
+  const identifier = (rawId || "").trim();
+  const password = (rawPw || "").trim();
   try {
     const player = await findUserByCredential(identifier);
     if (!player) {

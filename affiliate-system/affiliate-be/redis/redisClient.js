@@ -1,27 +1,31 @@
-const Redis = require("ioredis");
 const { logger } = require("../middlewares/logger");
 
-const redisClient = new Redis({
-  host: process.env.REDIS_HOST,
-  port: process.env.REDIS_PORT,
-  password: null,
-  // No password, secured via IP restriction
-});
+// Redis disabled — stub client that silently no-ops
+const noop = () => Promise.resolve(null);
+const noopNum = () => Promise.resolve(0);
 
-redisClient.on("connect", () => {
-  logger.info("redis.connect");
-});
+const redisClient = {
+  get: noop,
+  set: noop,
+  del: noop,
+  exists: noopNum,
+  expire: noop,
+  setex: noop,
+  sadd: noop,
+  scard: noopNum,
+  hget: noop,
+  hgetall: () => Promise.resolve({}),
+  scan: () => Promise.resolve(["0", []]),
+  pipeline: () => ({
+    hgetall: function() { return this; },
+    exec: () => Promise.resolve([]),
+  }),
+  on: () => {},
+  subscribe: noop,
+  psubscribe: noop,
+  publish: noop,
+};
 
-redisClient.on("subscribe", (channel, count) => {
-  logger.info("redis.subscribe", { channel, count });
-});
-
-redisClient.on("pmessage", (pattern, channel, message) => {
-  logger.debug("redis.pubsub.message", { pattern, channel, message });
-});
-
-redisClient.on("error", (err) => {
-  logger.error("redis.error", { error: err });
-});
+logger.info("redis.disabled — running without Redis");
 
 module.exports = redisClient;
