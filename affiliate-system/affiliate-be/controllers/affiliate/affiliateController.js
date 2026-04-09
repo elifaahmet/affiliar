@@ -26,12 +26,27 @@ async function uniqueAffiliateCode() {
 /**
  * Create a single affiliate (operator-initiated, no password yet).
  * status: "pending" — affiliate must activate via /auth/activate
+ *
+ * Operator must have at least one Brand. We auto-generate one referral code per
+ * brand so the affiliate can share the right link for each brand they promote.
  */
 async function createAffiliate(operatorUser, body) {
-  const { email, username, name, mobileNumber, mobileCountryCode, referralCodes } = body;
+  const { email, username, name, mobileNumber, mobileCountryCode } = body;
 
   if (!email || !username || !name) {
     throw Object.assign(new Error("email, username and name are required"), { status: 400 });
+  }
+
+  // Operator must have at least one brand before creating affiliates
+  const brands = await Brand.find({
+    operatorId: operatorUser._id,
+    enabled: true,
+  }).lean();
+  if (brands.length === 0) {
+    throw Object.assign(
+      new Error("You must create at least one brand before adding affiliates"),
+      { status: 400 },
+    );
   }
 
   const existing = await User.findOne({
@@ -55,12 +70,14 @@ async function createAffiliate(operatorUser, body) {
     isDeleted: false,
   });
 
-  // Build referral codes: always include one auto-generated + any legacy codes supplied
-  const autoCode = await uniqueAffiliateCode();
-  const extraCodes = Array.isArray(referralCodes)
-    ? referralCodes.map((c) => String(c).trim()).filter(Boolean)
-    : [];
-  const allCodes = [...new Set([autoCode, ...extraCodes])];
+  // One unique referral code per brand
+  const brandCodes = [];
+  const allCodes = [];
+  for (const brand of brands) {
+    const code = await uniqueAffiliateCode();
+    brandCodes.push({ code, brandId: brand._id });
+    allCodes.push(code);
+  }
 
   // Assign default commission plan if one exists for this operator
   const defaultPlan = await CommissionPlan.findOne({
@@ -72,6 +89,7 @@ async function createAffiliate(operatorUser, body) {
   await AffiliateProfile.create({
     user: user._id,
     referralCodes: allCodes,
+    brandCodes,
     operatorUser: operatorUser._id,
     commissionPlanId: defaultPlan?._id ?? null,
   });
@@ -90,7 +108,7 @@ async function createAffiliate(operatorUser, body) {
     console.error("affiliate.invite.mail_failed", mailErr.message);
   }
 
-  return { user, affiliateCode: autoCode, allCodes };
+  return { user, affiliateCode: allCodes[0], allCodes, brandCodes };
 }
 
 const affiliateController = {

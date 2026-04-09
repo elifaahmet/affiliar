@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { useBaseMutation } from 'api/core/useBaseMutation';
-import { AFFILIATES_API_URLS, OPERATOR_API_URLS, COMMISSION_API_URLS } from 'config/apiUrls';
+import { AFFILIATES_API_URLS, OPERATOR_API_URLS, COMMISSION_API_URLS, BRANDS_API_URLS } from 'config/apiUrls';
 import axiosInstance from 'config/axiosInstance';
 import UpgradeBanner from '@components/core-components/UpgradeBanner';
 import PlanBadge from '@components/core-components/PlanBadge';
@@ -863,9 +864,33 @@ function InviteTab() {
 export default function Affiliates() {
   const [activeTab, setActiveTab] = useState<Tab>('affiliates');
 
+  const { data: brandsData } = useBaseQuery<{ brands: { _id: string }[] }>({
+    endpoint: BRANDS_API_URLS.LIST(),
+    queryKey: ['brands-for-affiliates'],
+  });
+  const hasBrands = (brandsData?.brands?.length ?? 0) > 0;
+
   return (
     <div className='bg-gray-100 h-full overflow-auto p-6 pb-24 space-y-6'>
       <h1 className='text-xl font-semibold text-gray-800'>Affiliates</h1>
+
+      {!hasBrands && (
+        <div className='bg-warning-light border border-warning/30 rounded-lg p-4 flex items-start gap-3'>
+          <div className='shrink-0 w-8 h-8 rounded-full bg-warning/20 text-warning flex items-center justify-center text-sm font-bold'>!</div>
+          <div className='flex-1'>
+            <p className='text-sm font-semibold text-gray-800'>No brands yet</p>
+            <p className='text-xs text-gray-600 mt-0.5'>
+              You must create at least one brand before adding affiliates. Each affiliate will get a unique referral code per brand.
+            </p>
+            <Link
+              to='/brands'
+              className='inline-block mt-2 text-xs font-semibold text-primary hover:underline'
+            >
+              Go to Brands &rarr;
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className='flex gap-1 bg-white p-1 rounded-lg w-full border border-gray-200 shadow-sm'>
         {TABS.map((tab) => (

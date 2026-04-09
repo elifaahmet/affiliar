@@ -2,8 +2,15 @@ import { useState, useMemo } from 'react';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { AFFILIATE_PORTAL_API_URLS } from 'config/apiUrls';
 
+interface BrandReferralCode {
+  code: string;
+  brandId: string | null;
+  brandName: string | null;
+  brandUrl: string | null;
+}
+
 interface OverviewResponse {
-  referralCodes: string[];
+  referralCodes: BrandReferralCode[];
 }
 
 interface CampaignReportRow {
@@ -69,7 +76,12 @@ export default function AffiliateMarketing() {
     });
   };
 
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const fallbackBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+
+  function buildLink(rc: BrandReferralCode) {
+    const base = (rc.brandUrl || fallbackBaseUrl).replace(/\/+$/, '');
+    return `${base}/?ref=${rc.code}`;
+  }
 
   return (
     <div className='bg-gray-100 h-full overflow-auto p-6 pb-24 space-y-6'>
@@ -163,13 +175,22 @@ export default function AffiliateMarketing() {
 
         {!isLoading && referralCodes.length > 0 && (
           <div className='space-y-3'>
-            {referralCodes.map((code) => {
-              const link = `${baseUrl}/?ref=${code}`;
+            {referralCodes.map((rc) => {
+              const link = buildLink(rc);
               const isCopied = copied === link;
               return (
-                <div key={code} className='flex items-center gap-3 p-4 rounded-lg border border-gray-100 bg-gray-50'>
+                <div key={rc.code} className='flex items-center gap-3 p-4 rounded-lg border border-gray-100 bg-gray-50'>
                   <div className='flex-1 min-w-0'>
-                    <p className='text-xs font-semibold text-gray-600 mb-0.5'>Code: <span className='font-mono text-primary'>{code}</span></p>
+                    <div className='flex items-center gap-2 mb-0.5'>
+                      {rc.brandName && (
+                        <span className='inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary uppercase tracking-wide'>
+                          {rc.brandName}
+                        </span>
+                      )}
+                      <p className='text-xs font-semibold text-gray-600'>
+                        Code: <span className='font-mono text-primary'>{rc.code}</span>
+                      </p>
+                    </div>
                     <p className='text-xs text-gray-400 truncate font-mono'>{link}</p>
                   </div>
                   <button
@@ -183,7 +204,7 @@ export default function AffiliateMarketing() {
                     {isCopied ? 'Copied!' : 'Copy Link'}
                   </button>
                   <button
-                    onClick={() => copy(code)}
+                    onClick={() => copy(rc.code)}
                     className='shrink-0 px-3 py-1.5 rounded-md text-xs font-medium border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors'
                   >
                     Copy Code
@@ -253,7 +274,7 @@ export default function AffiliateMarketing() {
         </div>
         {referralCodes.length > 0 && (
           <p className='text-xs text-gray-400 mt-3'>
-            Example: <span className='font-mono text-primary'>{baseUrl}/?ref={referralCodes[0]}&campaign=summer_promo&sub=banner_1</span>
+            Example: <span className='font-mono text-primary'>{buildLink(referralCodes[0])}&campaign=summer_promo&sub=banner_1</span>
           </p>
         )}
       </div>

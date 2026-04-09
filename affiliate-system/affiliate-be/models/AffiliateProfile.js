@@ -18,6 +18,18 @@ const affiliateProfileSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    // Per-brand referral codes — each brand the operator owns gets its own code.
+    // Operator must have at least one brand before an affiliate can be created.
+    brandCodes: {
+      type: [
+        {
+          code:    { type: String, required: true },
+          brandId: { type: mongoose.Schema.Types.ObjectId, ref: "Brand", required: true },
+          _id:     false,
+        },
+      ],
+      default: [],
+    },
     parentAffiliate: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

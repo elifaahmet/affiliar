@@ -4,6 +4,34 @@ const clickhouse       = require("../../config/clickhouse");
 const AffiliateProfile = require("../../models/AffiliateProfile");
 const CommissionReport = require("../../models/CommissionReport");
 const User             = require("../../models/User");
+const Brand            = require("../../models/Brand");
+
+async function buildBrandCodes(profile) {
+  const brandCodes = profile?.brandCodes ?? [];
+  if (brandCodes.length === 0) {
+    // Legacy: no per-brand codes — return flat referralCodes with no brand info
+    return (profile?.referralCodes ?? []).map((code) => ({
+      code,
+      brandId:   null,
+      brandName: null,
+      brandUrl:  null,
+    }));
+  }
+  const brandIds = brandCodes.map((bc) => bc.brandId);
+  const brands = await Brand.find({ _id: { $in: brandIds } })
+    .select("_id name url")
+    .lean();
+  const brandMap = new Map(brands.map((b) => [String(b._id), b]));
+  return brandCodes.map((bc) => {
+    const brand = brandMap.get(String(bc.brandId));
+    return {
+      code:      bc.code,
+      brandId:   String(bc.brandId),
+      brandName: brand?.name ?? null,
+      brandUrl:  brand?.url  ?? null,
+    };
+  });
+}
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -143,8 +171,8 @@ exports.overview = async (req, res) => {
       totalEarned: 0, totalPaid: 0, totalPending: 0, totalApproved: 0,
     };
 
-    // Referral codes
-    const referralCodes = profile?.referralCodes ?? [];
+    // Referral codes (per brand)
+    const referralCodes = await buildBrandCodes(profile);
 
     res.json({
       period: { from, to },
@@ -209,7 +237,7 @@ exports.getProfile = async (req, res) => {
         mobileCountryCode: affiliate.mobileCountryCode,
         status:            affiliate.status,
       },
-      referralCodes:    profile?.referralCodes    ?? [],
+      referralCodes:    await buildBrandCodes(profile),
       commissionPlan:   profile?.commissionPlanId ?? null,
     });
   } catch (err) {
