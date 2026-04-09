@@ -76,7 +76,7 @@ interface OverviewResponse {
   summary: Omit<DayRow, 'date'>;
   byDay: DayRow[];
   commission: CommissionSummary;
-  referralCodes: string[];
+  referralCodes: { code: string; brandId: string | null; brandName: string | null; brandUrl: string | null }[];
 }
 
 // ── KPI card ──────────────────────────────────────────────────────────────────

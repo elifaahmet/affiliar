@@ -2,8 +2,15 @@ import { useState } from 'react';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { AFFILIATE_PORTAL_API_URLS } from 'config/apiUrls';
 
+interface BrandReferralCode {
+  code: string;
+  brandId: string | null;
+  brandName: string | null;
+  brandUrl: string | null;
+}
+
 interface OverviewResponse {
-  referralCodes: string[];
+  referralCodes: BrandReferralCode[];
 }
 
 function fmt(cents: number) {
@@ -165,15 +172,22 @@ export default function AffiliateSubAffiliates() {
           </div>
         ) : (
           <div className='space-y-2'>
-            {referralCodes.map((code) => {
-              const link = `${baseUrl}/register?parentCode=${code}`;
+            {referralCodes.map((rc) => {
+              const link = `${baseUrl}/register?parentCode=${rc.code}`;
               const isCopied = copiedLink === link;
               return (
-                <div key={code} className='flex items-center gap-3 p-4 rounded-lg border border-gray-100 bg-gray-50'>
+                <div key={rc.code} className='flex items-center gap-3 p-4 rounded-lg border border-gray-100 bg-gray-50'>
                   <div className='flex-1 min-w-0'>
-                    <p className='text-xs font-semibold text-gray-600 mb-0.5'>
-                      Code: <span className='font-mono text-primary'>{code}</span>
-                    </p>
+                    <div className='flex items-center gap-2 mb-0.5'>
+                      {rc.brandName && (
+                        <span className='inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary uppercase tracking-wide'>
+                          {rc.brandName}
+                        </span>
+                      )}
+                      <p className='text-xs font-semibold text-gray-600'>
+                        Code: <span className='font-mono text-primary'>{rc.code}</span>
+                      </p>
+                    </div>
                     <p className='text-xs text-gray-400 truncate font-mono'>{link}</p>
                   </div>
                   <button
