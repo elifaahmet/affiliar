@@ -3,6 +3,7 @@ const AffiliateProfile = require("../../models/AffiliateProfile");
 const CommissionPlan = require("../../models/CommissionPlan");
 const Brand = require("../../models/Brand");
 const Operator = require("../../models/Operator");
+const { sendAffiliateInvite } = require("../../utils/mailer");
 
 function generateAffiliateCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -74,6 +75,20 @@ async function createAffiliate(operatorUser, body) {
     operatorUser: operatorUser._id,
     commissionPlanId: defaultPlan?._id ?? null,
   });
+
+  // Send invite email (non-blocking — failure doesn't roll back creation)
+  try {
+    const operator = await Operator.findById(operatorUser.operatorId).lean();
+    await sendAffiliateInvite({
+      to: user.email,
+      name: user.name,
+      userId: user._id.toString(),
+      operatorName: operator?.name,
+    });
+  } catch (mailErr) {
+    // eslint-disable-next-line no-console
+    console.error("affiliate.invite.mail_failed", mailErr.message);
+  }
 
   return { user, affiliateCode: autoCode, allCodes };
 }

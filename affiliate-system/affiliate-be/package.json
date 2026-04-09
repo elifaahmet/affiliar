@@ -33,6 +33,7 @@
     "morgan": "^1.10.0",
     "node-cron": "^4.0.7",
     "pino": "^9.9.0",
+    "postmark": "^4.0.7",
     "qrcode": "^1.5.4",
     "speakeasy": "^2.0.0",
     "swagger-jsdoc": "^6.2.8",

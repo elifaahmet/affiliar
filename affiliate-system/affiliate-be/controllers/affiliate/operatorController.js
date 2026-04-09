@@ -15,7 +15,7 @@ const operatorController = {
         return res.status(400).json({ error: "User is not linked to an operator" });
       }
 
-      const baseUrl = process.env.AFFILIATE_FE_URL || "http://localhost:3001";
+      const baseUrl = process.env.APP_URL || process.env.AFFILIATE_FE_URL || "http://localhost:3001";
       const inviteLink = `${baseUrl}/register?operatorId=${user.operatorId}`;
 
       return res.json({ inviteLink });
