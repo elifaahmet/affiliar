@@ -7,6 +7,9 @@ import { useAppRoutes } from 'hooks/router/useAppRoutes';
 import CookiePolicy from '../legal/CookiePolicy';
 import PrivacyPolicy from '../legal/PrivacyPolicy';
 import TermsAndConditions from '../legal/TermsAndConditions';
+import Activate from '../activate';
+import Register from '../register';
+import ResetPassword from '../reset-password';
 import Login from './login';
 
 export default function AuthRoutes() {
@@ -33,6 +36,9 @@ export default function AuthRoutes() {
         { path: 'cookie-policy', element: <CookiePolicy /> },
       ],
     },
+    { path: 'reset-password', element: <ResetPassword /> },
+    { path: 'activate', element: <Activate /> },
+    { path: 'register', element: <Register /> },
     { path: '*', element: <Navigate to="/" replace /> },
   ]);
 }
