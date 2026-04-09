@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const speakeasy = require("speakeasy");
@@ -6,6 +7,8 @@ const User = require("../models/User");
 const Role = require("../models/Role");
 const Operator = require("../models/Operator");
 const AffiliateProfile = require("../models/AffiliateProfile");
+const PasswordResetToken = require("../models/PasswordResetToken");
+const { sendPasswordReset } = require("../utils/mailer");
 
 const findUserByCredential = async (identifier) => {
   return User.findOne({
@@ -624,5 +627,87 @@ exports.devToken = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: "Failed to issue token" });
+  }
+};
+
+/**
+ * POST /auth/forgot-password
+ * Body: { email }
+ * Always returns 200 to prevent email enumeration.
+ */
+exports.forgotPassword = async (req, res) => {
+  const email = ((req.body.email || "") + "").trim().toLowerCase();
+  if (!email) {
+    return res.status(400).json({ error: "email is required" });
+  }
+
+  try {
+    const user = await User.findOne({ email, isDeleted: false });
+    if (user) {
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+      await PasswordResetToken.create({
+        userId: user._id,
+        token,
+        expiresAt,
+      });
+
+      try {
+        await sendPasswordReset({
+          to: user.email,
+          name: user.name,
+          token,
+        });
+      } catch (mailErr) {
+        // eslint-disable-next-line no-console
+        console.error("auth.forgot.mail_failed", mailErr.message);
+      }
+    }
+
+    return res.status(200).json({
+      message: "If an account exists for that email, a reset link has been sent.",
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * POST /auth/reset-password
+ * Body: { token, password }
+ */
+exports.resetPassword = async (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) {
+    return res.status(400).json({ error: "token and password are required" });
+  }
+  if (!PASSWORD_REGEX.test(password)) {
+    return res.status(400).json({
+      error: "Password must be 8-25 characters, contain at least 1 letter and 1 number",
+    });
+  }
+
+  try {
+    const record = await PasswordResetToken.findOne({ token });
+    if (!record || record.usedAt || record.expiresAt < new Date()) {
+      return res.status(400).json({ error: "Invalid or expired reset token" });
+    }
+
+    const user = await findUserById(record.userId);
+    if (!user || user.isDeleted) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    user.password = await bcrypt.hash(password, 10);
+    if (user.status === "pending") user.status = "active";
+    await user.save();
+
+    record.usedAt = new Date();
+    await record.save();
+
+    return res.status(200).json({ message: "Password updated. You can now sign in." });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
 };

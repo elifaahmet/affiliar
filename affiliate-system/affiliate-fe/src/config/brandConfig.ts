@@ -39,8 +39,8 @@ export type BrandConfig = {
 
 const BRAND_DEFINITIONS: Record<BrandKey, BrandConfig> = {
   default: {
-    title: 'Admin Dashboard',
-    description: 'Admin Dashboard',
+    title: 'Affiliar',
+    description: 'Affiliar',
     favicon: 'favicon-default.ico',
     mainLogo: 'defaultSmall',
     mainLogoText: 'defaultLogoWhite',

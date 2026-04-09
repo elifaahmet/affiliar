@@ -47,6 +47,8 @@ const authorize = require("../middlewares/auth");
  */
 router.post("/affiliate-register", authController.affiliateRegister);
 router.post("/activate", authController.activate);
+router.post("/forgot-password", authController.forgotPassword);
+router.post("/reset-password", authController.resetPassword);
 router.post("/dev-token", authController.devToken);
 
 /**

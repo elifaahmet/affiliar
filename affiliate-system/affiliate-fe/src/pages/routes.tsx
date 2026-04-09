@@ -17,6 +17,7 @@ import { commissionRoutes } from './commission/routes';
 import { settingsRoutes } from './settings/routes';
 import { registerRoutes } from './register/routes';
 import { activateRoutes } from './activate/routes';
+import { resetPasswordRoutes } from './reset-password/routes';
 import { affiliatePortalRoutes } from './affiliate-portal/routes';
 
 export default function Router() {
@@ -47,6 +48,7 @@ export default function Router() {
     },
     ...registerRoutes,
     ...activateRoutes,
+    ...resetPasswordRoutes,
     { path: '*', element: <Navigate to='/' replace /> },
   ];
 
@@ -66,6 +68,7 @@ export default function Router() {
     },
     ...registerRoutes,
     ...activateRoutes,
+    ...resetPasswordRoutes,
     { path: '*', element: <Navigate to='/affiliate/dashboard' replace /> },
   ];
 

@@ -60,6 +60,8 @@ const publicAuthPaths = new Set([
   `${prefix}/auth/generate-2fa-qr`,
   `${prefix}/auth/affiliate-register`,
   `${prefix}/auth/activate`,
+  `${prefix}/auth/forgot-password`,
+  `${prefix}/auth/reset-password`,
   `${prefix}/auth/dev-token`,
   `${prefix}/billing/callback`,
 ]);

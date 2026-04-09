@@ -64,4 +64,34 @@ async function sendAffiliateInvite({ to, name, userId, operatorName }) {
   return sendMail({ to, subject, htmlBody, textBody });
 }
 
-module.exports = { sendMail, sendAffiliateInvite };
+async function sendPasswordReset({ to, name, token }) {
+  const resetUrl = `${APP_URL}/reset-password?token=${token}`;
+  const logoUrl = `${APP_URL}/affiliar-logo-email.svg`;
+  const subject = "Reset your Affiliar password";
+  const htmlBody = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; padding: 40px 30px;">
+      <div style="text-align: center; margin-bottom: 32px;">
+        <img src="${logoUrl}" alt="Affiliar" width="160" style="display: inline-block;" />
+      </div>
+      <h2 style="color: #1E3A5F; margin-top: 0;">Reset your password</h2>
+      <p style="color: #334155; font-size: 15px; line-height: 1.6;">Hi ${name || "there"},</p>
+      <p style="color: #334155; font-size: 15px; line-height: 1.6;">We received a request to reset your Affiliar password. Click the button below to set a new one:</p>
+      <p style="margin: 32px 0; text-align: center;">
+        <a href="${resetUrl}"
+           style="background: #2563EB; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">
+          Reset Password
+        </a>
+      </p>
+      <p style="color: #64748B; font-size: 13px; line-height: 1.5;">Or copy this link into your browser:<br/>
+      <a href="${resetUrl}" style="color: #2563EB; word-break: break-all;">${resetUrl}</a></p>
+      <p style="color: #64748B; font-size: 13px;">This link will expire in 1 hour.</p>
+      <hr style="border: none; border-top: 1px solid #E2E8F0; margin: 32px 0;" />
+      <p style="color: #94A3B8; font-size: 12px; text-align: center;">If you didn't request a password reset, you can safely ignore this email.</p>
+    </div>
+  `;
+  const textBody = `Hi ${name || "there"},\n\nWe received a request to reset your Affiliar password.\n\nReset your password:\n${resetUrl}\n\nThis link will expire in 1 hour.\n\nIf you didn't request a password reset, you can safely ignore this email.`;
+
+  return sendMail({ to, subject, htmlBody, textBody });
+}
+
+module.exports = { sendMail, sendAffiliateInvite, sendPasswordReset };
