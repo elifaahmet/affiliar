@@ -386,7 +386,29 @@ function AffiliatesTab() {
         </p>
       )}
 
-      {affiliates.length > 0 && (
+      {affiliates.length > 0 && (() => {
+        // Build hierarchy: roots = no parent OR parent not in this list, then their children indented
+        const byParent = new Map<string, Affiliate[]>();
+        const idSet = new Set(affiliates.map((a) => a._id));
+        for (const a of affiliates) {
+          const pid = a.parentAffiliate?._id && idSet.has(a.parentAffiliate._id)
+            ? a.parentAffiliate._id
+            : 'root';
+          if (!byParent.has(pid)) byParent.set(pid, []);
+          byParent.get(pid)!.push(a);
+        }
+        // Flatten in tree order with depth markers
+        const ordered: { affiliate: Affiliate; depth: number }[] = [];
+        const visit = (parentId: string, depth: number) => {
+          const children = byParent.get(parentId) || [];
+          for (const child of children) {
+            ordered.push({ affiliate: child, depth });
+            visit(child._id, depth + 1);
+          }
+        };
+        visit('root', 0);
+
+        return (
         <div className='overflow-x-auto'>
           <table className='w-full'>
             <thead className='bg-gray-50'>
@@ -399,9 +421,16 @@ function AffiliatesTab() {
               </tr>
             </thead>
             <tbody>
-              {affiliates.map((a, i) => (
+              {ordered.map(({ affiliate: a, depth }, i) => (
                 <tr key={a._id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                  <td className='px-4 py-3 text-xs text-gray-700 border-r border-gray-100'>{a.name || '—'}</td>
+                  <td className='px-4 py-3 text-xs text-gray-700 border-r border-gray-100'>
+                    <div className='flex items-center' style={{ paddingLeft: `${depth * 20}px` }}>
+                      {depth > 0 && (
+                        <span className='text-gray-400 mr-2 select-none' aria-hidden>↳</span>
+                      )}
+                      <span>{a.name || '—'}</span>
+                    </div>
+                  </td>
                   <td className='px-4 py-3 text-xs text-gray-700 border-r border-gray-100'>{a.username || '—'}</td>
                   <td className='px-4 py-3 text-xs text-gray-700 border-r border-gray-100'>{a.email}</td>
                   <td className='px-4 py-3 text-xs text-gray-700 border-r border-gray-100'>
@@ -467,7 +496,8 @@ function AffiliatesTab() {
             </tbody>
           </table>
         </div>
-      )}
+        );
+      })()}
 
       {assigningAffiliate && (
         <PlanAssignModal
