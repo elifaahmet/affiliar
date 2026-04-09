@@ -80,7 +80,7 @@ export default function AffiliateMarketing() {
 
   function buildLink(rc: BrandReferralCode) {
     const base = (rc.brandUrl || fallbackBaseUrl).replace(/\/+$/, '');
-    return `${base}/?ref=${rc.code}`;
+    return `${base}/?affiliate=${rc.code}`;
   }
 
   return (
@@ -255,7 +255,7 @@ export default function AffiliateMarketing() {
             </thead>
             <tbody className='divide-y divide-gray-100'>
               <tr>
-                <td className='px-4 py-2 font-mono text-primary'>ref</td>
+                <td className='px-4 py-2 font-mono text-primary'>affiliate</td>
                 <td className='px-4 py-2 font-mono text-gray-600'>ABC123</td>
                 <td className='px-4 py-2 text-gray-500'>Your referral code (required)</td>
               </tr>
