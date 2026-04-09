@@ -36,7 +36,7 @@ async function sendMail({ to, subject, htmlBody, textBody }) {
 
 async function sendAffiliateInvite({ to, name, userId, operatorName }) {
   const activateUrl = `${APP_URL}/activate?userId=${userId}`;
-  const logoUrl = `${APP_URL}/affiliar-logo.svg`;
+  const logoUrl = `${APP_URL}/affiliar-logo-email.svg`;
   const subject = `${operatorName || "Affiliar"} invited you to join their affiliate program`;
   const htmlBody = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; padding: 40px 30px;">
