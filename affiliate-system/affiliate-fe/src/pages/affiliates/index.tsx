@@ -527,10 +527,22 @@ function AddAffiliateTab() {
   const [username, setUsername] = useState('');
   const [name, setName]         = useState('');
   const [phone, setPhone]       = useState('');
-  const [codes, setCodes]       = useState('');
+  const [selectedBrandIds, setSelectedBrandIds] = useState<string[]>([]);
   const [result, setResult]     = useState<CreateResult | null>(null);
   const [error, setError]       = useState('');
   const [upgradeBanner, setUpgradeBanner] = useState<{ message: string; currentPlan: string; requiredPlan: string } | null>(null);
+
+  const { data: brandsData } = useBaseQuery<{ brands: { _id: string; name: string; url?: string }[] }>({
+    endpoint: BRANDS_API_URLS.LIST(),
+    queryKey: ['brands-add-affiliate'],
+  });
+  const brands = brandsData?.brands ?? [];
+
+  const toggleBrand = (id: string) => {
+    setSelectedBrandIds((prev) =>
+      prev.includes(id) ? prev.filter((b) => b !== id) : [...prev, id],
+    );
+  };
 
   const { mutate, isPending } = useBaseMutation<CreateResult>({
     endpoint: AFFILIATES_API_URLS.CREATE(),
@@ -538,7 +550,7 @@ function AddAffiliateTab() {
     onSuccess: (data) => {
       setResult(data);
       setUpgradeBanner(null);
-      setEmail(''); setUsername(''); setName(''); setPhone(''); setCodes('');
+      setEmail(''); setUsername(''); setName(''); setPhone(''); setSelectedBrandIds([]);
     },
     onError: (e: any) => {
       const respData = e?.response?.data;
@@ -561,8 +573,17 @@ function AddAffiliateTab() {
     setError('');
     setResult(null);
     setUpgradeBanner(null);
-    const referralCodes = codes.split(',').map(c => c.trim()).filter(Boolean);
-    mutate({ email, username, name, mobileNumber: phone || undefined, referralCodes });
+    if (selectedBrandIds.length === 0) {
+      setError('Select at least one brand');
+      return;
+    }
+    mutate({
+      email,
+      username,
+      name,
+      mobileNumber: phone || undefined,
+      brandIds: selectedBrandIds,
+    });
   };
 
   return (
@@ -579,13 +600,29 @@ function AddAffiliateTab() {
           <Field label='Email *'       value={email}    onChange={setEmail}    placeholder='jane@example.com' type='email' />
           <Field label='Username *'    value={username} onChange={setUsername} placeholder='jane_doe' />
           <Field label='Phone'         value={phone}    onChange={setPhone}    placeholder='+90 555 000 0000' />
-          <Field
-            label='Legacy Codes'
-            value={codes}
-            onChange={setCodes}
-            placeholder='CODE1, CODE2'
-            hint='Comma-separated legacy affiliate codes from their previous system'
-          />
+
+          <div>
+            <label className='block text-xs font-medium text-gray-600 mb-1'>Brands *</label>
+            {brands.length === 0 ? (
+              <p className='text-xs text-warning'>You must create a brand first.</p>
+            ) : (
+              <div className='space-y-1.5 border border-gray-200 rounded-lg p-3'>
+                {brands.map((b) => (
+                  <label key={b._id} className='flex items-center gap-2 text-xs text-gray-700 cursor-pointer'>
+                    <input
+                      type='checkbox'
+                      checked={selectedBrandIds.includes(b._id)}
+                      onChange={() => toggleBrand(b._id)}
+                      className='rounded border-gray-300 text-primary focus:ring-primary'
+                    />
+                    <span className='font-medium'>{b.name}</span>
+                    {b.url && <span className='text-gray-400'>— {b.url}</span>}
+                  </label>
+                ))}
+              </div>
+            )}
+            <p className='text-xs text-gray-400 mt-1'>The affiliate gets one referral code per selected brand.</p>
+          </div>
 
           {upgradeBanner && (
             <UpgradeBanner

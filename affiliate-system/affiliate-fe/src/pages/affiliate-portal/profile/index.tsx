@@ -22,8 +22,15 @@ interface ProfileResponse {
     mobileCountryCode: string | null;
     status: string;
   };
-  referralCodes: string[];
+  referralCodes: BrandReferralCode[];
   commissionPlan: CommissionPlan | null;
+}
+
+interface BrandReferralCode {
+  code: string;
+  brandId: string | null;
+  brandName: string | null;
+  brandUrl: string | null;
 }
 
 const TYPE_STYLES: Record<string, string> = {
@@ -229,9 +236,17 @@ export default function AffiliateProfile() {
           <p className='text-xs text-gray-400'>No referral codes assigned.</p>
         ) : (
           <div className='flex flex-wrap gap-2'>
-            {data!.referralCodes.map((code) => (
-              <span key={code} className='inline-flex items-center px-3 py-1 bg-gray-100 text-gray-700 rounded-lg font-mono text-xs'>
-                {code}
+            {data!.referralCodes.map((rc) => (
+              <span
+                key={rc.code}
+                className='inline-flex items-center gap-2 px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs'
+              >
+                {rc.brandName && (
+                  <span className='inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary uppercase tracking-wide'>
+                    {rc.brandName}
+                  </span>
+                )}
+                <span className='font-mono'>{rc.code}</span>
               </span>
             ))}
           </div>

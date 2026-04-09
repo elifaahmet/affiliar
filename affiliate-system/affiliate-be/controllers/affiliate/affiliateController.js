@@ -31,22 +31,37 @@ async function uniqueAffiliateCode() {
  * brand so the affiliate can share the right link for each brand they promote.
  */
 async function createAffiliate(operatorUser, body) {
-  const { email, username, name, mobileNumber, mobileCountryCode } = body;
+  const { email, username, name, mobileNumber, mobileCountryCode, brandIds } = body;
 
   if (!email || !username || !name) {
     throw Object.assign(new Error("email, username and name are required"), { status: 400 });
   }
 
   // Operator must have at least one brand before creating affiliates
-  const brands = await Brand.find({
+  const allBrands = await Brand.find({
     operatorId: operatorUser._id,
     enabled: true,
   }).lean();
-  if (brands.length === 0) {
+  if (allBrands.length === 0) {
     throw Object.assign(
       new Error("You must create at least one brand before adding affiliates"),
       { status: 400 },
     );
+  }
+
+  // Resolve which brands to assign: explicit list from body, or all if none provided
+  let brands;
+  if (Array.isArray(brandIds) && brandIds.length > 0) {
+    const wanted = new Set(brandIds.map(String));
+    brands = allBrands.filter((b) => wanted.has(String(b._id)));
+    if (brands.length === 0) {
+      throw Object.assign(
+        new Error("None of the selected brands belong to your operator"),
+        { status: 400 },
+      );
+    }
+  } else {
+    brands = allBrands;
   }
 
   const existing = await User.findOne({
