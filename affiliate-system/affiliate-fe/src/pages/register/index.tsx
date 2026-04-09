@@ -62,7 +62,7 @@ function PageWrapper({ children }: { children: React.ReactNode }) {
     <div className='min-h-screen bg-grayBg flex items-center justify-center p-4'>
       <div className='flex items-center flex-col max-w-lg w-full my-8 py-12 p-8 justify-center rounded-[20px] bg-black'>
         <div className='w-[253px] h-32 flex items-center justify-center'>
-          <Icon iconName='affiliarDark' svgProps={{ width: 280, height: 56 }} />
+          <Icon iconName='affiliar' svgProps={{ width: 280, height: 56 }} />
         </div>
         {children}
       </div>
