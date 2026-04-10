@@ -30,7 +30,7 @@ async function fetchAffiliateMetrics(tenantId, year, month) {
       SUM(deposits_sum_cents)               AS depositsCents,
       SUM(registrations)                    AS registrations,
       uniqExact(player_id)                  AS playerCount
-    FROM affiliate.activity_hourly FINAL
+    FROM affiliate.activity
     WHERE
       tenant_id = {tenantId:String}
       AND from_ts >= {fromTs:DateTime}

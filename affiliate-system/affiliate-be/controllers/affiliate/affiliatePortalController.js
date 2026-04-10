@@ -134,7 +134,7 @@ exports.overview = async (req, res) => {
     const [summaryRows, byDayRows] = await Promise.all([
       queryRows(
         `SELECT ${AFFILIATE_METRIC_COLS}
-         FROM affiliate.activity_hourly FINAL
+         FROM affiliate.activity
          WHERE ${where}`,
         params,
       ),
@@ -142,7 +142,7 @@ exports.overview = async (req, res) => {
         `SELECT
            formatDateTime(from_ts, '%Y-%m-%d', 'UTC') AS date,
            ${AFFILIATE_METRIC_COLS}
-         FROM affiliate.activity_hourly FINAL
+         FROM affiliate.activity
          WHERE ${where}
          GROUP BY date
          ORDER BY date ASC`,
