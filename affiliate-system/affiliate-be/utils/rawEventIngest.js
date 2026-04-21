@@ -120,25 +120,21 @@ function buildDeltaRow(event, data, affiliateId = "") {
       break;
 
     case "casino.bet.placed":
-      // Bonus-money bets don't contribute to GGR/wager, but we still count
-      // the round so casino activity is visible in reports.
-      if (!data.isBonus) {
-        metrics.bets_sum_cents = data.betCents;
-        metrics.wager_cents = data.betCents;
-      }
+      metrics.bets_sum_cents = data.betCents;
+      metrics.wager_cents = data.betCents;
       metrics.rounds_count = 1;
       break;
 
     case "casino.win.settled":
-      if (!data.isBonus) metrics.wins_sum_cents = data.winCents;
+      metrics.wins_sum_cents = data.winCents;
       break;
 
     case "casino.bet.rollback":
-      if (!data.isBonus) metrics.casino_bets_rollbacks_sum_cents = data.betCents;
+      metrics.casino_bets_rollbacks_sum_cents = data.betCents;
       break;
 
     case "casino.win.rollback":
-      if (!data.isBonus) metrics.casino_wins_rollbacks_sum_cents = data.winCents;
+      metrics.casino_wins_rollbacks_sum_cents = data.winCents;
       break;
 
     case "bonus.granted":
