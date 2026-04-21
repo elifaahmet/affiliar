@@ -50,23 +50,27 @@ const betPlacedData = z.object({
   gameId:     z.string().optional(),
   providerId: z.string().optional(),
   roundId:    z.string().min(1),
+  isBonus:    z.boolean().default(false),
 });
 
 const winSettledData = z.object({
   winCents: z.number().int().min(0),
   roundId:  z.string().min(1),
+  isBonus:  z.boolean().default(false),
 });
 
 const betRollbackData = z.object({
   betCents:        z.number().int().min(0),
   roundId:         z.string().min(1),
   originalEventId: z.string().optional(),
+  isBonus:         z.boolean().default(false),
 });
 
 const winRollbackData = z.object({
   winCents:        z.number().int().min(0),
   roundId:         z.string().min(1),
   originalEventId: z.string().optional(),
+  isBonus:         z.boolean().default(false),
 });
 
 const bonusGrantedData = z.object({

@@ -46,20 +46,24 @@ const EVENT_DATA_SCHEMAS = {
     gameId:     z.string().optional(),
     providerId: z.string().optional(),
     roundId:    z.string().min(1),
+    isBonus:    z.boolean().default(false),
   }),
   'casino.win.settled': z.object({
     winCents: z.number().int().min(0),
     roundId:  z.string().min(1),
+    isBonus:  z.boolean().default(false),
   }),
   'casino.bet.rollback': z.object({
     betCents:        z.number().int().min(0),
     roundId:         z.string().min(1),
     originalEventId: z.string().optional(),
+    isBonus:         z.boolean().default(false),
   }),
   'casino.win.rollback': z.object({
     winCents:        z.number().int().min(0),
     roundId:         z.string().min(1),
     originalEventId: z.string().optional(),
+    isBonus:         z.boolean().default(false),
   }),
   'bonus.granted': z.object({
     amountCents: z.number().int().min(0),
