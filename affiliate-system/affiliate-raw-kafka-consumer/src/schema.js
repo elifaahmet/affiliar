@@ -65,6 +65,12 @@ const EVENT_DATA_SCHEMAS = {
     amountCents: z.number().int().min(0),
     bonusType:   z.string().optional(),
   }),
+  'bonus.revoked': z.object({
+    amountCents:     z.number().int().min(0),
+    bonusType:       z.string().optional(),
+    originalEventId: z.string().optional(),
+    reason:          z.string().optional(),
+  }),
   'fees.daily.adjustment': z.object({
     date:                       z.string(),
     paymentSystemFeesCents:     z.number().int().min(0).default(0),

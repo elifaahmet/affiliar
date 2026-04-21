@@ -74,6 +74,13 @@ const bonusGrantedData = z.object({
   bonusType:   z.string().optional(),
 });
 
+const bonusRevokedData = z.object({
+  amountCents:     z.number().int().min(0),
+  bonusType:       z.string().optional(),
+  originalEventId: z.string().optional(),
+  reason:          z.string().optional(),
+});
+
 const feesDailyData = z.object({
   date:                       z.string(),
   paymentSystemFeesCents:     z.number().int().min(0).default(0),
@@ -96,6 +103,7 @@ const EVENT_DATA_SCHEMAS = {
   "casino.bet.rollback":          betRollbackData,
   "casino.win.rollback":          winRollbackData,
   "bonus.granted":                bonusGrantedData,
+  "bonus.revoked":                bonusRevokedData,
   "fees.daily.adjustment":        feesDailyData,
 };
 

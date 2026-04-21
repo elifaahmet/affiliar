@@ -124,6 +124,10 @@ function buildDeltaRow(event, data, affiliateId = '') {
     case 'bonus.granted':
       m.bonus_issues_sum_cents = data.amountCents;
       break;
+    case 'bonus.revoked':
+      // Reverses a grant when a bonus expires or is cancelled before use.
+      m.bonus_issues_sum_cents = -data.amountCents;
+      break;
     case 'fees.daily.adjustment':
       m.payment_system_fees_sum_cents = data.paymentSystemFeesCents || 0;
       m.jackpot_fees_sum_cents = data.jackpotFeesCents || 0;
