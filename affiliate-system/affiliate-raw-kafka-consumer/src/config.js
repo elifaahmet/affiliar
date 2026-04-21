@@ -31,4 +31,8 @@ export const config = {
     database: requireEnv('MONGODB_DATABASE'),
     refreshMs: parseInt(optionalEnv('AFFILIATE_CACHE_REFRESH_MS', '60000'), 10),
   },
+  hexoraMongo: {
+    uri: requireEnv('HEXORA_MONGODB_URI'),
+    database: requireEnv('HEXORA_MONGODB_DATABASE'),
+  },
 };

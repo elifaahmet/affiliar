@@ -1,7 +1,10 @@
 import { consumer } from './kafka.js';
 import { parseRawEvent } from './schema.js';
 import { addEvent } from './clickhouse.js';
-import { resolveAffiliateId } from './affiliateResolver.js';
+import {
+  resolveAffiliateIdByCode,
+  resolveAffiliateIdByPlayer,
+} from './affiliateResolver.js';
 
 async function processMessage(rawValue) {
   let parsed;
@@ -18,10 +21,15 @@ async function processMessage(rawValue) {
     return;
   }
 
-  const affiliateId = resolveAffiliateId(data.affiliateCode);
+  // player.registered carries the affiliateCode inline. Other event types
+  // don't include it, so we look the player up in hexora-db.players to get
+  // their stored affiliateReferralCode.
+  const affiliateId = data.affiliateCode
+    ? resolveAffiliateIdByCode(data.affiliateCode)
+    : await resolveAffiliateIdByPlayer(event.playerId);
 
   console.log(
-    `[consumer] ${event.eventType} | player=${event.playerId} tenant=${event.tenantId} code=${data.affiliateCode || '-'} affiliate=${affiliateId || '-'}`
+    `[consumer] ${event.eventType} | player=${event.playerId} tenant=${event.tenantId} affiliate=${affiliateId || '-'}`
   );
 
   addEvent(event, data, affiliateId);

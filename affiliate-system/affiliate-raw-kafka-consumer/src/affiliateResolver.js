@@ -1,16 +1,26 @@
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 import { config } from './config.js';
 
-let client;
+let affiliateClient;
+let hexoraClient;
 let profilesCol;
+let playersCol;
 let codeToUserId = new Map();
 let refreshTimer;
 
 export async function connectMongo() {
-  client = new MongoClient(config.mongo.uri);
-  await client.connect();
-  const db = client.db(config.mongo.database);
-  profilesCol = db.collection('affiliateprofiles');
+  affiliateClient = new MongoClient(config.mongo.uri);
+  await affiliateClient.connect();
+  const affiliateDb = affiliateClient.db(config.mongo.database);
+  profilesCol = affiliateDb.collection('affiliateprofiles');
+
+  hexoraClient = new MongoClient(config.hexoraMongo.uri, {
+    directConnection: true,
+  });
+  await hexoraClient.connect();
+  const hexoraDb = hexoraClient.db(config.hexoraMongo.database);
+  playersCol = hexoraDb.collection('players');
+
   await refreshCache();
   refreshTimer = setInterval(() => {
     refreshCache().catch((err) =>
@@ -18,13 +28,14 @@ export async function connectMongo() {
     );
   }, config.mongo.refreshMs);
   console.log(
-    `[resolver] Connected to Mongo ${config.mongo.database}, ${codeToUserId.size} codes cached`,
+    `[resolver] Connected (affiliate + hexora), ${codeToUserId.size} codes cached`,
   );
 }
 
 export async function closeMongo() {
   if (refreshTimer) clearInterval(refreshTimer);
-  if (client) await client.close();
+  if (affiliateClient) await affiliateClient.close();
+  if (hexoraClient) await hexoraClient.close();
 }
 
 async function refreshCache() {
@@ -45,7 +56,30 @@ async function refreshCache() {
   codeToUserId = next;
 }
 
-export function resolveAffiliateId(code) {
+export function resolveAffiliateIdByCode(code) {
   if (!code) return '';
   return codeToUserId.get(String(code).toUpperCase()) || '';
+}
+
+export async function resolveAffiliateIdByPlayer(playerId) {
+  if (!playerId) return '';
+  const _id = toObjectId(playerId);
+  if (!_id) return '';
+  const player = await playersCol.findOne(
+    { _id },
+    { projection: { affiliateReferralCode: 1 } },
+  );
+  const code = player?.affiliateReferralCode;
+  if (!code) return '';
+  return resolveAffiliateIdByCode(code);
+}
+
+function toObjectId(id) {
+  if (!id) return null;
+  if (id instanceof ObjectId) return id;
+  try {
+    return new ObjectId(String(id));
+  } catch {
+    return null;
+  }
 }
