@@ -26,4 +26,9 @@ export const config = {
     size: parseInt(optionalEnv('BATCH_SIZE', '200'), 10),
     intervalMs: parseInt(optionalEnv('SEND_INTERVAL_MS', '5000'), 10),
   },
+  mongo: {
+    uri: requireEnv('MONGODB_URI'),
+    database: requireEnv('MONGODB_DATABASE'),
+    refreshMs: parseInt(optionalEnv('AFFILIATE_CACHE_REFRESH_MS', '60000'), 10),
+  },
 };

@@ -1,6 +1,7 @@
 import { consumer } from './kafka.js';
 import { parseRawEvent } from './schema.js';
 import { addEvent } from './clickhouse.js';
+import { resolveAffiliateId } from './affiliateResolver.js';
 
 async function processMessage(rawValue) {
   let parsed;
@@ -17,11 +18,13 @@ async function processMessage(rawValue) {
     return;
   }
 
+  const affiliateId = resolveAffiliateId(data.affiliateCode);
+
   console.log(
-    `[consumer] ${event.eventType} | player=${event.playerId} tenant=${event.tenantId} at=${event.occurredAt}`
+    `[consumer] ${event.eventType} | player=${event.playerId} tenant=${event.tenantId} code=${data.affiliateCode || '-'} affiliate=${affiliateId || '-'}`
   );
 
-  addEvent(event, data);
+  addEvent(event, data, affiliateId);
 }
 
 export async function startConsuming() {

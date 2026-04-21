@@ -63,7 +63,7 @@ function buildRawRow(event) {
   };
 }
 
-function buildDeltaRow(event, data) {
+function buildDeltaRow(event, data, affiliateId = '') {
   const base = {
     tenant_id:       event.tenantId,
     brand_id:        event.brandId,
@@ -72,6 +72,7 @@ function buildDeltaRow(event, data) {
     hour_bucket:     hourBucket(event.occurredAt),
     source_system:   event.source?.system || '',
     source_event_id: event.eventId,
+    affiliate_id:    affiliateId || '',
   };
 
   const m = {
@@ -139,9 +140,9 @@ function buildDeltaRow(event, data) {
 
 // ── Batch + flush ────────────────────────────────────────────────────────────
 
-export function addEvent(event, data) {
+export function addEvent(event, data, affiliateId = '') {
   rawBatch.push(buildRawRow(event));
-  const delta = buildDeltaRow(event, data);
+  const delta = buildDeltaRow(event, data, affiliateId);
   if (delta) deltaBatch.push(delta);
   startFlushTimer();
   if (rawBatch.length >= config.batch.size) flushAll();

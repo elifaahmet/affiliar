@@ -1,5 +1,16 @@
 const clickhouse = require("../config/clickhouse");
 const { logger } = require("../middlewares/logger");
+const AffiliateProfile = require("../models/AffiliateProfile");
+
+async function resolveAffiliateId(code) {
+  if (!code) return "";
+  const profile = await AffiliateProfile.findOne({
+    referralCodes: String(code).trim().toUpperCase(),
+  })
+    .select({ user: 1 })
+    .lean();
+  return profile?.user?.toString() || "";
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -43,7 +54,7 @@ async function logRawEvent(event) {
 // Each raw event produces exactly one delta row for activity_hourly_delta.
 // SummingMergeTree will sum these deltas per (tenant, brand, player, currency, hour).
 
-function buildDeltaRow(event, data) {
+function buildDeltaRow(event, data, affiliateId = "") {
   const base = {
     tenant_id:      event.tenantId,
     brand_id:       event.brandId,
@@ -52,6 +63,7 @@ function buildDeltaRow(event, data) {
     hour_bucket:    hourBucket(event.occurredAt),
     source_system:  event.source?.system || "",
     source_event_id: event.eventId,
+    affiliate_id:   affiliateId || "",
   };
 
   // All metrics default to 0 — only set the delta for this specific event type
@@ -150,8 +162,8 @@ function buildDeltaRow(event, data) {
 
 // ── Insert delta ─────────────────────────────────────────────────────────────
 
-async function insertDelta(event, data) {
-  const row = buildDeltaRow(event, data);
+async function insertDelta(event, data, affiliateId) {
+  const row = buildDeltaRow(event, data, affiliateId);
   if (!row) return;
 
   try {
@@ -178,9 +190,10 @@ async function insertDelta(event, data) {
 // Used by both REST endpoint and Kafka consumer
 
 async function ingestRawEvent(event, data) {
+  const affiliateId = await resolveAffiliateId(data.affiliateCode);
   await Promise.all([
     logRawEvent(event),
-    insertDelta(event, data),
+    insertDelta(event, data, affiliateId),
   ]);
 }
 
