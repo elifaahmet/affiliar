@@ -35,4 +35,8 @@ export const config = {
     uri: requireEnv('HEXORA_MONGODB_URI'),
     database: requireEnv('HEXORA_MONGODB_DATABASE'),
   },
+  playerCache: {
+    maxSize: parseInt(optionalEnv('PLAYER_CACHE_MAX_SIZE', '10000'), 10),
+    ttlMs: parseInt(optionalEnv('PLAYER_CACHE_TTL_MS', '3600000'), 10),
+  },
 };

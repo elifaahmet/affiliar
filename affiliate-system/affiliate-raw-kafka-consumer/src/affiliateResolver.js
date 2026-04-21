@@ -8,6 +8,12 @@ let playersCol;
 let codeToUserId = new Map();
 let refreshTimer;
 
+// LRU + TTL cache for playerId → affiliate_id. Attributions are immutable
+// after registration, so TTL is mostly a self-healing safety net.
+const PLAYER_CACHE_MAX = config.playerCache.maxSize;
+const PLAYER_CACHE_TTL_MS = config.playerCache.ttlMs;
+const playerCache = new Map(); // playerId -> { affiliateId, expiresAt }
+
 export async function connectMongo() {
   affiliateClient = new MongoClient(config.mongo.uri);
   await affiliateClient.connect();
@@ -63,6 +69,17 @@ export function resolveAffiliateIdByCode(code) {
 
 export async function resolveAffiliateIdByPlayer(playerId) {
   if (!playerId) return '';
+  const key = String(playerId);
+  const now = Date.now();
+
+  const cached = playerCache.get(key);
+  if (cached && cached.expiresAt > now) {
+    // Refresh LRU recency
+    playerCache.delete(key);
+    playerCache.set(key, cached);
+    return cached.affiliateId;
+  }
+
   const _id = toObjectId(playerId);
   if (!_id) return '';
   const player = await playersCol.findOne(
@@ -70,8 +87,14 @@ export async function resolveAffiliateIdByPlayer(playerId) {
     { projection: { affiliateReferralCode: 1 } },
   );
   const code = player?.affiliateReferralCode;
-  if (!code) return '';
-  return resolveAffiliateIdByCode(code);
+  const affiliateId = code ? resolveAffiliateIdByCode(code) : '';
+
+  playerCache.set(key, { affiliateId, expiresAt: now + PLAYER_CACHE_TTL_MS });
+  if (playerCache.size > PLAYER_CACHE_MAX) {
+    const oldest = playerCache.keys().next().value;
+    playerCache.delete(oldest);
+  }
+  return affiliateId;
 }
 
 function toObjectId(id) {
