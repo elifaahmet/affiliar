@@ -83,6 +83,7 @@ app.use(`${prefix}/brands`,     affiliateRoutes.brandRoutes);
 app.use(`${prefix}/commission`,        affiliateRoutes.commissionRoutes);
 app.use(`${prefix}/affiliate-portal`, affiliateRoutes.affiliatePortalRoutes);
 app.use(`${prefix}/billing`, affiliateRoutes.billingRoutes);
+app.use(`${prefix}/fees`, affiliateRoutes.feesRoutes);
 app.post(`${prefix}/billing/callback`, billingController.handleCallback);
 app.use(`${prefix}/integration`, integrationRoutes);
 
@@ -109,4 +110,9 @@ app.listen(PORT, () => {
   // Fires immediately on boot and then once per day.
   const { startFxRatesJob } = require("./jobs/fxRatesJob");
   startFxRatesJob();
+
+  // Compute yesterday's operator fees once per day and write them back as
+  // deltas to activity_hourly_delta.
+  const { startFeesDailyJob } = require("./jobs/feesDailyJob");
+  startFeesDailyJob();
 });

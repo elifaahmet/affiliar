@@ -9,4 +9,5 @@ module.exports = {
   commissionRoutes:     require("./commissionRoutes.js"),
   affiliatePortalRoutes: require("./affiliatePortalRoutes.js"),
   billingRoutes:         require("./billingRoutes.js"),
+  feesRoutes:            require("./feesRoutes.js"),
 };
