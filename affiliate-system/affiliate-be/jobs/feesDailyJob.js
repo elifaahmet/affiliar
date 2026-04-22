@@ -156,10 +156,17 @@ async function runOnce() {
   let processed = 0;
   for (const op of operators) {
     try {
-      const financials = await OperatorFinancialSettings.findOne({
-        operatorId: op._id,
-      }).lean();
-      if (!financials) continue;
+      // Settings may be absent entirely — that's a valid state. Default
+      // everything to 0% so only provider-level rates (if any) apply. The
+      // per-row "all fees zero" check below still skips writing noise rows.
+      const financials =
+        (await OperatorFinancialSettings.findOne({
+          operatorId: op._id,
+        }).lean()) || {
+          paymentSystemFeePercent: 0,
+          jackpotFeePercent: 0,
+          casinoTaxPercent: 0,
+        };
       await runForOperator(op, financials, bounds);
       processed++;
     } catch (err) {

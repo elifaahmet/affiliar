@@ -289,6 +289,7 @@ export const BRANDS_API_URLS = {
 
 export const AFFILIATE_PORTAL_API_URLS = {
   OVERVIEW:         () => `${API_BASE_URL}api/affiliate-portal/overview`,
+  PROVIDERS:        () => `${API_BASE_URL}api/affiliate-portal/providers`,
   COMMISSION:       () => `${API_BASE_URL}api/affiliate-portal/commission`,
   PROFILE:          () => `${API_BASE_URL}api/affiliate-portal/profile`,
   SUB_AFFILIATES:   () => `${API_BASE_URL}api/affiliate-portal/sub-affiliates`,

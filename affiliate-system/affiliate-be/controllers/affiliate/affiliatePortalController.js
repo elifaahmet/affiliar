@@ -105,6 +105,75 @@ const AFFILIATE_METRIC_COLS = `
   uniqExact(player_id)                AS playerCount
 `.trim();
 
+// ── Provider breakdown ────────────────────────────────────────────────────────
+
+const ProviderFeeRate = require("../../models/ProviderFeeRate");
+
+exports.providers = async (req, res) => {
+  try {
+    const user = req.affiliateUser;
+    if (!["operator", "affiliate"].includes(user.role)) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    if (!user.operatorId) {
+      return res.status(400).json({ error: "No operator linked to account" });
+    }
+
+    const conditions = ["tenant_id = {tenantId:String}"];
+    const params = { tenantId: user.operatorId.toString() };
+    if (user.role === "affiliate") {
+      conditions.push("affiliate_id = {affiliateId:String}");
+      params.affiliateId = user._id.toString();
+    }
+
+    const { from, to } = req.query;
+    if (from) { conditions.push("from_ts >= {fromTs:DateTime}"); params.fromTs = chDate(from); }
+    if (to)   { conditions.push("from_ts <= {toTs:DateTime}");   params.toTs   = chDate(to, true); }
+    if (req.query.brandId)  { conditions.push("brand_id = {brandId:String}"); params.brandId = req.query.brandId; }
+    const where = conditions.join(" AND ");
+
+    const rows = await queryRows(
+      `SELECT
+         provider                              AS providerId,
+         SUM(bets_sum_cents)                   AS betsSumCents,
+         SUM(wins_sum_cents)                   AS winsSumCents,
+         SUM(rounds_count)                     AS roundsCount,
+         SUM(game_provider_fees_sum_cents)     AS providerFeesSumCents,
+         SUM(casino_ggr_cents)                 AS ggrCents,
+         SUM(casino_ngr_cents)                 AS ngrCents,
+         uniqExact(player_id)                  AS playerCount
+       FROM affiliate.activity
+       WHERE ${where}
+         AND provider != ''
+       GROUP BY provider
+       ORDER BY ggrCents DESC`,
+      params,
+    );
+
+    const rates = await ProviderFeeRate.find({
+      operatorId: user.operatorId,
+      isDeleted: false,
+    })
+      .select({ providerId: 1, providerName: 1, feePercent: 1, _id: 0 })
+      .lean();
+    const rateMap = new Map(rates.map((r) => [r.providerId, r]));
+
+    const providers = rows.map((row) => {
+      const r = coerce(row);
+      const cfg = rateMap.get(r.providerId) || null;
+      return {
+        ...r,
+        providerName: cfg?.providerName || r.providerId,
+        feePercent: cfg?.feePercent ?? 0,
+      };
+    });
+
+    res.json({ providers });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // ── Overview / Dashboard ──────────────────────────────────────────────────────
 
 exports.overview = async (req, res) => {

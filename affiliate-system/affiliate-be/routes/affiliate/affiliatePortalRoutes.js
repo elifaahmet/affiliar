@@ -4,6 +4,7 @@ const ctrl           = require("../../controllers/affiliate/affiliatePortalContr
 const reportCtrl     = require("../../controllers/affiliate/reportController");
 
 router.get("/overview",          ctrl.overview);
+router.get("/providers",         ctrl.providers);
 router.get("/commission",        ctrl.commissionReports);
 router.get("/profile",           ctrl.getProfile);
 router.patch("/profile",         ctrl.updateProfile);
