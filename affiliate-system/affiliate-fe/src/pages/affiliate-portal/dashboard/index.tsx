@@ -58,6 +58,12 @@ interface DayRow {
   ftdSumCents: number;
   depositsCount: number;
   depositsSumCents: number;
+  cashoutsCount: number;
+  cashoutsSumCents: number;
+  chargebacksSumCents: number;
+  bonusIssuesSumCents: number;
+  correctionsUpSumCents: number;
+  correctionsDownSumCents: number;
   ggrCents: number;
   ngrCents: number;
   roundsCount: number;
@@ -182,6 +188,18 @@ export default function AffiliateDashboard() {
             <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4'>
               <KpiCard label='GGR'           value={`€${fmt(s?.ggrCents ?? 0)}`} />
               <KpiCard label='NGR'           value={`€${fmt(s?.ngrCents ?? 0)}`} accent />
+            </div>
+          </div>
+
+          {/* Adjustments KPIs */}
+          <div>
+            <p className='text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3'>Adjustments</p>
+            <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4'>
+              <KpiCard label='Cashouts'        value={`€${fmt(s?.cashoutsSumCents ?? 0)}`} sub={`${s?.cashoutsCount ?? 0} txns`} />
+              <KpiCard label='Chargebacks'     value={`€${fmt(s?.chargebacksSumCents ?? 0)}`} />
+              <KpiCard label='Bonus Issued'    value={`€${fmt(s?.bonusIssuesSumCents ?? 0)}`} />
+              <KpiCard label='Correction Up'   value={`€${fmt(s?.correctionsUpSumCents ?? 0)}`} sub='casino recovered' />
+              <KpiCard label='Correction Down' value={`€${fmt(s?.correctionsDownSumCents ?? 0)}`} sub='casino gifted' />
             </div>
           </div>
 

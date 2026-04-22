@@ -88,15 +88,21 @@ function affiliateWhere(affiliateUserId, query) {
 }
 
 const AFFILIATE_METRIC_COLS = `
-  SUM(registrations)         AS registrations,
-  SUM(ftd_count)             AS ftdCount,
-  SUM(ftd_sum_cents)         AS ftdSumCents,
-  SUM(deposits_count)        AS depositsCount,
-  SUM(deposits_sum_cents)    AS depositsSumCents,
-  SUM(casino_ggr_cents)      AS ggrCents,
-  SUM(casino_ngr_cents)      AS ngrCents,
-  SUM(rounds_count)          AS roundsCount,
-  uniqExact(player_id)       AS playerCount
+  SUM(registrations)                  AS registrations,
+  SUM(ftd_count)                      AS ftdCount,
+  SUM(ftd_sum_cents)                  AS ftdSumCents,
+  SUM(deposits_count)                 AS depositsCount,
+  SUM(deposits_sum_cents)             AS depositsSumCents,
+  SUM(cashouts_count)                 AS cashoutsCount,
+  SUM(cashouts_sum_cents)             AS cashoutsSumCents,
+  SUM(chargebacks_sum_cents)          AS chargebacksSumCents,
+  SUM(bonus_issues_sum_cents)         AS bonusIssuesSumCents,
+  SUM(corrections_up_sum_cents)       AS correctionsUpSumCents,
+  SUM(corrections_down_sum_cents)     AS correctionsDownSumCents,
+  SUM(casino_ggr_cents)               AS ggrCents,
+  SUM(casino_ngr_cents)               AS ngrCents,
+  SUM(rounds_count)                   AS roundsCount,
+  uniqExact(player_id)                AS playerCount
 `.trim();
 
 // ── Overview / Dashboard ──────────────────────────────────────────────────────
