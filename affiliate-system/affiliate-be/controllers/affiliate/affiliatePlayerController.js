@@ -58,9 +58,9 @@ const affiliatePlayerController = {
   // GET /players
   async list(req, res) {
     try {
-      const operator = req.affiliateUser;
-      if (operator.role !== "operator") {
-        return res.status(403).json({ error: "Only operators can list players" });
+      const user = req.affiliateUser;
+      if (!["operator", "affiliate"].includes(user.role)) {
+        return res.status(403).json({ error: "Forbidden" });
       }
 
       const {
@@ -73,10 +73,16 @@ const affiliatePlayerController = {
         limit = 50,
       } = req.query;
 
-      const filter = { operatorId: operator.operatorId };
+      const filter = { operatorId: user.operatorId };
+
+      // Affiliates only see their own players; operator filter is optional.
+      if (user.role === "affiliate") {
+        filter.affiliateId = user._id;
+      } else if (affiliateId) {
+        filter.affiliateId = affiliateId;
+      }
 
       if (affiliateCode) filter.affiliateCode = affiliateCode.toUpperCase();
-      if (affiliateId)   filter.affiliateId = affiliateId;
       if (playerId)      filter.playerId = { $regex: playerId, $options: "i" };
 
       if (from || to) {
@@ -100,7 +106,7 @@ const affiliatePlayerController = {
       // Enrich with ClickHouse lifetime metrics for the current page
       const playerIds = players.map((p) => String(p.playerId));
       const metrics = await fetchPlayerMetrics(
-        operator.operatorId.toString(),
+        user.operatorId.toString(),
         playerIds,
       );
 
@@ -118,19 +124,24 @@ const affiliatePlayerController = {
   // GET /players/:playerId — player registry row + lifetime metrics
   async detail(req, res) {
     try {
-      const operator = req.affiliateUser;
-      if (operator.role !== "operator") {
-        return res.status(403).json({ error: "Only operators can access this" });
+      const user = req.affiliateUser;
+      if (!["operator", "affiliate"].includes(user.role)) {
+        return res.status(403).json({ error: "Forbidden" });
       }
       const { playerId } = req.params;
       if (!playerId) {
         return res.status(400).json({ error: "playerId is required" });
       }
 
-      const player = await AffiliatePlayer.findOne({
-        operatorId: operator.operatorId,
+      const query = {
+        operatorId: user.operatorId,
         playerId: String(playerId),
-      })
+      };
+      if (user.role === "affiliate") {
+        query.affiliateId = user._id;
+      }
+
+      const player = await AffiliatePlayer.findOne(query)
         .populate("affiliateId", "username email name")
         .lean();
 
@@ -139,7 +150,7 @@ const affiliatePlayerController = {
       }
 
       const metricsMap = await fetchPlayerMetrics(
-        operator.operatorId.toString(),
+        user.operatorId.toString(),
         [String(playerId)],
       );
 
