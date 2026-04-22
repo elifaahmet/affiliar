@@ -2,7 +2,7 @@ import { config } from './config.js';
 import { connectConsumer, disconnectConsumer } from './kafka.js';
 import { connectClickHouse, closeClickHouse } from './clickhouse.js';
 import { startConsuming } from './consumer.js';
-import { connectMongo, closeMongo, getHexoraDb } from './affiliateResolver.js';
+import { connectMongo, closeMongo, getAffiliateDb } from './affiliateResolver.js';
 import { connectFxRates, closeFxRates } from './fxRates.js';
 
 async function main() {
@@ -13,7 +13,7 @@ async function main() {
 
   connectClickHouse();
   await connectMongo();
-  await connectFxRates(getHexoraDb());
+  await connectFxRates(getAffiliateDb());
   await connectConsumer();
   await startConsuming();
 

@@ -10,8 +10,8 @@ let ratesCol;
 let rates = new Map(); // currency → rate to base
 let refreshTimer;
 
-export async function connectFxRates(hexoraDb) {
-  ratesCol = hexoraDb.collection('exchangeRates');
+export async function connectFxRates(db) {
+  ratesCol = db.collection('exchangeRates');
   await refreshRates();
   const refreshMs = config.fx?.refreshMs ?? 5 * 60 * 1000;
   refreshTimer = setInterval(() => {

@@ -7,11 +7,16 @@ let profilesCol;
 let affiliatePlayersCol;
 let playersCol;
 let _hexoraDb;
+let _affiliateDb;
 let codeToUserId = new Map();
 let refreshTimer;
 
 export function getHexoraDb() {
   return _hexoraDb;
+}
+
+export function getAffiliateDb() {
+  return _affiliateDb;
 }
 
 // LRU + TTL cache for playerId → affiliate_id. Attributions are immutable
@@ -26,6 +31,7 @@ export async function connectMongo() {
   const affiliateDb = affiliateClient.db(config.mongo.database);
   profilesCol = affiliateDb.collection('affiliateprofiles');
   affiliatePlayersCol = affiliateDb.collection('affiliateplayers');
+  _affiliateDb = affiliateDb;
 
   hexoraClient = new MongoClient(config.hexoraMongo.uri, {
     directConnection: true,

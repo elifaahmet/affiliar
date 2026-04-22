@@ -105,4 +105,8 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 app.listen(PORT, () => {
   logger.info("server.started", { port: PORT });
+  // Keep exchangeRates fresh for the raw-event consumer's FX normalization.
+  // Fires immediately on boot and then once per day.
+  const { startFxRatesJob } = require("./jobs/fxRatesJob");
+  startFxRatesJob();
 });
