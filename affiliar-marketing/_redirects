@@ -1,1 +1,4 @@
-https://docs.affiliar.co/* /docs.html 200
+# docs & guide are kept in the repo but not served publicly — auth gate comes later
+/docs.html                  /  404!
+/guide.html                 /  404!
+https://docs.affiliar.co/*  https://affiliar.co/  301!

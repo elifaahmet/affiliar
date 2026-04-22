@@ -1,5 +1,20 @@
+# docs & guide pages are kept in the repo but blocked from public serving.
+# Auth gating will replace these rules later.
+
+[[redirects]]
+  from = "/docs.html"
+  to = "/"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/guide.html"
+  to = "/"
+  status = 404
+  force = true
+
 [[redirects]]
   from = "https://docs.affiliar.co/*"
-  to = "/docs.html"
-  status = 200
+  to = "https://affiliar.co/"
+  status = 301
   force = true
