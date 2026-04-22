@@ -35,7 +35,7 @@ async function fetchPlayerMetrics(tenantId, playerIds) {
        SUM(bonus_issues_sum_cents) AS bonusIssuesSumCents,
        SUM(casino_ggr_cents)       AS ggrCents,
        SUM(casino_ngr_cents)       AS ngrCents,
-       max(hour_bucket)            AS lastActivityAt
+       max(from_ts)                AS lastActivityAt
      FROM affiliate.activity
      WHERE tenant_id = {tenantId:String}
        AND player_id IN {playerIds:Array(String)}
