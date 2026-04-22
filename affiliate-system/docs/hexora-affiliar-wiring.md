@@ -197,7 +197,69 @@ PLAYER_CACHE_TTL_MS=3600000
 
 ---
 
-## 7. Open work
+## 7. Data invariants & gotchas
+
+Learned the hard way while wiring this up:
+
+### 7.1 `affiliateprofiles.operatorUser` must be set
+
+Commission calculation (`commissionController.calculate`) filters
+profiles by `{ operatorUser: operator._id }` to decide which affiliates
+belong to the requesting operator. A profile with `operatorUser: null`
+is invisible to any operator's report and will always fail with
+`Affiliate not found in this operator`.
+
+When creating an affiliate profile (seed, admin create, self-signup),
+make sure to populate `operatorUser` — it's not optional in practice.
+
+### 7.2 `affiliate_id` in ClickHouse = User `_id`, not profile.affiliateId
+
+The consumer resolves `referralCode → profile.user` (the User `_id`)
+and writes that into `activity_hourly_delta.affiliate_id`. The legacy
+`profile.affiliateId` field is unused by the event pipeline.
+
+`commissionController` builds its idMap with a self-reference
+(`profile.user → profile.user`) so the ClickHouse `affiliate_id` can
+resolve directly without needing a separate lookup key. If you touch
+this controller, preserve that self-map entry.
+
+### 7.3 `player.affiliateReferralCode` is the single source of truth
+
+Everywhere on Hexora's side — `auth-management` at register, the
+consumer's per-player lookup, admin/player-mgmt publishers — reads the
+code from `hexora-db.players.affiliateReferralCode`. This field is
+written once during `authController.register` and is immutable
+afterwards. Do not add code paths that mutate it post-registration;
+the cache assumes immutability.
+
+Historical fields on the player doc (`affiliateAdminUserId`,
+`affiliate`) were removed when the local admin-users lookup was
+deleted. Don't re-introduce them.
+
+### 7.4 Registration cookie data hygiene
+
+Client-side affiliate tracking (`affiliateTracking.ts` on player-fe)
+stores the code in localStorage + cookie for 30 days. Stale values —
+e.g. a code deleted from the operator's account — will still be sent
+in register payloads and written to `player.affiliateReferralCode`
+as-is (no backend validation). These won't resolve to any affiliate_id
+and all the player's events will land with `affiliate_id=""` in
+ClickHouse.
+
+If a player reports "my affiliate isn't getting credited", first check
+`player.affiliateReferralCode` — it may be a stale code from before a
+redeploy.
+
+### 7.5 ObjectId vs string identifiers
+
+Mongo shell needs `ObjectId("...")` to match `_id` fields. Several
+update queries in this codebase take a string arg because they assume
+Mongoose's auto-cast; the native driver doesn't auto-cast, so cross-DB
+ops (e.g. the consumer querying hexora-db) must wrap with `ObjectId`.
+
+---
+
+## 8. Open work
 
 - [ ] `casino.bet.placed` / `casino.win.settled` emission — hook point in casino/adapter stack TBD
 - [ ] `casino.bet.rollback` / `casino.win.rollback`
