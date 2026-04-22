@@ -2,14 +2,17 @@
 
 This document describes how an operator's casino platform integrates with Affiliar to report player activity for affiliate tracking, commission calculation, and reporting.
 
-There are two integration methods:
+There are three integration methods:
 
 | Method | When to use |
 |--------|-------------|
-| **REST API** | Simpler setup; operator pushes data via HTTP |
-| **Kafka** | High-volume / real-time; operator publishes events to a shared Kafka topic |
+| **REST API (aggregated)** | Simplest setup; operator pushes hourly/daily rollups via HTTP |
+| **Kafka (aggregated)** | High-volume aggregated rollups published to a shared Kafka topic |
+| **Kafka (raw events)** | Real-time per-action events (bet, win, deposit, etc.) — see [raw-events-integration.md](./raw-events-integration.md) |
 
-Both methods write into the same canonical `activityHourly` store. Choose one.
+The two aggregated methods write into the canonical `activityHourly` store. The raw-events method streams to ClickHouse `activity_hourly_delta` (SummingMergeTree), which is UNIONed into the same `activity` view used for reporting. Mix and match is supported — e.g. raw events for live commissions and an hourly REST batch for reconciliation — but a single `(tenant, brand, player, currency, hour)` bucket should only be populated by one path.
+
+> **New capabilities (2026-Q2):** per-brand/per-provider fee configuration, operator-computed daily fees cron (no need to push fee metrics yourself), multi-currency auto-normalization to USD, `wasFirstDeposit` chargeback reversal for CPA integrity, and a set of operator-facing REST endpoints for providers / fees / players (see §8 below).
 
 ---
 
@@ -142,6 +145,10 @@ Content-Type: application/json
 | `ftdSumCents` | integer ≥ 0 | Yes | First time deposit amount |
 | `chargebacksCount` | integer ≥ 0 | Yes | Number of chargebacks |
 | `chargebacksSumCents` | integer ≥ 0 | Yes | Total chargeback amount |
+| `chargebackFtdReversals` | integer ≥ 0 | No | Number of chargebacks that reversed an FTD (drives CPA clawback) |
+| `casinoCorrectionsUpSumCents` | integer ≥ 0 | No | Manual adjustments favoring the casino's P&L (player balance decreased) |
+| `casinoCorrectionsDownSumCents` | integer ≥ 0 | No | Manual adjustments favoring the player (player balance increased — deducted from NGR) |
+| `bonusRevokesSumCents` | integer ≥ 0 | No | Bonuses revoked before conversion (offsets `bonusIssuesSumCents`) |
 | `casinoGgrCents` | integer | No | Producer-computed GGR (used for mismatch check only) |
 | `casinoNgrCents` | integer | No | Producer-computed NGR (used for mismatch check only) |
 
@@ -149,8 +156,15 @@ Content-Type: application/json
 >
 > ```
 > GGR = (bets - betRollbacks) - (wins - winRollbacks)
-> NGR = GGR - bonusIssues - additionalDeductions - paymentFees - jackpotFees - providerFees - taxes
+> NGR = GGR
+>       - bonusIssues + bonusRevokes
+>       - chargebacks
+>       - casinoCorrectionsDown + casinoCorrectionsUp
+>       - additionalDeductions
+>       - paymentSystemFees - jackpotFees - gameProviderFees - casinoTaxes
 > ```
+>
+> **Fees can be computed for you.** If you do not send `paymentSystemFeesSumCents`, `jackpotFeesSumCents`, `gameProviderFeesSumCents`, or `casinoTaxesSumCents`, Affiliar's daily fees cron will compute them from the rates configured in the operator's Fees UI (per brand, per provider, or operator-default). See §9. You can also mix: send the values you know, leave the ones you want Affiliar to compute at `0`, and configure rates only for those categories.
 
 #### Validation rules
 
@@ -476,7 +490,119 @@ Registered affiliates appear immediately in the operator's **Affiliates** tab wi
 
 ---
 
-## 7. Error reference
+## 7. Currency handling
+
+Affiliar stores every bucket in its native currency **and** a USD-normalized value, so operator dashboards can report in a single currency regardless of the mix of player currencies.
+
+- **Submit amounts in the player's native currency.** Do not pre-convert — send EUR events in EUR, TRY in TRY, etc.
+- Affiliar owns a daily FX rates table (`exchangeRates` in `affiliate-db`, refreshed nightly from `frankfurter.app` ECB rates, base USD).
+- On ingest (raw events) or on query (aggregated), each `(currency, day)` pair is resolved to a USD rate; `*_usd` columns are populated on the ClickHouse delta table.
+- If a rate is missing for a new currency, the event is still accepted — it will backfill the next day when the cron runs.
+
+No action is required on your side beyond sending correct ISO 4217 `currency` codes.
+
+---
+
+## 8. Operator API
+
+Beyond the activity-import endpoints, Affiliar exposes a set of operator-scoped REST endpoints that the operator's own back-office tooling can integrate with. All require `Authorization: Bearer <token>` and `role: "operator"`.
+
+### 8.1 Providers
+
+```
+GET /api/affiliate-portal/providers
+```
+
+Returns the list of game providers seen in the operator's activity stream. Useful for populating dropdowns in fee-configuration UIs or cross-referencing provider-level commission reports.
+
+**Response**
+```json
+{
+  "providers": [
+    { "id": "pragmatic", "displayName": "Pragmatic Play", "eventCount": 128450 },
+    { "id": "evolution", "displayName": "Evolution", "eventCount": 42110 }
+  ]
+}
+```
+
+Providers are derived from distinct `providerId` values on raw `casino.bet.placed` / `casino.win.settled` events and are materialized lazily — a new provider appears within minutes of its first event.
+
+### 8.2 Players
+
+```
+GET /api/players?brandId=<id>&status=<active|disabled>&page=<n>
+GET /api/players/detail/:playerId
+```
+
+The **list** endpoint returns one row per player with lifetime metrics (deposits, cashouts, NGR, status, last-activity). The **detail** endpoint returns the full per-currency activity history and status timeline for a single player.
+
+These endpoints are the same ones that back the Operator Dashboard → Players tab.
+
+### 8.3 Fees configuration
+
+```
+GET    /api/fees/brands                                → list brand scopes available to the current operator
+GET    /api/fees/provider-rates?brandId=<id>           → per-provider rates for a scope (null brandId = operator default)
+PUT    /api/fees/provider-rates                        → upsert a provider rate
+GET    /api/fees/settings?brandId=<id>                 → flat fee percentages (payment/jackpot/tax)
+PUT    /api/fees/settings                              → upsert operator / brand-level settings
+POST   /api/fees/run                                   → trigger the fees cron manually
+```
+
+- All endpoints accept `brandId` as an optional query parameter; omit it (or pass `null`) to target the operator-default scope.
+- Brand-specific rates override operator-default rates when both exist for the same category/provider.
+- `POST /api/fees/run` accepts `{ "dayOffset": 0 }` in the body to run for today (default is yesterday).
+
+Data models:
+
+| Collection | Fields | Notes |
+|------------|--------|-------|
+| `providerfeerates` | `operatorId`, `brandId?`, `providerId`, `ratePct` | Per-provider game-provider fee. `brandId = null` → operator default |
+| `operatorfinancialsettings` | `operatorId`, `brandId?`, `paymentSystemFeePct`, `jackpotFeePct`, `casinoTaxPct` | Flat percentages applied to GGR |
+
+### 8.4 Affiliate portal
+
+```
+GET /api/affiliate-portal/dashboard
+GET /api/affiliate-portal/players
+GET /api/affiliate-portal/providers
+```
+
+These are used by the affiliate-facing portal (not the operator dashboard). They return the same rollups scoped to the logged-in affiliate's `affiliateId` only.
+
+---
+
+## 9. Fees & adjustments
+
+Affiliar runs a daily fees cron (`affiliate-be/jobs/feesDailyJob.js`, default schedule 03:00 UTC) that:
+
+1. Groups yesterday's `activity_hourly_delta` rows by `(brand, affiliate, currency, provider)`.
+2. Resolves fee rates for each bucket using **brand-specific → operator-default → 0%** fallback.
+3. Writes fee rows into the same delta table under a sentinel `player_id = "__fees__"` (with `sweep_id` tag for idempotency).
+4. The `activity` view folds the sentinel rows into the commission calculation automatically — no re-ingest required.
+
+You can override any individual category by sending its metric explicitly (REST or aggregated Kafka) — the cron only computes the categories you left at `0`. A manual `POST /api/fees/run` is available for back-filling or testing.
+
+**Fees.daily.adjustment event (raw pipeline):** if you prefer to compute fees yourself and push them as raw events, use the `fees.daily.adjustment` event type documented in [raw-events-integration.md](./raw-events-integration.md). Do not do both.
+
+---
+
+## 10. Player statuses & compliance
+
+Affiliar tracks each player's current status for fraud/risk scoring in commission reports:
+
+| Status | Source |
+|--------|--------|
+| `active` | Default |
+| `disabled` | Operator admin flagged/blocked the player, OR a chargeback was reported |
+| `duplicate` | Operator flagged as a duplicate account |
+| `self_excluded` | Player self-excluded (if your platform supports it) |
+
+The `player.flagged` raw event (or the `playerStatuses.isDisabled = true` field on an aggregated record) moves a player into `disabled`. Once flagged, their future bets still count toward GGR but the affiliate dashboard badge shows the status so commissions can be reviewed before payout.
+
+---
+
+## 11. Error reference
 
 | HTTP Status | Meaning |
 |-------------|---------|
@@ -489,15 +615,18 @@ Per-record failures do not affect other records in the same batch. A response wi
 
 ---
 
-## 7. Onboarding checklist
+## 12. Onboarding checklist
 
 **Operator setup**
 - [ ] Receive your `tenantId` from Affiliar
 - [ ] Create an operator account (or receive credentials)
-- [ ] Choose integration method: REST or Kafka
+- [ ] Choose integration method: REST (aggregated), Kafka (aggregated), or Kafka (raw events — recommended for live commissions)
 - [ ] If Kafka: confirm broker address and topic name with Affiliar team
 - [ ] Send a test batch for a past hour and verify data appears in the Reports dashboard
-- [ ] Set up a recurring job to push data hourly (or daily)
+- [ ] Configure fee rates per brand/provider under **Operator Dashboard → Fees** (or push fee metrics yourself)
+- [ ] Verify FX rates are available for all currencies you report (check `/api/fees/brands` returns your brands)
+- [ ] Set up a recurring job to push data hourly (or daily), OR rely on raw events for live streaming
+- [ ] Confirm `chargebackFtdReversals` flow with your payments team if you run CPA commissions
 
 **Affiliate onboarding**
 - [ ] Copy invite link from Affiliates → Invite Affiliate tab
