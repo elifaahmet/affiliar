@@ -287,6 +287,14 @@ export const BRANDS_API_URLS = {
   UPDATE: (id: string) => `${API_BASE_URL}api/brands/${id}`,
 };
 
+export const FEES_API_URLS = {
+  PROVIDER_RATES: () => `${API_BASE_URL}api/fees/provider-rates`,
+  PROVIDER_RATE: (providerId: string) =>
+    `${API_BASE_URL}api/fees/provider-rates/${providerId}`,
+  SETTINGS: () => `${API_BASE_URL}api/fees/settings`,
+  RUN: () => `${API_BASE_URL}api/fees/run`,
+};
+
 export const AFFILIATE_PORTAL_API_URLS = {
   OVERVIEW:         () => `${API_BASE_URL}api/affiliate-portal/overview`,
   PROVIDERS:        () => `${API_BASE_URL}api/affiliate-portal/providers`,

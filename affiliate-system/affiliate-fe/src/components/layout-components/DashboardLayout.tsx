@@ -175,6 +175,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       current: pathname.startsWith('/commission'),
     },
     {
+      key: 'fees',
+      name: t('menuItems.fees') || 'Fees',
+      href: '/fees',
+      icon: (
+        <Icon
+          iconName="settings"
+          className="h-5 w-5 shrink-0"
+          svgProps={{
+            fill: pathname.startsWith('/fees') ? 'white' : '#99A1B7',
+          }}
+        />
+      ),
+      current: pathname.startsWith('/fees'),
+    },
+    {
       key: 'settings',
       name: t('menuItems.settings') || 'Settings',
       href: '/settings',

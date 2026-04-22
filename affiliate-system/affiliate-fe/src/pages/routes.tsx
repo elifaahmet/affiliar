@@ -14,6 +14,7 @@ import { affiliatesRoutes } from './affiliates/routes';
 import { reportsRoutes } from './reports/routes';
 import { brandsRoutes } from './brands/routes';
 import { commissionRoutes } from './commission/routes';
+import { feesRoutes } from './fees/routes';
 import { settingsRoutes } from './settings/routes';
 import { registerRoutes } from './register/routes';
 import { activateRoutes } from './activate/routes';
@@ -43,6 +44,7 @@ export default function Router() {
         ...reportsRoutes,
         ...brandsRoutes,
         ...commissionRoutes,
+        ...feesRoutes,
         ...settingsRoutes,
       ],
     },
