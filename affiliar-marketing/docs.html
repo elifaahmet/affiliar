@@ -121,9 +121,12 @@
           <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Integration</p>
           <a href="#kafka"           class="nav-link">Kafka Integration</a>
           <a href="#rest-api"        class="nav-link">REST API</a>
-          <a href="#event-schema"       class="nav-link">Event Schema</a>
+          <a href="#event-schema"    class="nav-link">Event Schema</a>
+          <a href="#ngr-formula"     class="nav-link">NGR Formula</a>
+          <a href="#fees"            class="nav-link">Fees &amp; Adjustments</a>
+          <a href="#currency"        class="nav-link">Multi-Currency</a>
           <a href="#campaign-tracking" class="nav-link">Campaign Tracking</a>
-          <a href="#idempotency"       class="nav-link">Idempotency</a>
+          <a href="#idempotency"     class="nav-link">Idempotency</a>
         </div>
 
         <div>
@@ -346,20 +349,104 @@
         <!-- ─── EVENT SCHEMA ───────────────────────────────────────────────── -->
         <section id="event-schema">
           <h2 class="text-2xl font-bold text-gray-900 mb-2">Event Schema</h2>
-          <p class="text-gray-500 mb-6">Supported event types and their required fields.</p>
+          <p class="text-gray-500 mb-6">
+            Every event shares the same envelope — <code>eventId</code>, <code>eventType</code>, <code>tenantId</code>, <code>brandId</code>, <code>playerId</code>, <code>currency</code>, <code>occurredAt</code>, <code>source</code>, <code>data</code>.
+            The table below lists each supported <code>eventType</code> and the fields you must set inside <code>data</code>.
+            All monetary fields are integer cents — never floats.
+          </p>
           <div class="overflow-x-auto rounded-xl border border-gray-100">
             <table>
               <thead>
                 <tr><th>eventType</th><th>Required fields in <code>data</code></th><th>Description</th></tr>
               </thead>
               <tbody>
-                <tr><td><code>registration</code></td><td>—</td><td>Player created an account via referral link</td></tr>
-                <tr><td><code>deposit</code></td><td><code>amountCents</code>, <code>currency</code></td><td>Player made a deposit (FTD automatically detected)</td></tr>
-                <tr><td><code>round</code></td><td><code>amountCents</code>, <code>ggrCents</code></td><td>Casino round completed — contributes to GGR/NGR</td></tr>
-                <tr><td><code>withdrawal</code></td><td><code>amountCents</code>, <code>currency</code></td><td>Player withdrawal — reduces NGR</td></tr>
+                <tr><td><code>player.registered</code></td><td><code>affiliateCode</code>, <code>country?</code>, <code>campaign?</code>, <code>subId?</code></td><td>Player confirmed signup via referral link. The only event that links a player to an affiliate.</td></tr>
+                <tr><td><code>player.flagged</code></td><td><code>flag</code> ∈ <code>disabled</code>/<code>self_excluded</code>/<code>unverified</code>/<code>duplicate</code>/<code>active</code></td><td>Lifecycle status change. Persisted on the player's registry row.</td></tr>
+                <tr><td><code>wallet.deposit.confirmed</code></td><td><code>amountCents</code>, <code>isFirstDeposit</code>, <code>paymentMethod?</code></td><td>Confirmed deposit. Pair with chargeback if later reversed.</td></tr>
+                <tr><td><code>wallet.deposit.chargeback</code></td><td><code>amountCents</code>, <code>wasFirstDeposit?</code>, <code>originalEventId?</code></td><td>Deposit reversed. When <code>wasFirstDeposit</code> is true, the matching FTD is reversed so CPA commissions stay honest.</td></tr>
+                <tr><td><code>wallet.withdrawal.completed</code></td><td><code>amountCents</code></td><td>Withdrawal paid out to the player.</td></tr>
+                <tr><td><code>wallet.correction.up</code></td><td><code>amountCents</code>, <code>reason?</code></td><td>Admin debit — casino recovered money. Increases NGR.</td></tr>
+                <tr><td><code>wallet.correction.down</code></td><td><code>amountCents</code>, <code>reason?</code></td><td>Admin credit — casino gifted money. Decreases NGR.</td></tr>
+                <tr><td><code>casino.bet.placed</code></td><td><code>betCents</code>, <code>roundId</code>, <code>providerId</code>, <code>gameId?</code></td><td>Bet placed. <code>providerId</code> drives per-provider GGR.</td></tr>
+                <tr><td><code>casino.win.settled</code></td><td><code>winCents</code>, <code>roundId</code>, <code>providerId</code></td><td>Round settled — send even if <code>winCents</code> is 0.</td></tr>
+                <tr><td><code>casino.bet.rollback</code></td><td><code>betCents</code>, <code>roundId</code>, <code>providerId</code>, <code>originalEventId?</code></td><td>Bet portion reverted.</td></tr>
+                <tr><td><code>casino.win.rollback</code></td><td><code>winCents</code>, <code>roundId</code>, <code>providerId</code>, <code>originalEventId?</code></td><td>Win portion clawed back.</td></tr>
+                <tr><td><code>bonus.granted</code></td><td><code>amountCents</code>, <code>bonusType?</code></td><td>Bonus issued. Deducted from NGR as <code>bonus_issues</code>.</td></tr>
+                <tr><td><code>bonus.revoked</code></td><td><code>amountCents</code>, <code>bonusType?</code>, <code>reason?</code></td><td>Bonus expired or cancelled before use. Writes a negative delta to net out the grant.</td></tr>
+                <tr><td><code>fees.daily.adjustment</code></td><td><code>date</code>, <code>paymentSystemFeesCents?</code>, <code>jackpotFeesCents?</code>, <code>gameProviderFeesCents?</code>, <code>casinoTaxesCents?</code>, <code>additionalDeductionsCents?</code></td><td>Daily operator-cost rollup. Alternative: configure percentages in the operator dashboard and let Affiliar compute fees itself.</td></tr>
               </tbody>
             </table>
           </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── NGR FORMULA ────────────────────────────────────────────────── -->
+        <section id="ngr-formula">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">NGR Formula</h2>
+          <p class="text-gray-500 mb-4">
+            Commission plans run on Net Gaming Revenue. Affiliar computes it from the delta columns written by every event:
+          </p>
+<pre class="bg-gray-950 text-gray-100 p-4 rounded-lg text-xs overflow-x-auto"><code>GGR = (bets − bet_rollbacks) − (wins − win_rollbacks)
+
+NGR = GGR
+    − bonus_issues
+    − chargebacks
+    − corrections_down   (casino gifted money)
+    + corrections_up     (casino recovered money)
+    − additional_deductions
+    − casino_taxes
+    − payment_system_fees
+    − jackpot_fees
+    − game_provider_fees</code></pre>
+          <p class="text-xs text-gray-500 mt-3">
+            All components are summed over the period + affiliate + brand + currency + provider you're reporting on. Per-provider GGR/NGR is exact because <code>providerId</code> is part of the sort key — matched bets and wins always collapse to the same row.
+          </p>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── FEES ───────────────────────────────────────────────────────── -->
+        <section id="fees">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Fees &amp; Adjustments</h2>
+          <p class="text-gray-500 mb-4">
+            Four fee buckets feed into NGR. For each one you pick a source — do not mix them within the same bucket or you'll double-count.
+          </p>
+          <div class="overflow-x-auto rounded-xl border border-gray-100 mb-6">
+            <table>
+              <thead>
+                <tr><th>Bucket</th><th>Option 1 — You push</th><th>Option 2 — Affiliar computes</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Payment system</td><td><code>paymentSystemFeesCents</code> on <code>fees.daily.adjustment</code></td><td>% of deposits (operator or brand scope)</td></tr>
+                <tr><td>Jackpot</td><td><code>jackpotFeesCents</code></td><td>% of bets</td></tr>
+                <tr><td>Casino tax</td><td><code>casinoTaxesCents</code></td><td>% of GGR</td></tr>
+                <tr><td>Game provider</td><td><code>gameProviderFeesCents</code></td><td>% of provider GGR, per <code>providerId</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-gray-500 mb-3">
+            Percentages are configured in the operator dashboard under <strong>Fees</strong>. Each setting can be <strong>operator-wide</strong> (applies to every brand) or <strong>brand-specific</strong> (overrides the default for that brand only).
+          </p>
+          <p class="text-gray-500">
+            Affiliar's daily job reads yesterday's activity from ClickHouse, resolves the right rate per (brand, provider), and writes fee rows back to the delta table. Fee rows use <code>player_id = "__fees__"</code> so they stay out of per-player reports while still feeding NGR.
+          </p>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── CURRENCY ───────────────────────────────────────────────────── -->
+        <section id="currency">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Multi-Currency</h2>
+          <p class="text-gray-500 mb-4">
+            Every event carries its native <code>currency</code> (ISO 4217, or an empty string for events like <code>player.registered</code> where no wallet exists yet). The consumer normalizes each monetary field to the tenant's <strong>reporting currency</strong> (USD by default) before writing to ClickHouse, using rates refreshed daily from the European Central Bank via frankfurter.app.
+          </p>
+          <p class="text-gray-500 mb-4">
+            The native <code>currency</code> value is preserved on the delta row so per-currency breakdowns are still possible — just <code>GROUP BY currency</code> in reports. Summed totals across the whole view are in the reporting currency; per-currency totals are in native cents.
+          </p>
+          <p class="text-gray-500">
+            Supported currencies default to USD, EUR, TRY, GBP, INR, JPY. Extend via <code>FX_SUPPORTED_CURRENCIES</code> on the affiliate-be deployment.
+          </p>
         </section>
 
         <hr class="border-gray-100" />
