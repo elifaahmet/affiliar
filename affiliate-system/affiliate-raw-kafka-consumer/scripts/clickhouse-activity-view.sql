@@ -7,13 +7,23 @@
 --
 -- Keep the canonical formula in one place: this view and the read-side SQL
 -- in reportController/affiliatePlayerController must stay in sync.
+--
+-- Provider-scoped NGR formula:
+--   GGR = (bets - bet_rollbacks) - (wins - win_rollbacks)
+--   NGR = GGR
+--       - bonus_issues - chargebacks
+--       - corrections_down + corrections_up
+--       - additional_deductions - casino_taxes
+--       - payment_system_fees - jackpot_fees - game_provider_fees
+--
+-- Fee columns are written by affiliate-be's daily fees job.
 
 DROP VIEW IF EXISTS affiliate.activity;
 
 CREATE VIEW affiliate.activity AS
 SELECT
     tenant_id, brand_id, player_id, currency, country, from_ts,
-    affiliate_id, affiliate_code, campaign, sub_id,
+    affiliate_id, affiliate_code, campaign, sub_id, provider,
     registrations, ftd_count, ftd_sum_cents,
     deposits_count, deposits_sum_cents,
     cashouts_count, cashouts_sum_cents,
@@ -23,6 +33,7 @@ SELECT
     bonus_issues_sum_cents, additional_deductions_sum_cents,
     payment_system_fees_sum_cents, jackpot_fees_sum_cents,
     game_provider_fees_sum_cents, casino_taxes_sum_cents,
+    corrections_up_sum_cents, corrections_down_sum_cents,
     rounds_count, wager_cents,
     casino_ggr_cents, casino_ngr_cents
 FROM affiliate.activity_hourly FINAL
@@ -32,7 +43,7 @@ UNION ALL
 SELECT
     tenant_id, brand_id, player_id, currency, country,
     hour_bucket AS from_ts,
-    affiliate_id, affiliate_code, campaign, sub_id,
+    affiliate_id, affiliate_code, campaign, sub_id, provider,
     registrations, ftd_count, ftd_sum_cents,
     deposits_count, deposits_sum_cents,
     cashouts_count, cashouts_sum_cents,
@@ -42,14 +53,19 @@ SELECT
     bonus_issues_sum_cents, additional_deductions_sum_cents,
     payment_system_fees_sum_cents, jackpot_fees_sum_cents,
     game_provider_fees_sum_cents, casino_taxes_sum_cents,
+    corrections_up_sum_cents, corrections_down_sum_cents,
     rounds_count, wager_cents,
-    -- GGR = (bets - bet_rollbacks) - (wins - win_rollbacks)
     ((bets_sum_cents - casino_bets_rollbacks_sum_cents)
      - (wins_sum_cents - casino_wins_rollbacks_sum_cents)) AS casino_ggr_cents,
-    -- NGR = GGR - bonus_issues - additional_deductions - casino_taxes
     (((bets_sum_cents - casino_bets_rollbacks_sum_cents)
       - (wins_sum_cents - casino_wins_rollbacks_sum_cents))
      - bonus_issues_sum_cents
+     - chargebacks_sum_cents
+     - corrections_down_sum_cents
+     + corrections_up_sum_cents
      - additional_deductions_sum_cents
-     - casino_taxes_sum_cents) AS casino_ngr_cents
+     - casino_taxes_sum_cents
+     - payment_system_fees_sum_cents
+     - jackpot_fees_sum_cents
+     - game_provider_fees_sum_cents) AS casino_ngr_cents
 FROM affiliate.activity_hourly_delta;
