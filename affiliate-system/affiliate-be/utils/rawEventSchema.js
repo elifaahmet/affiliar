@@ -8,7 +8,10 @@ const envelopeSchema = z.object({
   tenantId:   z.string().min(1),
   brandId:    z.string().min(1),
   playerId:   z.string().min(1),
-  currency:   z.string().min(1),
+  // Currency is the event's native currency (ISO code). Optional because
+  // some events — notably player.registered — happen before a wallet
+  // currency exists.
+  currency:   z.string(),
   occurredAt: z.string().datetime({ offset: true }),
   source: z.object({
     system:  z.string().min(1),

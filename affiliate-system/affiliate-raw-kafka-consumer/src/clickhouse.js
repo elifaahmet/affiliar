@@ -1,5 +1,6 @@
 import { createClient } from '@clickhouse/client';
 import { config } from './config.js';
+import { toBaseCents } from './fxRates.js';
 
 let chClient;
 let rawBatch = [];
@@ -139,6 +140,17 @@ function buildDeltaRow(event, data, affiliateId = '') {
       return null; // No metric delta
     default:
       return null;
+  }
+
+  // Normalize every monetary field from the event's native currency to the
+  // consumer's base currency (USD by default). Count fields end in _count so
+  // they're skipped; everything else suffixed _cents is money and gets FX'd.
+  // The `currency` column still stores the native code for GROUP BY reports.
+  const nativeCurrency = event.currency || '';
+  for (const key of Object.keys(m)) {
+    if (key.endsWith('_cents') && m[key]) {
+      m[key] = toBaseCents(m[key], nativeCurrency);
+    }
   }
 
   return { ...base, ...m };

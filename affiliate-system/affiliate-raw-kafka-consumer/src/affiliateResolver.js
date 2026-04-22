@@ -6,8 +6,13 @@ let hexoraClient;
 let profilesCol;
 let affiliatePlayersCol;
 let playersCol;
+let _hexoraDb;
 let codeToUserId = new Map();
 let refreshTimer;
+
+export function getHexoraDb() {
+  return _hexoraDb;
+}
 
 // LRU + TTL cache for playerId → affiliate_id. Attributions are immutable
 // after registration, so TTL is mostly a self-healing safety net.
@@ -28,6 +33,9 @@ export async function connectMongo() {
   await hexoraClient.connect();
   const hexoraDb = hexoraClient.db(config.hexoraMongo.database);
   playersCol = hexoraDb.collection('players');
+  // Cache the db on the module so other files (fxRates) can reuse the
+  // connection without opening a second client.
+  _hexoraDb = hexoraDb;
 
   await refreshCache();
   refreshTimer = setInterval(() => {

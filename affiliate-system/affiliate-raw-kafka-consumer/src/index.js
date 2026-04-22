@@ -2,7 +2,8 @@ import { config } from './config.js';
 import { connectConsumer, disconnectConsumer } from './kafka.js';
 import { connectClickHouse, closeClickHouse } from './clickhouse.js';
 import { startConsuming } from './consumer.js';
-import { connectMongo, closeMongo } from './affiliateResolver.js';
+import { connectMongo, closeMongo, getHexoraDb } from './affiliateResolver.js';
+import { connectFxRates, closeFxRates } from './fxRates.js';
 
 async function main() {
   console.log('[index] Starting affiliate-raw-kafka-consumer...');
@@ -12,6 +13,7 @@ async function main() {
 
   connectClickHouse();
   await connectMongo();
+  await connectFxRates(getHexoraDb());
   await connectConsumer();
   await startConsuming();
 
@@ -22,6 +24,7 @@ async function shutdown(signal) {
   console.log(`\n[index] Received ${signal}, shutting down...`);
   try { await disconnectConsumer(); } catch (e) { console.error(e); }
   try { await closeClickHouse(); } catch (e) { console.error(e); }
+  try { closeFxRates(); } catch (e) { console.error(e); }
   try { await closeMongo(); } catch (e) { console.error(e); }
   process.exit(0);
 }

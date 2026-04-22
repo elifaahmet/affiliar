@@ -39,4 +39,8 @@ export const config = {
     maxSize: parseInt(optionalEnv('PLAYER_CACHE_MAX_SIZE', '10000'), 10),
     ttlMs: parseInt(optionalEnv('PLAYER_CACHE_TTL_MS', '3600000'), 10),
   },
+  fx: {
+    baseCurrency: optionalEnv('FX_BASE_CURRENCY', 'USD'),
+    refreshMs: parseInt(optionalEnv('FX_REFRESH_MS', '300000'), 10),
+  },
 };
