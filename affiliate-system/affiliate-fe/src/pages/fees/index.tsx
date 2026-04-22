@@ -290,6 +290,26 @@ function RunFeesButton() {
 export default function FeesPage() {
   return (
     <div className='bg-gray-100 h-full overflow-auto p-6 pb-24 space-y-6'>
+      <div className='bg-amber-50 border-2 border-amber-400 rounded-xl p-4 flex gap-3 items-start'>
+        <span className='text-amber-600 text-xl leading-none'>⚠️</span>
+        <div>
+          <p className='text-sm font-bold text-amber-900 mb-1'>
+            Pick one source of fees — don't do both.
+          </p>
+          <p className='text-sm text-amber-900'>
+            If you're publishing pre-aggregated{' '}
+            <code className='bg-amber-100 px-1 rounded'>fees.daily.adjustment</code>{' '}
+            events from your own system, <b>leave every percentage on this page at 0</b>.{' '}
+            Otherwise the daily fees job will add its own deductions on top of
+            what you send and your NGR will be double-counted.
+          </p>
+          <p className='text-sm text-amber-900 mt-1'>
+            Use these settings <b>only</b> if you want Affiliar to compute fees
+            for you.
+          </p>
+        </div>
+      </div>
+
       <Card title='Operator-wide fees'>
         <SettingsForm />
       </Card>
