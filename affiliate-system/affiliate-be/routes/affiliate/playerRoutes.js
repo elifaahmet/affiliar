@@ -12,6 +12,7 @@ const { logger } = require("../../middlewares/logger");
 // Affiliate-linked player listing (operator dashboard)
 router.get("/", affiliatePlayerController.list);
 router.get("/affiliates-select", affiliatePlayerController.affiliatesSelect);
+router.get("/detail/:playerId", affiliatePlayerController.detail);
 
 /**
  * @swagger

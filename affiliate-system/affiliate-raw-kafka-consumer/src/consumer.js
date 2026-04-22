@@ -4,6 +4,7 @@ import { addEvent } from './clickhouse.js';
 import {
   resolveAffiliateIdByCode,
   resolveAffiliateIdByPlayer,
+  upsertAffiliatePlayer,
 } from './affiliateResolver.js';
 
 async function processMessage(rawValue) {
@@ -33,6 +34,17 @@ async function processMessage(rawValue) {
   );
 
   addEvent(event, data, affiliateId);
+
+  if (event.eventType === 'player.registered') {
+    try {
+      await upsertAffiliatePlayer(event, data, affiliateId);
+    } catch (err) {
+      console.error(
+        '[consumer] Failed to upsert affiliatePlayer:',
+        err?.message || err,
+      );
+    }
+  }
 }
 
 export async function startConsuming() {

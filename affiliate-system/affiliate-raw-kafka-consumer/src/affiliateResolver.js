@@ -4,6 +4,7 @@ import { config } from './config.js';
 let affiliateClient;
 let hexoraClient;
 let profilesCol;
+let affiliatePlayersCol;
 let playersCol;
 let codeToUserId = new Map();
 let refreshTimer;
@@ -19,6 +20,7 @@ export async function connectMongo() {
   await affiliateClient.connect();
   const affiliateDb = affiliateClient.db(config.mongo.database);
   profilesCol = affiliateDb.collection('affiliateprofiles');
+  affiliatePlayersCol = affiliateDb.collection('affiliateplayers');
 
   hexoraClient = new MongoClient(config.hexoraMongo.uri, {
     directConnection: true,
@@ -95,6 +97,37 @@ export async function resolveAffiliateIdByPlayer(playerId) {
     playerCache.delete(oldest);
   }
   return affiliateId;
+}
+
+export async function upsertAffiliatePlayer(event, data, affiliateId) {
+  const operatorId = toObjectId(event.tenantId);
+  if (!operatorId) return;
+  const affiliateObj = affiliateId ? toObjectId(affiliateId) : null;
+  const code =
+    typeof data.affiliateCode === 'string' && data.affiliateCode.length
+      ? data.affiliateCode.trim().toUpperCase()
+      : null;
+
+  const doc = {
+    operatorId,
+    brandId: event.brandId || null,
+    playerId: String(event.playerId),
+    affiliateId: affiliateObj,
+    affiliateCode: code,
+    campaign: data.campaign || null,
+    subId: data.subId || null,
+    country: data.country || null,
+    currency: event.currency || null,
+    registeredAt: event.occurredAt ? new Date(event.occurredAt) : new Date(),
+    source: 'realtime',
+    importedAt: new Date(),
+  };
+
+  await affiliatePlayersCol.updateOne(
+    { operatorId, playerId: String(event.playerId) },
+    { $set: doc, $setOnInsert: { createdAt: new Date() } },
+    { upsert: true },
+  );
 }
 
 function toObjectId(id) {
