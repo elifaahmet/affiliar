@@ -130,9 +130,9 @@ Emitted when a player is disabled, self-excluded, or fails KYC. Used to mark com
 
 | Field | Required | Notes |
 |---|---|---|
-| `flag` | yes | One of: `disabled`, `self_excluded`, `unverified`, `duplicate`. |
+| `flag` | yes | One of: `disabled`, `self_excluded`, `unverified`, `duplicate`, `active`. |
 
-> Send this event whenever the player's status changes — including when a flag is **lifted** (`flag: "active"` to clear).
+> Send this event whenever the player's status changes — including when a flag is **lifted** (`flag: "active"` to clear). Affiliar persists the latest status on the `affiliateplayers` doc so the operator's Players tab shows a live status badge.
 
 ---
 
@@ -169,12 +169,18 @@ Emitted when a previously confirmed deposit is reversed (chargeback, refund, fra
 {
   "eventType": "wallet.deposit.chargeback",
   "data": {
-    "amountCents":         10000,
-    "originalDepositId":   "stripe_pi_xxx",
-    "originalEventId":     "550e8400-e29b-41d4-a716-446655440000"
+    "amountCents":      10000,
+    "originalEventId":  "550e8400-e29b-41d4-a716-446655440000",
+    "wasFirstDeposit":  true
   }
 }
 ```
+
+| Field | Required | Notes |
+|---|---|---|
+| `amountCents` | yes | Amount being reversed, integer cents. |
+| `originalEventId` | no | `eventId` of the original `wallet.deposit.confirmed` event, for audit. |
+| `wasFirstDeposit` | no (default `false`) | **Set `true` when the deposit being reversed was the player's FTD.** Affiliar will then reverse the `ftd_count` and `ftd_sum_cents` deltas so CPA commissions aren't paid on a fraudulent first deposit. |
 
 ---
 
@@ -227,10 +233,14 @@ Emitted when a casino round closes and a payout is determined. Send even if the 
   "eventType": "casino.win.settled",
   "data": {
     "winCents":   250,
-    "roundId":    "round_abc_123"
+    "roundId":    "round_abc_123",
+    "providerId": "pragmatic",
+    "gameId":     "pragmatic:sweet_bonanza"
   }
 }
 ```
+
+> **Always include `providerId`** on every casino event (bet / win / rollback). Affiliar's per-provider GGR relies on it — mismatched providers between a bet and its paired win split the row and break provider-level reports.
 
 ---
 
@@ -242,9 +252,10 @@ A previously placed bet is reverted (technical rollback, dispute, etc.).
 {
   "eventType": "casino.bet.rollback",
   "data": {
-    "betCents":  100,
-    "roundId":   "round_abc_123",
-    "originalEventId": "..."
+    "betCents":        100,
+    "roundId":         "round_abc_123",
+    "originalEventId": "...",
+    "providerId":      "pragmatic"
   }
 }
 ```
@@ -259,9 +270,10 @@ A previously settled win is clawed back.
 {
   "eventType": "casino.win.rollback",
   "data": {
-    "winCents":  250,
-    "roundId":   "round_abc_123",
-    "originalEventId": "..."
+    "winCents":        250,
+    "roundId":         "round_abc_123",
+    "originalEventId": "...",
+    "providerId":      "pragmatic"
   }
 }
 ```
@@ -289,7 +301,70 @@ Emitted when the casino issues a bonus (cash, freespins value, cashback, etc.) t
 
 ---
 
-### 4.11 `fees.daily.adjustment`
+### 4.11 `bonus.revoked`
+
+Emitted when a previously-granted bonus wallet expires or is cancelled before the player consumes it. Affiliar writes a **negative** delta to `bonus_issues_sum_cents` so a granted-but-unused bonus nets to zero on NGR.
+
+```json
+{
+  "eventType": "bonus.revoked",
+  "data": {
+    "amountCents":     1000,
+    "bonusType":       "welcome",
+    "originalEventId": "550e8400-e29b-41d4-a716-446655440000",
+    "reason":          "expired"
+  }
+}
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `amountCents` | yes | Portion being revoked (usually the unused balance, not the full grant). |
+| `bonusType` | no | Match the granting event for traceability. |
+| `originalEventId` | no | `eventId` of the original `bonus.granted`. |
+| `reason` | no | Free-form: `expired`, `cancelled`, `duplicate`, etc. |
+
+> Only emit for bonuses that truly went unused. If a bonus was consumed and its balance legitimately dropped to zero, **don't** send `bonus.revoked` — the corresponding wagers already moved through `casino.bet.placed` / `casino.win.settled`.
+
+---
+
+### 4.12 `wallet.correction.up` / `wallet.correction.down`
+
+Manual admin adjustments to a player's wallet that aren't real deposits or withdrawals. Named from the **casino P&L perspective** (independent of how the wallet changed): `up` = casino gained, `down` = casino lost.
+
+- **`wallet.correction.up`** — admin debited the player (casino recovered money). **Increases** NGR.
+- **`wallet.correction.down`** — admin credited the player (casino gifted money). **Decreases** NGR.
+
+```json
+{
+  "eventType": "wallet.correction.up",
+  "data": {
+    "amountCents": 5000,
+    "reason":      "fraud recovery"
+  }
+}
+```
+
+```json
+{
+  "eventType": "wallet.correction.down",
+  "data": {
+    "amountCents": 2000,
+    "reason":      "admin goodwill"
+  }
+}
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `amountCents` | yes | Cash value of the adjustment, integer cents. |
+| `reason` | no | Free-form — shows up on the Affiliar audit log. |
+
+> **Not the same as `wallet.deposit.chargeback`**: chargeback represents a bank-initiated reversal of a real deposit and carries the `wasFirstDeposit` flag for CPA reversal. Corrections are purely internal admin adjustments and don't affect FTD counts.
+
+---
+
+### 4.13 `fees.daily.adjustment`
 
 Emitted **once per day per player** with that day's fee allocations. These are usually computed by the casino's reconciliation job, not in real time.
 
@@ -308,6 +383,25 @@ Emitted **once per day per player** with that day's fee allocations. These are u
 ```
 
 > If your casino doesn't break fees down per player, send a single brand-level event with `playerId: "_brand_aggregate_"` — Affiliar will distribute it proportionally to NGR (TBD, configurable).
+
+#### Alternative: let Affiliar compute fees
+
+If you don't want to run reconciliation yourself, configure percentages
+per operator (and optionally per brand) via the **Operator → Fees**
+screen. Affiliar's daily cron will derive fees from the same ClickHouse
+data that drives NGR:
+
+- Payment-system % of deposits
+- Jackpot % of bets
+- Casino tax % of GGR
+- Per-provider revenue-share % of provider GGR
+
+> **Don't mix sources within the same category.** For each of the four
+> fee buckets, either leave the percentage at 0 and publish your own
+> `fees.daily.adjustment`, or configure the percentage and don't
+> publish that category's value. Mixing double-counts the deduction.
+> Mixing *across* categories (e.g. UI-computed payment fees + external
+> event for provider fees) is fine.
 
 ---
 
