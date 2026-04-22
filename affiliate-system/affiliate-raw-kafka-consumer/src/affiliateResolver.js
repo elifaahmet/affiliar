@@ -113,6 +113,16 @@ export async function resolveAffiliateIdByPlayer(playerId) {
   return affiliateId;
 }
 
+// Update the affiliateplayers doc's status/flag when a player.flagged
+// event arrives. No-op if the player isn't in our registry.
+export async function updatePlayerFlag(playerId, flag) {
+  if (!playerId || !flag) return;
+  await affiliatePlayersCol.updateOne(
+    { playerId: String(playerId) },
+    { $set: { status: flag, statusUpdatedAt: new Date() } },
+  );
+}
+
 export async function upsertAffiliatePlayer(event, data, affiliateId) {
   const operatorId = toObjectId(event.tenantId);
   if (!operatorId) return;

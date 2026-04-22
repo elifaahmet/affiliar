@@ -5,6 +5,7 @@ import {
   resolveAffiliateIdByCode,
   resolveAffiliateIdByPlayer,
   upsertAffiliatePlayer,
+  updatePlayerFlag,
 } from './affiliateResolver.js';
 
 async function processMessage(rawValue) {
@@ -41,6 +42,17 @@ async function processMessage(rawValue) {
     } catch (err) {
       console.error(
         '[consumer] Failed to upsert affiliatePlayer:',
+        err?.message || err,
+      );
+    }
+  }
+
+  if (event.eventType === 'player.flagged') {
+    try {
+      await updatePlayerFlag(event.playerId, data.flag);
+    } catch (err) {
+      console.error(
+        '[consumer] Failed to update player flag:',
         err?.message || err,
       );
     }
