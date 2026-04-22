@@ -41,7 +41,7 @@ const BRAND_DEFINITIONS: Record<BrandKey, BrandConfig> = {
   default: {
     title: 'Affiliar',
     description: 'Affiliar',
-    favicon: 'favicon-default.ico',
+    favicon: 'favicon-affiliar.svg',
     mainLogo: 'defaultSmall',
     mainLogoText: 'defaultLogoWhite',
   },
