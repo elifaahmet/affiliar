@@ -293,6 +293,8 @@ export const AFFILIATE_PORTAL_API_URLS = {
   PROFILE:          () => `${API_BASE_URL}api/affiliate-portal/profile`,
   SUB_AFFILIATES:   () => `${API_BASE_URL}api/affiliate-portal/sub-affiliates`,
   CAMPAIGN_REPORTS: () => `${API_BASE_URL}api/affiliate-portal/campaign-reports`,
+  PLAYERS:          () => `${API_BASE_URL}api/players`,
+  PLAYER_DETAIL:    (playerId: string) => `${API_BASE_URL}api/players/detail/${playerId}`,
 };
 
 export const COMMISSION_API_URLS = {

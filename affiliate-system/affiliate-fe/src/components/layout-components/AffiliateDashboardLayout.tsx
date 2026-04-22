@@ -9,6 +9,7 @@ import UserProfile from './UserProfile';
 
 const NAV = [
   { key: 'dashboard',     label: 'Dashboard',        href: '/affiliate/dashboard',     icon: 'categoryIcon2' },
+  { key: 'players',       label: 'Players',           href: '/affiliate/players',       icon: 'players'       },
   { key: 'marketing',     label: 'Marketing Tools',  href: '/affiliate/marketing',     icon: 'referal'       },
   { key: 'commission',    label: 'Commission',        href: '/affiliate/commission',    icon: 'report'        },
   { key: 'sub-affiliate', label: 'Sub-Affiliates',   href: '/affiliate/sub-affiliates',icon: 'userProfile'   },
