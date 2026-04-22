@@ -74,6 +74,9 @@ function buildDeltaRow(event, data, affiliateId = '') {
     source_system:   event.source?.system || '',
     source_event_id: event.eventId,
     affiliate_id:    affiliateId || '',
+    // Provider is part of the SummingMergeTree sort key so bets/wins stay
+    // separate per provider. Non-casino events leave it empty.
+    provider:        data.providerId || '',
   };
 
   const m = {
