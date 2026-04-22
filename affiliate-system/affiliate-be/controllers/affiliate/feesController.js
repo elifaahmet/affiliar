@@ -25,10 +25,14 @@ function normalizeBrandId(raw) {
 
 // GET /api/fees/brands — dropdown source for the UI
 exports.listBrands = async (req, res) => {
-  const operatorId = operatorOnly(req, res);
-  if (!operatorId) return;
+  if (!operatorOnly(req, res)) return;
   try {
-    const brands = await Brand.find({ operatorId, enabled: true })
+    // Brand.operatorId is a ref to the operator *user* (not the tenant),
+    // so use the session user's _id.
+    const brands = await Brand.find({
+      operatorId: req.affiliateUser._id,
+      enabled: true,
+    })
       .select({ _id: 1, name: 1 })
       .sort({ name: 1 })
       .lean();
