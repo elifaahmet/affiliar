@@ -58,7 +58,7 @@ function StatusBadge({ status }: { status?: string }) {
   const label = status || 'active';
   const cls = STATUS_STYLES[label] || 'bg-gray-100 text-gray-600';
   return (
-    <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium ${cls}`}>
+    <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${cls}`}>
       {label.replace(/_/g, ' ')}
     </span>
   );
