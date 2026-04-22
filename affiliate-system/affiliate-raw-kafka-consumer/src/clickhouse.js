@@ -86,6 +86,7 @@ function buildDeltaRow(event, data, affiliateId = '') {
     bonus_issues_sum_cents: 0, additional_deductions_sum_cents: 0,
     payment_system_fees_sum_cents: 0, jackpot_fees_sum_cents: 0,
     game_provider_fees_sum_cents: 0, casino_taxes_sum_cents: 0,
+    corrections_up_sum_cents: 0, corrections_down_sum_cents: 0,
     rounds_count: 0, wager_cents: 0,
   };
 
@@ -103,7 +104,22 @@ function buildDeltaRow(event, data, affiliateId = '') {
       if (data.isFirstDeposit) { m.ftd_count = 1; m.ftd_sum_cents = data.amountCents; }
       break;
     case 'wallet.deposit.chargeback':
-      m.chargebacks_count = 1; m.chargebacks_sum_cents = data.amountCents;
+      m.chargebacks_count = 1;
+      m.chargebacks_sum_cents = data.amountCents;
+      if (data.wasFirstDeposit) {
+        // Reverse the FTD so CPA commissions aren't paid on a deposit the
+        // bank pulled back. SummingMergeTree handles the negative delta.
+        m.ftd_count = -1;
+        m.ftd_sum_cents = -data.amountCents;
+      }
+      break;
+    case 'wallet.correction.up':
+      // Admin debited the player — casino recovered money. NGR goes up.
+      m.corrections_up_sum_cents = data.amountCents;
+      break;
+    case 'wallet.correction.down':
+      // Admin credited the player — casino gifted money. NGR goes down.
+      m.corrections_down_sum_cents = data.amountCents;
       break;
     case 'wallet.withdrawal.completed':
       m.cashouts_count = 1; m.cashouts_sum_cents = data.amountCents;

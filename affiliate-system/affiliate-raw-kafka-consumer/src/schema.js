@@ -38,8 +38,20 @@ const EVENT_DATA_SCHEMAS = {
     isFirstDeposit: z.boolean(),
   }),
   'wallet.deposit.chargeback': z.object({
-    amountCents:     z.number().int().min(0),
-    originalEventId: z.string().optional(),
+    amountCents:      z.number().int().min(0),
+    originalEventId:  z.string().optional(),
+    // Publisher computes this from prior deposit history; when true, the
+    // consumer also reverses the FTD count/sum so CPA commissions don't
+    // reward a fraudulent first deposit.
+    wasFirstDeposit:  z.boolean().default(false),
+  }),
+  'wallet.correction.up': z.object({
+    amountCents: z.number().int().min(0),
+    reason:      z.string().optional(),
+  }),
+  'wallet.correction.down': z.object({
+    amountCents: z.number().int().min(0),
+    reason:      z.string().optional(),
   }),
   'wallet.withdrawal.completed': z.object({
     amountCents: z.number().int().min(0),

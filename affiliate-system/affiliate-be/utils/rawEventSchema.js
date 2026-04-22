@@ -42,6 +42,20 @@ const depositConfirmedData = z.object({
 const depositChargebackData = z.object({
   amountCents:      z.number().int().min(0),
   originalEventId:  z.string().optional(),
+  // Publisher computes this from prior deposit history; when true, the
+  // consumer also reverses the FTD count/sum so CPA commissions don't
+  // reward a fraudulent first deposit.
+  wasFirstDeposit:  z.boolean().default(false),
+});
+
+const correctionUpData = z.object({
+  amountCents: z.number().int().min(0),
+  reason:      z.string().optional(),
+});
+
+const correctionDownData = z.object({
+  amountCents: z.number().int().min(0),
+  reason:      z.string().optional(),
 });
 
 const withdrawalCompletedData = z.object({
@@ -100,6 +114,8 @@ const EVENT_DATA_SCHEMAS = {
   "player.flagged":               playerFlaggedData,
   "wallet.deposit.confirmed":     depositConfirmedData,
   "wallet.deposit.chargeback":    depositChargebackData,
+  "wallet.correction.up":         correctionUpData,
+  "wallet.correction.down":       correctionDownData,
   "wallet.withdrawal.completed":  withdrawalCompletedData,
   "casino.bet.placed":            betPlacedData,
   "casino.win.settled":           winSettledData,
