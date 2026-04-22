@@ -41,7 +41,27 @@ interface PlayerRow {
   campaign: string | null;
   subId: string | null;
   registeredAt: string;
+  status?: string;
+  statusUpdatedAt?: string;
   metrics: PlayerMetrics | null;
+}
+
+const STATUS_STYLES: Record<string, string> = {
+  active: 'bg-green-50 text-green-700',
+  disabled: 'bg-red-50 text-red-700',
+  self_excluded: 'bg-orange-50 text-orange-700',
+  unverified: 'bg-yellow-50 text-yellow-700',
+  duplicate: 'bg-gray-100 text-gray-700',
+};
+
+function StatusBadge({ status }: { status?: string }) {
+  const label = status || 'active';
+  const cls = STATUS_STYLES[label] || 'bg-gray-100 text-gray-600';
+  return (
+    <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium ${cls}`}>
+      {label.replace(/_/g, ' ')}
+    </span>
+  );
 }
 
 interface PlayersResponse {
@@ -99,6 +119,7 @@ export default function AffiliatePlayers() {
               <thead className='bg-gray-50'>
                 <tr>
                   <th className='px-4 py-3 text-left text-xs font-semibold text-gray-500'>Player ID</th>
+                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-500'>Status</th>
                   <th className='px-4 py-3 text-left text-xs font-semibold text-gray-500'>Code</th>
                   <th className='px-4 py-3 text-left text-xs font-semibold text-gray-500'>Campaign</th>
                   <th className='px-4 py-3 text-left text-xs font-semibold text-gray-500'>Country</th>
@@ -115,6 +136,9 @@ export default function AffiliatePlayers() {
                   <tr key={p._id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                     <td className='px-4 py-3 text-xs font-mono text-gray-700 whitespace-nowrap'>
                       {p.playerId}
+                    </td>
+                    <td className='px-4 py-3 whitespace-nowrap'>
+                      <StatusBadge status={p.status} />
                     </td>
                     <td className='px-4 py-3 text-xs text-gray-700'>{p.affiliateCode ?? '—'}</td>
                     <td className='px-4 py-3 text-xs text-gray-700'>{p.campaign ?? '—'}</td>
