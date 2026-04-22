@@ -1111,6 +1111,76 @@
           </div>
         </div>
 
+        <!-- Screenshot 6 — Fees & Adjustments -->
+        <div class="grid lg:grid-cols-2 gap-12 items-center">
+          <div class="order-2 lg:order-1 rounded-2xl border border-gray-200 overflow-hidden shadow-xl shadow-gray-200/60 bg-white">
+            <div class="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 bg-gray-50">
+              <div class="w-2.5 h-2.5 rounded-full bg-red-400"></div><div class="w-2.5 h-2.5 rounded-full bg-yellow-400"></div><div class="w-2.5 h-2.5 rounded-full bg-green-400"></div>
+              <div class="flex-1 mx-3 h-5 rounded bg-gray-200 text-[10px] text-gray-400 flex items-center px-3">app.affiliar.co/fees</div>
+            </div>
+            <!-- Scope selector + run button -->
+            <div class="flex items-center justify-between p-3 border-b border-gray-100">
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] font-bold text-gray-400 uppercase">Scope</span>
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-semibold border border-emerald-100">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  Brand: hexora-eu
+                </span>
+              </div>
+              <span class="px-3 py-1.5 rounded-md bg-gray-900 text-white text-[10px] font-semibold">Run for today</span>
+            </div>
+            <!-- Flat settings -->
+            <div class="grid grid-cols-3 gap-2 p-3 border-b border-gray-100">
+              <div class="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
+                <p class="text-[9px] text-gray-400 uppercase font-bold mb-0.5">Payment</p>
+                <p class="text-xs font-black text-gray-900">2.50%</p>
+              </div>
+              <div class="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
+                <p class="text-[9px] text-gray-400 uppercase font-bold mb-0.5">Jackpot</p>
+                <p class="text-xs font-black text-gray-900">0.75%</p>
+              </div>
+              <div class="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
+                <p class="text-[9px] text-gray-400 uppercase font-bold mb-0.5">Casino tax</p>
+                <p class="text-xs font-black text-gray-900">21.00%</p>
+              </div>
+            </div>
+            <!-- Provider rates header -->
+            <div class="px-4 py-2 bg-gray-50 border-b border-gray-100 grid grid-cols-3 gap-2">
+              <span class="text-[10px] font-bold text-gray-400 uppercase">Provider</span>
+              <span class="text-[10px] font-bold text-gray-400 uppercase">Rate</span>
+              <span class="text-[10px] font-bold text-gray-400 uppercase">Source</span>
+            </div>
+            <!-- Rows -->
+            <div class="divide-y divide-gray-50">
+              <div class="px-4 py-2.5 grid grid-cols-3 gap-2 items-center">
+                <span class="text-xs font-semibold text-gray-800">Pragmatic Play</span>
+                <span class="text-[10px] text-gray-900 font-semibold">18.00%</span>
+                <span class="inline-flex w-fit px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-semibold">brand</span>
+              </div>
+              <div class="px-4 py-2.5 grid grid-cols-3 gap-2 items-center bg-gray-50/50">
+                <span class="text-xs font-semibold text-gray-800">Evolution</span>
+                <span class="text-[10px] text-gray-900 font-semibold">22.00%</span>
+                <span class="inline-flex w-fit px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-semibold">brand</span>
+              </div>
+              <div class="px-4 py-2.5 grid grid-cols-3 gap-2 items-center">
+                <span class="text-xs font-semibold text-gray-800">NetEnt</span>
+                <span class="text-[10px] text-gray-900 font-semibold">15.00%</span>
+                <span class="inline-flex w-fit px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 text-[10px] font-semibold">operator default</span>
+              </div>
+            </div>
+          </div>
+          <div class="order-1 lg:order-2">
+            <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full mb-4">Fees &amp; Adjustments</span>
+            <h3 class="text-2xl font-black text-gray-900 mb-3">Commission math that matches your P&amp;L</h3>
+            <p class="text-gray-500 leading-relaxed mb-5">Configure fee rates per brand, per provider &mdash; or set operator-wide defaults. A daily cron applies your rates to yesterday&rsquo;s activity and feeds the result straight into NGR. No spreadsheets, no reconciliation drift.</p>
+            <ul class="space-y-2 text-sm text-gray-600">
+              <li class="flex gap-2 items-center"><span class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 text-[10px] flex items-center justify-center font-bold">✓</span> Per-brand, per-provider game fees</li>
+              <li class="flex gap-2 items-center"><span class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 text-[10px] flex items-center justify-center font-bold">✓</span> Flat rates for payment, jackpot &amp; tax</li>
+              <li class="flex gap-2 items-center"><span class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 text-[10px] flex items-center justify-center font-bold">✓</span> Brand override &rarr; operator default fallback</li>
+            </ul>
+          </div>
+        </div>
+
       </div>
     </div>
   </section>
