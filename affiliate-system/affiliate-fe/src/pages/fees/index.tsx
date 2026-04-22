@@ -294,18 +294,20 @@ export default function FeesPage() {
         <span className='text-amber-600 text-xl leading-none'>⚠️</span>
         <div>
           <p className='text-sm font-bold text-amber-900 mb-1'>
-            Pick one source of fees — don't do both.
+            Per category, pick one source of fees — don't do both.
           </p>
           <p className='text-sm text-amber-900'>
-            If you're publishing pre-aggregated{' '}
+            Each fee category (payment system, jackpot, casino tax, game
+            provider) is independent. For each one, either{' '}
+            <b>configure the percentage here and let Affiliar compute it</b>,{' '}
+            or <b>publish the value yourself</b> in{' '}
             <code className='bg-amber-100 px-1 rounded'>fees.daily.adjustment</code>{' '}
-            events from your own system, <b>leave every percentage on this page at 0</b>.{' '}
-            Otherwise the daily fees job will add its own deductions on top of
-            what you send and your NGR will be double-counted.
+            events.
           </p>
           <p className='text-sm text-amber-900 mt-1'>
-            Use these settings <b>only</b> if you want Affiliar to compute fees
-            for you.
+            Doing both for the <b>same category</b> will double-count that
+            deduction. Mixing categories is fine — e.g. compute payment fees
+            here while publishing game-provider fees from your own system.
           </p>
         </div>
       </div>
