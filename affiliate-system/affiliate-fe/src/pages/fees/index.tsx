@@ -17,6 +17,12 @@ interface Settings {
   casinoTaxPercent: number;
 }
 
+interface Brand { _id: string; name: string }
+
+// Scope sent to the API. "default" means the operator-wide row (brandId=null
+// server-side). Any other value is a specific Brand._id.
+type Scope = 'default' | string;
+
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
@@ -28,11 +34,12 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
-function SettingsForm() {
+function SettingsForm({ scope }: { scope: Scope }) {
   const qc = useQueryClient();
   const { data, isLoading } = useBaseQuery<{ settings: Settings }>({
     endpoint: FEES_API_URLS.SETTINGS(),
-    queryKey: ['fees-settings'],
+    queryKey: ['fees-settings', scope],
+    params: { brandId: scope },
   });
   const s = data?.settings;
   const [saving, setSaving] = useState(false);
@@ -45,11 +52,12 @@ function SettingsForm() {
     const form = new FormData(e.currentTarget);
     try {
       await baseService.update(FEES_API_URLS.SETTINGS(), {
+        brandId: scope,
         paymentSystemFeePercent: Number(form.get('payment') ?? 0),
         jackpotFeePercent: Number(form.get('jackpot') ?? 0),
         casinoTaxPercent: Number(form.get('tax') ?? 0),
       });
-      qc.invalidateQueries({ queryKey: ['fees-settings'] });
+      qc.invalidateQueries({ queryKey: ['fees-settings', scope] });
     } catch (e2: any) {
       setErr(e2?.message ?? 'Failed to save');
     } finally {
@@ -60,10 +68,11 @@ function SettingsForm() {
   if (isLoading) return <p className='text-sm text-gray-400'>Loading...</p>;
 
   return (
-    <form onSubmit={onSubmit} className='space-y-4'>
+    <form key={scope} onSubmit={onSubmit} className='space-y-4'>
       <p className='text-xs text-gray-500'>
-        Flat percentages applied by the daily fees job. Leave at 0 if you're
-        publishing pre-aggregated fees yourself.
+        Flat percentages applied by the daily fees job
+        {scope === 'default' ? ' (operator default)' : ' (brand override)'}.
+        Leave at 0 if you're publishing pre-aggregated fees yourself.
       </p>
       <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
         <NumberInput label='Payment System %' name='payment' defaultValue={s?.paymentSystemFeePercent ?? 0} hint='% of deposits' />
@@ -102,11 +111,12 @@ function NumberInput({ label, name, defaultValue, hint }: {
   );
 }
 
-function ProviderRatesTable() {
+function ProviderRatesTable({ scope }: { scope: Scope }) {
   const qc = useQueryClient();
   const { data, isLoading, refetch } = useBaseQuery<{ rates: ProviderRate[] }>({
     endpoint: FEES_API_URLS.PROVIDER_RATES(),
-    queryKey: ['fees-provider-rates'],
+    queryKey: ['fees-provider-rates', scope],
+    params: { brandId: scope },
   });
   const rates = data?.rates ?? [];
   const [editing, setEditing] = useState<Partial<ProviderRate>>({});
@@ -119,13 +129,14 @@ function ProviderRatesTable() {
     setErr(null);
     try {
       await baseService.update(FEES_API_URLS.PROVIDER_RATES(), {
+        brandId: scope,
         providerId: editing.providerId.trim(),
         providerName: editing.providerName?.trim() ?? '',
         feePercent: Number(editing.feePercent ?? 0),
       });
       setEditing({});
       refetch();
-      qc.invalidateQueries({ queryKey: ['fees-provider-rates'] });
+      qc.invalidateQueries({ queryKey: ['fees-provider-rates', scope] });
     } catch (e: any) {
       setErr(e?.message ?? 'Failed to save');
     } finally {
@@ -135,7 +146,10 @@ function ProviderRatesTable() {
 
   const remove = async (providerId: string) => {
     if (!confirm(`Delete rate for ${providerId}?`)) return;
-    await baseService.delete(FEES_API_URLS.PROVIDER_RATE(providerId), 0);
+    await baseService.delete(
+      `${FEES_API_URLS.PROVIDER_RATE(providerId)}?brandId=${encodeURIComponent(scope)}`,
+      0,
+    );
     refetch();
   };
 
@@ -143,7 +157,12 @@ function ProviderRatesTable() {
     <div className='space-y-4'>
       <p className='text-xs text-gray-500'>
         Per-provider revenue share (% of provider GGR). Providers not listed
-        contribute 0% — i.e. no game_provider_fees deduction.
+        contribute 0% — i.e. no <code>game_provider_fees</code> deduction.
+        {scope !== 'default' && (
+          <span className='block mt-1'>
+            Overrides the operator-default rate for this brand only.
+          </span>
+        )}
       </p>
 
       {isLoading && <p className='text-sm text-gray-400'>Loading...</p>}
@@ -184,7 +203,7 @@ function ProviderRatesTable() {
               {rates.length === 0 && (
                 <tr>
                   <td colSpan={4} className='px-4 py-6 text-center text-sm text-gray-400'>
-                    No provider rates configured.
+                    No provider rates configured for this scope.
                   </td>
                 </tr>
               )}
@@ -287,7 +306,46 @@ function RunFeesButton() {
   );
 }
 
+function ScopeSelector({ scope, setScope }: { scope: Scope; setScope: (s: Scope) => void }) {
+  const { data } = useBaseQuery<{ brands: Brand[] }>({
+    endpoint: FEES_API_URLS.BRANDS(),
+    queryKey: ['fees-brands'],
+  });
+  const brands = data?.brands ?? [];
+
+  return (
+    <div className='flex flex-wrap gap-2 items-center'>
+      <span className='text-xs font-semibold text-gray-600 uppercase tracking-wider mr-2'>Scope:</span>
+      <button
+        onClick={() => setScope('default')}
+        className={`px-3 py-1.5 rounded text-xs font-semibold ${
+          scope === 'default'
+            ? 'bg-primary text-white'
+            : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+        }`}
+      >
+        Operator default
+      </button>
+      {brands.map((b) => (
+        <button
+          key={b._id}
+          onClick={() => setScope(b._id)}
+          className={`px-3 py-1.5 rounded text-xs font-semibold ${
+            scope === b._id
+              ? 'bg-primary text-white'
+              : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          {b.name}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function FeesPage() {
+  const [scope, setScope] = useState<Scope>('default');
+
   return (
     <div className='bg-gray-100 h-full overflow-auto p-6 pb-24 space-y-6'>
       <div className='bg-amber-50 border-2 border-amber-400 rounded-xl p-4 flex gap-3 items-start'>
@@ -312,11 +370,13 @@ export default function FeesPage() {
         </div>
       </div>
 
+      <ScopeSelector scope={scope} setScope={setScope} />
+
       <Card title='Operator-wide fees'>
-        <SettingsForm />
+        <SettingsForm scope={scope} />
       </Card>
       <Card title='Provider fees'>
-        <ProviderRatesTable />
+        <ProviderRatesTable scope={scope} />
       </Card>
       <Card title='Manual run'>
         <p className='text-xs text-gray-500 mb-3'>

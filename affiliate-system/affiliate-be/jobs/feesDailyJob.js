@@ -59,16 +59,42 @@ function yesterdayBounds() {
   };
 }
 
-async function runForOperator(operator, financials, bounds) {
+async function runForOperator(operator, operatorFinancials, bounds) {
   const tenantId = operator._id.toString();
 
+  // Pull all provider rates for this operator in one query; index by
+  // (brandId|default, providerId) so per-brand lookup + operator-wide
+  // fallback is O(1).
   const providerRates = await ProviderFeeRate.find({
     operatorId: operator._id,
     isDeleted: false,
   }).lean();
-  const providerRateMap = new Map(
-    providerRates.map((r) => [r.providerId, Number(r.feePercent) || 0]),
-  );
+  const providerRateMap = new Map();
+  for (const r of providerRates) {
+    const bKey = r.brandId ? r.brandId.toString() : "default";
+    providerRateMap.set(`${bKey}:${r.providerId}`, Number(r.feePercent) || 0);
+  }
+  const resolveProviderPct = (brandId, providerId) => {
+    const bKey = brandId || "default";
+    return (
+      providerRateMap.get(`${bKey}:${providerId}`) ??
+      providerRateMap.get(`default:${providerId}`) ??
+      0
+    );
+  };
+
+  // Same fan-out for financial settings: brand-specific trumps operator-wide.
+  const allFinancials = await OperatorFinancialSettings.find({
+    operatorId: operator._id,
+  }).lean();
+  const financialMap = new Map();
+  for (const f of allFinancials) {
+    financialMap.set(f.brandId ? f.brandId.toString() : "default", f);
+  }
+  const resolveFinancials = (brandId) =>
+    financialMap.get(brandId || "default") ||
+    financialMap.get("default") ||
+    operatorFinancials;
 
   // Aggregate yesterday's money movement grouped by attribution dimensions.
   // affiliate_id can be empty (unattributed); we still want those rows so
@@ -91,10 +117,6 @@ async function runForOperator(operator, financials, bounds) {
     { tenantId, fromTs: bounds.fromTs, toTs: bounds.toTs },
   );
 
-  const paymentPct = Number(financials.paymentSystemFeePercent) || 0;
-  const jackpotPct = Number(financials.jackpotFeePercent) || 0;
-  const taxPct = Number(financials.casinoTaxPercent) || 0;
-
   const deltaRows = [];
   for (const r of rows) {
     const bets = Number(r.bets) || 0;
@@ -102,7 +124,12 @@ async function runForOperator(operator, financials, bounds) {
     const deposits = Number(r.deposits) || 0;
     const providerGgr = Math.max(0, bets - wins);
 
-    const providerPct = providerRateMap.get(r.provider) || 0;
+    const brandFinancials = resolveFinancials(r.brandId);
+    const paymentPct = Number(brandFinancials.paymentSystemFeePercent) || 0;
+    const jackpotPct = Number(brandFinancials.jackpotFeePercent) || 0;
+    const taxPct = Number(brandFinancials.casinoTaxPercent) || 0;
+
+    const providerPct = resolveProviderPct(r.brandId, r.provider);
     const gameProviderFees = Math.round((providerGgr * providerPct) / 100);
     const paymentSystemFees = Math.round((deposits * paymentPct) / 100);
     const jackpotFees = Math.round((bets * jackpotPct) / 100);
@@ -156,12 +183,13 @@ async function runOnce() {
   let processed = 0;
   for (const op of operators) {
     try {
-      // Settings may be absent entirely — that's a valid state. Default
-      // everything to 0% so only provider-level rates (if any) apply. The
-      // per-row "all fees zero" check below still skips writing noise rows.
+      // Pass the operator-wide (brandId: null) default as the hard fallback.
+      // runForOperator pulls all brand-scoped rows itself and resolves the
+      // right one per delta row.
       const financials =
         (await OperatorFinancialSettings.findOne({
           operatorId: op._id,
+          brandId: null,
         }).lean()) || {
           paymentSystemFeePercent: 0,
           jackpotFeePercent: 0,

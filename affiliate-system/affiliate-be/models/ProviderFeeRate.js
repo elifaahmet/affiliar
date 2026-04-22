@@ -14,6 +14,14 @@ const providerFeeRateSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    // null = operator-wide default (applies to every brand that doesn't
+    // have an explicit override). Setting this makes the rate brand-specific.
+    brandId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Brand",
+      default: null,
+      index: true,
+    },
     providerId: {
       type: String,
       required: true,
@@ -27,7 +35,7 @@ const providerFeeRateSchema = new mongoose.Schema(
 );
 
 providerFeeRateSchema.index(
-  { operatorId: 1, providerId: 1 },
+  { operatorId: 1, brandId: 1, providerId: 1 },
   { unique: true },
 );
 

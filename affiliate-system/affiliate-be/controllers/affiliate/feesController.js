@@ -1,5 +1,6 @@
 const ProviderFeeRate = require("../../models/ProviderFeeRate");
 const OperatorFinancialSettings = require("../../models/OperatorFinancialSettings");
+const Brand = require("../../models/Brand");
 const { runOnce: runFeesJob } = require("../../jobs/feesDailyJob");
 
 function operatorOnly(req, res) {
@@ -15,13 +16,37 @@ function operatorOnly(req, res) {
   return user.operatorId;
 }
 
-// GET /api/fees/provider-rates
+// Normalizes an optional brandId from query/body. Empty / "default" means
+// operator-wide config (stored as null).
+function normalizeBrandId(raw) {
+  if (!raw || raw === "default" || raw === "null") return null;
+  return raw;
+}
+
+// GET /api/fees/brands — dropdown source for the UI
+exports.listBrands = async (req, res) => {
+  const operatorId = operatorOnly(req, res);
+  if (!operatorId) return;
+  try {
+    const brands = await Brand.find({ operatorId, enabled: true })
+      .select({ _id: 1, name: 1 })
+      .sort({ name: 1 })
+      .lean();
+    res.json({ brands });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET /api/fees/provider-rates?brandId=<id|default>
 exports.listProviderRates = async (req, res) => {
   const operatorId = operatorOnly(req, res);
   if (!operatorId) return;
   try {
+    const brandId = normalizeBrandId(req.query.brandId);
     const rates = await ProviderFeeRate.find({
       operatorId,
+      brandId,
       isDeleted: false,
     })
       .sort({ providerName: 1, providerId: 1 })
@@ -32,12 +57,13 @@ exports.listProviderRates = async (req, res) => {
   }
 };
 
-// PUT /api/fees/provider-rates — upsert a single rate
+// PUT /api/fees/provider-rates — upsert a single rate, brand-optional
 exports.upsertProviderRate = async (req, res) => {
   const operatorId = operatorOnly(req, res);
   if (!operatorId) return;
   try {
     const { providerId, providerName = "", feePercent } = req.body || {};
+    const brandId = normalizeBrandId(req.body?.brandId);
     if (!providerId || feePercent == null) {
       return res
         .status(400)
@@ -50,10 +76,11 @@ exports.upsertProviderRate = async (req, res) => {
         .json({ error: "feePercent must be between 0 and 100" });
     }
     const rate = await ProviderFeeRate.findOneAndUpdate(
-      { operatorId, providerId },
+      { operatorId, brandId, providerId },
       {
         $set: {
           operatorId,
+          brandId,
           providerId,
           providerName,
           feePercent: pct,
@@ -68,14 +95,15 @@ exports.upsertProviderRate = async (req, res) => {
   }
 };
 
-// DELETE /api/fees/provider-rates/:providerId
+// DELETE /api/fees/provider-rates/:providerId?brandId=<id|default>
 exports.deleteProviderRate = async (req, res) => {
   const operatorId = operatorOnly(req, res);
   if (!operatorId) return;
   try {
     const { providerId } = req.params;
+    const brandId = normalizeBrandId(req.query.brandId);
     await ProviderFeeRate.updateOne(
-      { operatorId, providerId },
+      { operatorId, brandId, providerId },
       { $set: { isDeleted: true } },
     );
     res.json({ ok: true });
@@ -84,13 +112,14 @@ exports.deleteProviderRate = async (req, res) => {
   }
 };
 
-// GET /api/fees/settings
+// GET /api/fees/settings?brandId=<id|default>
 exports.getFinancialSettings = async (req, res) => {
   const operatorId = operatorOnly(req, res);
   if (!operatorId) return;
   try {
+    const brandId = normalizeBrandId(req.query.brandId);
     const settings =
-      (await OperatorFinancialSettings.findOne({ operatorId }).lean()) || {
+      (await OperatorFinancialSettings.findOne({ operatorId, brandId }).lean()) || {
         paymentSystemFeePercent: 0,
         jackpotFeePercent: 0,
         casinoTaxPercent: 0,
@@ -101,11 +130,12 @@ exports.getFinancialSettings = async (req, res) => {
   }
 };
 
-// PUT /api/fees/settings
+// PUT /api/fees/settings — body: { brandId?, paymentSystemFeePercent, ... }
 exports.updateFinancialSettings = async (req, res) => {
   const operatorId = operatorOnly(req, res);
   if (!operatorId) return;
   try {
+    const brandId = normalizeBrandId(req.body?.brandId);
     const pick = (v) => {
       if (v == null) return undefined;
       const n = Number(v);
@@ -125,8 +155,8 @@ exports.updateFinancialSettings = async (req, res) => {
     if (jackpot !== undefined) update.jackpotFeePercent = jackpot;
     if (tax !== undefined) update.casinoTaxPercent = tax;
     const settings = await OperatorFinancialSettings.findOneAndUpdate(
-      { operatorId },
-      { $set: { operatorId, ...update } },
+      { operatorId, brandId },
+      { $set: { operatorId, brandId, ...update } },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
     res.json({ settings });
