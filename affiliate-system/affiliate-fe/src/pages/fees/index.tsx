@@ -278,12 +278,12 @@ function RunFeesButton() {
   const [msg, setMsg] = useState<string | null>(null);
   const qc = useQueryClient();
 
-  const run = async () => {
+  const run = async (dayOffset: number, label: string) => {
     setRunning(true);
     setMsg(null);
     try {
-      await baseService.add(FEES_API_URLS.RUN(), {});
-      setMsg('Job triggered — yesterday was re-computed.');
+      await baseService.add(FEES_API_URLS.RUN(), { dayOffset });
+      setMsg(`Job triggered for ${label}.`);
       qc.invalidateQueries();
     } catch (e: any) {
       setMsg(e?.message ?? 'Failed to run');
@@ -293,13 +293,20 @@ function RunFeesButton() {
   };
 
   return (
-    <div className='flex items-center gap-3'>
+    <div className='flex flex-wrap items-center gap-3'>
       <button
-        onClick={run}
+        onClick={() => run(-1, 'yesterday')}
         disabled={running}
         className='bg-primary text-white px-4 py-2 rounded text-sm font-semibold hover:bg-primary-dark disabled:opacity-50'
       >
-        {running ? 'Running...' : 'Run daily fees job now'}
+        {running ? 'Running...' : 'Run for yesterday'}
+      </button>
+      <button
+        onClick={() => run(0, 'today')}
+        disabled={running}
+        className='border border-primary text-primary px-4 py-2 rounded text-sm font-semibold hover:bg-gray-50 disabled:opacity-50'
+      >
+        Run for today (test)
       </button>
       {msg && <p className='text-xs text-gray-600'>{msg}</p>}
     </div>

@@ -169,12 +169,15 @@ exports.updateFinancialSettings = async (req, res) => {
   }
 };
 
-// POST /api/fees/run — manual trigger (idempotent; writes yesterday's fees)
+// POST /api/fees/run — manual trigger. Body { dayOffset } lets you pick the
+// day to recompute: -1 (yesterday, default), 0 (today), -2 (2 days ago).
 exports.runNow = async (req, res) => {
   if (!operatorOnly(req, res)) return;
   try {
-    await runFeesJob();
-    res.json({ ok: true });
+    const raw = req.body?.dayOffset;
+    const offset = Number.isFinite(Number(raw)) ? Number(raw) : -1;
+    await runFeesJob({ dayOffset: offset });
+    res.json({ ok: true, dayOffset: offset });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

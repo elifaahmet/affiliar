@@ -39,13 +39,14 @@ async function insertDelta(rows) {
   });
 }
 
-function yesterdayBounds() {
+function boundsFor(dayOffset = -1) {
+  // dayOffset = -1 → yesterday (default); 0 → today (for manual test).
   const now = new Date();
   const start = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1),
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + dayOffset),
   );
   const end = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + dayOffset + 1),
   );
   const hourBucketStr = start
     .toISOString()
@@ -58,6 +59,8 @@ function yesterdayBounds() {
     hourBucket: hourBucketStr,
   };
 }
+
+const yesterdayBounds = () => boundsFor(-1);
 
 async function runForOperator(operator, operatorFinancials, bounds) {
   const tenantId = operator._id.toString();
@@ -175,8 +178,8 @@ async function runForOperator(operator, operatorFinancials, bounds) {
   });
 }
 
-async function runOnce() {
-  const bounds = yesterdayBounds();
+async function runOnce({ dayOffset = -1 } = {}) {
+  const bounds = boundsFor(dayOffset);
   const operators = await Operator.find({ isDeleted: false })
     .select({ _id: 1 })
     .lean();
