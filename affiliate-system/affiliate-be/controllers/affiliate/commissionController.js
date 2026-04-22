@@ -269,6 +269,11 @@ const reportController = {
       // Build a map: affiliateId string → User ObjectId
       const idMap = new Map();
       for (const profile of affiliateProfiles) {
+        // ClickHouse writes affiliate_id = profile.user, so self-map the
+        // user id. Legacy profile.affiliateId is kept for back-compat.
+        if (profile.user) {
+          idMap.set(String(profile.user), profile.user);
+        }
         if (profile.affiliateId) {
           idMap.set(String(profile.affiliateId), profile.user);
         }
