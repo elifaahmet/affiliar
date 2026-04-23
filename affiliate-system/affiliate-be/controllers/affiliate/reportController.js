@@ -66,7 +66,7 @@ const METRIC_COLS = `
   SUM(wager_cents)                        AS wagerCents,
   SUM(casino_ggr_cents)                   AS computedGgrCents,
   SUM(casino_ngr_cents)                   AS computedNgrCents,
-  uniqExact(player_id)                    AS playerCount
+  uniqExactIf(player_id, player_id != '__fees__')                    AS playerCount
 `.trim();
 
 /** Run a query and return rows as plain JS objects (all values as numbers/strings). */
@@ -175,7 +175,7 @@ exports.affiliates = async (req, res) => {
     depositsSumCents:  "SUM(deposits_sum_cents)",
     ftdCount:          "SUM(ftd_count)",
     registrations:     "SUM(registrations)",
-    playerCount:       "uniqExact(player_id)",
+    playerCount:       "uniqExactIf(player_id, player_id != '__fees__')",
     roundsCount:       "SUM(rounds_count)",
   };
 
@@ -257,7 +257,7 @@ exports.campaignReport = async (req, res) => {
          SUM(deposits_sum_cents)  AS depositsSumCents,
          SUM(casino_ggr_cents)    AS ggrCents,
          SUM(casino_ngr_cents)    AS ngrCents,
-         uniqExact(player_id)     AS playerCount
+         uniqExactIf(player_id, player_id != '__fees__')     AS playerCount
        FROM affiliate.activity
        WHERE ${where}
        GROUP BY campaign, affiliate_id, affiliate_code
@@ -324,7 +324,7 @@ exports.portalCampaignReport = async (req, res) => {
          SUM(deposits_sum_cents)  AS depositsSumCents,
          SUM(casino_ggr_cents)    AS ggrCents,
          SUM(casino_ngr_cents)    AS ngrCents,
-         uniqExact(player_id)     AS playerCount
+         uniqExactIf(player_id, player_id != '__fees__')     AS playerCount
        FROM affiliate.activity
        WHERE ${where}
        GROUP BY campaign, affiliate_id, affiliate_code
@@ -376,7 +376,7 @@ exports.traffic = async (req, res) => {
         SUM(ftd_sum_cents)                          AS ftdSumCents,
         SUM(deposits_count)                         AS depositsCount,
         SUM(deposits_sum_cents)                     AS depositsSumCents,
-        uniqExact(player_id)                        AS playerCount
+        uniqExactIf(player_id, player_id != '__fees__')                        AS playerCount
       FROM affiliate.activity
       WHERE ${where}
       GROUP BY date, affiliate_id, affiliate_code, campaign, sub_id

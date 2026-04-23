@@ -102,7 +102,7 @@ const AFFILIATE_METRIC_COLS = `
   SUM(casino_ggr_cents)               AS ggrCents,
   SUM(casino_ngr_cents)               AS ngrCents,
   SUM(rounds_count)                   AS roundsCount,
-  uniqExact(player_id)                AS playerCount
+  uniqExactIf(player_id, player_id != '__fees__')                AS playerCount
 `.trim();
 
 // ── Provider breakdown ────────────────────────────────────────────────────────
@@ -141,7 +141,7 @@ exports.providers = async (req, res) => {
          SUM(game_provider_fees_sum_cents)     AS providerFeesSumCents,
          SUM(casino_ggr_cents)                 AS ggrCents,
          SUM(casino_ngr_cents)                 AS ngrCents,
-         uniqExact(player_id)                  AS playerCount
+         uniqExactIf(player_id, player_id != '__fees__')                  AS playerCount
        FROM affiliate.activity
        WHERE ${where}
          AND provider != ''
