@@ -58,6 +58,9 @@ const EVENT_DATA_SCHEMAS = {
   }),
   'casino.bet.placed': z.object({
     betCents:   z.number().int().min(0),
+    // Optional — send the wager contribution if your platform weights bonus
+    // wagering differently from the bet amount. Omitted → defaults to betCents.
+    wagerCents: z.number().int().min(0).optional(),
     gameId:     z.string().optional(),
     providerId: z.string().optional(),
     roundId:    z.string().min(1),

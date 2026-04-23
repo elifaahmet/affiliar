@@ -208,6 +208,7 @@ Emitted at the start of a casino round.
   "eventType": "casino.bet.placed",
   "data": {
     "betCents":   100,
+    "wagerCents": 100,
     "gameId":     "pragmatic:sweet_bonanza",
     "providerId": "pragmatic",
     "roundId":    "round_abc_123"
@@ -218,6 +219,7 @@ Emitted at the start of a casino round.
 | Field | Required | Notes |
 |---|---|---|
 | `betCents` | yes | Stake for this bet, integer cents. |
+| `wagerCents` | no | Wager contribution for this bet. Send only if your platform weights wagering differently from the stake (e.g. fractional bonus-wagering contribution). If omitted, Affiliar sets `wagerCents = betCents` automatically. |
 | `gameId` | no | Stable game identifier. |
 | `providerId` | no | Game provider key. |
 | `roundId` | yes | Stable round identifier. Used to correlate with `casino.win.settled` and rollbacks. |

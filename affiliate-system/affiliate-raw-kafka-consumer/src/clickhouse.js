@@ -129,7 +129,7 @@ function buildDeltaRow(event, data, affiliateId = '') {
       break;
     case 'casino.bet.placed':
       m.bets_sum_cents = data.betCents;
-      m.wager_cents = data.betCents;
+      m.wager_cents = data.wagerCents ?? data.betCents;
       m.rounds_count = 1;
       break;
     case 'casino.win.settled':
