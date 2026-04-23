@@ -139,7 +139,7 @@ Content-Type: application/json
 | `gameProviderFeesSumCents` | integer ≥ 0 | Yes | Game provider revenue share fees |
 | `casinoTaxesSumCents` | integer ≥ 0 | Yes | Gambling taxes |
 | `roundsCount` | integer ≥ 0 | Yes | Number of game rounds played |
-| `wagerCents` | integer ≥ 0 | Yes | Total wagered amount (usually = bets) |
+| `wagerCents` | integer ≥ 0 | No | Total wagered amount. If your platform doesn't track wager separately from bets (e.g. no bonus-wagering-contribution weighting), omit this field and Affiliar will default it to `betsSumCents`. |
 | `registrations` | integer ≥ 0 | Yes | New registrations in this period (0 or 1) |
 | `ftdCount` | integer ≥ 0 | Yes | First time deposit count (0 or 1) |
 | `ftdSumCents` | integer ≥ 0 | Yes | First time deposit amount |

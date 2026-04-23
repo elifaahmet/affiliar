@@ -156,7 +156,7 @@ function buildRow(event, derived) {
 
     // Engagement
     rounds_count:   m.roundsCount,
-    wager_cents:    m.wagerCents,
+    wager_cents:    m.wagerCents ?? m.betsSumCents,
 
     // Derived metrics — prefer server-computed values
     casino_ggr_cents: derived.computedGgrCents,

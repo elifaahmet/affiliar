@@ -121,10 +121,17 @@ exports.importActivity = async (req, res) => {
       "bonusIssuesSumCents", "additionalDeductionsSumCents",
       "paymentSystemFeesSumCents", "jackpotFeesSumCents",
       "gameProviderFeesSumCents", "casinoTaxesSumCents",
-      "roundsCount", "wagerCents",
+      "roundsCount",
       "registrations", "ftdCount", "ftdSumCents",
       "chargebacksCount", "chargebacksSumCents",
     ];
+
+    // wagerCents is optional — if the casino platform doesn't track a separate
+    // wagering figure (e.g. no bonus-wagering-contribution weighting), we fall
+    // back to betsSumCents so reports still get a meaningful wager number.
+    if (m.wagerCents === undefined || m.wagerCents === null) {
+      m.wagerCents = m.betsSumCents;
+    }
 
     const metricErrors = requiredMetricFields.filter(
       (f) => m[f] === undefined || typeof m[f] !== "number" || m[f] < 0

@@ -33,7 +33,9 @@ const metricsSchema = z.object({
   casinoTaxesSumCents: nonNegativeInt,
 
   roundsCount: nonNegativeInt,
-  wagerCents: nonNegativeInt,
+  // Optional — if omitted, the consumer falls back to betsSumCents. Useful
+  // when the casino platform doesn't track a separate wager figure.
+  wagerCents: nonNegativeInt.optional(),
 
   // Derived fields — optional, validated separately in business rules
   casinoGgrCents: nonNegativeInt.optional(),
