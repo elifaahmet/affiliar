@@ -68,7 +68,18 @@ interface DayRow {
   ngrCents: number;
   roundsCount: number;
   playerCount: number;
+  // Sportsbook (optional — 0 when nothing ingested yet)
+  sbBetsSumCents?: number;
+  sbWinsSumCents?: number;
+  sbCancelledBetsSumCents?: number;
+  sbRejectedBetsSumCents?: number;
+  sbSettledBetsSumCents?: number;
+  sbGgrCents?: number;
+  sbNgrCents?: number;
+  combinedNgrCents?: number;
 }
+
+type ProductScope = 'all' | 'casino' | 'sportsbook';
 
 interface CommissionSummary {
   totalEarned: number;
@@ -121,6 +132,7 @@ function KpiCard({ label, value, sub, accent }: {
 export default function AffiliateDashboard() {
   const [activePeriod, setActivePeriod] = useState<PeriodKey>('month');
   const [customRange, setCustomRange]   = useState<Period | null>(null);
+  const [product, setProduct]           = useState<ProductScope>('all');
 
   const period: Period = useMemo(
     () => customRange ?? buildPeriod(activePeriod),
@@ -195,6 +207,23 @@ export default function AffiliateDashboard() {
 
       {!isLoading && !isError && (
         <>
+          {/* Product scope */}
+          <div className='flex gap-1 bg-white p-1 rounded-lg border border-gray-200 shadow-sm w-fit'>
+            {(['all', 'casino', 'sportsbook'] as ProductScope[]).map((p) => (
+              <button
+                key={p}
+                onClick={() => setProduct(p)}
+                className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-colors capitalize ${
+                  product === p
+                    ? 'bg-primary text-white'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {p === 'all' ? 'All products' : p}
+              </button>
+            ))}
+          </div>
+
           {/* Traffic KPIs */}
           <div>
             <p className='text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3'>Traffic</p>
@@ -202,17 +231,36 @@ export default function AffiliateDashboard() {
               <KpiCard label='Registrations' value={String(s?.registrations ?? 0)} sub={`${s?.playerCount ?? 0} active players`} />
               <KpiCard label='FTDs'          value={String(s?.ftdCount ?? 0)} sub={`€${fmt(s?.ftdSumCents ?? 0)}`} />
               <KpiCard label='Deposits'      value={`€${fmt(s?.depositsSumCents ?? 0)}`} sub={`${s?.depositsCount ?? 0} txns`} />
-              <KpiCard label='Rounds'        value={(s?.roundsCount ?? 0).toLocaleString()} />
+              {product !== 'sportsbook' && <KpiCard label='Rounds' value={(s?.roundsCount ?? 0).toLocaleString()} />}
+              {product === 'sportsbook' && <KpiCard label='SB Settled' value={`€${fmt(s?.sbSettledBetsSumCents ?? 0)}`} sub='bets' />}
             </div>
           </div>
 
-          {/* Revenue KPIs */}
+          {/* Revenue KPIs — swap per product */}
           <div>
             <p className='text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3'>Revenue</p>
-            <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4'>
-              <KpiCard label='GGR'           value={`€${fmt(s?.ggrCents ?? 0)}`} />
-              <KpiCard label='NGR'           value={`€${fmt(s?.ngrCents ?? 0)}`} accent />
-            </div>
+            {product === 'casino' && (
+              <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4'>
+                <KpiCard label='Casino GGR' value={`€${fmt(s?.ggrCents ?? 0)}`} />
+                <KpiCard label='Casino NGR' value={`€${fmt(s?.ngrCents ?? 0)}`} accent />
+              </div>
+            )}
+            {product === 'sportsbook' && (
+              <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4'>
+                <KpiCard label='SB Bets'        value={`€${fmt(s?.sbBetsSumCents ?? 0)}`} sub={`Wins €${fmt(s?.sbWinsSumCents ?? 0)}`} />
+                <KpiCard label='SB Cancelled'   value={`€${fmt(s?.sbCancelledBetsSumCents ?? 0)}`} sub='operator-voided' />
+                <KpiCard label='SB Rejected'    value={`€${fmt(s?.sbRejectedBetsSumCents ?? 0)}`} sub='not accepted' />
+                <KpiCard label='SB GGR'         value={`€${fmt(s?.sbGgrCents ?? 0)}`} />
+                <KpiCard label='SB NGR'         value={`€${fmt(s?.sbNgrCents ?? 0)}`} accent />
+              </div>
+            )}
+            {product === 'all' && (
+              <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4'>
+                <KpiCard label='Combined NGR' value={`€${fmt(s?.combinedNgrCents ?? 0)}`} accent />
+                <KpiCard label='Casino NGR'   value={`€${fmt(s?.ngrCents ?? 0)}`} sub={`GGR €${fmt(s?.ggrCents ?? 0)}`} />
+                <KpiCard label='SB NGR'       value={`€${fmt(s?.sbNgrCents ?? 0)}`} sub={`GGR €${fmt(s?.sbGgrCents ?? 0)}`} />
+              </div>
+            )}
           </div>
 
           {/* Providers breakdown */}

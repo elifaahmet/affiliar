@@ -102,6 +102,14 @@ const AFFILIATE_METRIC_COLS = `
   SUM(casino_ggr_cents)               AS ggrCents,
   SUM(casino_ngr_cents)               AS ngrCents,
   SUM(rounds_count)                   AS roundsCount,
+  SUM(sb_bets_sum_cents)              AS sbBetsSumCents,
+  SUM(sb_wins_sum_cents)              AS sbWinsSumCents,
+  SUM(sb_cancelled_bets_sum_cents)    AS sbCancelledBetsSumCents,
+  SUM(sb_rejected_bets_sum_cents)     AS sbRejectedBetsSumCents,
+  SUM(sb_settled_bets_sum_cents)      AS sbSettledBetsSumCents,
+  SUM(sb_ggr_cents)                   AS sbGgrCents,
+  SUM(sb_ngr_cents)                   AS sbNgrCents,
+  SUM(combined_ngr_cents)             AS combinedNgrCents,
   uniqExactIf(player_id, player_id != '__fees__')                AS playerCount
 `.trim();
 
@@ -229,6 +237,9 @@ exports.overview = async (req, res) => {
       registrations: 0, ftdCount: 0, ftdSumCents: 0,
       depositsCount: 0, depositsSumCents: 0,
       ggrCents: 0, ngrCents: 0, roundsCount: 0, playerCount: 0,
+      sbBetsSumCents: 0, sbWinsSumCents: 0, sbCancelledBetsSumCents: 0,
+      sbRejectedBetsSumCents: 0, sbSettledBetsSumCents: 0,
+      sbGgrCents: 0, sbNgrCents: 0, combinedNgrCents: 0,
     });
 
     // Commission totals from MongoDB

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -120,7 +120,22 @@ interface DayRow {
   roundsCount: number;
   wagerCents: number;
   playerCount: number;
+  // Sportsbook metrics
+  sbBetsSumCents: number;
+  sbWinsSumCents: number;
+  sbCancelledBetsSumCents: number;
+  sbRejectedBetsSumCents: number;
+  sbWinRollbacksSumCents: number;
+  sbSettledBetsSumCents: number;
+  sbBonusIssuesSumCents: number;
+  sbBalanceCorrectionsSumCents: number;
+  sbThirdPartyFeesSumCents: number;
+  sbGgrCents: number;
+  sbNgrCents: number;
+  combinedNgrCents: number;
 }
+
+type ProductScope = 'all' | 'casino' | 'sportsbook';
 
 type MetricSummary = Omit<DayRow, 'date'>;
 
@@ -135,38 +150,52 @@ interface OverviewResponse {
 interface ChartMetricDef {
   key: string;
   label: string;
+  // 'shared' = always shown, 'casino' / 'sportsbook' = only shown in that tab
+  scope: 'shared' | 'casino' | 'sportsbook';
   isCents?: boolean;
   isRate?: boolean;
   computed?: (row: DayRow) => number;
 }
 
 const CHART_METRICS: ChartMetricDef[] = [
-  { key: 'registrations',              label: 'Registrations' },
-  { key: 'playerCount',                label: 'Players' },
-  { key: 'ftdCount',                   label: 'FTD Count' },
-  { key: 'ftdSumCents',                label: 'FTD Sum', isCents: true },
-  { key: 'ftdConversionRate',          label: 'FTD Conversion %', isRate: true,
+  { key: 'registrations',              label: 'Registrations',    scope: 'shared' },
+  { key: 'playerCount',                label: 'Players',          scope: 'shared' },
+  { key: 'ftdCount',                   label: 'FTD Count',        scope: 'shared' },
+  { key: 'ftdSumCents',                label: 'FTD Sum',          scope: 'shared', isCents: true },
+  { key: 'ftdConversionRate',          label: 'FTD Conversion %', scope: 'shared', isRate: true,
     computed: (r) => r.registrations > 0 ? (r.ftdCount / r.registrations) * 100 : 0 },
-  { key: 'depositsCount',              label: 'Deposits Count' },
-  { key: 'depositsSumCents',           label: 'Deposits Sum', isCents: true },
-  { key: 'avgDepositCents',            label: 'Avg Deposit', isCents: true,
+  { key: 'depositsCount',              label: 'Deposits Count',   scope: 'shared' },
+  { key: 'depositsSumCents',           label: 'Deposits Sum',     scope: 'shared', isCents: true },
+  { key: 'avgDepositCents',            label: 'Avg Deposit',      scope: 'shared', isCents: true,
     computed: (r) => r.depositsCount > 0 ? r.depositsSumCents / r.depositsCount : 0 },
-  { key: 'cashoutsCount',              label: 'Cashouts Count' },
-  { key: 'cashoutsSumCents',           label: 'Cashouts Sum', isCents: true },
-  { key: 'chargebacksCount',           label: 'Chargebacks Count' },
-  { key: 'chargebacksSumCents',        label: 'Chargebacks Sum', isCents: true },
-  { key: 'roundsCount',                label: 'Rounds' },
-  { key: 'wagerCents',                 label: 'Casino Wager', isCents: true },
-  { key: 'betsSumCents',               label: 'Casino Bets Sum', isCents: true },
-  { key: 'winsSumCents',               label: 'Casino Wins Sum', isCents: true },
-  { key: 'computedGgrCents',           label: 'Casino GGR', isCents: true },
-  { key: 'computedNgrCents',           label: 'Casino NGR', isCents: true },
-  { key: 'bonusIssuesSumCents',        label: 'Casino Bonuses', isCents: true },
-  { key: 'paymentSystemFeesSumCents',  label: 'PSP Fees', isCents: true },
-  { key: 'gameProviderFeesSumCents',   label: 'Game Provider Fees', isCents: true },
-  { key: 'jackpotFeesSumCents',        label: 'Jackpot Fees', isCents: true },
-  { key: 'casinoTaxesSumCents',        label: 'Casino Taxes', isCents: true },
-  { key: 'additionalDeductionsSumCents', label: 'Balance Corrections', isCents: true },
+  { key: 'cashoutsCount',              label: 'Cashouts Count',   scope: 'shared' },
+  { key: 'cashoutsSumCents',           label: 'Cashouts Sum',     scope: 'shared', isCents: true },
+  { key: 'chargebacksCount',           label: 'Chargebacks Count',scope: 'shared' },
+  { key: 'chargebacksSumCents',        label: 'Chargebacks Sum',  scope: 'shared', isCents: true },
+  { key: 'combinedNgrCents',           label: 'Combined NGR',     scope: 'shared', isCents: true },
+  // Casino
+  { key: 'roundsCount',                label: 'Rounds',           scope: 'casino' },
+  { key: 'wagerCents',                 label: 'Casino Wager',     scope: 'casino', isCents: true },
+  { key: 'betsSumCents',               label: 'Casino Bets Sum',  scope: 'casino', isCents: true },
+  { key: 'winsSumCents',               label: 'Casino Wins Sum',  scope: 'casino', isCents: true },
+  { key: 'computedGgrCents',           label: 'Casino GGR',       scope: 'casino', isCents: true },
+  { key: 'computedNgrCents',           label: 'Casino NGR',       scope: 'casino', isCents: true },
+  { key: 'bonusIssuesSumCents',        label: 'Casino Bonuses',   scope: 'casino', isCents: true },
+  { key: 'paymentSystemFeesSumCents',  label: 'PSP Fees',         scope: 'casino', isCents: true },
+  { key: 'gameProviderFeesSumCents',   label: 'Game Provider Fees', scope: 'casino', isCents: true },
+  { key: 'jackpotFeesSumCents',        label: 'Jackpot Fees',     scope: 'casino', isCents: true },
+  { key: 'casinoTaxesSumCents',        label: 'Casino Taxes',     scope: 'casino', isCents: true },
+  { key: 'additionalDeductionsSumCents', label: 'Balance Corrections', scope: 'casino', isCents: true },
+  // Sportsbook
+  { key: 'sbBetsSumCents',               label: 'SB Bets Sum',       scope: 'sportsbook', isCents: true },
+  { key: 'sbWinsSumCents',               label: 'SB Wins Sum',       scope: 'sportsbook', isCents: true },
+  { key: 'sbCancelledBetsSumCents',      label: 'SB Cancelled Bets', scope: 'sportsbook', isCents: true },
+  { key: 'sbRejectedBetsSumCents',       label: 'SB Rejected Bets',  scope: 'sportsbook', isCents: true },
+  { key: 'sbSettledBetsSumCents',        label: 'SB Settled Bets',   scope: 'sportsbook', isCents: true },
+  { key: 'sbGgrCents',                   label: 'SB GGR',            scope: 'sportsbook', isCents: true },
+  { key: 'sbNgrCents',                   label: 'SB NGR',            scope: 'sportsbook', isCents: true },
+  { key: 'sbBonusIssuesSumCents',        label: 'SB Bonuses',        scope: 'sportsbook', isCents: true },
+  { key: 'sbThirdPartyFeesSumCents',     label: 'SB 3rd-party Fees', scope: 'sportsbook', isCents: true },
 ];
 
 // ── aggregate byDay rows into monthly buckets ─────────────────────────────────
@@ -178,6 +207,10 @@ const SUMMED_KEYS: (keyof Omit<DayRow, 'date'>)[] = [
   'bonusIssuesSumCents','additionalDeductionsSumCents','paymentSystemFeesSumCents',
   'jackpotFeesSumCents','gameProviderFeesSumCents','casinoTaxesSumCents',
   'computedGgrCents','computedNgrCents','roundsCount','wagerCents','playerCount',
+  'sbBetsSumCents','sbWinsSumCents','sbCancelledBetsSumCents','sbRejectedBetsSumCents',
+  'sbWinRollbacksSumCents','sbSettledBetsSumCents','sbBonusIssuesSumCents',
+  'sbBalanceCorrectionsSumCents','sbThirdPartyFeesSumCents',
+  'sbGgrCents','sbNgrCents','combinedNgrCents',
 ];
 
 function aggregateByMonth(rows: DayRow[]): DayRow[] {
@@ -206,11 +239,32 @@ const CHART_WINDOWS: { key: ChartWindow; label: string }[] = [
   { key: 'year',  label: 'Year'  },
 ];
 
-function QuickCharts({ brandsData }: { brandsData: BrandsResponse | undefined }) {
+function QuickCharts({
+  brandsData, product,
+}: {
+  brandsData: BrandsResponse | undefined;
+  product: ProductScope;
+}) {
   const [metricKey, setMetricKey]       = useState('registrations');
   const [chartBrandId, setChartBrandId] = useState('');
   const [window, setWindow]             = useState<ChartWindow>('month');
   const [custom, setCustom]             = useState<Period | null>(null);
+
+  // Only metrics matching the selected product (plus shared) are offered.
+  const visibleMetrics = useMemo(
+    () =>
+      CHART_METRICS.filter(
+        (m) => m.scope === 'shared' || product === 'all' || m.scope === product,
+      ),
+    [product],
+  );
+
+  // If the current selection isn't valid for the new product, fall back.
+  useEffect(() => {
+    if (!visibleMetrics.find((m) => m.key === metricKey)) {
+      setMetricKey(visibleMetrics[0]?.key ?? 'registrations');
+    }
+  }, [visibleMetrics, metricKey]);
 
   const period = useMemo(
     () => custom ?? buildPeriod(window),
@@ -267,7 +321,7 @@ function QuickCharts({ brandsData }: { brandsData: BrandsResponse | undefined })
             <BSelectWithSearch
               value={metricKey}
               onChange={setMetricKey}
-              options={CHART_METRICS.map(m => ({ label: m.label, value: m.key }))}
+              options={visibleMetrics.map(m => ({ label: m.label, value: m.key }))}
               placeholder='Select metric'
             />
           </div>
@@ -416,6 +470,7 @@ export default function Dashboard() {
   const [activePeriod, setActivePeriod]   = useState<PeriodKey>('month');
   const [customRange, setCustomRange]     = useState<Period | null>(null);
   const [brandId, setBrandId]             = useState<string>('');
+  const [product, setProduct]             = useState<ProductScope>('all');
   const [activeInnerTab, setActiveInnerTab] = useState<'charts' | 'breakdown'>('charts');
 
   const period: Period = useMemo(
@@ -505,17 +560,64 @@ export default function Dashboard() {
 
       {!isLoading && !isError && (
         <>
-          <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4'>
-            <KpiCard label='Registrations' value={String(s?.registrations ?? 0)} sub={`${s?.playerCount ?? 0} players`} />
-            <KpiCard label='FTDs'          value={String(s?.ftdCount ?? 0)} sub={`€${fmt(s?.ftdSumCents ?? 0)}`} />
-            <KpiCard label='Deposits'      value={`€${fmt(s?.depositsSumCents ?? 0)}`} sub={`${s?.depositsCount ?? 0} txns`} />
-            <KpiCard label='Cashouts'      value={`€${fmt(s?.cashoutsSumCents ?? 0)}`} sub={`${s?.cashoutsCount ?? 0} txns`} />
-            <KpiCard label='GGR'           value={`€${fmt(s?.computedGgrCents ?? 0)}`} />
-            <KpiCard label='NGR'           value={`€${fmt(s?.computedNgrCents ?? 0)}`} accent />
-            <KpiCard label='Rounds'        value={(s?.roundsCount ?? 0).toLocaleString()} />
-            <KpiCard label='Chargebacks'   value={`€${fmt(s?.chargebacksSumCents ?? 0)}`} sub={`${s?.chargebacksCount ?? 0} txns`} />
-            <KpiCard label='Bets'          value={`€${fmt(s?.betsSumCents ?? 0)}`} sub={`Wins €${fmt(s?.winsSumCents ?? 0)}`} />
+          {/* Product tabs — swap KPI set + inner-tab data based on scope */}
+          <div className='flex gap-1 bg-white p-1 rounded-lg border border-gray-200 shadow-sm w-fit'>
+            {(['all', 'casino', 'sportsbook'] as ProductScope[]).map((p) => (
+              <button
+                key={p}
+                onClick={() => setProduct(p)}
+                className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-colors capitalize ${
+                  product === p
+                    ? 'bg-primary text-white'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {p === 'all' ? 'All products' : p}
+              </button>
+            ))}
           </div>
+
+          {product === 'casino' && (
+            <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4'>
+              <KpiCard label='Registrations' value={String(s?.registrations ?? 0)} sub={`${s?.playerCount ?? 0} players`} />
+              <KpiCard label='FTDs'          value={String(s?.ftdCount ?? 0)} sub={`€${fmt(s?.ftdSumCents ?? 0)}`} />
+              <KpiCard label='Deposits'      value={`€${fmt(s?.depositsSumCents ?? 0)}`} sub={`${s?.depositsCount ?? 0} txns`} />
+              <KpiCard label='Cashouts'      value={`€${fmt(s?.cashoutsSumCents ?? 0)}`} sub={`${s?.cashoutsCount ?? 0} txns`} />
+              <KpiCard label='Casino GGR'    value={`€${fmt(s?.computedGgrCents ?? 0)}`} />
+              <KpiCard label='Casino NGR'    value={`€${fmt(s?.computedNgrCents ?? 0)}`} accent />
+              <KpiCard label='Rounds'        value={(s?.roundsCount ?? 0).toLocaleString()} />
+              <KpiCard label='Bets'          value={`€${fmt(s?.betsSumCents ?? 0)}`} sub={`Wins €${fmt(s?.winsSumCents ?? 0)}`} />
+              <KpiCard label='Chargebacks'   value={`€${fmt(s?.chargebacksSumCents ?? 0)}`} sub={`${s?.chargebacksCount ?? 0} txns`} />
+            </div>
+          )}
+
+          {product === 'sportsbook' && (
+            <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4'>
+              <KpiCard label='Registrations' value={String(s?.registrations ?? 0)} sub={`${s?.playerCount ?? 0} players`} />
+              <KpiCard label='FTDs'          value={String(s?.ftdCount ?? 0)} sub={`€${fmt(s?.ftdSumCents ?? 0)}`} />
+              <KpiCard label='SB Bets'       value={`€${fmt(s?.sbBetsSumCents ?? 0)}`} sub={`Settled €${fmt(s?.sbSettledBetsSumCents ?? 0)}`} />
+              <KpiCard label='SB Wins'       value={`€${fmt(s?.sbWinsSumCents ?? 0)}`} />
+              <KpiCard label='SB GGR'        value={`€${fmt(s?.sbGgrCents ?? 0)}`} />
+              <KpiCard label='SB NGR'        value={`€${fmt(s?.sbNgrCents ?? 0)}`} accent />
+              <KpiCard label='Cancelled'     value={`€${fmt(s?.sbCancelledBetsSumCents ?? 0)}`} sub='operator-voided' />
+              <KpiCard label='Rejected'      value={`€${fmt(s?.sbRejectedBetsSumCents ?? 0)}`} sub='not accepted' />
+              <KpiCard label='SB 3rd-party'  value={`€${fmt(s?.sbThirdPartyFeesSumCents ?? 0)}`} sub='bookmaker fees' />
+            </div>
+          )}
+
+          {product === 'all' && (
+            <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4'>
+              <KpiCard label='Registrations' value={String(s?.registrations ?? 0)} sub={`${s?.playerCount ?? 0} players`} />
+              <KpiCard label='FTDs'          value={String(s?.ftdCount ?? 0)} sub={`€${fmt(s?.ftdSumCents ?? 0)}`} />
+              <KpiCard label='Deposits'      value={`€${fmt(s?.depositsSumCents ?? 0)}`} sub={`${s?.depositsCount ?? 0} txns`} />
+              <KpiCard label='Cashouts'      value={`€${fmt(s?.cashoutsSumCents ?? 0)}`} sub={`${s?.cashoutsCount ?? 0} txns`} />
+              <KpiCard label='Combined NGR'  value={`€${fmt(s?.combinedNgrCents ?? 0)}`} accent />
+              <KpiCard label='Casino NGR'    value={`€${fmt(s?.computedNgrCents ?? 0)}`} sub={`GGR €${fmt(s?.computedGgrCents ?? 0)}`} />
+              <KpiCard label='SB NGR'        value={`€${fmt(s?.sbNgrCents ?? 0)}`} sub={`GGR €${fmt(s?.sbGgrCents ?? 0)}`} />
+              <KpiCard label='Rounds'        value={(s?.roundsCount ?? 0).toLocaleString()} />
+              <KpiCard label='Chargebacks'   value={`€${fmt(s?.chargebacksSumCents ?? 0)}`} sub={`${s?.chargebacksCount ?? 0} txns`} />
+            </div>
+          )}
 
           {/* Inner tab switcher */}
           <div className='flex gap-1 bg-white p-1 rounded-lg w-full border border-gray-200 shadow-sm'>
@@ -534,7 +636,7 @@ export default function Dashboard() {
             ))}
           </div>
 
-          {activeInnerTab === 'charts' && <QuickCharts brandsData={brandsData} />}
+          {activeInnerTab === 'charts' && <QuickCharts brandsData={brandsData} product={product} />}
 
           {activeInnerTab === 'breakdown' && (
             <>

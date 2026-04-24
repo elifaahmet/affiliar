@@ -66,6 +66,20 @@ const METRIC_COLS = `
   SUM(wager_cents)                        AS wagerCents,
   SUM(casino_ggr_cents)                   AS computedGgrCents,
   SUM(casino_ngr_cents)                   AS computedNgrCents,
+  -- Sportsbook columns + all three NGR variants so the FE can flip
+  -- between product tabs without a re-query.
+  SUM(sb_bets_sum_cents)                  AS sbBetsSumCents,
+  SUM(sb_cancelled_bets_sum_cents)        AS sbCancelledBetsSumCents,
+  SUM(sb_rejected_bets_sum_cents)         AS sbRejectedBetsSumCents,
+  SUM(sb_wins_sum_cents)                  AS sbWinsSumCents,
+  SUM(sb_win_rollbacks_sum_cents)         AS sbWinRollbacksSumCents,
+  SUM(sb_settled_bets_sum_cents)          AS sbSettledBetsSumCents,
+  SUM(sb_bonus_issues_sum_cents)          AS sbBonusIssuesSumCents,
+  SUM(sb_balance_corrections_sum_cents)   AS sbBalanceCorrectionsSumCents,
+  SUM(sb_third_party_fees_sum_cents)      AS sbThirdPartyFeesSumCents,
+  SUM(sb_ggr_cents)                       AS sbGgrCents,
+  SUM(sb_ngr_cents)                       AS sbNgrCents,
+  SUM(combined_ngr_cents)                 AS combinedNgrCents,
   uniqExactIf(player_id, player_id != '__fees__')                    AS playerCount
 `.trim();
 
@@ -130,7 +144,12 @@ exports.overview = async (req, res) => {
         bonusIssuesSumCents: 0, additionalDeductionsSumCents: 0,
         paymentSystemFeesSumCents: 0, jackpotFeesSumCents: 0,
         gameProviderFeesSumCents: 0, casinoTaxesSumCents: 0,
-        roundsCount: 0, wagerCents: 0, computedGgrCents: 0, computedNgrCents: 0, playerCount: 0,
+        roundsCount: 0, wagerCents: 0, computedGgrCents: 0, computedNgrCents: 0,
+        sbBetsSumCents: 0, sbCancelledBetsSumCents: 0, sbRejectedBetsSumCents: 0,
+        sbWinsSumCents: 0, sbWinRollbacksSumCents: 0, sbSettledBetsSumCents: 0,
+        sbBonusIssuesSumCents: 0, sbBalanceCorrectionsSumCents: 0,
+        sbThirdPartyFeesSumCents: 0, sbGgrCents: 0, sbNgrCents: 0, combinedNgrCents: 0,
+        playerCount: 0,
       }
     );
 

@@ -323,10 +323,13 @@ function TrafficTab({ params }: { params: Record<string, string> }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
+type ProductScope = 'all' | 'casino' | 'sportsbook';
+
 export default function Reports() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [dateRange, setDateRange] = useState(defaultRange);
   const [brandId, setBrandId] = useState<string>('');
+  const [product, setProduct] = useState<ProductScope>('all');
 
   const { data: brandsData } = useBaseQuery<BrandsResponse>({
     endpoint: BRANDS_API_URLS.LIST(),
@@ -334,8 +337,16 @@ export default function Reports() {
   });
 
   const params = useMemo(
-    () => ({ from: dateRange.from, to: dateRange.to, ...(brandId ? { brandId } : {}) }),
-    [dateRange.from, dateRange.to, brandId],
+    () => ({
+      from: dateRange.from,
+      to:   dateRange.to,
+      ...(brandId ? { brandId } : {}),
+      // `product` isn't consumed server-side yet — the overview endpoint
+      // always returns every scope's numbers — but passing it lets child
+      // tabs pick the right column set without prop-drilling.
+      product,
+    }),
+    [dateRange.from, dateRange.to, brandId, product],
   );
 
   return (
@@ -367,6 +378,23 @@ export default function Reports() {
             className='bg-white text-gray-700 text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
           />
         </div>
+      </div>
+
+      {/* Product scope */}
+      <div className='flex gap-1 bg-white p-1 rounded-lg border border-gray-200 shadow-sm w-fit'>
+        {(['all', 'casino', 'sportsbook'] as const).map((p) => (
+          <button
+            key={p}
+            onClick={() => setProduct(p)}
+            className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-colors capitalize ${
+              product === p
+                ? 'bg-primary text-white'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {p === 'all' ? 'All products' : p}
+          </button>
+        ))}
       </div>
 
       {/* Tabs */}
