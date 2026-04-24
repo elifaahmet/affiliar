@@ -64,6 +64,19 @@ function buildRawRow(event) {
   };
 }
 
+// Resolve which bonus column a bonus.granted / bonus.revoked event should
+// land in, based on the optional `product` discriminator. Untagged events
+// stay in the legacy `bonus_issues_sum_cents` bucket (feeds casino_ngr +
+// combined_ngr) so platforms that haven't started tagging keep working.
+function bonusBucketColumn(product) {
+  switch (product) {
+    case 'casino':     return 'casino_bonus_issues_sum_cents';
+    case 'sportsbook': return 'sb_bonus_issues_sum_cents';
+    case 'generic':    return 'generic_bonus_issues_sum_cents';
+    default:           return 'bonus_issues_sum_cents';
+  }
+}
+
 export function buildDeltaRow(event, data, affiliateId = '') {
   const base = {
     tenant_id:       event.tenantId,
@@ -93,6 +106,14 @@ export function buildDeltaRow(event, data, affiliateId = '') {
     rounds_count: 0, wager_cents: 0,
     deposit_fees_sum_cents: 0, withdrawal_fees_sum_cents: 0,
     deposits_fee_attributed_sum_cents: 0, cashouts_fee_attributed_sum_cents: 0,
+    // Sportsbook + product-attributed bonus buckets
+    sb_bets_sum_cents: 0, sb_settled_bets_sum_cents: 0,
+    sb_cancelled_bets_sum_cents: 0, sb_rejected_bets_sum_cents: 0,
+    sb_wins_sum_cents: 0, sb_win_rollbacks_sum_cents: 0,
+    sb_bonus_issues_sum_cents: 0, sb_balance_corrections_sum_cents: 0,
+    sb_third_party_fees_sum_cents: 0, sb_gifts_sum_cents: 0,
+    casino_bonus_issues_sum_cents: 0,
+    generic_bonus_issues_sum_cents: 0,
   };
 
   switch (event.eventType) {
@@ -126,12 +147,22 @@ export function buildDeltaRow(event, data, affiliateId = '') {
       }
       break;
     case 'wallet.correction.up':
-      // Admin debited the player — casino recovered money. NGR goes up.
-      m.corrections_up_sum_cents = data.amountCents;
+      // Admin debited the player. NGR goes up for the matching product.
+      // Sportsbook uses a single balance_corrections bucket; `up` flows in
+      // as a negative delta (recovery reduces the outstanding balance).
+      if (data.product === 'sportsbook') {
+        m.sb_balance_corrections_sum_cents = -data.amountCents;
+      } else {
+        m.corrections_up_sum_cents = data.amountCents;
+      }
       break;
     case 'wallet.correction.down':
-      // Admin credited the player — casino gifted money. NGR goes down.
-      m.corrections_down_sum_cents = data.amountCents;
+      // Admin credited the player. NGR goes down for the matching product.
+      if (data.product === 'sportsbook') {
+        m.sb_balance_corrections_sum_cents = data.amountCents;
+      } else {
+        m.corrections_down_sum_cents = data.amountCents;
+      }
       break;
     case 'wallet.withdrawal.completed':
       m.cashouts_count = 1;
@@ -155,19 +186,47 @@ export function buildDeltaRow(event, data, affiliateId = '') {
     case 'casino.win.rollback':
       m.casino_wins_rollbacks_sum_cents = data.winCents;
       break;
-    case 'bonus.granted':
-      m.bonus_issues_sum_cents = data.amountCents;
+    case 'bonus.granted': {
+      const bucket = bonusBucketColumn(data.product);
+      m[bucket] = data.amountCents;
       break;
-    case 'bonus.revoked':
+    }
+    case 'bonus.revoked': {
       // Reverses a grant when a bonus expires or is cancelled before use.
-      m.bonus_issues_sum_cents = -data.amountCents;
+      // Lands in the same bucket as the original grant so the NGR deltas
+      // cancel cleanly.
+      const bucket = bonusBucketColumn(data.product);
+      m[bucket] = -data.amountCents;
       break;
+    }
     case 'fees.daily.adjustment':
       m.payment_system_fees_sum_cents = data.paymentSystemFeesCents || 0;
       m.jackpot_fees_sum_cents = data.jackpotFeesCents || 0;
       m.game_provider_fees_sum_cents = data.gameProviderFeesCents || 0;
       m.casino_taxes_sum_cents = data.casinoTaxesCents || 0;
       m.additional_deductions_sum_cents = data.additionalDeductionsCents || 0;
+      m.sb_third_party_fees_sum_cents = data.sbThirdPartyFeesCents || 0;
+      m.sb_balance_corrections_sum_cents = data.sbBalanceCorrectionsCents || 0;
+      break;
+
+    // ── Sportsbook events ────────────────────────────────────────────────
+    case 'sportsbook.bet.placed':
+      m.sb_bets_sum_cents = data.betCents;
+      break;
+    case 'sportsbook.bet.rejected':
+      m.sb_rejected_bets_sum_cents = data.betCents;
+      break;
+    case 'sportsbook.bet.cancelled':
+      m.sb_cancelled_bets_sum_cents = data.betCents;
+      break;
+    case 'sportsbook.bet.settled':
+      // Settled bets: record the payout and mark the stake as settled
+      // (display-only column; not in NGR formula).
+      m.sb_wins_sum_cents = data.winCents || 0;
+      m.sb_settled_bets_sum_cents = data.betCents;
+      break;
+    case 'sportsbook.win.rollback':
+      m.sb_win_rollbacks_sum_cents = data.winCents;
       break;
     case 'player.flagged':
       return null; // No metric delta

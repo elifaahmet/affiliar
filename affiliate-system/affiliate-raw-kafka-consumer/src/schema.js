@@ -53,10 +53,14 @@ const EVENT_DATA_SCHEMAS = {
   'wallet.correction.up': z.object({
     amountCents: z.number().int().min(0),
     reason:      z.string().optional(),
+    // Optional product attribution. Absent defaults to 'casino' (legacy
+    // behavior); set 'sportsbook' to route the adjustment into sb_ngr.
+    product:     z.enum(['casino', 'sportsbook']).optional(),
   }),
   'wallet.correction.down': z.object({
     amountCents: z.number().int().min(0),
     reason:      z.string().optional(),
+    product:     z.enum(['casino', 'sportsbook']).optional(),
   }),
   'wallet.withdrawal.completed': z.object({
     amountCents: z.number().int().min(0),
@@ -95,20 +99,76 @@ const EVENT_DATA_SCHEMAS = {
   'bonus.granted': z.object({
     amountCents: z.number().int().min(0),
     bonusType:   z.string().optional(),
+    // Bonus attribution. Absent keeps the legacy semantics (lands in the
+    // untagged bucket that feeds casino_ngr + combined_ngr — safe default
+    // for platforms that haven't started tagging yet). Set 'casino' or
+    // 'sportsbook' to route into product-specific buckets, or 'generic'
+    // when a bonus genuinely spans both products (hits combined_ngr only).
+    product:     z.enum(['casino', 'sportsbook', 'generic']).optional(),
   }),
   'bonus.revoked': z.object({
     amountCents:     z.number().int().min(0),
     bonusType:       z.string().optional(),
     originalEventId: z.string().optional(),
     reason:          z.string().optional(),
+    product:         z.enum(['casino', 'sportsbook', 'generic']).optional(),
   }),
   'fees.daily.adjustment': z.object({
-    date:                       z.string(),
-    paymentSystemFeesCents:     z.number().int().min(0).default(0),
-    jackpotFeesCents:           z.number().int().min(0).default(0),
-    gameProviderFeesCents:      z.number().int().min(0).default(0),
-    casinoTaxesCents:           z.number().int().min(0).default(0),
-    additionalDeductionsCents:  z.number().int().min(0).default(0),
+    date:                        z.string(),
+    paymentSystemFeesCents:      z.number().int().min(0).default(0),
+    jackpotFeesCents:            z.number().int().min(0).default(0),
+    gameProviderFeesCents:       z.number().int().min(0).default(0),
+    casinoTaxesCents:            z.number().int().min(0).default(0),
+    additionalDeductionsCents:   z.number().int().min(0).default(0),
+    // Sportsbook-side bulk adjustments. Each defaults to 0 so existing
+    // payloads keep working.
+    sbThirdPartyFeesCents:       z.number().int().min(0).default(0),
+    sbBalanceCorrectionsCents:   z.number().int().default(0),
+  }),
+
+  // ── Sportsbook events ────────────────────────────────────────────────────
+  //
+  // Mirror the casino lifecycle. A bet is placed, then either rejected
+  // (operator refused), cancelled (operator voided after accept), or
+  // settled (outcome resolved). win_rollback reverses a paid win.
+
+  'sportsbook.bet.placed': z.object({
+    betCents: z.number().int().min(0),
+    betId:    z.string().min(1),
+    eventId:  z.string().optional(), // sporting event id (match / fixture)
+    market:   z.string().optional(),
+  }),
+  'sportsbook.bet.rejected': z.object({
+    // Stake that was placed but the operator rejected. Netted out of
+    // sb_ggr so the bet effectively didn't happen.
+    betCents:        z.number().int().min(0),
+    betId:           z.string().min(1),
+    originalEventId: z.string().optional(),
+    reason:          z.string().optional(),
+  }),
+  'sportsbook.bet.cancelled': z.object({
+    // Stake accepted and later voided (e.g. match abandoned). Same
+    // treatment as rejected in the NGR formula.
+    betCents:        z.number().int().min(0),
+    betId:           z.string().min(1),
+    originalEventId: z.string().optional(),
+    reason:          z.string().optional(),
+  }),
+  'sportsbook.bet.settled': z.object({
+    // Outcome resolved. For won bets `winCents` is the payout. For lost /
+    // pushed bets `winCents` should be 0. Half-wins/half-losses land in
+    // between — operator computes.
+    betCents:  z.number().int().min(0),
+    winCents:  z.number().int().min(0).default(0),
+    betId:     z.string().min(1),
+    outcome:   z.enum(['won', 'lost', 'pushed', 'half_won', 'half_lost']).optional(),
+  }),
+  'sportsbook.win.rollback': z.object({
+    // Reverses a prior settled win (e.g. result correction). Deducted from
+    // sb_wins so it doesn't stay inflated in the NGR formula.
+    winCents:        z.number().int().min(0),
+    betId:           z.string().min(1),
+    originalEventId: z.string().optional(),
   }),
 };
 
