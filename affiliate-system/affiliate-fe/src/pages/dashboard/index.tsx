@@ -277,7 +277,7 @@ function QuickCharts({ brandsData }: { brandsData: BrandsResponse | undefined })
             <BSelectWithSearch
               value={chartBrandId}
               onChange={setChartBrandId}
-              options={(brandsData?.brands ?? []).map(b => ({ label: b.name, value: String(b.id) }))}
+              options={(brandsData?.brands ?? []).map(b => ({ label: b.name, value: b._id }))}
               placeholder='All Brands'
             />
           </div>
@@ -473,7 +473,7 @@ export default function Dashboard() {
               placeholder='All Brands'
               value={brandId}
               onChange={setBrandId}
-              options={(brandsData?.brands ?? []).map((b) => ({ label: b.name, value: String(b.id) }))}
+              options={(brandsData?.brands ?? []).map((b) => ({ label: b.name, value: b._id }))}
             />
           </div>
           <input
