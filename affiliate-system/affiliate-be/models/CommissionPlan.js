@@ -34,6 +34,21 @@ const commissionPlanSchema = new mongoose.Schema(
       required: true,
     },
 
+    // Which NGR base the plan pays on.
+    //   casino     — the plan consumes the casino-scoped NGR. Ignores
+    //                sportsbook activity entirely.
+    //   sportsbook — sportsbook-scoped NGR only.
+    //   combined   — casino + sportsbook, minus generic bonuses.
+    // Legacy plans default to 'casino' (pre-sportsbook behavior).
+    product: {
+      type: String,
+      enum: ["casino", "sportsbook", "combined"],
+      default: "casino",
+      index: true,
+    },
+
+    // `isDefault` is scoped per-product — an operator can have one default
+    // casino plan, one default sb plan, and one default combined plan.
     isDefault: {
       type: Boolean,
       default: false,

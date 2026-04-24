@@ -27,7 +27,12 @@ async function fetchAffiliateMetrics(tenantId, year, month) {
       affiliate_id                          AS affiliateId,
       any(affiliate_code)                   AS affiliateCode,
       SUM(casino_ggr_cents)                 AS ggrCents,
+      SUM(casino_ggr_cents)                 AS casinoGgrCents,
       SUM(casino_ngr_cents)                 AS ngrCents,
+      SUM(casino_ngr_cents)                 AS casinoNgrCents,
+      SUM(sb_ggr_cents)                     AS sbGgrCents,
+      SUM(sb_ngr_cents)                     AS sbNgrCents,
+      SUM(combined_ngr_cents)               AS combinedNgrCents,
       SUM(ftd_count)                        AS ftdCount,
       SUM(deposits_count)                   AS depositsCount,
       SUM(deposits_sum_cents)               AS depositsCents,
@@ -56,8 +61,15 @@ async function fetchAffiliateMetrics(tenantId, year, month) {
   return rows.map((r) => ({
     affiliateId:            r.affiliateId,
     affiliateCode:          r.affiliateCode,
+    // Legacy aliases (keeps any stray caller working)
     ggrCents:               Number(r.ggrCents),
     ngrCents:               Number(r.ngrCents),
+    // Product-scoped NGRs/GGRs — consumed by the engine based on plan.product
+    casinoGgrCents:         Number(r.casinoGgrCents),
+    casinoNgrCents:         Number(r.casinoNgrCents),
+    sbGgrCents:             Number(r.sbGgrCents)  || 0,
+    sbNgrCents:             Number(r.sbNgrCents)  || 0,
+    combinedNgrCents:       Number(r.combinedNgrCents) || Number(r.casinoNgrCents),
     ftdCount:               Number(r.ftdCount),
     depositsCount:          Number(r.depositsCount),
     depositsCents:          Number(r.depositsCents),
@@ -156,6 +168,78 @@ async function resolveAffiliatePlan(affiliateUserId, operatorId) {
 
   // Fall back to operator default
   return CommissionPlan.findOne({ operatorId, isDefault: true, isActive: true }).lean();
+}
+
+/**
+ * Resolve which commission plans an affiliate earns on, keyed by product
+ * slot. Returns { casino, sportsbook, combined } — each value is either a
+ * populated CommissionPlan document or null.
+ *
+ * Resolution order per slot:
+ *   1. Explicit profile.commissionPlans[slot]
+ *   2. Operator's default plan for that product (isDefault + product match)
+ *   3. null (no commission on that product)
+ *
+ * Legacy compat: if the profile has no `commissionPlans` map but has the
+ * old `commissionPlanId`, we slot that plan into whichever product its
+ * own `product` field says (defaulting to casino for pre-sportsbook docs).
+ */
+async function resolveAffiliatePlansByProduct(affiliateUserId, operatorId) {
+  const profile = await AffiliateProfile.findOne({ user: affiliateUserId }).lean();
+  const slots = { casino: null, sportsbook: null, combined: null };
+
+  const byId = {};
+  const collectId = (id) => {
+    if (!id) return;
+    byId[String(id)] = null;
+  };
+
+  // Explicit per-product assignments
+  const explicit = profile?.commissionPlans || {};
+  collectId(explicit.casino);
+  collectId(explicit.sportsbook);
+  collectId(explicit.combined);
+  // Legacy single-plan field
+  collectId(profile?.commissionPlanId);
+
+  // Fetch plan docs in one query
+  const ids = Object.keys(byId);
+  if (ids.length > 0) {
+    const docs = await CommissionPlan.find({ _id: { $in: ids } }).lean();
+    for (const d of docs) byId[String(d._id)] = d;
+  }
+
+  const resolveDoc = (id) => (id ? byId[String(id)] : null) || null;
+
+  slots.casino     = resolveDoc(explicit.casino);
+  slots.sportsbook = resolveDoc(explicit.sportsbook);
+  slots.combined   = resolveDoc(explicit.combined);
+
+  // Legacy fallback: if none of the new slots are set but the old
+  // commissionPlanId is, drop the legacy plan into the slot matching its
+  // own `product` field.
+  const anySlotFilled = slots.casino || slots.sportsbook || slots.combined;
+  if (!anySlotFilled && profile?.commissionPlanId) {
+    const legacy = resolveDoc(profile.commissionPlanId);
+    if (legacy) {
+      const slot = legacy.product || "casino";
+      slots[slot] = legacy;
+    }
+  }
+
+  // Operator-default per product for any still-empty slot
+  for (const slot of ["casino", "sportsbook", "combined"]) {
+    if (slots[slot]) continue;
+    const def = await CommissionPlan.findOne({
+      operatorId,
+      product: slot,
+      isDefault: true,
+      isActive: true,
+    }).lean();
+    if (def) slots[slot] = def;
+  }
+
+  return slots;
 }
 
 // ── Commission Plans ──────────────────────────────────────────────────────────
@@ -410,127 +494,142 @@ const reportController = {
             continue;
           }
 
-          // Check for locked report
-          const existing = await CommissionReport.findOne({
-            operatorId: operator.operatorId,
-            affiliateId: affiliateUserId,
-            "period.year": y,
-            "period.month": m,
-          });
+          // Resolve per-product plan slots once per affiliate.
+          const planSlots = await resolveAffiliatePlansByProduct(
+            affiliateUserId,
+            operator.operatorId,
+          );
 
-          if (existing && ["approved", "paid"].includes(existing.status) && !force) {
-            results.skipped++;
-            continue;
-          }
-
-          // Resolve commission plan
-          const plan = await resolveAffiliatePlan(affiliateUserId, operator.operatorId);
-
-          let breakdown = { revshareAmountCents: 0, cpaAmountCents: 0, totalCents: 0 };
-          let planId     = null;
-          let planSnap   = null;
-
-          // Run CPA qualification gates so the engine pays only on FTDs
-          // that pass. Done per-affiliate using the FTD rows bucketed above.
-          // If gates are all disabled the qualifier returns qualified=ftdCount,
-          // matching the pre-A behavior.
+          // CPA qualification runs on FTDs once per affiliate — the gates
+          // only care about wallet-level FTDs, not the commission product.
           const ftdRows = ftdContextByAffiliate.get(row.affiliateId) || [];
-          const resolvedSettings = resolveCommissionSettings(plan, operatorDefaults);
-          const qualification = checkCpaQualification(ftdRows, resolvedSettings);
 
-          if (plan) {
-            breakdown = calculate(
+          // Per-product: choose the plan, compute breakdown, upsert one
+          // CommissionReport row. A slot with no plan is skipped (no
+          // commission for that product this period).
+          for (const product of ["casino", "sportsbook", "combined"]) {
+            const plan = planSlots[product];
+            if (!plan) continue;
+
+            const existing = await CommissionReport.findOne({
+              operatorId: operator.operatorId,
+              affiliateId: affiliateUserId,
+              "period.year": y,
+              "period.month": m,
+              product,
+            });
+
+            if (existing && ["approved", "paid"].includes(existing.status) && !force) {
+              results.skipped++;
+              continue;
+            }
+
+            // Qualification depends on the resolved settings which can be
+            // plan-specific (each product's plan may have different CPA
+            // gates). Recompute per product.
+            const resolvedSettings = resolveCommissionSettings(plan, operatorDefaults);
+            const qualification = checkCpaQualification(ftdRows, resolvedSettings);
+
+            const breakdown = calculate(
               plan,
               { ...row, qualifiedFtdCount: qualification.qualified },
               operatorDefaults,
             );
-            planId    = plan._id;
-            planSnap  = {
+            const planSnap = {
               _id:      plan._id,
               name:     plan.name,
               type:     plan.type,
+              product:  plan.product,
               revshare: plan.revshare,
               cpa:      plan.cpa,
               tiers:    plan.tiers,
-              // Snapshot what was actually used — makes historical reports
-              // reproducible even if operator defaults change later.
               resolvedSettings: breakdown.resolvedSettings,
             };
-          }
 
-          const directCents = breakdown.revshareAmountCents + breakdown.cpaAmountCents;
+            const directCents = breakdown.revshareAmountCents + breakdown.cpaAmountCents;
 
-          const metrics = {
-            ggrCents:      row.ggrCents,
-            ngrCents:      row.ngrCents,
-            ftdCount:      row.ftdCount,
-            qualifiedFtdCount: qualification.qualified,
-            pendingFtdCount:   qualification.pending,
-            rejectedFtdCount:  qualification.rejected,
-            depositsCount: row.depositsCount,
-            depositsCents: row.depositsCents,
-            playerCount:   row.playerCount,
-            registrations: row.registrations,
-          };
+            // Pick the product-scoped NGR/GGR pair that actually drove
+            // this report so the UI can show the right base alongside
+            // the commission number.
+            const productNgr =
+              product === "sportsbook" ? row.sbNgrCents
+              : product === "combined" ? row.combinedNgrCents
+              : row.casinoNgrCents;
+            const productGgr =
+              product === "sportsbook" ? row.sbGgrCents
+              : product === "combined" ? (row.casinoGgrCents + row.sbGgrCents)
+              : row.casinoGgrCents;
 
-          // Flatten per-player qualification outcomes for the report. Keeps
-          // the "why wasn't this FTD paid?" answer close to the commission
-          // row itself.
-          const ftdQualification = [
-            ...qualification.qualifiedFtds.map((f) => ({ ...f, status: "qualified" })),
-            ...qualification.pendingFtds.map((f) => ({ ...f, status: "pending" })),
-            ...qualification.rejectedFtds.map((f) => ({ ...f, status: "rejected" })),
-          ].map((f) => ({
-            playerId:     f.playerId,
-            ftdDate:      f.ftdDate,
-            depositCents: f.depositCents,
-            status:       f.status,
-            reason:       f.reason,
-          }));
+            const metrics = {
+              ggrCents:          productGgr,
+              ngrCents:          productNgr,
+              ftdCount:          row.ftdCount,
+              qualifiedFtdCount: qualification.qualified,
+              pendingFtdCount:   qualification.pending,
+              rejectedFtdCount:  qualification.rejected,
+              depositsCount:     row.depositsCount,
+              depositsCents:     row.depositsCents,
+              playerCount:       row.playerCount,
+              registrations:     row.registrations,
+            };
 
-          const fullBreakdown = {
-            ...breakdown,
-            directCents,
-            overrideCents: existing?.breakdown?.overrideCents ?? 0,
-            totalCents:    directCents + (existing?.breakdown?.overrideCents ?? 0),
-          };
+            const ftdQualification = [
+              ...qualification.qualifiedFtds.map((f) => ({ ...f, status: "qualified" })),
+              ...qualification.pendingFtds.map((f) => ({ ...f, status: "pending" })),
+              ...qualification.rejectedFtds.map((f) => ({ ...f, status: "rejected" })),
+            ].map((f) => ({
+              playerId:     f.playerId,
+              ftdDate:      f.ftdDate,
+              depositCents: f.depositCents,
+              status:       f.status,
+              reason:       f.reason,
+            }));
 
-          if (existing) {
-            await CommissionReport.updateOne(
-              { _id: existing._id },
-              {
-                $set: {
-                  affiliateCode: row.affiliateCode,
-                  planId,
-                  planSnapshot: planSnap,
-                  metrics,
-                  ftdQualification,
-                  breakdown: fullBreakdown,
-                  status: "draft",
-                  calculatedAt: new Date(),
-                  approvedAt: null,
-                  approvedBy: null,
-                  paidAt: null,
+            const fullBreakdown = {
+              ...breakdown,
+              directCents,
+              overrideCents: existing?.breakdown?.overrideCents ?? 0,
+              totalCents:    directCents + (existing?.breakdown?.overrideCents ?? 0),
+            };
+
+            if (existing) {
+              await CommissionReport.updateOne(
+                { _id: existing._id },
+                {
+                  $set: {
+                    affiliateCode: row.affiliateCode,
+                    planId:        plan._id,
+                    planSnapshot:  planSnap,
+                    metrics,
+                    ftdQualification,
+                    breakdown: fullBreakdown,
+                    status:        "draft",
+                    calculatedAt:  new Date(),
+                    approvedAt:    null,
+                    approvedBy:    null,
+                    paidAt:        null,
+                  },
                 },
-              },
-            );
-            results.updated++;
-          } else {
-            await CommissionReport.create({
-              operatorId:    operator.operatorId,
-              affiliateId:   affiliateUserId,
-              affiliateCode: row.affiliateCode,
-              planId,
-              planSnapshot:  planSnap,
-              period: { year: y, month: m },
-              metrics,
-              ftdQualification,
-              breakdown: fullBreakdown,
-              overrideFromSubs: [],
-              status: "draft",
-              calculatedAt: new Date(),
-            });
-            results.created++;
+              );
+              results.updated++;
+            } else {
+              await CommissionReport.create({
+                operatorId:    operator.operatorId,
+                affiliateId:   affiliateUserId,
+                affiliateCode: row.affiliateCode,
+                planId:        plan._id,
+                planSnapshot:  planSnap,
+                period:        { year: y, month: m },
+                product,
+                metrics,
+                ftdQualification,
+                breakdown:     fullBreakdown,
+                overrideFromSubs: [],
+                status:        "draft",
+                calculatedAt:  new Date(),
+              });
+              results.created++;
+            }
           }
         } catch (err) {
           results.failed.push({ affiliateId: row.affiliateId, error: err.message });
@@ -547,12 +646,15 @@ const reportController = {
 
       for (const subProfile of subProfiles) {
         try {
-          // Find sub's report for this period
+          // Override applies off the sub's casino report for v1. Combined-
+          // and sportsbook-only reports are ignored here; a follow-up PR
+          // can expand the override semantic per-product if operators ask.
           const subReport = await CommissionReport.findOne({
             operatorId: operator.operatorId,
             affiliateId: subProfile.user,
             "period.year": y,
             "period.month": m,
+            product: "casino",
           }).lean();
 
           if (!subReport || subReport.metrics.ngrCents <= 0) continue;
@@ -570,12 +672,14 @@ const reportController = {
             overrideCents,
           };
 
-          // Find or create parent's report
+          // Parent's casino report carries the override. Other product
+          // reports aren't affected.
           const parentReport = await CommissionReport.findOne({
             operatorId: operator.operatorId,
             affiliateId: subProfile.parentAffiliate,
             "period.year": y,
             "period.month": m,
+            product: "casino",
           });
 
           if (parentReport) {
@@ -617,6 +721,7 @@ const reportController = {
               planId:          null,
               planSnapshot:    null,
               period:          { year: y, month: m },
+              product:         "casino",
               metrics:         { ggrCents: 0, ngrCents: 0, ftdCount: 0,
                                  depositsCount: 0, depositsCents: 0,
                                  playerCount: 0, registrations: 0 },

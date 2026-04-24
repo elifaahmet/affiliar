@@ -50,11 +50,24 @@ const affiliateProfileSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    // Legacy — single plan reference. Kept for backward compat. When
+    // `commissionPlans` is empty we fall back to this, treating the plan
+    // as whichever product its own `product` field says.
     commissionPlanId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "CommissionPlan",
       default: null,
       index: true,
+    },
+    // Per-product plan assignment. Each slot is an optional ref to a
+    // CommissionPlan whose `product` matches the slot name. An affiliate
+    // can earn on casino + sportsbook separately, or on combined, or any
+    // combination — each populated slot produces its own CommissionReport
+    // row each period.
+    commissionPlans: {
+      casino:     { type: mongoose.Schema.Types.ObjectId, ref: "CommissionPlan", default: null },
+      sportsbook: { type: mongoose.Schema.Types.ObjectId, ref: "CommissionPlan", default: null },
+      combined:   { type: mongoose.Schema.Types.ObjectId, ref: "CommissionPlan", default: null },
     },
     commissionModel: {
       type: mongoose.Schema.Types.Mixed,

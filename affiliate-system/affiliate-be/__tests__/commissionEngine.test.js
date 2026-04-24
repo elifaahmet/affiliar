@@ -308,3 +308,55 @@ describe("revshare — includePaymentFees flag and operator-default inherit", ()
     expect(result.revshareAmountCents).toBe(60_000); // GGR path wins
   });
 });
+
+// ── Product-scoped NGR (casino / sportsbook / combined) ───────────────────────
+
+describe("revshare — product-scoped NGR pick", () => {
+  const metrics = {
+    casinoGgrCents:   200_000,
+    casinoNgrCents:   100_000,
+    sbGgrCents:        80_000,
+    sbNgrCents:        60_000,
+    combinedNgrCents: 160_000,
+    ftdCount: 0,
+  };
+
+  test("plan.product='casino' → uses casinoNgrCents", () => {
+    const plan = { type: "revshare", product: "casino", revshare: { rate: 30 } };
+    const result = calculate(plan, metrics);
+    expect(result.revshareAmountCents).toBe(30_000); // 30% × 100_000
+  });
+
+  test("plan.product='sportsbook' → uses sbNgrCents", () => {
+    const plan = { type: "revshare", product: "sportsbook", revshare: { rate: 30 } };
+    const result = calculate(plan, metrics);
+    expect(result.revshareAmountCents).toBe(18_000); // 30% × 60_000
+  });
+
+  test("plan.product='combined' → uses combinedNgrCents", () => {
+    const plan = { type: "revshare", product: "combined", revshare: { rate: 30 } };
+    const result = calculate(plan, metrics);
+    expect(result.revshareAmountCents).toBe(48_000); // 30% × 160_000
+  });
+
+  test("plan.product missing → defaults to casino", () => {
+    const plan = { type: "revshare", revshare: { rate: 30 } };
+    const result = calculate(plan, metrics);
+    expect(result.revshareAmountCents).toBe(30_000); // casinoNgr path
+  });
+
+  test("product='sportsbook' + GGR metric → uses sbGgrCents", () => {
+    const plan = { type: "revshare", product: "sportsbook", revshare: { metric: "ggr", rate: 30 } };
+    const result = calculate(plan, metrics);
+    expect(result.revshareAmountCents).toBe(24_000); // 30% × 80_000
+  });
+
+  test("legacy metrics.ngrCents still works when product-scoped fields absent", () => {
+    // An older caller that only passes ngrCents should still compute on
+    // casino by default.
+    const plan = { type: "revshare", product: "casino", revshare: { rate: 30 } };
+    const legacyMetrics = { ngrCents: 50_000, ggrCents: 100_000, ftdCount: 0 };
+    const result = calculate(plan, legacyMetrics);
+    expect(result.revshareAmountCents).toBe(15_000);
+  });
+});

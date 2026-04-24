@@ -45,6 +45,16 @@ const commissionReportSchema = new mongoose.Schema(
       month: { type: Number, required: true, min: 1, max: 12 }, // 1-12
     },
 
+    // Which NGR base this report was calculated on. Mirrors the plan's
+    // `product`. Pre-sportsbook reports default to 'casino' — safe because
+    // sb_ngr was 0 for any data that existed before sportsbook shipped.
+    product: {
+      type: String,
+      enum: ["casino", "sportsbook", "combined"],
+      default: "casino",
+      index: true,
+    },
+
     // Raw input metrics pulled from ClickHouse for this affiliate/period
     metrics: {
       ggrCents:        { type: Number, default: 0 },
@@ -116,10 +126,12 @@ const commissionReportSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-// One report per affiliate per period per operator
+// One report per (affiliate, period, product). Per-product uniqueness
+// lets an affiliate carry one casino + one sportsbook + one combined
+// report for the same month without conflict.
 commissionReportSchema.index(
-  { operatorId: 1, affiliateId: 1, "period.year": 1, "period.month": 1 },
-  { unique: true, name: "unique_report_per_affiliate_period" },
+  { operatorId: 1, affiliateId: 1, "period.year": 1, "period.month": 1, product: 1 },
+  { unique: true, name: "unique_report_per_affiliate_period_product" },
 );
 
 commissionReportSchema.index({ operatorId: 1, "period.year": 1, "period.month": 1 });

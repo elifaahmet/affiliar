@@ -41,7 +41,7 @@ function calculate(plan, metrics, operatorDefaults = {}) {
       ? metrics.qualifiedFtdCount
       : metrics.ftdCount || 0;
 
-  const base = computeRevshareBase(metrics, settings);
+  const base = computeRevshareBase(metrics, settings, plan);
 
   switch (plan.type) {
     case "revshare": {
@@ -82,34 +82,69 @@ function calculate(plan, metrics, operatorDefaults = {}) {
 // ── helpers ────────────────────────────────────────────────────────────────────
 
 /**
- * Pick the revshare base (NGR or GGR) per the resolved settings.
+ * Pick the revshare base (NGR or GGR) per the resolved settings and the
+ * plan's product scope.
+ *
+ * For NGR-based plans, we look up `metrics.{product}NgrCents` first
+ * (casinoNgrCents / sbNgrCents / combinedNgrCents), then fall back to the
+ * legacy `metrics.ngrCents` if the caller still uses the pre-sportsbook
+ * shape. GGR follows the same pattern with `{product}GgrCents`.
+ *
  * If includePaymentFees=false, add the processor fee buckets back to NGR so
  * the share is taken on "gross NGR" (GGR minus bonuses/tax/etc but with
  * payment processing cost borne outside the commission formula).
  */
-function computeRevshareBase(metrics, settings) {
+function computeRevshareBase(metrics, settings, plan = {}) {
+  const product = plan.product || "casino";
   const {
-    ggrCents = 0,
     ngrCents = 0,
+    ggrCents = 0,
+    casinoNgrCents, casinoGgrCents,
+    sbNgrCents, sbGgrCents,
+    combinedNgrCents,
     depositFeesCents = 0,
     withdrawalFeesCents = 0,
     paymentSystemFeesCents = 0,
   } = metrics;
 
-  if (settings.revshareMetric === "ggr") {
+  // Product-scoped base lookup. Fall through to the legacy field when
+  // the caller hasn't started passing the product-specific keys yet.
+  const pickNgr = () => {
+    if (product === "sportsbook" && sbNgrCents !== undefined) return sbNgrCents;
+    if (product === "combined"   && combinedNgrCents !== undefined) return combinedNgrCents;
+    if (product === "casino"     && casinoNgrCents !== undefined) return casinoNgrCents;
+    return ngrCents;
+  };
+  const pickGgr = () => {
+    if (product === "sportsbook" && sbGgrCents !== undefined) return sbGgrCents;
+    if (product === "casino"     && casinoGgrCents !== undefined) return casinoGgrCents;
+    // Combined GGR isn't stored as its own field today — approximate as
+    // casino + sb, else fall back to legacy ggrCents.
+    if (product === "combined" && casinoGgrCents !== undefined && sbGgrCents !== undefined) {
+      return casinoGgrCents + sbGgrCents;
+    }
     return ggrCents;
+  };
+
+  if (settings.revshareMetric === "ggr") {
+    return pickGgr();
   }
 
+  const baseNgr = pickNgr();
+
   if (!settings.ngrIncludesPaymentFees) {
+    // Only casino/combined NGR had wallet-shared fees subtracted in the
+    // view. sb_ngr doesn't include them, so the add-back is a no-op for
+    // sportsbook plans — but we still run the math uniformly.
     return (
-      ngrCents +
+      baseNgr +
       depositFeesCents +
       withdrawalFeesCents +
       paymentSystemFeesCents
     );
   }
 
-  return ngrCents;
+  return baseNgr;
 }
 
 function calcRevshare(revshare, baseCents) {
