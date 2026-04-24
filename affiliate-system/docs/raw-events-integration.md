@@ -145,6 +145,7 @@ Emitted when a deposit is **confirmed** (money has actually arrived). **Do not**
   "eventType": "wallet.deposit.confirmed",
   "data": {
     "amountCents":      10000,
+    "feeCents":         250,
     "paymentMethod":    "credit_card",
     "isFirstDeposit":   true,
     "providerDepositId": "stripe_pi_xxx"
@@ -154,7 +155,8 @@ Emitted when a deposit is **confirmed** (money has actually arrived). **Do not**
 
 | Field | Required | Notes |
 |---|---|---|
-| `amountCents` | yes | Net deposit amount, integer cents. |
+| `amountCents` | yes | Gross deposit amount, integer cents. |
+| `feeCents` | no | Exact processor fee Affiliar should attribute to this deposit. **If present** (even `0`), Affiliar records it and skips its configured `depositFeePercent` for this transaction. **If absent**, the daily fees cron applies the operator's `depositFeePercent` to `amountCents`. Partial-mix is supported — some deposits can carry `feeCents` while others rely on the rate. |
 | `paymentMethod` | no | Free-form, for analytics. |
 | `isFirstDeposit` | yes | `true` if this is the player's first ever confirmed deposit. **The casino must determine this** — Affiliar trusts the flag. |
 | `providerDepositId` | no | External reference for reconciliation. |
@@ -192,10 +194,16 @@ Emitted when a withdrawal has been **paid out** to the player. Do not emit for p
 {
   "eventType": "wallet.withdrawal.completed",
   "data": {
-    "amountCents": 5000
+    "amountCents": 5000,
+    "feeCents":    100
   }
 }
 ```
+
+| Field | Required | Notes |
+|---|---|---|
+| `amountCents` | yes | Gross cashout amount, integer cents. |
+| `feeCents` | no | Same semantics as `wallet.deposit.confirmed.feeCents`, but applied against `withdrawalFeePercent`. Omit if the processor cost for this cashout isn't known at emit time — the daily cron will fall back to the configured rate. |
 
 ---
 

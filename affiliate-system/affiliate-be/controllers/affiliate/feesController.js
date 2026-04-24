@@ -122,19 +122,24 @@ exports.getFinancialSettings = async (req, res) => {
   if (!operatorId) return;
   try {
     const brandId = normalizeBrandId(req.query.brandId);
-    const settings =
-      (await OperatorFinancialSettings.findOne({ operatorId, brandId }).lean()) || {
-        paymentSystemFeePercent: 0,
-        jackpotFeePercent: 0,
-        casinoTaxPercent: 0,
-      };
+    const raw =
+      (await OperatorFinancialSettings.findOne({ operatorId, brandId }).lean()) || {};
+    // Back-fill depositFeePercent from the legacy paymentSystemFeePercent so
+    // the FE always sees the split form, even for unmigrated documents.
+    const settings = {
+      depositFeePercent:
+        raw.depositFeePercent ?? raw.paymentSystemFeePercent ?? 0,
+      withdrawalFeePercent: raw.withdrawalFeePercent ?? 0,
+      jackpotFeePercent:    raw.jackpotFeePercent ?? 0,
+      casinoTaxPercent:     raw.casinoTaxPercent ?? 0,
+    };
     res.json({ settings });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// PUT /api/fees/settings — body: { brandId?, paymentSystemFeePercent, ... }
+// PUT /api/fees/settings — body: { brandId?, depositFeePercent, withdrawalFeePercent, jackpotFeePercent, casinoTaxPercent }
 exports.updateFinancialSettings = async (req, res) => {
   const operatorId = operatorOnly(req, res);
   if (!operatorId) return;
@@ -146,16 +151,31 @@ exports.updateFinancialSettings = async (req, res) => {
       if (!Number.isFinite(n) || n < 0 || n > 100) return null;
       return n;
     };
-    const payment = pick(req.body?.paymentSystemFeePercent);
+    // Accept the legacy paymentSystemFeePercent as an alias for deposit fee
+    // so clients pinned to the old payload keep working during rollout.
+    const deposit = pick(
+      req.body?.depositFeePercent ?? req.body?.paymentSystemFeePercent,
+    );
+    const withdrawal = pick(req.body?.withdrawalFeePercent);
     const jackpot = pick(req.body?.jackpotFeePercent);
     const tax = pick(req.body?.casinoTaxPercent);
-    if (payment === null || jackpot === null || tax === null) {
+    if (
+      deposit === null ||
+      withdrawal === null ||
+      jackpot === null ||
+      tax === null
+    ) {
       return res
         .status(400)
         .json({ error: "Percentages must be between 0 and 100" });
     }
     const update = {};
-    if (payment !== undefined) update.paymentSystemFeePercent = payment;
+    if (deposit !== undefined) {
+      update.depositFeePercent = deposit;
+      // Clear the legacy field so subsequent reads don't fall back to it.
+      update.paymentSystemFeePercent = null;
+    }
+    if (withdrawal !== undefined) update.withdrawalFeePercent = withdrawal;
     if (jackpot !== undefined) update.jackpotFeePercent = jackpot;
     if (tax !== undefined) update.casinoTaxPercent = tax;
     const settings = await OperatorFinancialSettings.findOneAndUpdate(

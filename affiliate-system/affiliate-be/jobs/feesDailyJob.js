@@ -102,21 +102,29 @@ async function runForOperator(operator, operatorFinancials, bounds) {
   // Aggregate yesterday's money movement grouped by attribution dimensions.
   // affiliate_id can be empty (unattributed); we still want those rows so
   // operator-wide fees are accurate even if an affiliate report isn't.
+  //
+  // deposits_fee_attributed_sum_cents / cashouts_fee_attributed_sum_cents
+  // are populated by the raw consumer when an event carries feeCents. We
+  // subtract them from the rate-base so event-level fees aren't double-
+  // counted by the cron.
   const rows = await queryRows(
     `SELECT
        brand_id     AS brandId,
        affiliate_id AS affiliateId,
        currency,
        provider,
-       SUM(bets_sum_cents)      AS bets,
-       SUM(wins_sum_cents)      AS wins,
-       SUM(deposits_sum_cents)  AS deposits
+       SUM(bets_sum_cents)                         AS bets,
+       SUM(wins_sum_cents)                         AS wins,
+       SUM(deposits_sum_cents)                     AS deposits,
+       SUM(cashouts_sum_cents)                     AS cashouts,
+       SUM(deposits_fee_attributed_sum_cents)      AS depositsFeeAttributed,
+       SUM(cashouts_fee_attributed_sum_cents)      AS cashoutsFeeAttributed
      FROM affiliate.activity_hourly_delta
      WHERE tenant_id = {tenantId:String}
        AND hour_bucket >= {fromTs:DateTime}
        AND hour_bucket <  {toTs:DateTime}
      GROUP BY brand_id, affiliate_id, currency, provider
-     HAVING bets + deposits > 0`,
+     HAVING bets + deposits + cashouts > 0`,
     { tenantId, fromTs: bounds.fromTs, toTs: bounds.toTs },
   );
 
@@ -125,22 +133,39 @@ async function runForOperator(operator, operatorFinancials, bounds) {
     const bets = Number(r.bets) || 0;
     const wins = Number(r.wins) || 0;
     const deposits = Number(r.deposits) || 0;
+    const cashouts = Number(r.cashouts) || 0;
+    const depositsFeeAttributed = Number(r.depositsFeeAttributed) || 0;
+    const cashoutsFeeAttributed = Number(r.cashoutsFeeAttributed) || 0;
     const providerGgr = Math.max(0, bets - wins);
 
     const brandFinancials = resolveFinancials(r.brandId);
-    const paymentPct = Number(brandFinancials.paymentSystemFeePercent) || 0;
+    const depositPct = Number(
+      brandFinancials.depositFeePercent ??
+        brandFinancials.paymentSystemFeePercent ??
+        0,
+    );
+    const withdrawalPct = Number(brandFinancials.withdrawalFeePercent) || 0;
     const jackpotPct = Number(brandFinancials.jackpotFeePercent) || 0;
     const taxPct = Number(brandFinancials.casinoTaxPercent) || 0;
 
+    // Partial-mix aware: only apply rate to the portion of deposits/cashouts
+    // whose events did NOT carry feeCents. The attributed portion already
+    // has its fee stored in deposit_fees_sum_cents / withdrawal_fees_sum_cents
+    // from the consumer, so we must not double-count.
+    const depositRateBase = Math.max(0, deposits - depositsFeeAttributed);
+    const cashoutRateBase = Math.max(0, cashouts - cashoutsFeeAttributed);
+
     const providerPct = resolveProviderPct(r.brandId, r.provider);
     const gameProviderFees = Math.round((providerGgr * providerPct) / 100);
-    const paymentSystemFees = Math.round((deposits * paymentPct) / 100);
+    const depositFees = Math.round((depositRateBase * depositPct) / 100);
+    const withdrawalFees = Math.round((cashoutRateBase * withdrawalPct) / 100);
     const jackpotFees = Math.round((bets * jackpotPct) / 100);
     const casinoTaxes = Math.round((providerGgr * taxPct) / 100);
 
     if (
       !gameProviderFees &&
-      !paymentSystemFees &&
+      !depositFees &&
+      !withdrawalFees &&
       !jackpotFees &&
       !casinoTaxes
     ) {
@@ -163,7 +188,8 @@ async function runForOperator(operator, operatorFinancials, bounds) {
       provider: r.provider || "",
       source_system: "affiliate-be",
       source_event_id: `fees-${tenantId}-${r.brandId}-${r.affiliateId}-${r.provider}-${bounds.hourBucket}`,
-      payment_system_fees_sum_cents: paymentSystemFees,
+      deposit_fees_sum_cents: depositFees,
+      withdrawal_fees_sum_cents: withdrawalFees,
       jackpot_fees_sum_cents: jackpotFees,
       game_provider_fees_sum_cents: gameProviderFees,
       casino_taxes_sum_cents: casinoTaxes,
@@ -194,7 +220,8 @@ async function runOnce({ dayOffset = -1 } = {}) {
           operatorId: op._id,
           brandId: null,
         }).lean()) || {
-          paymentSystemFeePercent: 0,
+          depositFeePercent: 0,
+          withdrawalFeePercent: 0,
           jackpotFeePercent: 0,
           casinoTaxPercent: 0,
         };

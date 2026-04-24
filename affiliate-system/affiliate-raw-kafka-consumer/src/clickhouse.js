@@ -91,6 +91,8 @@ function buildDeltaRow(event, data, affiliateId = '') {
     game_provider_fees_sum_cents: 0, casino_taxes_sum_cents: 0,
     corrections_up_sum_cents: 0, corrections_down_sum_cents: 0,
     rounds_count: 0, wager_cents: 0,
+    deposit_fees_sum_cents: 0, withdrawal_fees_sum_cents: 0,
+    deposits_fee_attributed_sum_cents: 0, cashouts_fee_attributed_sum_cents: 0,
   };
 
   switch (event.eventType) {
@@ -104,6 +106,13 @@ function buildDeltaRow(event, data, affiliateId = '') {
     case 'wallet.deposit.confirmed':
       m.deposits_count = 1;
       m.deposits_sum_cents = data.amountCents;
+      if (data.feeCents !== undefined) {
+        // Event-level fee wins over the configured rate: record both the fee
+        // and the base so the daily cron can exclude this deposit from its
+        // rate-based calculation.
+        m.deposit_fees_sum_cents = data.feeCents;
+        m.deposits_fee_attributed_sum_cents = data.amountCents;
+      }
       if (data.isFirstDeposit) { m.ftd_count = 1; m.ftd_sum_cents = data.amountCents; }
       break;
     case 'wallet.deposit.chargeback':
@@ -125,7 +134,12 @@ function buildDeltaRow(event, data, affiliateId = '') {
       m.corrections_down_sum_cents = data.amountCents;
       break;
     case 'wallet.withdrawal.completed':
-      m.cashouts_count = 1; m.cashouts_sum_cents = data.amountCents;
+      m.cashouts_count = 1;
+      m.cashouts_sum_cents = data.amountCents;
+      if (data.feeCents !== undefined) {
+        m.withdrawal_fees_sum_cents = data.feeCents;
+        m.cashouts_fee_attributed_sum_cents = data.amountCents;
+      }
       break;
     case 'casino.bet.placed':
       m.bets_sum_cents = data.betCents;

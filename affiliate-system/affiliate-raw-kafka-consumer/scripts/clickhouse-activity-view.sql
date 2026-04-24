@@ -15,6 +15,13 @@
 --       - corrections_down + corrections_up
 --       - additional_deductions - casino_taxes
 --       - payment_system_fees - jackpot_fees - game_provider_fees
+--       - deposit_fees - withdrawal_fees
+--
+-- `payment_system_fees_sum_cents` is the legacy aggregated-path bucket; the
+-- raw-events pipeline splits it into the deposit/withdrawal pair. Both flow
+-- into NGR so operators can migrate gradually without double-counting (a
+-- legacy sender won't populate the new columns, and the new cron won't write
+-- to the legacy column anymore).
 --
 -- Fee columns are written by affiliate-be's daily fees job.
 
@@ -35,6 +42,10 @@ SELECT
     game_provider_fees_sum_cents, casino_taxes_sum_cents,
     corrections_up_sum_cents, corrections_down_sum_cents,
     rounds_count, wager_cents,
+    0 AS deposit_fees_sum_cents,
+    0 AS withdrawal_fees_sum_cents,
+    0 AS deposits_fee_attributed_sum_cents,
+    0 AS cashouts_fee_attributed_sum_cents,
     casino_ggr_cents, casino_ngr_cents
 FROM affiliate.activity_hourly FINAL
 
@@ -55,6 +66,10 @@ SELECT
     game_provider_fees_sum_cents, casino_taxes_sum_cents,
     corrections_up_sum_cents, corrections_down_sum_cents,
     rounds_count, wager_cents,
+    deposit_fees_sum_cents,
+    withdrawal_fees_sum_cents,
+    deposits_fee_attributed_sum_cents,
+    cashouts_fee_attributed_sum_cents,
     ((bets_sum_cents - casino_bets_rollbacks_sum_cents)
      - (wins_sum_cents - casino_wins_rollbacks_sum_cents)) AS casino_ggr_cents,
     (((bets_sum_cents - casino_bets_rollbacks_sum_cents)
@@ -67,5 +82,7 @@ SELECT
      - casino_taxes_sum_cents
      - payment_system_fees_sum_cents
      - jackpot_fees_sum_cents
-     - game_provider_fees_sum_cents) AS casino_ngr_cents
+     - game_provider_fees_sum_cents
+     - deposit_fees_sum_cents
+     - withdrawal_fees_sum_cents) AS casino_ngr_cents
 FROM affiliate.activity_hourly_delta;

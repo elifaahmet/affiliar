@@ -36,6 +36,11 @@ const EVENT_DATA_SCHEMAS = {
     amountCents:    z.number().int().min(0),
     paymentMethod:  z.string().optional(),
     isFirstDeposit: z.boolean(),
+    // Optional processor fee the operator paid to accept this deposit. If
+    // present (even 0), Affiliar uses this value and skips the rate-based
+    // fallback for this deposit. If absent, the daily fees cron applies the
+    // operator's configured depositFeePercent to amountCents.
+    feeCents:       z.number().int().min(0).optional(),
   }),
   'wallet.deposit.chargeback': z.object({
     amountCents:      z.number().int().min(0),
@@ -55,6 +60,10 @@ const EVENT_DATA_SCHEMAS = {
   }),
   'wallet.withdrawal.completed': z.object({
     amountCents: z.number().int().min(0),
+    // Same semantics as wallet.deposit.confirmed.feeCents, but applied against
+    // withdrawalFeePercent. Send whenever your processor returns the exact
+    // fee for this cashout.
+    feeCents:    z.number().int().min(0).optional(),
   }),
   'casino.bet.placed': z.object({
     betCents:   z.number().int().min(0),

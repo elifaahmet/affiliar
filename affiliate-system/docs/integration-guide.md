@@ -161,8 +161,11 @@ Content-Type: application/json
 >       - chargebacks
 >       - casinoCorrectionsDown + casinoCorrectionsUp
 >       - additionalDeductions
+>       - depositFees - withdrawalFees
 >       - paymentSystemFees - jackpotFees - gameProviderFees - casinoTaxes
 > ```
+>
+> `depositFees` + `withdrawalFees` are the raw-events path's split of processor costs (populated by either per-event `feeCents` overrides or the daily cron rate). The legacy `paymentSystemFees` bucket is still subtracted for aggregated senders; don't populate both for the same data or you'll double-count.
 >
 > **Fees can be computed for you.** If you do not send `paymentSystemFeesSumCents`, `jackpotFeesSumCents`, `gameProviderFeesSumCents`, or `casinoTaxesSumCents`, Affiliar's daily fees cron will compute them from the rates configured in the operator's Fees UI (per brand, per provider, or operator-default). See §9. You can also mix: send the values you know, leave the ones you want Affiliar to compute at `0`, and configure rates only for those categories.
 
@@ -558,7 +561,7 @@ Data models:
 | Collection | Fields | Notes |
 |------------|--------|-------|
 | `providerfeerates` | `operatorId`, `brandId?`, `providerId`, `ratePct` | Per-provider game-provider fee. `brandId = null` → operator default |
-| `operatorfinancialsettings` | `operatorId`, `brandId?`, `paymentSystemFeePct`, `jackpotFeePct`, `casinoTaxPct` | Flat percentages applied to GGR |
+| `operatorfinancialsettings` | `operatorId`, `brandId?`, `depositFeePercent`, `withdrawalFeePercent`, `jackpotFeePercent`, `casinoTaxPercent` | `depositFeePercent` applies to gross deposits, `withdrawalFeePercent` to gross cashouts, `jackpotFeePercent` to bets, `casinoTaxPercent` to GGR. Legacy `paymentSystemFeePercent` is still read as a fallback for unmigrated documents (treated as deposit fee). |
 
 ### 8.4 Affiliate portal
 
@@ -583,7 +586,9 @@ Affiliar runs a daily fees cron (`affiliate-be/jobs/feesDailyJob.js`, default sc
 
 You can override any individual category by sending its metric explicitly (REST or aggregated Kafka) — the cron only computes the categories you left at `0`. A manual `POST /api/fees/run` is available for back-filling or testing.
 
-**Fees.daily.adjustment event (raw pipeline):** if you prefer to compute fees yourself and push them as raw events, use the `fees.daily.adjustment` event type documented in [raw-events-integration.md](./raw-events-integration.md). Do not do both.
+**Per-transaction fee override (raw events):** on the raw-events pipeline, `wallet.deposit.confirmed` and `wallet.withdrawal.completed` both accept an optional `feeCents`. If present, the consumer records it directly and the cron skips its rate-based computation for that transaction. Partial-mix is supported — some events can carry `feeCents` while others rely on the cron. Internally the cron computes `rateBase = deposits − deposits_fee_attributed` so event-level fees are never double-counted.
+
+**Fees.daily.adjustment event (raw pipeline):** if you prefer to compute fees yourself in batch and push them as raw events, use the `fees.daily.adjustment` event type documented in [raw-events-integration.md](./raw-events-integration.md). Don't use this for a category that you're already covering per-event with `feeCents` — pick one granularity per category.
 
 ---
 

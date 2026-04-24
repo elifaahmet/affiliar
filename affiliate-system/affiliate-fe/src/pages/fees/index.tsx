@@ -12,7 +12,8 @@ interface ProviderRate {
 }
 
 interface Settings {
-  paymentSystemFeePercent: number;
+  depositFeePercent: number;
+  withdrawalFeePercent: number;
   jackpotFeePercent: number;
   casinoTaxPercent: number;
 }
@@ -53,7 +54,8 @@ function SettingsForm({ scope }: { scope: Scope }) {
     try {
       await baseService.update(FEES_API_URLS.SETTINGS(), {
         brandId: scope,
-        paymentSystemFeePercent: Number(form.get('payment') ?? 0),
+        depositFeePercent: Number(form.get('deposit') ?? 0),
+        withdrawalFeePercent: Number(form.get('withdrawal') ?? 0),
         jackpotFeePercent: Number(form.get('jackpot') ?? 0),
         casinoTaxPercent: Number(form.get('tax') ?? 0),
       });
@@ -74,10 +76,11 @@ function SettingsForm({ scope }: { scope: Scope }) {
         {scope === 'default' ? ' (operator default)' : ' (brand override)'}.
         Leave at 0 if you're publishing pre-aggregated fees yourself.
       </p>
-      <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
-        <NumberInput label='Payment System %' name='payment' defaultValue={s?.paymentSystemFeePercent ?? 0} hint='% of deposits' />
-        <NumberInput label='Jackpot %'         name='jackpot' defaultValue={s?.jackpotFeePercent ?? 0}        hint='% of bets' />
-        <NumberInput label='Casino Tax %'      name='tax'     defaultValue={s?.casinoTaxPercent ?? 0}         hint='% of GGR' />
+      <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4'>
+        <NumberInput label='Deposit Fee %'    name='deposit'    defaultValue={s?.depositFeePercent ?? 0}    hint='% of deposits (processor cost)' />
+        <NumberInput label='Withdrawal Fee %' name='withdrawal' defaultValue={s?.withdrawalFeePercent ?? 0} hint='% of cashouts (processor cost)' />
+        <NumberInput label='Jackpot %'        name='jackpot'    defaultValue={s?.jackpotFeePercent ?? 0}    hint='% of bets' />
+        <NumberInput label='Casino Tax %'     name='tax'        defaultValue={s?.casinoTaxPercent ?? 0}     hint='% of GGR' />
       </div>
       {err && <p className='text-sm text-red-500'>{err}</p>}
       <button
@@ -362,17 +365,21 @@ export default function FeesPage() {
             Per category, pick one source of fees — don't do both.
           </p>
           <p className='text-sm text-amber-900'>
-            Each fee category (payment system, jackpot, casino tax, game
+            Each fee category (deposit, withdrawal, jackpot, casino tax, game
             provider) is independent. For each one, either{' '}
             <b>configure the percentage here and let Affiliar compute it</b>,{' '}
-            or <b>publish the value yourself</b> in{' '}
+            or <b>publish the value yourself</b> — either as{' '}
+            <code className='bg-amber-100 px-1 rounded'>feeCents</code>{' '}on
+            individual deposit/withdrawal events, or as a batch in{' '}
             <code className='bg-amber-100 px-1 rounded'>fees.daily.adjustment</code>{' '}
             events.
           </p>
           <p className='text-sm text-amber-900 mt-1'>
-            Doing both for the <b>same category</b> will double-count that
-            deduction. Mixing categories is fine — e.g. compute payment fees
-            here while publishing game-provider fees from your own system.
+            Per-event fees win: if an event carries{' '}
+            <code className='bg-amber-100 px-1 rounded'>feeCents</code>, the
+            cron skips that transaction. Doing both for the <b>same category</b>{' '}
+            at the aggregate level (cron + daily adjustment event) will double-
+            count. Mixing categories is fine.
           </p>
         </div>
       </div>
