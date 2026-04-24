@@ -676,7 +676,69 @@ Each gate is settable at both the operator-default level (`/api/fees/settings`, 
 
 ---
 
-## 13. Error reference
+## 13. Sportsbook
+
+Operators that run both casino and sportsbook can track either product in isolation or combined.
+
+### 13.1 Metrics
+
+Sportsbook uses a parallel set of columns on the activity view:
+
+| Column | Meaning |
+|---|---|
+| `sb_bets_sum_cents` | Total stake placed |
+| `sb_settled_bets_sum_cents` | Stake on bets that eventually settled (display-only — not in NGR) |
+| `sb_cancelled_bets_sum_cents` | Stake on operator-cancelled bets |
+| `sb_rejected_bets_sum_cents` | Stake on operator-rejected bets |
+| `sb_wins_sum_cents` | Payouts to players |
+| `sb_win_rollbacks_sum_cents` | Payouts later reversed |
+| `sb_bonus_issues_sum_cents` | Sportsbook-tagged bonuses |
+| `sb_balance_corrections_sum_cents` | Admin adjustments (single bucket: positive = NGR down, negative = NGR up) |
+| `sb_third_party_fees_sum_cents` | Bookmaker / data-feed cost |
+| `sb_gifts_sum_cents` | Free-bet gifts (display-only) |
+
+### 13.2 Formulas
+
+```
+sb_ggr = sb_bets
+       − sb_cancelled_bets
+       − sb_rejected_bets
+       − (sb_wins − sb_win_rollbacks)
+
+sb_ngr = sb_ggr
+       − sb_bonus_issues
+       − sb_balance_corrections
+       − sb_third_party_fees
+
+combined_ngr = casino_ngr + sb_ngr − generic_bonus_issues
+```
+
+`sb_ngr` intentionally *excludes* wallet-shared deductions (deposit fees, withdrawal fees, payment_system, chargebacks) so sb-only affiliates aren't double-charged for processor costs that flow through `casino_ngr` already. `combined_ngr` adds `generic_bonus_issues` — bonuses tagged `product='generic'` that don't belong to either product alone.
+
+### 13.3 Commission plan product
+
+Each `CommissionPlan.product` pins the plan to a specific NGR base:
+
+| `product` | NGR base used | Notes |
+|---|---|---|
+| `"casino"` (default) | `casino_ngr` | Pre-sportsbook behavior; ignores sportsbook activity. |
+| `"sportsbook"` | `sb_ngr` | Ignores casino activity. |
+| `"combined"` | `combined_ngr` | Both products, plus `generic_bonus` deduction. |
+
+An `AffiliateProfile` can populate up to three plan slots (`commissionPlans.casino`, `.sportsbook`, `.combined`). Each populated slot produces one `CommissionReport` per period (`product` field on the report records which slot drove it). Slots are additive — an affiliate with both a casino plan (30% of casino NGR) and a sportsbook plan (15% of sb NGR) earns both in the same month.
+
+### 13.4 SB third-party fees
+
+Two ways to feed `sb_third_party_fees_sum_cents`:
+
+1. **Rate** — set `sbThirdPartyFeePercent` on `/api/fees/settings`. The daily cron applies it to `sb_ggr` and writes the result into the sentinel `__fees__` row.
+2. **Event** — publish a `fees.daily.adjustment` event with `sbThirdPartyFeesCents` set. The event writes directly; the cron's rate is not applied on top.
+
+Use one or the other per day — mixing double-counts.
+
+---
+
+## 14. Error reference
 
 | HTTP Status | Meaning |
 |-------------|---------|
@@ -689,7 +751,7 @@ Per-record failures do not affect other records in the same batch. A response wi
 
 ---
 
-## 14. Onboarding checklist
+## 15. Onboarding checklist
 
 **Operator setup**
 - [ ] Receive your `tenantId` from Affiliar

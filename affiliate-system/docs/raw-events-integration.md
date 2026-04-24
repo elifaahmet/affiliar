@@ -374,7 +374,42 @@ Manual admin adjustments to a player's wallet that aren't real deposits or withd
 
 ---
 
-### 4.13 `fees.daily.adjustment`
+### 4.13 Sportsbook events
+
+Sportsbook bets follow a different lifecycle than casino rounds — a bet is placed, then either rejected (operator refused), cancelled (operator accepted and later voided), or settled (outcome resolved). The event set mirrors the casino family but operates on sportsbook-specific columns (`sb_bets`, `sb_wins`, etc.) that feed `sb_ngr` / `combined_ngr`.
+
+| Event | Effect |
+|---|---|
+| `sportsbook.bet.placed` | Locks stake into `sb_bets_sum_cents`. |
+| `sportsbook.bet.rejected` | Stake the operator refused; subtracted from GGR. |
+| `sportsbook.bet.cancelled` | Accepted stake later voided (match abandoned, etc.); same GGR treatment as rejected. |
+| `sportsbook.bet.settled` | Records the payout in `sb_wins_sum_cents` (0 for lost/pushed bets) and marks the stake `sb_settled_bets_sum_cents` (display-only). |
+| `sportsbook.win.rollback` | Reverses a prior win payout (result correction). |
+
+```json
+{
+  "eventType": "sportsbook.bet.placed",
+  "data": { "betCents": 3000, "betId": "b-123", "eventId": "match-42", "market": "1X2" }
+}
+{
+  "eventType": "sportsbook.bet.settled",
+  "data": { "betCents": 3000, "winCents": 1000, "betId": "b-123", "outcome": "won" }
+}
+```
+
+#### Bonus + correction product attribution
+
+`bonus.granted` and `bonus.revoked` accept an optional `data.product`:
+- `'casino'` → `casino_bonus_issues` (hits casino_ngr + combined_ngr)
+- `'sportsbook'` → `sb_bonus_issues` (hits sb_ngr + combined_ngr)
+- `'generic'` → `generic_bonus_issues` (hits combined_ngr only)
+- omitted → legacy `bonus_issues` bucket (casino + combined, for platforms that haven't started tagging)
+
+`wallet.correction.up` / `wallet.correction.down` accept `data.product: 'casino' | 'sportsbook'`. Sportsbook corrections land in a single `sb_balance_corrections_sum_cents` column; `up` writes a negative delta, `down` writes positive (matches the Affilka sportsbook spec's single-bucket convention).
+
+---
+
+### 4.14 `fees.daily.adjustment`
 
 Emitted **once per day per player** with that day's fee allocations. These are usually computed by the casino's reconciliation job, not in real time.
 
@@ -387,10 +422,16 @@ Emitted **once per day per player** with that day's fee allocations. These are u
     "jackpotFeesCents":           20,
     "gameProviderFeesCents":      100,
     "casinoTaxesCents":           150,
-    "additionalDeductionsCents":  0
+    "additionalDeductionsCents":  0,
+    "sbThirdPartyFeesCents":      0,
+    "sbBalanceCorrectionsCents":  0
   }
 }
 ```
+
+Sportsbook-specific fields (both optional, default 0):
+- `sbThirdPartyFeesCents` — bookmaker / data-feed cost. Subtracted from `sb_ngr` and `combined_ngr`.
+- `sbBalanceCorrectionsCents` — aggregate admin adjustments on the sportsbook balance for the day. Positive = NGR down, negative = NGR up (mirrors the single-bucket convention in the Affilka sportsbook spec).
 
 > If your casino doesn't break fees down per player, send a single brand-level event with `playerId: "_brand_aggregate_"` — Affiliar will distribute it proportionally to NGR (TBD, configurable).
 
@@ -401,10 +442,12 @@ per operator (and optionally per brand) via the **Operator → Fees**
 screen. Affiliar's daily cron will derive fees from the same ClickHouse
 data that drives NGR:
 
-- Payment-system % of deposits
-- Jackpot % of bets
-- Casino tax % of GGR
+- Deposit-fee % of deposits (processor cost on inbound)
+- Withdrawal-fee % of cashouts (processor cost on outbound)
+- Jackpot % of casino bets
+- Casino tax % of casino GGR
 - Per-provider revenue-share % of provider GGR
+- **Sportsbook 3rd-party %** of sportsbook GGR (bookmaker / data-feed)
 
 > **Don't mix sources within the same category.** For each of the four
 > fee buckets, either leave the percentage at 0 and publish your own

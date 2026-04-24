@@ -28,6 +28,10 @@ const operatorFinancialSettingsSchema = new mongoose.Schema(
     withdrawalFeePercent: { type: Number, default: 0, min: 0, max: 100 },
     jackpotFeePercent:    { type: Number, default: 0, min: 0, max: 100 },
     casinoTaxPercent:     { type: Number, default: 0, min: 0, max: 100 },
+    // Sportsbook third-party fees (bookmaker/data-feed costs). Applied
+    // to sb_ggr by the daily cron. Can still be overridden via
+    // fees.daily.adjustment.sbThirdPartyFeesCents on the raw path.
+    sbThirdPartyFeePercent: { type: Number, default: 0, min: 0, max: 100 },
     // Legacy: pre-split deposit+withdrawal were a single bucket. Readers
     // still honor this for any unmigrated document (treated as deposit fee),
     // but new writes go to depositFeePercent.

@@ -16,6 +16,7 @@ interface Settings {
   withdrawalFeePercent: number;
   jackpotFeePercent: number;
   casinoTaxPercent: number;
+  sbThirdPartyFeePercent: number;
   defaults?: {
     revshareMetric: 'ngr' | 'ggr';
     ngrIncludesPaymentFees: boolean;
@@ -79,10 +80,11 @@ function SettingsForm({ scope }: { scope: Scope }) {
 
       await baseService.update(FEES_API_URLS.SETTINGS(), {
         brandId: scope,
-        depositFeePercent: Number(form.get('deposit') ?? 0),
-        withdrawalFeePercent: Number(form.get('withdrawal') ?? 0),
-        jackpotFeePercent: Number(form.get('jackpot') ?? 0),
-        casinoTaxPercent: Number(form.get('tax') ?? 0),
+        depositFeePercent:      Number(form.get('deposit') ?? 0),
+        withdrawalFeePercent:   Number(form.get('withdrawal') ?? 0),
+        jackpotFeePercent:      Number(form.get('jackpot') ?? 0),
+        casinoTaxPercent:       Number(form.get('tax') ?? 0),
+        sbThirdPartyFeePercent: Number(form.get('sbThirdParty') ?? 0),
         // Defaults only make sense at operator-wide scope; the payload is
         // still safe to send for brand scopes (server stores it but no
         // consumer reads brand-scoped defaults today).
@@ -114,11 +116,12 @@ function SettingsForm({ scope }: { scope: Scope }) {
         {scope === 'default' ? ' (operator default)' : ' (brand override)'}.
         Leave at 0 if you're publishing pre-aggregated fees yourself.
       </p>
-      <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4'>
-        <NumberInput label='Deposit Fee %'    name='deposit'    defaultValue={s?.depositFeePercent ?? 0}    hint='% of deposits (processor cost)' />
-        <NumberInput label='Withdrawal Fee %' name='withdrawal' defaultValue={s?.withdrawalFeePercent ?? 0} hint='% of cashouts (processor cost)' />
-        <NumberInput label='Jackpot %'        name='jackpot'    defaultValue={s?.jackpotFeePercent ?? 0}    hint='% of bets' />
-        <NumberInput label='Casino Tax %'     name='tax'        defaultValue={s?.casinoTaxPercent ?? 0}     hint='% of GGR' />
+      <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4'>
+        <NumberInput label='Deposit Fee %'    name='deposit'      defaultValue={s?.depositFeePercent ?? 0}      hint='% of deposits (processor cost)' />
+        <NumberInput label='Withdrawal Fee %' name='withdrawal'   defaultValue={s?.withdrawalFeePercent ?? 0}   hint='% of cashouts (processor cost)' />
+        <NumberInput label='Jackpot %'        name='jackpot'      defaultValue={s?.jackpotFeePercent ?? 0}      hint='% of casino bets' />
+        <NumberInput label='Casino Tax %'     name='tax'          defaultValue={s?.casinoTaxPercent ?? 0}       hint='% of casino GGR' />
+        <NumberInput label='SB 3rd-party %'   name='sbThirdParty' defaultValue={s?.sbThirdPartyFeePercent ?? 0} hint='% of sportsbook GGR (bookmaker/data-feed)' />
       </div>
 
       {scope === 'default' && (

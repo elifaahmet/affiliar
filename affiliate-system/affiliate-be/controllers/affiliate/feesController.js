@@ -129,9 +129,10 @@ exports.getFinancialSettings = async (req, res) => {
     const settings = {
       depositFeePercent:
         raw.depositFeePercent ?? raw.paymentSystemFeePercent ?? 0,
-      withdrawalFeePercent: raw.withdrawalFeePercent ?? 0,
-      jackpotFeePercent:    raw.jackpotFeePercent ?? 0,
-      casinoTaxPercent:     raw.casinoTaxPercent ?? 0,
+      withdrawalFeePercent:   raw.withdrawalFeePercent ?? 0,
+      jackpotFeePercent:      raw.jackpotFeePercent ?? 0,
+      casinoTaxPercent:       raw.casinoTaxPercent ?? 0,
+      sbThirdPartyFeePercent: raw.sbThirdPartyFeePercent ?? 0,
       // Commission-engine defaults. Consumed when a plan leaves the
       // matching field null. Only meaningful for the operator-default
       // scope (brandId = null) today, but stored per-document so brand
@@ -174,11 +175,13 @@ exports.updateFinancialSettings = async (req, res) => {
     const withdrawal = pick(req.body?.withdrawalFeePercent);
     const jackpot = pick(req.body?.jackpotFeePercent);
     const tax = pick(req.body?.casinoTaxPercent);
+    const sbThirdParty = pick(req.body?.sbThirdPartyFeePercent);
     if (
       deposit === null ||
       withdrawal === null ||
       jackpot === null ||
-      tax === null
+      tax === null ||
+      sbThirdParty === null
     ) {
       return res
         .status(400)
@@ -193,6 +196,7 @@ exports.updateFinancialSettings = async (req, res) => {
     if (withdrawal !== undefined) update.withdrawalFeePercent = withdrawal;
     if (jackpot !== undefined) update.jackpotFeePercent = jackpot;
     if (tax !== undefined) update.casinoTaxPercent = tax;
+    if (sbThirdParty !== undefined) update.sbThirdPartyFeePercent = sbThirdParty;
 
     // Commission-engine defaults. Use dotted paths so the nested subdoc's
     // other fields aren't wiped when only one is being updated.

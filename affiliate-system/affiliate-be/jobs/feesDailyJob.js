@@ -119,13 +119,19 @@ async function runForOperator(operator, operatorFinancials, bounds) {
        SUM(deposits_sum_cents)                     AS deposits,
        SUM(cashouts_sum_cents)                     AS cashouts,
        SUM(deposits_fee_attributed_sum_cents)      AS depositsFeeAttributed,
-       SUM(cashouts_fee_attributed_sum_cents)      AS cashoutsFeeAttributed
+       SUM(cashouts_fee_attributed_sum_cents)      AS cashoutsFeeAttributed,
+       -- Sportsbook bases for the sb third-party fee computation
+       SUM(sb_bets_sum_cents)                      AS sbBets,
+       SUM(sb_cancelled_bets_sum_cents)            AS sbCancelled,
+       SUM(sb_rejected_bets_sum_cents)             AS sbRejected,
+       SUM(sb_wins_sum_cents)                      AS sbWins,
+       SUM(sb_win_rollbacks_sum_cents)             AS sbWinRollbacks
      FROM affiliate.activity_hourly_delta
      WHERE tenant_id = {tenantId:String}
        AND hour_bucket >= {fromTs:DateTime}
        AND hour_bucket <  {toTs:DateTime}
      GROUP BY brand_id, affiliate_id, currency, provider
-     HAVING bets + deposits + cashouts > 0`,
+     HAVING bets + deposits + cashouts + sbBets > 0`,
     { tenantId, fromTs: bounds.fromTs, toTs: bounds.toTs },
   );
 
@@ -156,12 +162,27 @@ async function runForOperator(operator, operatorFinancials, bounds) {
         },
       );
 
+    // Sportsbook third-party fees (bookmaker / data-feed costs) — mirrors
+    // the casino game-provider-fees pattern but applied to sb_ggr.
+    const sbBets          = Number(r.sbBets)          || 0;
+    const sbCancelled     = Number(r.sbCancelled)     || 0;
+    const sbRejected      = Number(r.sbRejected)      || 0;
+    const sbWins          = Number(r.sbWins)          || 0;
+    const sbWinRollbacks  = Number(r.sbWinRollbacks)  || 0;
+    const sbGgr = Math.max(
+      0,
+      sbBets - sbCancelled - sbRejected - (sbWins - sbWinRollbacks),
+    );
+    const sbThirdPartyPct = Number(brandFinancials.sbThirdPartyFeePercent) || 0;
+    const sbThirdPartyFees = Math.round((sbGgr * sbThirdPartyPct) / 100);
+
     if (
       !gameProviderFees &&
       !depositFees &&
       !withdrawalFees &&
       !jackpotFees &&
-      !casinoTaxes
+      !casinoTaxes &&
+      !sbThirdPartyFees
     ) {
       continue;
     }
@@ -187,6 +208,7 @@ async function runForOperator(operator, operatorFinancials, bounds) {
       jackpot_fees_sum_cents: jackpotFees,
       game_provider_fees_sum_cents: gameProviderFees,
       casino_taxes_sum_cents: casinoTaxes,
+      sb_third_party_fees_sum_cents: sbThirdPartyFees,
     });
   }
 
