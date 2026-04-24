@@ -24,10 +24,13 @@ interface PlanResponse {
 
 // ── types ─────────────────────────────────────────────────────────────────────
 
+type ProductScope = 'casino' | 'sportsbook' | 'combined';
+
 interface CommissionPlan {
   _id: string;
   name: string;
   type: string;
+  product?: ProductScope;
 }
 
 interface Affiliate {
@@ -40,7 +43,14 @@ interface Affiliate {
   mobileCountryCode?: string;
   createdAt: string;
   referralCodes?: string[];
+  // Legacy single-plan reference — kept for backward compat. Prefer
+  // commissionPlans going forward.
   commissionPlanId?: CommissionPlan | null;
+  commissionPlans?: {
+    casino:     CommissionPlan | null;
+    sportsbook: CommissionPlan | null;
+    combined:   CommissionPlan | null;
+  };
   parentAffiliate?: { _id: string; username: string; email: string; name: string } | null;
   overrideRate?: number;
 }
@@ -111,9 +121,25 @@ function planTypeBadgeCls(type: string) {
 function PlanAssignModal({
   affiliate, onClose, onSaved,
 }: { affiliate: Affiliate; onClose: () => void; onSaved: () => void }) {
-  const [selectedPlanId, setSelectedPlanId] = useState<string>(
-    affiliate.commissionPlanId?._id ?? '',
-  );
+  // Three slots: casino / sportsbook / combined. Each stores the selected
+  // plan id or '' for "no plan on this product".
+  const initialSlots: Record<ProductScope, string> = {
+    casino:     affiliate.commissionPlans?.casino?._id
+              ?? (affiliate.commissionPlanId?.product === 'casino' ? affiliate.commissionPlanId._id : '')
+              ?? '',
+    sportsbook: affiliate.commissionPlans?.sportsbook?._id ?? '',
+    combined:   affiliate.commissionPlans?.combined?._id ?? '',
+  };
+  // Legacy fallback: if none of the new slots are set but the old single
+  // planId is, seed the casino slot with it (that's where resolveAffiliate
+  // PlansByProduct routes a legacy casino plan).
+  if (!initialSlots.casino && !initialSlots.sportsbook && !initialSlots.combined
+      && affiliate.commissionPlanId?._id) {
+    const legacyProduct = affiliate.commissionPlanId.product ?? 'casino';
+    initialSlots[legacyProduct as ProductScope] = affiliate.commissionPlanId._id;
+  }
+
+  const [slots, setSlots] = useState<Record<ProductScope, string>>(initialSlots);
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState('');
 
@@ -122,17 +148,25 @@ function PlanAssignModal({
     queryKey: ['commission-plans'],
   });
 
+  // Per-slot: only plans whose own product matches that slot.
+  const plansForSlot = (slot: ProductScope) =>
+    plans.filter((p) => (p.product ?? 'casino') === slot);
+
   async function handleSave() {
     setSaving(true);
     setError('');
     try {
       await axiosInstance.patch(COMMISSION_API_URLS.AFFILIATE_PLAN(affiliate._id), {
-        planId: selectedPlanId || null,
+        commissionPlans: {
+          casino:     slots.casino     || null,
+          sportsbook: slots.sportsbook || null,
+          combined:   slots.combined   || null,
+        },
       });
       onSaved();
       onClose();
     } catch (e: any) {
-      setError(e?.response?.data?.error ?? e?.message ?? 'Failed to assign plan');
+      setError(e?.response?.data?.error ?? e?.message ?? 'Failed to assign plans');
     } finally {
       setSaving(false);
     }
@@ -140,44 +174,42 @@ function PlanAssignModal({
 
   return (
     <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/30'>
-      <div className='bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-5'>
+      <div className='bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-5'>
         <div>
-          <h2 className='text-base font-semibold text-gray-800'>Assign Commission Plan</h2>
+          <h2 className='text-base font-semibold text-gray-800'>Assign Commission Plans</h2>
           <p className='text-xs text-gray-400 mt-0.5'>{affiliate.username} · {affiliate.email}</p>
+          <p className='text-xs text-gray-500 mt-2'>
+            Each product can have its own plan. Leaving a slot empty falls
+            back to the operator&rsquo;s default plan for that product, or
+            skips the commission entirely if no default is set.
+          </p>
         </div>
 
-        <div className='space-y-2'>
-          {/* Default option */}
-          <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-            selectedPlanId === '' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:bg-gray-50'
-          }`}>
-            <input type='radio' name='plan' value='' checked={selectedPlanId === ''}
-              onChange={() => setSelectedPlanId('')} className='mt-0.5 accent-primary' />
-            <div>
-              <p className='text-sm font-medium text-gray-700'>Default plan</p>
-              <p className='text-xs text-gray-400'>Uses the operator default commission plan</p>
-            </div>
-          </label>
-
-          {/* Plan options */}
-          {plans.map((p) => (
-            <label key={p._id} className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-              selectedPlanId === p._id ? 'border-primary bg-primary/5' : 'border-gray-200 hover:bg-gray-50'
-            }`}>
-              <input type='radio' name='plan' value={p._id} checked={selectedPlanId === p._id}
-                onChange={() => setSelectedPlanId(p._id)} className='mt-0.5 accent-primary' />
-              <div className='flex-1'>
-                <div className='flex items-center gap-2'>
-                  <p className='text-sm font-medium text-gray-700'>{p.name}</p>
-                  <span className={planTypeBadgeCls(p.type)}>{p.type.replace('_', ' ')}</span>
-                </div>
+        <div className='space-y-3'>
+          {(['casino', 'sportsbook', 'combined'] as ProductScope[]).map((slot) => {
+            const options = plansForSlot(slot);
+            return (
+              <div key={slot}>
+                <label className='block text-xs font-medium text-gray-600 mb-1 capitalize'>{slot}</label>
+                <select
+                  value={slots[slot]}
+                  onChange={(e) => setSlots((s) => ({ ...s, [slot]: e.target.value }))}
+                  className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary bg-white'>
+                  <option value=''>— none (use operator default) —</option>
+                  {options.map((p) => (
+                    <option key={p._id} value={p._id}>
+                      {p.name} ({p.type.replace('_', ' ')})
+                    </option>
+                  ))}
+                </select>
+                {options.length === 0 && (
+                  <p className='text-[11px] text-gray-400 mt-1'>
+                    No {slot} plans yet. Create one in the Commission page first.
+                  </p>
+                )}
               </div>
-            </label>
-          ))}
-
-          {plans.length === 0 && (
-            <p className='text-xs text-gray-400 px-1'>No plans created yet. Create one in the Commission page first.</p>
-          )}
+            );
+          })}
         </div>
 
         {error && <p className='text-xs text-red-500'>{error}</p>}
@@ -459,17 +491,37 @@ function AffiliatesTab() {
                     </div>
                   </td>
                   <td className='px-4 py-3 text-xs border-r border-gray-100'>
-                    <div className='flex items-center gap-2'>
-                      {a.commissionPlanId
-                        ? <span className={planTypeBadgeCls(a.commissionPlanId.type)}>{a.commissionPlanId.name}</span>
-                        : <span className='text-gray-400'>Default</span>}
-                      <button
-                        onClick={() => setAssigningAffiliate(a)}
-                        className='text-xs text-primary hover:underline shrink-0'
-                      >
-                        Change
-                      </button>
-                    </div>
+                    {(() => {
+                      const slots = a.commissionPlans;
+                      const populated: { slot: ProductScope; plan: CommissionPlan }[] = [];
+                      if (slots?.casino)     populated.push({ slot: 'casino',     plan: slots.casino });
+                      if (slots?.sportsbook) populated.push({ slot: 'sportsbook', plan: slots.sportsbook });
+                      if (slots?.combined)   populated.push({ slot: 'combined',   plan: slots.combined });
+                      // Legacy fallback if no per-product slot is set
+                      if (populated.length === 0 && a.commissionPlanId) {
+                        populated.push({
+                          slot: (a.commissionPlanId.product ?? 'casino') as ProductScope,
+                          plan: a.commissionPlanId,
+                        });
+                      }
+                      return (
+                        <div className='flex flex-col gap-1'>
+                          {populated.length === 0 && <span className='text-gray-400'>Default</span>}
+                          {populated.map(({ slot, plan }) => (
+                            <div key={slot} className='flex items-center gap-1'>
+                              <span className='text-[10px] text-gray-400 uppercase tracking-wide w-14'>{slot}</span>
+                              <span className={planTypeBadgeCls(plan.type)}>{plan.name}</span>
+                            </div>
+                          ))}
+                          <button
+                            onClick={() => setAssigningAffiliate(a)}
+                            className='text-xs text-primary hover:underline text-left mt-0.5'
+                          >
+                            Change
+                          </button>
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className='px-4 py-3 text-xs border-r border-gray-100'>
                     <div className='flex flex-col gap-0.5'>

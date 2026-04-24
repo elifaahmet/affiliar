@@ -25,10 +25,14 @@ type ReportStatus = 'draft' | 'pending_approval' | 'approved' | 'paid';
 
 interface Tier { fromCents: number; toCents: number | null; rate: number; }
 
+type ProductScope = 'casino' | 'sportsbook' | 'combined';
+
 interface CommissionPlan {
   _id: string;
   name: string;
   type: PlanType;
+  // Which NGR base the plan pays on. Legacy plans default to 'casino'.
+  product: ProductScope;
   isDefault: boolean;
   isActive: boolean;
   revshare: {
@@ -60,6 +64,7 @@ interface CommissionReport {
   planId: { _id: string; name: string; type: PlanType } | null;
   planSnapshot: any;
   period: { year: number; month: number };
+  product?: ProductScope;
   metrics: {
     ggrCents: number; ngrCents: number; ftdCount: number;
     qualifiedFtdCount?: number;
@@ -138,7 +143,7 @@ function currentYearMonth() {
 // ── Plan Form Modal ───────────────────────────────────────────────────────────
 
 const EMPTY_PLAN = {
-  name: '', type: 'revshare' as PlanType, isDefault: false,
+  name: '', type: 'revshare' as PlanType, product: 'casino' as ProductScope, isDefault: false,
   // Null on the nullable fields → the backend inherits from the operator's
   // defaults (configured on the Fees page).
   revshare: {
@@ -169,7 +174,10 @@ function PlanModal({
   const [form, setForm] = useState(
     plan
       ? {
-          name: plan.name, type: plan.type, isDefault: plan.isDefault,
+          name: plan.name, type: plan.type,
+          // Older plans may not have `product` on the document — default to casino.
+          product: (plan.product ?? 'casino') as ProductScope,
+          isDefault: plan.isDefault,
           // Older plan documents may not have the nullable fields set.
           // Default them to null ("inherit") so the form renders sensibly.
           revshare: {
@@ -284,6 +292,29 @@ function PlanModal({
             <input value={form.name} onChange={(e) => setField('name', e.target.value)}
               className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
               placeholder='e.g. Standard RevShare 30%' />
+          </div>
+
+          {/* Product — which NGR base this plan pays on */}
+          <div>
+            <label className='block text-xs font-medium text-gray-600 mb-1'>Product</label>
+            <div className='grid grid-cols-3 gap-2'>
+              {(['casino', 'sportsbook', 'combined'] as ProductScope[]).map((p) => (
+                <button key={p} type='button'
+                  onClick={() => setField('product', p)}
+                  className={`py-2 px-3 rounded-lg text-xs font-medium border transition-colors text-left ${
+                    form.product === p
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}>
+                  <div className='font-semibold capitalize'>{p}</div>
+                  <div className='text-gray-400 font-normal mt-0.5 text-[11px]'>
+                    {p === 'casino'     && 'Casino NGR only'}
+                    {p === 'sportsbook' && 'Sportsbook NGR only'}
+                    {p === 'combined'   && 'Casino + sportsbook'}
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Type */}
@@ -616,7 +647,7 @@ function PlansTab() {
           <table className='w-full'>
             <thead className='bg-gray-50'>
               <tr>
-                {['Name', 'Type', 'Summary', 'Default', 'Active', ''].map((h) => (
+                {['Name', 'Product', 'Type', 'Summary', 'Default', 'Active', ''].map((h) => (
                   <th key={h} className='px-5 py-3 text-left text-xs font-semibold text-gray-500 border-r border-gray-100 last:border-r-0'>
                     {h}
                   </th>
@@ -627,6 +658,11 @@ function PlansTab() {
               {plans.map((p, i) => (
                 <tr key={p._id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                   <td className='px-5 py-3 text-sm font-medium text-gray-800 border-r border-gray-100'>{p.name}</td>
+                  <td className='px-5 py-3 border-r border-gray-100'>
+                    <span className='inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 capitalize'>
+                      {p.product ?? 'casino'}
+                    </span>
+                  </td>
                   <td className='px-5 py-3 border-r border-gray-100'>
                     <span className={planTypeBadge(p.type)}>{planTypeLabel(p.type)}</span>
                   </td>
@@ -818,7 +854,7 @@ function ReportsTab() {
               <table className='w-full'>
                 <thead className='bg-gray-50'>
                   <tr>
-                    {['Affiliate', 'Plan', 'Players', 'FTDs', 'GGR', 'NGR', 'RevShare', 'CPA', 'Total', 'Status'].map((h) => (
+                    {['Affiliate', 'Product', 'Plan', 'Players', 'FTDs', 'GGR', 'NGR', 'RevShare', 'CPA', 'Total', 'Status'].map((h) => (
                       <th key={h} className='px-4 py-3 text-left text-xs font-semibold text-gray-500 border-r border-gray-100 last:border-r-0 whitespace-nowrap'>
                         {h}
                       </th>
@@ -833,6 +869,11 @@ function ReportsTab() {
                         <td className='px-4 py-2.5 border-r border-gray-100'>
                           <div className='text-xs font-medium text-gray-800'>{r.affiliateId?.username ?? '—'}</div>
                           <div className='text-xs text-gray-400'>{r.affiliateCode ?? ''}</div>
+                        </td>
+                        <td className='px-4 py-2.5 border-r border-gray-100'>
+                          <span className='inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-700 capitalize'>
+                            {r.product ?? 'casino'}
+                          </span>
                         </td>
                         <td className='px-4 py-2.5 border-r border-gray-100'>
                           {r.planId

@@ -851,30 +851,88 @@ const reportController = {
 // ── Affiliate plan assignment ─────────────────────────────────────────────────
 
 const affiliatePlanController = {
+  /**
+   * PATCH /commission/affiliates/:affiliateId/plan
+   *
+   * Two request shapes are accepted:
+   *   1. Legacy  : { planId: <id|null> }       sets the old single slot.
+   *   2. Per-product: { commissionPlans: { casino, sportsbook, combined } }
+   *                   any omitted slot keeps its previous value.
+   *
+   * Plans must belong to the operator AND their own `product` field must
+   * match the slot they're being dropped into (prevents accidentally
+   * routing a sportsbook plan into the casino slot).
+   */
   async assignPlan(req, res) {
     try {
       const operator = req.affiliateUser;
       if (operator.role !== "operator") return res.status(403).json({ error: "Operators only" });
 
-      const { planId } = req.body; // null = revert to default
+      const { planId, commissionPlans } = req.body;
 
-      // Verify plan belongs to operator (if provided)
-      if (planId) {
-        const plan = await CommissionPlan.findOne({
-          _id: planId,
-          operatorId: operator.operatorId,
-        });
-        if (!plan) return res.status(404).json({ error: "Plan not found" });
+      const existingProfile = await AffiliateProfile.findOne({
+        user: req.params.affiliateId,
+      }).lean();
+      if (!existingProfile) return res.status(404).json({ error: "Affiliate profile not found" });
+
+      const update = {};
+
+      // Legacy single-plan payload
+      if (planId !== undefined) {
+        if (planId) {
+          const plan = await CommissionPlan.findOne({
+            _id: planId,
+            operatorId: operator.operatorId,
+          });
+          if (!plan) return res.status(404).json({ error: "Plan not found" });
+        }
+        update.commissionPlanId = planId ?? null;
+      }
+
+      // Per-product payload
+      if (commissionPlans && typeof commissionPlans === "object") {
+        const validatedSlots = {
+          ...(existingProfile.commissionPlans || {}),
+        };
+        for (const slot of ["casino", "sportsbook", "combined"]) {
+          if (!(slot in commissionPlans)) continue;
+          const id = commissionPlans[slot];
+          if (id === null) {
+            validatedSlots[slot] = null;
+            continue;
+          }
+          const plan = await CommissionPlan.findOne({
+            _id: id,
+            operatorId: operator.operatorId,
+          }).lean();
+          if (!plan) return res.status(404).json({ error: `Plan not found for slot ${slot}` });
+          // The plan's own product must match the slot it's assigned to.
+          const planProduct = plan.product || "casino";
+          if (planProduct !== slot) {
+            return res.status(400).json({
+              error: `Plan '${plan.name}' is product=${planProduct}; cannot assign it to the ${slot} slot`,
+            });
+          }
+          validatedSlots[slot] = plan._id;
+        }
+        update.commissionPlans = validatedSlots;
+      }
+
+      if (Object.keys(update).length === 0) {
+        return res.status(400).json({ error: "Nothing to update" });
       }
 
       const profile = await AffiliateProfile.findOneAndUpdate(
         { user: req.params.affiliateId },
-        { $set: { commissionPlanId: planId ?? null } },
+        { $set: update },
         { new: true },
       );
-      if (!profile) return res.status(404).json({ error: "Affiliate profile not found" });
 
-      res.json({ ok: true, commissionPlanId: profile.commissionPlanId });
+      res.json({
+        ok: true,
+        commissionPlanId: profile.commissionPlanId,
+        commissionPlans:  profile.commissionPlans,
+      });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

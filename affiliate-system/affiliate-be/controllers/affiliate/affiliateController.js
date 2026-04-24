@@ -169,9 +169,12 @@ const affiliateController = {
       // Attach commission plan info from AffiliateProfile
       const userIds = affiliates.map((a) => a._id);
       const profiles = await AffiliateProfile.find({ user: { $in: userIds } })
-        .populate("commissionPlanId", "_id name type")
+        .populate("commissionPlanId", "_id name type product")
+        .populate("commissionPlans.casino",     "_id name type product")
+        .populate("commissionPlans.sportsbook", "_id name type product")
+        .populate("commissionPlans.combined",   "_id name type product")
         .populate("parentAffiliate", "_id username email name")
-        .select("user commissionPlanId referralCodes parentAffiliate overrideRate")
+        .select("user commissionPlanId commissionPlans referralCodes parentAffiliate overrideRate")
         .lean();
 
       const profileMap = new Map(profiles.map((p) => [String(p.user), p]));
@@ -182,6 +185,7 @@ const affiliateController = {
           ...a,
           referralCodes:    profile?.referralCodes    ?? [],
           commissionPlanId: profile?.commissionPlanId ?? null,
+          commissionPlans:  profile?.commissionPlans  ?? { casino: null, sportsbook: null, combined: null },
           parentAffiliate:  profile?.parentAffiliate  ?? null,
           overrideRate:     profile?.overrideRate      ?? 0,
         };
