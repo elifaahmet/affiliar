@@ -31,8 +31,17 @@ interface CommissionPlan {
   type: PlanType;
   isDefault: boolean;
   isActive: boolean;
-  revshare: { metric: 'ngr' | 'ggr'; rate: number };
-  cpa: { amountCents: number; currency: string };
+  revshare: {
+    // null → inherit from operator default
+    metric: 'ngr' | 'ggr' | null;
+    rate: number;
+    includePaymentFees: boolean | null;
+  };
+  cpa: {
+    amountCents: number;
+    currency: string;
+    qualification?: { depositBasis: 'gross' | 'net' | null };
+  };
   tiers: Tier[];
   notes: string | null;
 }
@@ -92,9 +101,10 @@ function statusBadge(status: ReportStatus) {
 }
 
 function planSummary(plan: CommissionPlan) {
-  if (plan.type === 'revshare')        return `${plan.revshare.rate}% of ${plan.revshare.metric.toUpperCase()}`;
+  const metric = plan.revshare.metric ? plan.revshare.metric.toUpperCase() : 'NGR (inherit)';
+  if (plan.type === 'revshare')        return `${plan.revshare.rate}% of ${metric}`;
   if (plan.type === 'cpa')             return `${cents(plan.cpa.amountCents)} / FTD`;
-  if (plan.type === 'hybrid')          return `${plan.revshare.rate}% ${plan.revshare.metric.toUpperCase()} + ${cents(plan.cpa.amountCents)}/FTD`;
+  if (plan.type === 'hybrid')          return `${plan.revshare.rate}% ${metric} + ${cents(plan.cpa.amountCents)}/FTD`;
   if (plan.type === 'tiered_revshare') return `${plan.tiers.length} tier${plan.tiers.length !== 1 ? 's' : ''}`;
   return '';
 }
@@ -112,8 +122,18 @@ function currentYearMonth() {
 
 const EMPTY_PLAN = {
   name: '', type: 'revshare' as PlanType, isDefault: false,
-  revshare: { metric: 'ngr' as 'ngr' | 'ggr', rate: 30 },
-  cpa: { amountCents: 5000, currency: 'USD' },
+  // Null on the nullable fields → the backend inherits from the operator's
+  // defaults (configured on the Fees page).
+  revshare: {
+    metric: null as 'ngr' | 'ggr' | null,
+    rate: 30,
+    includePaymentFees: null as boolean | null,
+  },
+  cpa: {
+    amountCents: 5000,
+    currency: 'USD',
+    qualification: { depositBasis: null as 'gross' | 'net' | null },
+  },
   tiers: [] as Tier[],
   notes: '',
 };
@@ -124,10 +144,24 @@ function PlanModal({
   const isEdit = !!plan;
   const [form, setForm] = useState(
     plan
-      ? { name: plan.name, type: plan.type, isDefault: plan.isDefault,
-          revshare: { ...plan.revshare }, cpa: { ...plan.cpa },
-          tiers: plan.tiers.map((t) => ({ ...t })), notes: plan.notes ?? '' }
-      : { ...EMPTY_PLAN, revshare: { ...EMPTY_PLAN.revshare }, cpa: { ...EMPTY_PLAN.cpa }, tiers: [] },
+      ? {
+          name: plan.name, type: plan.type, isDefault: plan.isDefault,
+          // Older plan documents may not have the nullable fields set.
+          // Default them to null ("inherit") so the form renders sensibly.
+          revshare: {
+            metric: plan.revshare?.metric ?? null,
+            rate: plan.revshare?.rate ?? 0,
+            includePaymentFees: plan.revshare?.includePaymentFees ?? null,
+          },
+          cpa: {
+            amountCents: plan.cpa?.amountCents ?? 0,
+            currency: plan.cpa?.currency ?? 'USD',
+            qualification: { depositBasis: plan.cpa?.qualification?.depositBasis ?? null },
+          },
+          tiers: plan.tiers.map((t) => ({ ...t })),
+          notes: plan.notes ?? '',
+        }
+      : { ...EMPTY_PLAN, revshare: { ...EMPTY_PLAN.revshare }, cpa: { ...EMPTY_PLAN.cpa, qualification: { ...EMPTY_PLAN.cpa.qualification } }, tiers: [] },
   );
   const [error, setError] = useState('');
   const [upgradeBanner, setUpgradeBanner] = useState<{ message: string; currentPlan: string; requiredPlan: string } | null>(null);
@@ -249,9 +283,16 @@ function PlanModal({
               <div className='flex gap-3'>
                 <div className='flex-1'>
                   <label className='block text-xs text-gray-600 mb-1'>Metric</label>
-                  <select value={form.revshare.metric}
-                    onChange={(e) => setField('revshare', { ...form.revshare, metric: e.target.value })}
+                  <select
+                    value={form.revshare.metric ?? ''}
+                    onChange={(e) =>
+                      setField('revshare', {
+                        ...form.revshare,
+                        metric: e.target.value === '' ? null : (e.target.value as 'ngr' | 'ggr'),
+                      })
+                    }
                     className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary bg-white'>
+                    <option value=''>Inherit from operator default</option>
                     <option value='ngr'>NGR</option>
                     <option value='ggr'>GGR</option>
                   </select>
@@ -263,6 +304,27 @@ function PlanModal({
                     onChange={(e) => setField('revshare', { ...form.revshare, rate: Number(e.target.value) })}
                     className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary' />
                 </div>
+              </div>
+              <div>
+                <label className='block text-xs text-gray-600 mb-1'>NGR includes payment fees</label>
+                <select
+                  value={form.revshare.includePaymentFees === null ? '' : String(form.revshare.includePaymentFees)}
+                  onChange={(e) =>
+                    setField('revshare', {
+                      ...form.revshare,
+                      includePaymentFees: e.target.value === '' ? null : e.target.value === 'true',
+                    })
+                  }
+                  className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary bg-white'>
+                  <option value=''>Inherit from operator default</option>
+                  <option value='true'>Yes — NGR is net of all fees (standard)</option>
+                  <option value='false'>No — take share on gross NGR</option>
+                </select>
+                <p className='text-[11px] text-gray-500 mt-1'>
+                  Only meaningful when Metric is NGR. Controls whether
+                  deposit/withdrawal/payment-system fees are subtracted before
+                  the % is applied.
+                </p>
               </div>
             </div>
           )}
@@ -286,6 +348,29 @@ function PlanModal({
                     className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
                     maxLength={3} placeholder='USD' />
                 </div>
+              </div>
+              <div>
+                <label className='block text-xs text-gray-600 mb-1'>Deposit basis for qualification</label>
+                <select
+                  value={form.cpa.qualification?.depositBasis ?? ''}
+                  onChange={(e) =>
+                    setField('cpa', {
+                      ...form.cpa,
+                      qualification: {
+                        ...(form.cpa.qualification ?? {}),
+                        depositBasis: e.target.value === '' ? null : (e.target.value as 'gross' | 'net'),
+                      },
+                    })
+                  }
+                  className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary bg-white'>
+                  <option value=''>Inherit from operator default</option>
+                  <option value='gross'>Gross — face-value deposit</option>
+                  <option value='net'>Net — deposit after processor fee</option>
+                </select>
+                <p className='text-[11px] text-gray-500 mt-1'>
+                  Consumed by CPA qualification gates (separate release). Stored
+                  now so operator intent is captured.
+                </p>
               </div>
             </div>
           )}

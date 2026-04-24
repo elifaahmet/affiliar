@@ -48,12 +48,16 @@ const commissionPlanSchema = new mongoose.Schema(
     /**
      * Revenue share config.
      * Used by: revshare, hybrid
+     *
+     * `metric` and `includePaymentFees` are nullable — null means "inherit
+     * from the operator's defaults". Plans that explicitly set 'ngr'/'ggr'
+     * or true/false override the operator default.
      */
     revshare: {
       metric: {
         type: String,
-        enum: ["ngr", "ggr"],
-        default: "ngr",
+        enum: ["ngr", "ggr", null],
+        default: null,
       },
       // Percentage 0-100 (e.g. 30 = 30%)
       rate: {
@@ -61,6 +65,13 @@ const commissionPlanSchema = new mongoose.Schema(
         min: 0,
         max: 100,
         default: 0,
+      },
+      // When true, NGR used for commission subtracts deposit/withdrawal/
+      // payment_system fees (standard). When false, those fee buckets are
+      // added back so the share is taken on "gross NGR". null → inherit.
+      includePaymentFees: {
+        type: Boolean,
+        default: null,
       },
     },
 
@@ -79,6 +90,17 @@ const commissionPlanSchema = new mongoose.Schema(
       currency: {
         type: String,
         default: "USD",
+      },
+      // Qualification rules consumed by a future PR (CPA fraud gates).
+      // Stored now so the FE form can capture operator intent.
+      qualification: {
+        // Gross = face-value deposit. Net = deposit after processor fee.
+        // null → inherit operator default.
+        depositBasis: {
+          type: String,
+          enum: ["gross", "net", null],
+          default: null,
+        },
       },
     },
 

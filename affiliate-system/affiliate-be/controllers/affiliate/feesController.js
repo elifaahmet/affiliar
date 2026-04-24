@@ -132,6 +132,15 @@ exports.getFinancialSettings = async (req, res) => {
       withdrawalFeePercent: raw.withdrawalFeePercent ?? 0,
       jackpotFeePercent:    raw.jackpotFeePercent ?? 0,
       casinoTaxPercent:     raw.casinoTaxPercent ?? 0,
+      // Commission-engine defaults. Consumed when a plan leaves the
+      // matching field null. Only meaningful for the operator-default
+      // scope (brandId = null) today, but stored per-document so brand
+      // overrides are possible later.
+      defaults: {
+        revshareMetric:         raw.defaults?.revshareMetric ?? "ngr",
+        ngrIncludesPaymentFees: raw.defaults?.ngrIncludesPaymentFees ?? true,
+        depositBasis:           raw.defaults?.depositBasis ?? "gross",
+      },
     };
     res.json({ settings });
   } catch (err) {
@@ -178,6 +187,28 @@ exports.updateFinancialSettings = async (req, res) => {
     if (withdrawal !== undefined) update.withdrawalFeePercent = withdrawal;
     if (jackpot !== undefined) update.jackpotFeePercent = jackpot;
     if (tax !== undefined) update.casinoTaxPercent = tax;
+
+    // Commission-engine defaults. Use dotted paths so the nested subdoc's
+    // other fields aren't wiped when only one is being updated.
+    const defaults = req.body?.defaults;
+    if (defaults && typeof defaults === "object") {
+      if (defaults.revshareMetric !== undefined) {
+        if (!["ngr", "ggr"].includes(defaults.revshareMetric)) {
+          return res.status(400).json({ error: "revshareMetric must be 'ngr' or 'ggr'" });
+        }
+        update["defaults.revshareMetric"] = defaults.revshareMetric;
+      }
+      if (defaults.ngrIncludesPaymentFees !== undefined) {
+        update["defaults.ngrIncludesPaymentFees"] = !!defaults.ngrIncludesPaymentFees;
+      }
+      if (defaults.depositBasis !== undefined) {
+        if (!["gross", "net"].includes(defaults.depositBasis)) {
+          return res.status(400).json({ error: "depositBasis must be 'gross' or 'net'" });
+        }
+        update["defaults.depositBasis"] = defaults.depositBasis;
+      }
+    }
+
     const settings = await OperatorFinancialSettings.findOneAndUpdate(
       { operatorId, brandId },
       { $set: { operatorId, brandId, ...update } },

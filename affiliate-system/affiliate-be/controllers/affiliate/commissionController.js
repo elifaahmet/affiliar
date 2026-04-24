@@ -1,9 +1,10 @@
-const CommissionPlan   = require("../../models/CommissionPlan");
-const CommissionReport = require("../../models/CommissionReport");
-const AffiliateProfile = require("../../models/AffiliateProfile");
-const User             = require("../../models/User");
-const clickhouse       = require("../../config/clickhouse");
-const { calculate }    = require("../../engine/commissionEngine");
+const CommissionPlan           = require("../../models/CommissionPlan");
+const CommissionReport         = require("../../models/CommissionReport");
+const AffiliateProfile         = require("../../models/AffiliateProfile");
+const User                     = require("../../models/User");
+const OperatorFinancialSettings = require("../../models/OperatorFinancialSettings");
+const clickhouse               = require("../../config/clickhouse");
+const { calculate }            = require("../../engine/commissionEngine");
 
 // ── ClickHouse helpers ────────────────────────────────────────────────────────
 
@@ -28,6 +29,9 @@ async function fetchAffiliateMetrics(tenantId, year, month) {
       SUM(ftd_count)                        AS ftdCount,
       SUM(deposits_count)                   AS depositsCount,
       SUM(deposits_sum_cents)               AS depositsCents,
+      SUM(deposit_fees_sum_cents)           AS depositFeesCents,
+      SUM(withdrawal_fees_sum_cents)        AS withdrawalFeesCents,
+      SUM(payment_system_fees_sum_cents)    AS paymentSystemFeesCents,
       SUM(registrations)                    AS registrations,
       uniqExactIf(player_id, player_id != '__fees__')                  AS playerCount
     FROM affiliate.activity
@@ -48,15 +52,18 @@ async function fetchAffiliateMetrics(tenantId, year, month) {
   const rows = await result.json();
 
   return rows.map((r) => ({
-    affiliateId:   r.affiliateId,
-    affiliateCode: r.affiliateCode,
-    ggrCents:      Number(r.ggrCents),
-    ngrCents:      Number(r.ngrCents),
-    ftdCount:      Number(r.ftdCount),
-    depositsCount: Number(r.depositsCount),
-    depositsCents: Number(r.depositsCents),
-    registrations: Number(r.registrations),
-    playerCount:   Number(r.playerCount),
+    affiliateId:            r.affiliateId,
+    affiliateCode:          r.affiliateCode,
+    ggrCents:               Number(r.ggrCents),
+    ngrCents:               Number(r.ngrCents),
+    ftdCount:               Number(r.ftdCount),
+    depositsCount:          Number(r.depositsCount),
+    depositsCents:          Number(r.depositsCents),
+    depositFeesCents:       Number(r.depositFeesCents) || 0,
+    withdrawalFeesCents:    Number(r.withdrawalFeesCents) || 0,
+    paymentSystemFeesCents: Number(r.paymentSystemFeesCents) || 0,
+    registrations:          Number(r.registrations),
+    playerCount:            Number(r.playerCount),
   }));
 }
 
@@ -261,6 +268,15 @@ const reportController = {
         return res.json({ message: "No affiliate activity found for this period", created: 0, skipped: 0 });
       }
 
+      // Operator-wide defaults (brandId=null) — loaded once and reused for
+      // every plan that leaves a field null ("inherit"). Plans with
+      // explicit values still override.
+      const operatorFinancials = await OperatorFinancialSettings.findOne({
+        operatorId: operator.operatorId,
+        brandId: null,
+      }).lean();
+      const operatorDefaults = operatorFinancials?.defaults || {};
+
       // Resolve User IDs from ClickHouse affiliateId strings
       const affiliateProfiles = await AffiliateProfile.find({
         operatorUser: operator._id,
@@ -323,7 +339,7 @@ const reportController = {
           let planSnap   = null;
 
           if (plan) {
-            breakdown = calculate(plan, row);
+            breakdown = calculate(plan, row, operatorDefaults);
             planId    = plan._id;
             planSnap  = {
               _id:      plan._id,
@@ -332,6 +348,9 @@ const reportController = {
               revshare: plan.revshare,
               cpa:      plan.cpa,
               tiers:    plan.tiers,
+              // Snapshot what was actually used — makes historical reports
+              // reproducible even if operator defaults change later.
+              resolvedSettings: breakdown.resolvedSettings,
             };
           }
 

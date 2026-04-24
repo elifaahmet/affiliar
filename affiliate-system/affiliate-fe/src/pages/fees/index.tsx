@@ -16,6 +16,11 @@ interface Settings {
   withdrawalFeePercent: number;
   jackpotFeePercent: number;
   casinoTaxPercent: number;
+  defaults?: {
+    revshareMetric: 'ngr' | 'ggr';
+    ngrIncludesPaymentFees: boolean;
+    depositBasis: 'gross' | 'net';
+  };
 }
 
 interface Brand { _id: string; name: string }
@@ -58,6 +63,14 @@ function SettingsForm({ scope }: { scope: Scope }) {
         withdrawalFeePercent: Number(form.get('withdrawal') ?? 0),
         jackpotFeePercent: Number(form.get('jackpot') ?? 0),
         casinoTaxPercent: Number(form.get('tax') ?? 0),
+        // Defaults only make sense at operator-wide scope; the payload is
+        // still safe to send for brand scopes (server stores it but no
+        // consumer reads brand-scoped defaults today).
+        defaults: {
+          revshareMetric: String(form.get('revshareMetric') ?? 'ngr'),
+          ngrIncludesPaymentFees: form.get('ngrIncludesPaymentFees') === 'true',
+          depositBasis: String(form.get('depositBasis') ?? 'gross'),
+        },
       });
       qc.invalidateQueries({ queryKey: ['fees-settings', scope] });
     } catch (e2: any) {
@@ -82,6 +95,54 @@ function SettingsForm({ scope }: { scope: Scope }) {
         <NumberInput label='Jackpot %'        name='jackpot'    defaultValue={s?.jackpotFeePercent ?? 0}    hint='% of bets' />
         <NumberInput label='Casino Tax %'     name='tax'        defaultValue={s?.casinoTaxPercent ?? 0}     hint='% of GGR' />
       </div>
+
+      {scope === 'default' && (
+        <div className='border-t pt-4 space-y-3'>
+          <div>
+            <p className='text-xs font-semibold text-gray-700'>Commission defaults</p>
+            <p className='text-xs text-gray-500 mt-0.5'>
+              Applied to any commission plan that leaves the matching field
+              on <em>Inherit from operator default</em>. Plans can still
+              override per-plan.
+            </p>
+          </div>
+          <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
+            <SelectInput
+              key={`rm-${scope}`}
+              label='Revshare metric'
+              name='revshareMetric'
+              defaultValue={s?.defaults?.revshareMetric ?? 'ngr'}
+              options={[
+                { value: 'ngr', label: 'NGR (standard)' },
+                { value: 'ggr', label: 'GGR (pre-deduction)' },
+              ]}
+              hint='Base for % revshare plans'
+            />
+            <SelectInput
+              key={`ip-${scope}`}
+              label='NGR includes payment fees'
+              name='ngrIncludesPaymentFees'
+              defaultValue={String(s?.defaults?.ngrIncludesPaymentFees ?? true)}
+              options={[
+                { value: 'true',  label: 'Yes — subtract (standard)' },
+                { value: 'false', label: 'No — gross NGR (operator carries fees)' },
+              ]}
+              hint='Affects NGR-based commission base'
+            />
+            <SelectInput
+              key={`db-${scope}`}
+              label='Deposit basis (CPA)'
+              name='depositBasis'
+              defaultValue={s?.defaults?.depositBasis ?? 'gross'}
+              options={[
+                { value: 'gross', label: 'Gross (face value)' },
+                { value: 'net',   label: 'Net (after processor fee)' },
+              ]}
+              hint='Used by CPA qualification gates'
+            />
+          </div>
+        </div>
+      )}
       {err && <p className='text-sm text-red-500'>{err}</p>}
       <button
         type='submit'
@@ -109,6 +170,30 @@ function NumberInput({ label, name, defaultValue, hint }: {
         defaultValue={defaultValue}
         className='border border-gray-200 rounded px-3 py-2 text-sm'
       />
+      {hint && <span className='text-xs text-gray-400'>{hint}</span>}
+    </label>
+  );
+}
+
+function SelectInput({ label, name, defaultValue, options, hint }: {
+  label: string;
+  name: string;
+  defaultValue: string;
+  options: { value: string; label: string }[];
+  hint?: string;
+}) {
+  return (
+    <label className='flex flex-col gap-1'>
+      <span className='text-xs font-medium text-gray-700'>{label}</span>
+      <select
+        name={name}
+        defaultValue={defaultValue}
+        className='border border-gray-200 rounded px-3 py-2 text-sm bg-white'
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
       {hint && <span className='text-xs text-gray-400'>{hint}</span>}
     </label>
   );

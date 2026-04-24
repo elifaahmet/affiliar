@@ -5,7 +5,10 @@ const { calculate } = require("../engine/commissionEngine");
 // ── helpers ────────────────────────────────────────────────────────────────────
 
 /** Build a revshare plan */
-const revshare = (metric, rate) => ({ type: "revshare", revshare: { metric, rate } });
+const revshare = (metric, rate, includePaymentFees) => ({
+  type: "revshare",
+  revshare: { metric, rate, includePaymentFees },
+});
 
 /** Build a CPA plan */
 const cpa = (amountCents) => ({ type: "cpa", cpa: { amountCents, currency: "EUR" } });
@@ -236,5 +239,72 @@ describe("real-world scenario", () => {
     expect(result.revshareAmountCents).toBe(0);
     expect(result.cpaAmountCents).toBe(30_000);
     expect(result.totalCents).toBe(30_000);
+  });
+});
+
+// ── Inherit + payment-fee flag ─────────────────────────────────────────────────
+
+describe("revshare — includePaymentFees flag and operator-default inherit", () => {
+  const metrics = {
+    ggrCents:               200_000,
+    ngrCents:               100_000, // already net of all fees in the view
+    depositFeesCents:         5_000,
+    withdrawalFeesCents:      2_000,
+    paymentSystemFeesCents:   3_000,
+    ftdCount:                     0,
+  };
+
+  test("includePaymentFees=true → standard NGR base (no add-back)", () => {
+    const plan = revshare("ngr", 30, true);
+    const result = calculate(plan, metrics);
+    // 30% of 100_000 = 30_000
+    expect(result.revshareAmountCents).toBe(30_000);
+    expect(result.resolvedSettings.ngrIncludesPaymentFees).toBe(true);
+  });
+
+  test("includePaymentFees=false → fees added back to NGR before %", () => {
+    const plan = revshare("ngr", 30, false);
+    const result = calculate(plan, metrics);
+    // grossNgr = 100_000 + 5_000 + 2_000 + 3_000 = 110_000
+    // 30% of 110_000 = 33_000
+    expect(result.revshareAmountCents).toBe(33_000);
+    expect(result.resolvedSettings.ngrIncludesPaymentFees).toBe(false);
+  });
+
+  test("metric='ggr' overrides includePaymentFees entirely (GGR has no fee deduction)", () => {
+    const plan = revshare("ggr", 30, false);
+    const result = calculate(plan, metrics);
+    // GGR = 200_000, 30% = 60_000
+    expect(result.revshareAmountCents).toBe(60_000);
+  });
+
+  test("null metric + null includePaymentFees → inherits operator default (ngr, true)", () => {
+    const plan = revshare(null, 30, null);
+    const opDefaults = { revshareMetric: "ngr", ngrIncludesPaymentFees: true };
+    const result = calculate(plan, metrics, opDefaults);
+    expect(result.revshareAmountCents).toBe(30_000);
+    expect(result.resolvedSettings.revshareMetric).toBe("ngr");
+    expect(result.resolvedSettings.ngrIncludesPaymentFees).toBe(true);
+  });
+
+  test("null plan fields + operator 'ggr' default → 30% of GGR", () => {
+    const plan = revshare(null, 30, null);
+    const opDefaults = { revshareMetric: "ggr" };
+    const result = calculate(plan, metrics, opDefaults);
+    expect(result.revshareAmountCents).toBe(60_000); // 30% × 200_000
+  });
+
+  test("null plan fields + operator ngrIncludesPaymentFees=false → fees added back", () => {
+    const plan = revshare(null, 30, null);
+    const opDefaults = { revshareMetric: "ngr", ngrIncludesPaymentFees: false };
+    const result = calculate(plan, metrics, opDefaults);
+    expect(result.revshareAmountCents).toBe(33_000); // 30% × 110_000
+  });
+
+  test("plan override wins over operator default", () => {
+    const plan = revshare("ggr", 30, null); // explicit 'ggr'
+    const opDefaults = { revshareMetric: "ngr", ngrIncludesPaymentFees: true };
+    const result = calculate(plan, metrics, opDefaults);
+    expect(result.revshareAmountCents).toBe(60_000); // GGR path wins
   });
 });
