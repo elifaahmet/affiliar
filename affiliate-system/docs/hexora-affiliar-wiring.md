@@ -276,6 +276,61 @@ double-counts — the UI banner spells this out.
 
 ---
 
+## 6A. Commission engine settings (inherit hierarchy)
+
+[engine/commissionSettings.js](../affiliate-be/engine/commissionSettings.js)
+exposes `resolveCommissionSettings(plan, operatorDefaults)` — a pure
+three-level resolver (plan → operator default → hard default) used
+both by the main calc and the CPA qualifier.
+
+Controls live on [OperatorFinancialSettings.defaults](../affiliate-be/models/OperatorFinancialSettings.js):
+- `revshareMetric`         : `"ngr"` \| `"ggr"` (default `"ngr"`)
+- `ngrIncludesPaymentFees` : `bool`             (default `true`)
+- `depositBasis`           : `"gross"` \| `"net"` (default `"gross"`)
+- `minDepositCents`, `minWagerMultiple`, `minWagerCents`, `holdDays`,
+  `minCashRetentionCents` — CPA fraud gates, all nullable (null = gate
+  not enforced).
+
+[CommissionPlan.revshare.metric](../affiliate-be/models/CommissionPlan.js),
+`revshare.includePaymentFees`, and every `cpa.qualification.*` field
+are nullable. Null on the plan ≡ "inherit operator default". Explicit
+values on the plan win. Report snapshots store the resolved values
+under `planSnapshot.resolvedSettings` so historical reports stay
+reproducible when operators tweak defaults later.
+
+## 6B. CPA qualification gates
+
+[engine/cpaQualification.js](../affiliate-be/engine/cpaQualification.js)
+runs on each calculation, scores every FTD in the period against the
+resolved gates, and returns
+`{ qualified, pending, rejected, qualifiedFtds[], pendingFtds[], rejectedFtds[] }`.
+`cpaAmountCents` is derived from `qualifiedFtds` only.
+
+- **Rejected (permanent)**: `deposit < minDepositCents`. Gate loosening
+  on a later recalc can change the outcome — but the FTD itself
+  doesn't mature.
+- **Pending (time/activity-based)**: hold period not met, wager floor
+  not reached, or `lifetimeDeposits − lifetimeCashouts < floor`. The
+  next monthly recalc re-evaluates and may promote.
+- **Qualified**: passes every active gate.
+
+Data required per FTD (queried in
+[commissionController.fetchFtdContextRows](../affiliate-be/controllers/affiliate/commissionController.js)):
+
+| Field | Source |
+|---|---|
+| `depositCents` | FTD row's `ftd_sum_cents` |
+| `depositFeeCents` | FTD row's `deposit_fees_sum_cents` (for `depositBasis="net"`) |
+| `wagerSinceFtdCents` | `SUM(bets − bet_rollbacks) WHERE hour_bucket ≥ ftdDate` |
+| `cashoutsSinceFtdCents` | `SUM(cashouts) WHERE hour_bucket ≥ ftdDate` |
+| `depositsTotalCents` / `cashoutsTotalCents` | Lifetime per tenant, per player |
+
+Each `CommissionReport` carries `metrics.{qualified,pending,rejected}FtdCount`
+and a `ftdQualification[]` array with `{playerId, ftdDate, depositCents, status, reason}`.
+The reports tab surfaces a small "N✓" badge on any row whose FTDs aren't all qualified.
+
+---
+
 ## 7. FE surfaces
 
 | Page | Role | File |

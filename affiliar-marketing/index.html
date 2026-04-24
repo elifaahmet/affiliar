@@ -7,8 +7,8 @@
   <title>Affiliar — Affiliate Management Platform for iGaming Operators</title>
 
   <!-- ── SEO ──────────────────────────────────────────────────────── -->
-  <meta name="description" content="Affiliar is the complete affiliate management platform for iGaming operators. RevShare, CPA, Hybrid and Tiered commission plans, per-brand provider fee rules, multi-currency auto-normalization, real-time ClickHouse analytics, and automated payment workflows — all in one place." />
-  <meta name="keywords" content="affiliate management, iGaming affiliate, casino affiliate software, affiliate platform, RevShare, CPA, commission engine, affiliate tracking, iGaming operator, multi-brand fees, provider revenue share, chargeback FTD reversal, bonus tracking, FX normalization" />
+  <meta name="description" content="Affiliar is the complete affiliate management platform for iGaming operators. RevShare, CPA, Hybrid and Tiered commission plans with built-in CPA fraud gates (hold period, wager threshold, cash retention), per-brand provider fee rules, multi-currency auto-normalization, and real-time ClickHouse analytics." />
+  <meta name="keywords" content="affiliate management, iGaming affiliate, casino affiliate software, affiliate platform, RevShare, CPA, CPA fraud protection, qualification gates, hold period, wager threshold, commission engine, affiliate tracking, iGaming operator, multi-brand fees, provider revenue share, chargeback FTD reversal, bonus tracking, FX normalization" />
   <meta name="robots" content="index, follow" />
   <link rel="canonical" href="https://affiliar.co/" />
 
@@ -53,8 +53,11 @@
       "Tiered RevShare commission plans",
       "Sub-affiliate network with override commissions",
       "Per-brand, per-provider fee configuration",
+      "Deposit + withdrawal processor fees split separately",
       "Multi-currency with automatic FX normalization",
+      "CPA fraud gates (hold period, wager threshold, cash retention)",
       "Chargeback + FTD reversal for CPA integrity",
+      "Operator-default + per-plan inherit hierarchy",
       "Bonus tracking with revoke / expire support",
       "Real-time analytics powered by ClickHouse",
       "Kafka event ingestion",
@@ -404,13 +407,15 @@
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
           </div>
-          <h3 class="font-bold text-lg text-gray-900 mb-2">Fraud-Safe Commission Math</h3>
+          <h3 class="font-bold text-lg text-gray-900 mb-2">CPA Fraud Protection</h3>
           <p class="text-gray-500 text-sm leading-relaxed mb-4">
-            Chargebacks automatically reverse the matching FTD when the disputed deposit was a player's first — CPA commissions stay honest. Unused bonuses net out of NGR, admin corrections flow into the formula cleanly.
+            Five configurable gates catch the classic deposit-then-withdraw exploit. Hold periods, minimum deposits, wager thresholds, and net-cash-retention checks keep CPA payouts honest. Pending FTDs promote automatically once players accumulate activity.
           </p>
           <div class="flex flex-wrap gap-3 text-xs text-gray-500">
-            <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[10px]">✓</span> FTD reversal on chargeback</span>
-            <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[10px]">✓</span> Bonus revoke &amp; correction handling</span>
+            <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[10px]">✓</span> Min-deposit + hold period</span>
+            <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[10px]">✓</span> Wager floor (flat or Nx)</span>
+            <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[10px]">✓</span> Cash-retention gate</span>
+            <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[10px]">✓</span> Chargeback FTD reversal</span>
           </div>
         </div>
 
@@ -532,7 +537,7 @@
               </div>
               <div>
                 <p class="font-semibold text-sm text-gray-900 mb-1">CPA (Cost Per Acquisition)</p>
-                <p class="text-gray-500 text-sm">Fixed payout per qualifying FTD. Set minimum deposit thresholds.</p>
+                <p class="text-gray-500 text-sm">Fixed payout per qualifying FTD. Configurable fraud gates: min deposit, hold period, wager threshold (flat or Nx), cash-retention floor. Pending FTDs promote automatically on recalc.</p>
               </div>
             </div>
             <div class="flex gap-4">

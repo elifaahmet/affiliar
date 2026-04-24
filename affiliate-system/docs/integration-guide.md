@@ -561,7 +561,32 @@ Data models:
 | Collection | Fields | Notes |
 |------------|--------|-------|
 | `providerfeerates` | `operatorId`, `brandId?`, `providerId`, `ratePct` | Per-provider game-provider fee. `brandId = null` → operator default |
-| `operatorfinancialsettings` | `operatorId`, `brandId?`, `depositFeePercent`, `withdrawalFeePercent`, `jackpotFeePercent`, `casinoTaxPercent` | `depositFeePercent` applies to gross deposits, `withdrawalFeePercent` to gross cashouts, `jackpotFeePercent` to bets, `casinoTaxPercent` to GGR. Legacy `paymentSystemFeePercent` is still read as a fallback for unmigrated documents (treated as deposit fee). |
+| `operatorfinancialsettings` | `operatorId`, `brandId?`, `depositFeePercent`, `withdrawalFeePercent`, `jackpotFeePercent`, `casinoTaxPercent`, `defaults.*` | Fee percentages apply per category. Legacy `paymentSystemFeePercent` is still read as a fallback for unmigrated documents (treated as deposit fee). `defaults` holds commission-engine knobs and CPA fraud-gate defaults (see §13). |
+
+`GET /api/fees/settings` response shape:
+
+```json
+{
+  "settings": {
+    "depositFeePercent": 2.5,
+    "withdrawalFeePercent": 1.5,
+    "jackpotFeePercent": 0.75,
+    "casinoTaxPercent": 21,
+    "defaults": {
+      "revshareMetric": "ngr",
+      "ngrIncludesPaymentFees": true,
+      "depositBasis": "gross",
+      "minDepositCents": null,
+      "minWagerMultiple": null,
+      "minWagerCents": null,
+      "holdDays": null,
+      "minCashRetentionCents": null
+    }
+  }
+}
+```
+
+`defaults` feeds into every commission plan that leaves a matching field null ("inherit from operator default"). Plans override per-plan; operators set their house preference here once.
 
 ### 8.4 Affiliate portal
 
@@ -607,7 +632,51 @@ The `player.flagged` raw event (or the `playerStatuses.isDisabled = true` field 
 
 ---
 
-## 11. Error reference
+## 11. Commission engine
+
+Each commission plan's NGR-based math picks its base using a two-level inherit hierarchy (plan field → operator default → hard default). Any plan field left `null` falls through to the operator default set on `/api/fees/settings`:
+
+| Setting | Values | Default | Effect |
+|---|---|---|---|
+| `revshareMetric` | `"ngr"` \| `"ggr"` | `"ngr"` | Base for `%`-of-revenue plans (`revshare`, `hybrid`, `tiered_revshare`). |
+| `ngrIncludesPaymentFees` | `true` \| `false` | `true` | `false` adds deposit/withdrawal/payment-system fees back to NGR before the rate applies, i.e. "revshare on gross NGR — operator carries the processor cost". |
+| `depositBasis` | `"gross"` \| `"net"` | `"gross"` | Whether deposit amounts that feed into CPA qualification gates are face-value (gross) or after the processor fee (net). |
+
+The commission report's `planSnapshot.resolvedSettings` records exactly which values the engine used, so historical reports stay reproducible even if an operator later changes their defaults.
+
+---
+
+## 12. CPA qualification gates
+
+CPA plans pay a fixed commission per first-time depositor (FTD). Without protection, the classic fraud pattern is *deposit → withdraw → collect CPA*. Affiliar's qualification gates catch this: on every recalculation each FTD is scored against the configured gates and lands in one of three buckets.
+
+| Bucket | Meaning |
+|---|---|
+| **qualified** | Passes every active gate — included in the CPA payout. |
+| **pending**   | Fails at least one time- or activity-based gate (hold period not met, wager threshold short, cash retention low). A later recalc may promote it. |
+| **rejected**  | Permanently fails (deposit below minimum). Future recalcs won't change the outcome unless the operator loosens the gate. |
+
+Each report exposes `metrics.qualifiedFtdCount / pendingFtdCount / rejectedFtdCount` plus a `ftdQualification[]` array with one entry per player (status + human-readable `reason`). The commission amount is `qualifiedFtdCount × cpa.amountCents`.
+
+Gates (all nullable; `null` ≡ gate not enforced):
+
+| Field | Unit | Effect |
+|---|---|---|
+| `minDepositCents` | integer cents | Deposit below this → **rejected** (permanent). |
+| `minWagerCents` | integer cents | Flat wager floor since FTD → **pending**. |
+| `minWagerMultiple` | number | Must wager N× the deposit since FTD → **pending**. Combined with `minWagerCents`, the effective floor is `max(flat, multiple × deposit)`. |
+| `holdDays` | integer days | FTD must be at least N days old → **pending** until the clock catches up. |
+| `minCashRetentionCents` | integer cents | `lifetimeDeposits − lifetimeCashouts` must be ≥ N → **pending** (can recover if the player deposits more). |
+
+Each gate is settable at both the operator-default level (`/api/fees/settings`, `defaults.*`) and per-plan (`cpa.qualification.*`). Plan fields default to `null` so they inherit the operator default; setting a value per-plan overrides for that plan only.
+
+**Basis for minDeposit**: when `depositBasis = "net"`, the threshold check uses `depositCents − depositFeeCents`. Combined with the per-event `feeCents` override on `wallet.deposit.confirmed` (see raw-events doc), this lets operators enforce "deposits must be at least €X *after* processor costs".
+
+**Recommended operator workflow**: start with `minDepositCents` and `holdDays` alone. Add wager gates once you see chargeback or quick-withdraw patterns in pending reports. `minCashRetentionCents = 0` is a useful default once you observe the natural distribution of retained cash on your platform.
+
+---
+
+## 13. Error reference
 
 | HTTP Status | Meaning |
 |-------------|---------|
@@ -620,7 +689,7 @@ Per-record failures do not affect other records in the same batch. A response wi
 
 ---
 
-## 12. Onboarding checklist
+## 14. Onboarding checklist
 
 **Operator setup**
 - [ ] Receive your `tenantId` from Affiliar
