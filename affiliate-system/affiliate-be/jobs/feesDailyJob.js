@@ -3,6 +3,7 @@ const Operator = require("../models/Operator");
 const OperatorFinancialSettings = require("../models/OperatorFinancialSettings");
 const ProviderFeeRate = require("../models/ProviderFeeRate");
 const { logger } = require("../middlewares/logger");
+const { computeFeesForBucket } = require("./computeFees");
 
 // Runs at 00:10 UTC daily and computes yesterday's fees per
 // (operator, brand, affiliate, provider) from ClickHouse. Each row's
@@ -130,37 +131,30 @@ async function runForOperator(operator, operatorFinancials, bounds) {
 
   const deltaRows = [];
   for (const r of rows) {
-    const bets = Number(r.bets) || 0;
-    const wins = Number(r.wins) || 0;
-    const deposits = Number(r.deposits) || 0;
-    const cashouts = Number(r.cashouts) || 0;
-    const depositsFeeAttributed = Number(r.depositsFeeAttributed) || 0;
-    const cashoutsFeeAttributed = Number(r.cashoutsFeeAttributed) || 0;
-    const providerGgr = Math.max(0, bets - wins);
-
     const brandFinancials = resolveFinancials(r.brandId);
-    const depositPct = Number(
-      brandFinancials.depositFeePercent ??
-        brandFinancials.paymentSystemFeePercent ??
-        0,
-    );
-    const withdrawalPct = Number(brandFinancials.withdrawalFeePercent) || 0;
-    const jackpotPct = Number(brandFinancials.jackpotFeePercent) || 0;
-    const taxPct = Number(brandFinancials.casinoTaxPercent) || 0;
-
-    // Partial-mix aware: only apply rate to the portion of deposits/cashouts
-    // whose events did NOT carry feeCents. The attributed portion already
-    // has its fee stored in deposit_fees_sum_cents / withdrawal_fees_sum_cents
-    // from the consumer, so we must not double-count.
-    const depositRateBase = Math.max(0, deposits - depositsFeeAttributed);
-    const cashoutRateBase = Math.max(0, cashouts - cashoutsFeeAttributed);
-
-    const providerPct = resolveProviderPct(r.brandId, r.provider);
-    const gameProviderFees = Math.round((providerGgr * providerPct) / 100);
-    const depositFees = Math.round((depositRateBase * depositPct) / 100);
-    const withdrawalFees = Math.round((cashoutRateBase * withdrawalPct) / 100);
-    const jackpotFees = Math.round((bets * jackpotPct) / 100);
-    const casinoTaxes = Math.round((providerGgr * taxPct) / 100);
+    const { gameProviderFees, depositFees, withdrawalFees, jackpotFees, casinoTaxes } =
+      computeFeesForBucket(
+        {
+          bets: r.bets,
+          wins: r.wins,
+          deposits: r.deposits,
+          cashouts: r.cashouts,
+          depositsFeeAttributed: r.depositsFeeAttributed,
+          cashoutsFeeAttributed: r.cashoutsFeeAttributed,
+        },
+        {
+          // depositFeePercent gained its own column in the model; read the
+          // legacy paymentSystemFeePercent as a fallback for documents that
+          // predate the migration.
+          depositFeePercent:
+            brandFinancials.depositFeePercent ??
+            brandFinancials.paymentSystemFeePercent,
+          withdrawalFeePercent: brandFinancials.withdrawalFeePercent,
+          jackpotFeePercent:    brandFinancials.jackpotFeePercent,
+          casinoTaxPercent:     brandFinancials.casinoTaxPercent,
+          providerFeePercent:   resolveProviderPct(r.brandId, r.provider),
+        },
+      );
 
     if (
       !gameProviderFees &&

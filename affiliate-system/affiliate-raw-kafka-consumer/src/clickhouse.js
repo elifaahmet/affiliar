@@ -64,7 +64,7 @@ function buildRawRow(event) {
   };
 }
 
-function buildDeltaRow(event, data, affiliateId = '') {
+export function buildDeltaRow(event, data, affiliateId = '') {
   const base = {
     tenant_id:       event.tenantId,
     brand_id:        event.brandId,
