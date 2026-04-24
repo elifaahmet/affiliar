@@ -140,6 +140,12 @@ exports.getFinancialSettings = async (req, res) => {
         revshareMetric:         raw.defaults?.revshareMetric ?? "ngr",
         ngrIncludesPaymentFees: raw.defaults?.ngrIncludesPaymentFees ?? true,
         depositBasis:           raw.defaults?.depositBasis ?? "gross",
+        // CPA qualification gate defaults. Null ≡ not enforced.
+        minDepositCents:        raw.defaults?.minDepositCents ?? null,
+        minWagerMultiple:       raw.defaults?.minWagerMultiple ?? null,
+        minWagerCents:          raw.defaults?.minWagerCents ?? null,
+        holdDays:               raw.defaults?.holdDays ?? null,
+        minCashRetentionCents:  raw.defaults?.minCashRetentionCents ?? null,
       },
     };
     res.json({ settings });
@@ -206,6 +212,28 @@ exports.updateFinancialSettings = async (req, res) => {
           return res.status(400).json({ error: "depositBasis must be 'gross' or 'net'" });
         }
         update["defaults.depositBasis"] = defaults.depositBasis;
+      }
+
+      // Gate defaults — null (or missing) disables the gate. Any non-null
+      // value must be a non-negative number.
+      const gateKeys = [
+        "minDepositCents",
+        "minWagerMultiple",
+        "minWagerCents",
+        "holdDays",
+        "minCashRetentionCents",
+      ];
+      for (const k of gateKeys) {
+        if (defaults[k] === undefined) continue;
+        if (defaults[k] === null) {
+          update[`defaults.${k}`] = null;
+          continue;
+        }
+        const n = Number(defaults[k]);
+        if (!Number.isFinite(n) || n < 0) {
+          return res.status(400).json({ error: `${k} must be a non-negative number or null` });
+        }
+        update[`defaults.${k}`] = n;
       }
     }
 

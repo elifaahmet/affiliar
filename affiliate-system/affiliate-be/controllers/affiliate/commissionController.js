@@ -4,7 +4,9 @@ const AffiliateProfile         = require("../../models/AffiliateProfile");
 const User                     = require("../../models/User");
 const OperatorFinancialSettings = require("../../models/OperatorFinancialSettings");
 const clickhouse               = require("../../config/clickhouse");
-const { calculate }            = require("../../engine/commissionEngine");
+const { calculate }             = require("../../engine/commissionEngine");
+const { checkCpaQualification } = require("../../engine/cpaQualification");
+const { resolveCommissionSettings } = require("../../engine/commissionSettings");
 
 // ── ClickHouse helpers ────────────────────────────────────────────────────────
 
@@ -64,6 +66,82 @@ async function fetchAffiliateMetrics(tenantId, year, month) {
     paymentSystemFeesCents: Number(r.paymentSystemFeesCents) || 0,
     registrations:          Number(r.registrations),
     playerCount:            Number(r.playerCount),
+  }));
+}
+
+/**
+ * Per-FTD context grouped by (affiliate, player, ftd_hour).
+ *
+ * For each FTD that falls inside the period we load:
+ *   - the FTD amount + its processor fee (for the net/gross basis gate)
+ *   - cumulative wager the player has produced since the FTD
+ *   - cumulative cashouts since the FTD
+ *   - lifetime net cash position (deposits − cashouts across all time,
+ *     scoped to this tenant). Used by the cash-retention gate.
+ *
+ * The time-since-FTD windows extend to "now" (not to period end) so a
+ * future recalc of the same period promotes FTDs as they accumulate more
+ * activity or cross the hold-period threshold.
+ */
+async function fetchFtdContextRows(tenantId, year, month) {
+  const { fromTs, toTs } = periodRange(year, month);
+
+  const sql = `
+    WITH ftds AS (
+      SELECT
+        affiliate_id,
+        player_id,
+        hour_bucket                   AS ftd_date,
+        SUM(ftd_sum_cents)            AS deposit_cents,
+        SUM(deposit_fees_sum_cents)   AS deposit_fee_cents
+      FROM affiliate.activity_hourly_delta
+      WHERE tenant_id = {tenantId:String}
+        AND hour_bucket >= {fromTs:DateTime}
+        AND hour_bucket <= {toTs:DateTime}
+        AND ftd_count > 0
+        AND player_id != '__fees__'
+      GROUP BY affiliate_id, player_id, hour_bucket
+    )
+    SELECT
+      f.affiliate_id                                           AS affiliateId,
+      f.player_id                                              AS playerId,
+      f.ftd_date                                               AS ftdDate,
+      f.deposit_cents                                          AS depositCents,
+      f.deposit_fee_cents                                      AS depositFeeCents,
+      SUM(if(a.hour_bucket >= f.ftd_date,
+             toInt64(a.bets_sum_cents) - toInt64(a.casino_bets_rollbacks_sum_cents),
+             toInt64(0))) AS wagerSinceFtdCents,
+      SUM(if(a.hour_bucket >= f.ftd_date,
+             toInt64(a.cashouts_sum_cents),
+             toInt64(0))) AS cashoutsSinceFtdCents,
+      SUM(toInt64(a.deposits_sum_cents)) AS depositsTotalCents,
+      SUM(toInt64(a.cashouts_sum_cents)) AS cashoutsTotalCents
+    FROM ftds f
+    LEFT JOIN affiliate.activity_hourly_delta a
+      ON a.tenant_id = {tenantId:String}
+     AND a.player_id = f.player_id
+     AND a.player_id != '__fees__'
+    GROUP BY f.affiliate_id, f.player_id, f.ftd_date,
+             f.deposit_cents, f.deposit_fee_cents
+  `;
+
+  const result = await clickhouse.query({
+    query: sql,
+    query_params: { tenantId, fromTs, toTs },
+    format: "JSONEachRow",
+  });
+  const rows = await result.json();
+
+  return rows.map((r) => ({
+    affiliateId:           r.affiliateId,
+    playerId:              r.playerId,
+    ftdDate:               r.ftdDate,
+    depositCents:          Number(r.depositCents) || 0,
+    depositFeeCents:       Number(r.depositFeeCents) || 0,
+    wagerSinceFtdCents:    Math.max(0, Number(r.wagerSinceFtdCents) || 0),
+    cashoutsSinceFtdCents: Math.max(0, Number(r.cashoutsSinceFtdCents) || 0),
+    depositsTotalCents:    Math.max(0, Number(r.depositsTotalCents) || 0),
+    cashoutsTotalCents:    Math.max(0, Number(r.cashoutsTotalCents) || 0),
   }));
 }
 
@@ -277,6 +355,20 @@ const reportController = {
       }).lean();
       const operatorDefaults = operatorFinancials?.defaults || {};
 
+      // Per-FTD context for CPA qualification gates. One query for the
+      // whole tenant — we bucket by affiliate downstream.
+      const ftdContextRows = await fetchFtdContextRows(
+        operator.operatorId.toString(),
+        y,
+        m,
+      );
+      const ftdContextByAffiliate = new Map();
+      for (const f of ftdContextRows) {
+        const list = ftdContextByAffiliate.get(f.affiliateId) || [];
+        list.push(f);
+        ftdContextByAffiliate.set(f.affiliateId, list);
+      }
+
       // Resolve User IDs from ClickHouse affiliateId strings
       const affiliateProfiles = await AffiliateProfile.find({
         operatorUser: operator._id,
@@ -338,8 +430,20 @@ const reportController = {
           let planId     = null;
           let planSnap   = null;
 
+          // Run CPA qualification gates so the engine pays only on FTDs
+          // that pass. Done per-affiliate using the FTD rows bucketed above.
+          // If gates are all disabled the qualifier returns qualified=ftdCount,
+          // matching the pre-A behavior.
+          const ftdRows = ftdContextByAffiliate.get(row.affiliateId) || [];
+          const resolvedSettings = resolveCommissionSettings(plan, operatorDefaults);
+          const qualification = checkCpaQualification(ftdRows, resolvedSettings);
+
           if (plan) {
-            breakdown = calculate(plan, row, operatorDefaults);
+            breakdown = calculate(
+              plan,
+              { ...row, qualifiedFtdCount: qualification.qualified },
+              operatorDefaults,
+            );
             planId    = plan._id;
             planSnap  = {
               _id:      plan._id,
@@ -360,11 +464,29 @@ const reportController = {
             ggrCents:      row.ggrCents,
             ngrCents:      row.ngrCents,
             ftdCount:      row.ftdCount,
+            qualifiedFtdCount: qualification.qualified,
+            pendingFtdCount:   qualification.pending,
+            rejectedFtdCount:  qualification.rejected,
             depositsCount: row.depositsCount,
             depositsCents: row.depositsCents,
             playerCount:   row.playerCount,
             registrations: row.registrations,
           };
+
+          // Flatten per-player qualification outcomes for the report. Keeps
+          // the "why wasn't this FTD paid?" answer close to the commission
+          // row itself.
+          const ftdQualification = [
+            ...qualification.qualifiedFtds.map((f) => ({ ...f, status: "qualified" })),
+            ...qualification.pendingFtds.map((f) => ({ ...f, status: "pending" })),
+            ...qualification.rejectedFtds.map((f) => ({ ...f, status: "rejected" })),
+          ].map((f) => ({
+            playerId:     f.playerId,
+            ftdDate:      f.ftdDate,
+            depositCents: f.depositCents,
+            status:       f.status,
+            reason:       f.reason,
+          }));
 
           const fullBreakdown = {
             ...breakdown,
@@ -382,6 +504,7 @@ const reportController = {
                   planId,
                   planSnapshot: planSnap,
                   metrics,
+                  ftdQualification,
                   breakdown: fullBreakdown,
                   status: "draft",
                   calculatedAt: new Date(),
@@ -401,6 +524,7 @@ const reportController = {
               planSnapshot:  planSnap,
               period: { year: y, month: m },
               metrics,
+              ftdQualification,
               breakdown: fullBreakdown,
               overrideFromSubs: [],
               status: "draft",

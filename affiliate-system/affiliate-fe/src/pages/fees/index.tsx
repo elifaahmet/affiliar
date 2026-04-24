@@ -20,6 +20,11 @@ interface Settings {
     revshareMetric: 'ngr' | 'ggr';
     ngrIncludesPaymentFees: boolean;
     depositBasis: 'gross' | 'net';
+    minDepositCents: number | null;
+    minWagerMultiple: number | null;
+    minWagerCents: number | null;
+    holdDays: number | null;
+    minCashRetentionCents: number | null;
   };
 }
 
@@ -57,6 +62,21 @@ function SettingsForm({ scope }: { scope: Scope }) {
     setErr(null);
     const form = new FormData(e.currentTarget);
     try {
+      // Blank gate inputs stay null (inherit disabled). Dollar fields
+      // convert to cents before submit.
+      const gateFromCents = (name: string) => {
+        const v = form.get(name);
+        if (v == null || v === '') return null;
+        const n = Number(v);
+        return Number.isFinite(n) ? Math.round(n * 100) : null;
+      };
+      const gateNumber = (name: string) => {
+        const v = form.get(name);
+        if (v == null || v === '') return null;
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+      };
+
       await baseService.update(FEES_API_URLS.SETTINGS(), {
         brandId: scope,
         depositFeePercent: Number(form.get('deposit') ?? 0),
@@ -70,6 +90,11 @@ function SettingsForm({ scope }: { scope: Scope }) {
           revshareMetric: String(form.get('revshareMetric') ?? 'ngr'),
           ngrIncludesPaymentFees: form.get('ngrIncludesPaymentFees') === 'true',
           depositBasis: String(form.get('depositBasis') ?? 'gross'),
+          minDepositCents:       gateFromCents('minDeposit'),
+          minWagerCents:         gateFromCents('minWager'),
+          minWagerMultiple:      gateNumber('minWagerMultiple'),
+          holdDays:              gateNumber('holdDays'),
+          minCashRetentionCents: gateFromCents('minCashRetention'),
         },
       });
       qc.invalidateQueries({ queryKey: ['fees-settings', scope] });
@@ -141,6 +166,50 @@ function SettingsForm({ scope }: { scope: Scope }) {
               hint='Used by CPA qualification gates'
             />
           </div>
+
+          <div>
+            <p className='text-xs font-semibold text-gray-700 mt-4'>CPA qualification gates</p>
+            <p className='text-xs text-gray-500 mt-0.5'>
+              Operator-wide defaults. Blank = gate not enforced. Individual
+              plans can override (or leave blank to inherit).
+            </p>
+          </div>
+          <div className='grid grid-cols-2 sm:grid-cols-3 gap-4'>
+            <GateInput
+              key={`md-${scope}`}
+              label='Min deposit ($)'
+              name='minDeposit'
+              defaultValue={s?.defaults?.minDepositCents}
+              fromCents
+            />
+            <GateInput
+              key={`mw-${scope}`}
+              label='Min wager ($)'
+              name='minWager'
+              defaultValue={s?.defaults?.minWagerCents}
+              fromCents
+            />
+            <GateInput
+              key={`mwm-${scope}`}
+              label='Min wager × deposit'
+              name='minWagerMultiple'
+              defaultValue={s?.defaults?.minWagerMultiple}
+              step={0.1}
+            />
+            <GateInput
+              key={`hd-${scope}`}
+              label='Hold period (days)'
+              name='holdDays'
+              defaultValue={s?.defaults?.holdDays}
+            />
+            <GateInput
+              key={`cr-${scope}`}
+              label='Min net cash retained ($)'
+              name='minCashRetention'
+              defaultValue={s?.defaults?.minCashRetentionCents}
+              fromCents
+            />
+          </div>
         </div>
       )}
       {err && <p className='text-sm text-red-500'>{err}</p>}
@@ -171,6 +240,35 @@ function NumberInput({ label, name, defaultValue, hint }: {
         className='border border-gray-200 rounded px-3 py-2 text-sm'
       />
       {hint && <span className='text-xs text-gray-400'>{hint}</span>}
+    </label>
+  );
+}
+
+function GateInput({ label, name, defaultValue, fromCents, step }: {
+  label: string;
+  name: string;
+  defaultValue: number | null | undefined;
+  fromCents?: boolean;
+  step?: number;
+}) {
+  const display =
+    defaultValue == null
+      ? ''
+      : fromCents
+        ? String(defaultValue / 100)
+        : String(defaultValue);
+  return (
+    <label className='flex flex-col gap-1'>
+      <span className='text-xs font-medium text-gray-700'>{label}</span>
+      <input
+        type='number'
+        name={name}
+        min={0}
+        step={step ?? 1}
+        defaultValue={display}
+        placeholder='Disabled'
+        className='border border-gray-200 rounded px-3 py-2 text-sm'
+      />
     </label>
   );
 }

@@ -40,7 +40,14 @@ interface CommissionPlan {
   cpa: {
     amountCents: number;
     currency: string;
-    qualification?: { depositBasis: 'gross' | 'net' | null };
+    qualification?: {
+      depositBasis: 'gross' | 'net' | null;
+      minDepositCents: number | null;
+      minWagerMultiple: number | null;
+      minWagerCents: number | null;
+      holdDays: number | null;
+      minCashRetentionCents: number | null;
+    };
   };
   tiers: Tier[];
   notes: string | null;
@@ -55,8 +62,18 @@ interface CommissionReport {
   period: { year: number; month: number };
   metrics: {
     ggrCents: number; ngrCents: number; ftdCount: number;
+    qualifiedFtdCount?: number;
+    pendingFtdCount?: number;
+    rejectedFtdCount?: number;
     depositsCount: number; depositsCents: number; playerCount: number; registrations: number;
   };
+  ftdQualification?: {
+    playerId: string;
+    ftdDate: string;
+    depositCents: number;
+    status: 'qualified' | 'pending' | 'rejected';
+    reason: string;
+  }[];
   breakdown: { revshareAmountCents: number; cpaAmountCents: number; totalCents: number };
   status: ReportStatus;
   calculatedAt: string | null;
@@ -132,7 +149,14 @@ const EMPTY_PLAN = {
   cpa: {
     amountCents: 5000,
     currency: 'USD',
-    qualification: { depositBasis: null as 'gross' | 'net' | null },
+    qualification: {
+      depositBasis: null as 'gross' | 'net' | null,
+      minDepositCents: null as number | null,
+      minWagerMultiple: null as number | null,
+      minWagerCents: null as number | null,
+      holdDays: null as number | null,
+      minCashRetentionCents: null as number | null,
+    },
   },
   tiers: [] as Tier[],
   notes: '',
@@ -156,7 +180,14 @@ function PlanModal({
           cpa: {
             amountCents: plan.cpa?.amountCents ?? 0,
             currency: plan.cpa?.currency ?? 'USD',
-            qualification: { depositBasis: plan.cpa?.qualification?.depositBasis ?? null },
+            qualification: {
+              depositBasis:          plan.cpa?.qualification?.depositBasis ?? null,
+              minDepositCents:       plan.cpa?.qualification?.minDepositCents ?? null,
+              minWagerMultiple:      plan.cpa?.qualification?.minWagerMultiple ?? null,
+              minWagerCents:         plan.cpa?.qualification?.minWagerCents ?? null,
+              holdDays:              plan.cpa?.qualification?.holdDays ?? null,
+              minCashRetentionCents: plan.cpa?.qualification?.minCashRetentionCents ?? null,
+            },
           },
           tiers: plan.tiers.map((t) => ({ ...t })),
           notes: plan.notes ?? '',
@@ -195,6 +226,16 @@ function PlanModal({
 
   function setField(key: string, val: any) {
     setForm((f) => ({ ...f, [key]: val }));
+  }
+
+  function updateQual(key: string, val: number | null) {
+    setForm((f) => ({
+      ...f,
+      cpa: {
+        ...f.cpa,
+        qualification: { ...(f.cpa.qualification ?? {}), [key]: val },
+      },
+    }));
   }
 
   function addTier() {
@@ -367,10 +408,52 @@ function PlanModal({
                   <option value='gross'>Gross — face-value deposit</option>
                   <option value='net'>Net — deposit after processor fee</option>
                 </select>
-                <p className='text-[11px] text-gray-500 mt-1'>
-                  Consumed by CPA qualification gates (separate release). Stored
-                  now so operator intent is captured.
-                </p>
+              </div>
+
+              <div className='border-t border-green-200 pt-3 space-y-3'>
+                <div>
+                  <p className='text-xs font-semibold text-green-800'>Qualification gates</p>
+                  <p className='text-[11px] text-gray-500 mt-0.5'>
+                    Leave a field blank to inherit the operator default (Fees
+                    page). FTDs that fail any active gate stay pending and
+                    can promote on the next recalc.
+                  </p>
+                </div>
+                <div className='grid grid-cols-2 sm:grid-cols-3 gap-3'>
+                  <GateInput
+                    label='Min deposit ($)'
+                    value={form.cpa.qualification?.minDepositCents ?? null}
+                    onChange={(v) => updateQual('minDepositCents', v)}
+                    step={1}
+                    fromCents
+                  />
+                  <GateInput
+                    label='Min wager ($)'
+                    value={form.cpa.qualification?.minWagerCents ?? null}
+                    onChange={(v) => updateQual('minWagerCents', v)}
+                    step={1}
+                    fromCents
+                  />
+                  <GateInput
+                    label='Min wager × deposit'
+                    value={form.cpa.qualification?.minWagerMultiple ?? null}
+                    onChange={(v) => updateQual('minWagerMultiple', v)}
+                    step={0.1}
+                  />
+                  <GateInput
+                    label='Hold period (days)'
+                    value={form.cpa.qualification?.holdDays ?? null}
+                    onChange={(v) => updateQual('holdDays', v)}
+                    step={1}
+                  />
+                  <GateInput
+                    label='Min net cash retained ($)'
+                    value={form.cpa.qualification?.minCashRetentionCents ?? null}
+                    onChange={(v) => updateQual('minCashRetentionCents', v)}
+                    step={1}
+                    fromCents
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -453,6 +536,41 @@ function PlanModal({
         </form>
       </div>
     </div>
+  );
+}
+
+// A number input where blank === null ("inherit operator default"). If
+// `fromCents` is true the value is stored as integer cents but displayed
+// in dollars.
+function GateInput({
+  label, value, onChange, step, fromCents,
+}: {
+  label: string;
+  value: number | null;
+  onChange: (v: number | null) => void;
+  step?: number;
+  fromCents?: boolean;
+}) {
+  const display = value == null ? '' : fromCents ? (value / 100).toString() : String(value);
+  return (
+    <label className='flex flex-col gap-1'>
+      <span className='text-xs text-gray-600'>{label}</span>
+      <input
+        type='number'
+        min={0}
+        step={step ?? 1}
+        value={display}
+        placeholder='Inherit'
+        onChange={(e) => {
+          const raw = e.target.value;
+          if (raw === '') return onChange(null);
+          const n = Number(raw);
+          if (!Number.isFinite(n)) return;
+          onChange(fromCents ? Math.round(n * 100) : n);
+        }}
+        className='text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary bg-white'
+      />
+    </label>
   );
 }
 
@@ -722,7 +840,17 @@ function ReportsTab() {
                             : <span className='text-xs text-gray-400'>No plan</span>}
                         </td>
                         <td className='px-4 py-2.5 text-xs text-gray-700 border-r border-gray-100 text-right'>{r.metrics.playerCount}</td>
-                        <td className='px-4 py-2.5 text-xs text-gray-700 border-r border-gray-100 text-right'>{r.metrics.ftdCount}</td>
+                        <td className='px-4 py-2.5 text-xs text-gray-700 border-r border-gray-100 text-right'>
+                          <span>{r.metrics.ftdCount}</span>
+                          {(r.metrics.pendingFtdCount ?? 0) + (r.metrics.rejectedFtdCount ?? 0) > 0 && (
+                            <span
+                              className='ml-1 inline-flex items-center px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 text-[10px] font-semibold'
+                              title={`Qualified ${r.metrics.qualifiedFtdCount ?? 0} · Pending ${r.metrics.pendingFtdCount ?? 0} · Rejected ${r.metrics.rejectedFtdCount ?? 0}`}
+                            >
+                              {r.metrics.qualifiedFtdCount ?? 0}✓
+                            </span>
+                          )}
+                        </td>
                         <td className='px-4 py-2.5 text-xs text-gray-700 border-r border-gray-100 text-right'>{cents(r.metrics.ggrCents)}</td>
                         <td className='px-4 py-2.5 text-xs text-gray-700 border-r border-gray-100 text-right'>{cents(r.metrics.ngrCents)}</td>
                         <td className='px-4 py-2.5 text-xs text-gray-700 border-r border-gray-100 text-right'>{cents(r.breakdown.revshareAmountCents)}</td>

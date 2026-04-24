@@ -52,13 +52,23 @@ const operatorFinancialSettingsSchema = new mongoose.Schema(
         type: Boolean,
         default: true,
       },
-      // For CPA qualification gates (separate PR): whether the deposit
-      // amount that counts is gross (face value) or net of processor fees.
+      // For CPA qualification gates: whether the deposit amount that
+      // counts is gross (face value) or net of processor fees.
       depositBasis: {
         type: String,
         enum: ["gross", "net"],
         default: "gross",
       },
+      // CPA qualification gate defaults. Each is nullable: null ≡ "gate
+      // not enforced by default". Plans can override per-plan to either
+      // enable (set a value) or explicitly disable (no plan-level way
+      // to force-disable a gate the operator enabled — that's fine, the
+      // operator can simply loosen the value).
+      minDepositCents:       { type: Number, default: null, min: 0 },
+      minWagerMultiple:      { type: Number, default: null, min: 0 },
+      minWagerCents:         { type: Number, default: null, min: 0 },
+      holdDays:              { type: Number, default: null, min: 0 },
+      minCashRetentionCents: { type: Number, default: null, min: 0 },
     },
   },
   { timestamps: true },

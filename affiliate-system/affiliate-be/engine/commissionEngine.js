@@ -19,10 +19,15 @@ const { resolveCommissionSettings } = require("./commissionSettings");
  * @param {object} plan  CommissionPlan document (or plain object)
  * @param {object} metrics
  *   { ggrCents, ngrCents, ftdCount,
+ *     qualifiedFtdCount?,   // from CPA qualification step; falls back to ftdCount
  *     depositFeesCents, withdrawalFeesCents, paymentSystemFeesCents }
  * @param {object} [operatorDefaults]  OperatorFinancialSettings.defaults
  * @returns {{ revshareAmountCents: number, cpaAmountCents: number,
  *            totalCents: number, resolvedSettings: object }}
+ *
+ * If any CPA qualification gate is active, pass `qualifiedFtdCount` —
+ * only those FTDs generate CPA. Without it we fall back to the raw
+ * `ftdCount` (preserves old behavior for callers that don't gate).
  */
 function calculate(plan, metrics, operatorDefaults = {}) {
   const settings = resolveCommissionSettings(plan, operatorDefaults);
@@ -30,7 +35,12 @@ function calculate(plan, metrics, operatorDefaults = {}) {
   let revshareAmountCents = 0;
   let cpaAmountCents = 0;
 
-  const { ftdCount = 0 } = metrics;
+  // Prefer the qualified count when the caller has already run gates.
+  const ftdCountForCpa =
+    metrics.qualifiedFtdCount !== undefined
+      ? metrics.qualifiedFtdCount
+      : metrics.ftdCount || 0;
+
   const base = computeRevshareBase(metrics, settings);
 
   switch (plan.type) {
@@ -40,13 +50,13 @@ function calculate(plan, metrics, operatorDefaults = {}) {
     }
 
     case "cpa": {
-      cpaAmountCents = calcCpa(plan.cpa, ftdCount);
+      cpaAmountCents = calcCpa(plan.cpa, ftdCountForCpa);
       break;
     }
 
     case "hybrid": {
       revshareAmountCents = calcRevshare(plan.revshare, base);
-      cpaAmountCents      = calcCpa(plan.cpa, ftdCount);
+      cpaAmountCents      = calcCpa(plan.cpa, ftdCountForCpa);
       break;
     }
 

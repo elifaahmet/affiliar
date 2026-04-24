@@ -50,10 +50,31 @@ const commissionReportSchema = new mongoose.Schema(
       ggrCents:        { type: Number, default: 0 },
       ngrCents:        { type: Number, default: 0 },
       ftdCount:        { type: Number, default: 0 },
+      // Breakdown of ftdCount after CPA qualification gates ran.
+      // qualified + pending + rejected === ftdCount.
+      qualifiedFtdCount: { type: Number, default: 0 },
+      pendingFtdCount:   { type: Number, default: 0 },
+      rejectedFtdCount:  { type: Number, default: 0 },
       depositsCount:   { type: Number, default: 0 },
       depositsCents:   { type: Number, default: 0 },
       playerCount:     { type: Number, default: 0 },
       registrations:   { type: Number, default: 0 },
+    },
+
+    // Why each non-qualified FTD failed — one entry per pending/rejected
+    // player. Lets the operator surface "waiting for wager" / "deposit
+    // below min" in the UI and debug commission disputes.
+    ftdQualification: {
+      type: [
+        {
+          playerId:     { type: String },
+          ftdDate:      { type: Date },
+          depositCents: { type: Number },
+          status:       { type: String, enum: ["qualified", "pending", "rejected"] },
+          reason:       { type: String }, // e.g. "hold_period_not_met"
+        },
+      ],
+      default: [],
     },
 
     // Calculated commission amounts

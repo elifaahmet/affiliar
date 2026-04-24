@@ -18,13 +18,24 @@ const HARD_DEFAULTS = Object.freeze({
   revshareMetric: "ngr",
   ngrIncludesPaymentFees: true,
   depositBasis: "gross",
+  // CPA qualification gates: null ≡ gate disabled. Safe defaults so an
+  // operator who has never touched the settings still pays CPA on
+  // every FTD the way the product used to work.
+  minDepositCents:       null,
+  minWagerMultiple:      null,
+  minWagerCents:         null,
+  holdDays:              null,
+  minCashRetentionCents: null,
 });
 
 function pick(...values) {
   for (const v of values) {
     if (v !== null && v !== undefined) return v;
   }
-  return undefined;
+  // Everything is null/undefined. Return the last arg explicitly so
+  // nullable gates (where the hard default is itself null) resolve to
+  // `null` instead of `undefined`.
+  return values.length ? values[values.length - 1] : undefined;
 }
 
 function resolveCommissionSettings(plan, operatorDefaults) {
@@ -48,6 +59,33 @@ function resolveCommissionSettings(plan, operatorDefaults) {
       cpaQual.depositBasis,
       opDefaults.depositBasis,
       HARD_DEFAULTS.depositBasis,
+    ),
+    // CPA qualification gates. Each resolves independently so operators
+    // can enable some gates globally and others per-plan.
+    minDepositCents: pick(
+      cpaQual.minDepositCents,
+      opDefaults.minDepositCents,
+      HARD_DEFAULTS.minDepositCents,
+    ),
+    minWagerMultiple: pick(
+      cpaQual.minWagerMultiple,
+      opDefaults.minWagerMultiple,
+      HARD_DEFAULTS.minWagerMultiple,
+    ),
+    minWagerCents: pick(
+      cpaQual.minWagerCents,
+      opDefaults.minWagerCents,
+      HARD_DEFAULTS.minWagerCents,
+    ),
+    holdDays: pick(
+      cpaQual.holdDays,
+      opDefaults.holdDays,
+      HARD_DEFAULTS.holdDays,
+    ),
+    minCashRetentionCents: pick(
+      cpaQual.minCashRetentionCents,
+      opDefaults.minCashRetentionCents,
+      HARD_DEFAULTS.minCashRetentionCents,
     ),
   };
 }

@@ -91,16 +91,36 @@ const commissionPlanSchema = new mongoose.Schema(
         type: String,
         default: "USD",
       },
-      // Qualification rules consumed by a future PR (CPA fraud gates).
-      // Stored now so the FE form can capture operator intent.
+      // CPA fraud gates. Each field is independently configurable; null
+      // means "inherit from operator default". Gates are evaluated at
+      // commission-calculation time — FTDs that fail a gate stay in
+      // `pending` and may promote on a later recalc once the player
+      // accumulates enough activity (or the hold period elapses).
       qualification: {
         // Gross = face-value deposit. Net = deposit after processor fee.
-        // null → inherit operator default.
+        // null → inherit operator default. Applied to minDepositCents +
+        // minWagerMultiple (since multiple is relative to the deposit).
         depositBasis: {
           type: String,
           enum: ["gross", "net", null],
           default: null,
         },
+        // Deposit below this amount → FTD rejected outright.
+        // (Low-value deposit abuse, prevents €1 FTD → €50 CPA exploit.)
+        minDepositCents: { type: Number, default: null, min: 0 },
+        // Player must wager at least this many times the deposit amount
+        // before the CPA qualifies. Example: 3 → must wager 3× deposit.
+        minWagerMultiple: { type: Number, default: null, min: 0 },
+        // Flat wager floor — useful when the operator wants a minimum
+        // dollar volume independent of deposit size.
+        minWagerCents: { type: Number, default: null, min: 0 },
+        // Wait period before the CPA qualifies. Gives chargebacks /
+        // withdrawals time to surface before affiliate payout.
+        holdDays: { type: Number, default: null, min: 0 },
+        // Player's net cash position must be at least this much.
+        // Measured as deposits − cashouts over the affiliate's lifetime
+        // for that player. Catches deposit-then-withdraw fraud.
+        minCashRetentionCents: { type: Number, default: null, min: 0 },
       },
     },
 
