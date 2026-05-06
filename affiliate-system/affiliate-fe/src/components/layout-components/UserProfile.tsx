@@ -1,8 +1,19 @@
-import React from 'react';
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowRightOnRectangleIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 import { useAppDispatch, useAppSelector } from 'hooks/redux';
 import { logoutUser } from 'store/auth/authenticationSlice';
+
+function initials(source?: string | null) {
+  if (!source) return '';
+  return source
+    .split(/[\s@.]/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
 
 function UserProfile() {
   const { email, userId, name } = useAppSelector((state) => state.auth);
@@ -33,67 +44,53 @@ function UserProfile() {
     dispatch(logoutUser());
   };
 
+  const avatarLetters = initials(name || email);
+
   return (
     <>
       <button
         ref={buttonRef}
         onClick={() => setProfileVisible(!isProfileVisible)}
-        className="flex items-center relative cursor-pointer w-9 h-9 rounded-full focus:outline-none hover:ring-2 hover:ring-offset-2 hover:ring-primary focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+        className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-dark text-sm font-semibold text-white shadow-sm shadow-primary/30 ring-1 ring-white/40 transition-shadow hover:shadow-md hover:shadow-primary/40 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+        aria-label="Account menu"
       >
-        {/* <img
-          alt=""
-          src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-          className="h-9 w-9 rounded-full bg-gray-50"
-        /> */}
-        <div className="h-9 w-9 rounded-full text-white font-extrabold bg-primary text-lg justify-start content-center">
-          {email
-            ?.split(' ')
-            .map((email) => email[0])
-            .join('')
-            .toUpperCase()}
-        </div>
+        {avatarLetters}
       </button>
 
       {isProfileVisible && (
         <div
-          className="flex flex-col absolute w-[350px] top-[70px] right-8 shrink-0 rounded-[10px] bg-white shadow-md z-50"
+          className="absolute right-8 top-[68px] z-50 flex w-[300px] flex-col overflow-hidden rounded-xl border border-violet-100 bg-white/95 shadow-xl shadow-violet-200/30 backdrop-blur-md"
           ref={ref}
         >
-          <div className="h-[108px] flex flex-row items-center pl-6 border-b border-b-gray-300 gap-4 w-full">
-            {/* <img
-              alt=""
-              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-              className="h-[60px] w-[60px] rounded-full bg-gray-50  mr-4"
-            /> */}
-            <div className="h-16 w-16 rounded-full text-white font-extrabold bg-primary text-4xl text-center items-center justify-center content-center">
-              {email
-                ?.split(' ')
-                .map((email) => email[0])
-                .join('')
-                .toUpperCase()}
+          <div className="flex items-center gap-3 border-b border-violet-50 bg-gradient-to-br from-violet-50/80 to-white p-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-dark text-base font-semibold text-white shadow-sm shadow-primary/30">
+              {avatarLetters}
             </div>
-            <div className="flex flex-col gap-2">
-              <span className="text-heading-16 font-semibold text-gray-900">
-                {name ? name : userId}
-              </span>
-              <span className="text-body-reg-14 text-gray-500 font-regular">{email}</span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-gray-900">{name || userId}</p>
+              <p className="truncate text-xs text-gray-500">{email}</p>
             </div>
           </div>
 
-          <Link
-            to="/profile/profile-details"
-            className="flex flex-row pl-6 items-center cursor-pointer h-16 border-b border-b-gray-300 w-full hover:bg-gray-200 text-body-reg-14 font-medium text-gray-900"
-          >
-            Profile Details
-          </Link>
+          <div className="p-1">
+            <Link
+              to="/profile/profile-details"
+              onClick={() => setProfileVisible(false)}
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-violet-50 hover:text-violet-900"
+            >
+              <UserCircleIcon className="h-5 w-5 stroke-[1.6] text-gray-400" />
+              Profile Details
+            </Link>
 
-          <Link
-            to="#"
-            onClick={() => logout()}
-            className="flex flex-row pl-6 items-center cursor-pointer h-16 border-b rounded-b-[10px] border-b-gray-300 w-full hover:bg-gray-200 text-body-reg-14 font-medium text-gray-900"
-          >
-            Logout
-          </Link>
+            <button
+              type="button"
+              onClick={logout}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-violet-50 hover:text-violet-900"
+            >
+              <ArrowRightOnRectangleIcon className="h-5 w-5 stroke-[1.6] text-gray-400" />
+              Logout
+            </button>
+          </div>
         </div>
       )}
     </>

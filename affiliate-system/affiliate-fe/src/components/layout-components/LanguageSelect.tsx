@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { ChevronDownIcon } from '@heroicons/react/20/solid';
 import Icon from '@components/core-components/icon';
 
 import { useTranslate } from '../../utils/locales/use-locales';
@@ -33,71 +34,54 @@ const LanguageSelect = () => {
     };
   }, [isOpen]);
 
+  const flagFor = selectedLanguage === 'FR' ? 'FR' : 'UK';
+
   return (
-    <div
-      ref={dropdownRef}
-      className="relative inline-block text-left h-full py-3 justify-center items-center"
-    >
+    <div ref={dropdownRef} className="relative inline-block text-left">
       <button
-        className="inline-flex items-center justify-center w-full min-w-[86px] h-9 rounded-md px-3 py-2 bg-grayBg text-xs font-bold text-gray-700 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-violet-100 bg-white/70 px-2.5 text-xs font-semibold text-gray-700 backdrop-blur-sm transition-colors hover:border-violet-200 hover:bg-violet-50 focus:outline-none focus:ring-2 focus:ring-primary/30"
         id="options-menu"
         aria-expanded={isOpen}
         aria-haspopup="true"
         onClick={toggleDropdown}
       >
-        {selectedLanguage === 'EN' && (
-          <>
-            <Icon iconName="UK" svgProps={{ width: 20, height: 20 }} />
-            <span className="mx-2">EN</span>
-          </>
-        )}
-        {selectedLanguage === 'FR' && (
-          <>
-            <Icon iconName="FR" svgProps={{ width: 20, height: 20 }} />
-            <span className="mx-2">FR</span>
-          </>
-        )}
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="12"
-          height="7"
-          viewBox="0 0 12 7"
-          fill="none"
-        >
-          <path
-            d="M5.51904 5.96285L5.51904 5.96285L5.52025 5.96393C5.65522 6.08372 5.81681 6.15 6 6.15C6.18047 6.15 6.34957 6.0855 6.48177 5.96211L10.9509 1.91383L10.9509 1.91385L10.953 1.91197C11.0789 1.79357 11.15 1.64236 11.15 1.46524C11.15 1.10635 10.842 0.85 10.4758 0.85C10.2966 0.85 10.1301 0.913514 10.0052 1.0178L10.0051 1.01771L10.0006 1.02184L6 4.65225L1.99942 1.02184L1.99951 1.02175L1.99478 1.0178C1.87053 0.914018 1.70996 0.85 1.52419 0.85C1.158 0.85 0.85 1.10635 0.85 1.46523C0.85 1.64282 0.921547 1.79528 1.05535 1.9143C1.05555 1.91448 1.05576 1.91466 1.05596 1.91485L5.51904 5.96285Z"
-            fill="#CECCE4"
-            stroke="#CECCE4"
-            strokeWidth="0.3"
-          />
-        </svg>
+        <Icon iconName={flagFor} svgProps={{ width: 18, height: 18 }} />
+        <span>{selectedLanguage}</span>
+        <ChevronDownIcon
+          className={`h-3.5 w-3.5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          aria-hidden="true"
+        />
       </button>
 
       {isOpen && (
         <div
-          className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none"
+          className="absolute right-0 z-50 mt-2 w-44 origin-top-right rounded-lg border border-violet-100 bg-white/95 p-1 shadow-lg shadow-violet-200/30 backdrop-blur-md focus:outline-none"
           role="menu"
           aria-orientation="vertical"
           aria-labelledby="options-menu"
         >
-          <div className="py-1" role="none">
-            <button
-              onClick={() => handleLanguageChange('EN')}
-              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-              role="menuitem"
-            >
-              <Icon iconName="UK" svgProps={{ width: 20, height: 20 }} />
-              <span className="ml-2">EN</span>
-            </button>
-            <button
-              onClick={() => handleLanguageChange('FR')}
-              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-              role="menuitem"
-            >
-              <Icon iconName="FR" svgProps={{ width: 20, height: 20 }} />
-              <span className="ml-2">FR</span>
-            </button>
-          </div>
+          {[
+            { code: 'EN', flag: 'UK', label: 'English' },
+            { code: 'FR', flag: 'FR', label: 'Français' },
+          ].map((opt) => {
+            const active = selectedLanguage === opt.code;
+            return (
+              <button
+                key={opt.code}
+                onClick={() => handleLanguageChange(opt.code)}
+                className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors ${
+                  active
+                    ? 'bg-violet-50 text-violet-900 font-semibold'
+                    : 'text-gray-700 hover:bg-violet-50 hover:text-violet-900'
+                }`}
+                role="menuitem"
+              >
+                <Icon iconName={opt.flag} svgProps={{ width: 18, height: 18 }} />
+                <span className="text-left">{opt.label}</span>
+                <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-gray-400">{opt.code}</span>
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
