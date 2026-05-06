@@ -135,7 +135,7 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
   return (
     <div
       ref={selectRef}
-      className={`relative ${classname ? classname : 'w-full'} bg-gray-100 rounded-md border border-[#A4D7FF] cursor-pointer ${isOpen ? 'rounded-b-none' : ''}`}
+      className={`relative ${classname ? classname : 'w-full'} bg-gray-100 rounded-md border border-[#C4B5FD] cursor-pointer ${isOpen ? 'rounded-b-none' : ''}`}
     >
       <label
         className={`absolute left-3 transition-all text-sm cursor-pointer ${

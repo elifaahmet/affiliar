@@ -67,7 +67,7 @@ const BDatePicker: React.FC<BDatePickerProps> = ({
         inputClassName={`text-sm font-medium h-10 w-full border ${
           disabled
             ? 'bg-gray-100 border-gray-400 text-gray-500 opacity-50'
-            : 'bg-gray-100 border-[#A4D7FF] text-gray-900'
+            : 'bg-gray-100 border-[#C4B5FD] text-gray-900'
         } rounded-md px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-primary truncate`}
         containerClassName="w-full"
         popoverDirection={direction}

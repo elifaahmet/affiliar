@@ -58,7 +58,7 @@ const BMultiSelect: React.FC<BMultiSelectProps> = ({
         <div
           className={`${
             border
-              ? 'bg-gray-100 border text-sm font-medium border-[#A4D7FF] pr-16 px-4 focus:ring-2 focus:ring-[#45A9EF]'
+              ? 'bg-gray-100 border text-sm font-medium border-[#C4B5FD] pr-16 px-4 focus:ring-2 focus:ring-[#8B5CF6]'
               : 'px-2 pr-5'
           } text-gray-700  text-sm h-11 flex items-center w-full bg-gray-100 rounded-md focus:outline-none cursor-pointer`}
           onClick={toggleDropdown}

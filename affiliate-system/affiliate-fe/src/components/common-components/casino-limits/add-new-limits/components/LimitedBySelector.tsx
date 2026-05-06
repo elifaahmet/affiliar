@@ -53,7 +53,7 @@ const LimitedBySelector = ({ limitedBy, setLimitedBy, setActiveTab, timeBased = 
               svgProps={{
                 width: 22,
                 height: 22,
-                fill: isActive ? '#329EF0' : '#4B5675',
+                fill: isActive ? '#8B5CF6' : '#4B5675',
               }}
             />
             <span>{item.label}</span>

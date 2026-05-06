@@ -127,7 +127,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
   return (
     <div className="relative w-full" ref={dropdownRef}>
       <div
-        className="flex border h-10 items-center justify-between bg-gray-100 border-[#A4D7FF] rounded-md px-3 py-2 cursor-pointer"
+        className="flex border h-10 items-center justify-between bg-gray-100 border-[#C4B5FD] rounded-md px-3 py-2 cursor-pointer"
         onClick={() => setDropdownOpen(!isDropdownOpen)}
       >
         <span
@@ -182,7 +182,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
             <div className={`${!showCustomOnly && 'border-l pl-4'} `}>
               <div className="flex flex-col w-fit gap-2 bg-white">
                 <div className="flex gap-2 items-center w-full">
-                  <div className="flex items-center gap-2 border border-[#A4D7FF] px-2 py-1 rounded w-full h-9">
+                  <div className="flex items-center gap-2 border border-[#C4B5FD] px-2 py-1 rounded w-full h-9">
                     <Icon iconName="calendar" />
                     <input
                       type="text"
@@ -192,7 +192,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                       className="outline-none text-sm bg-transparent"
                     />
                   </div>
-                  <div className="flex items-center gap-2 border border-[#A4D7FF] px-2 py-1 rounded w-full h-9">
+                  <div className="flex items-center gap-2 border border-[#C4B5FD] px-2 py-1 rounded w-full h-9">
                     <Icon iconName="calendar" />
                     <input
                       type="text"
@@ -209,7 +209,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                     <Icon
                       iconName="clock"
                       svgProps={{ width: 16, height: 16 }}
-                      className="flex items-center justify-center self-center gap-1 bg-gray-300 border border-[#A4D7FF] rounded px-2 h-full w-9"
+                      className="flex items-center justify-center self-center gap-1 bg-gray-300 border border-[#C4B5FD] rounded px-2 h-full w-9"
                     />
                     <select
                       value={startDate?.getHours() || 0}
@@ -221,7 +221,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                           changeActiveTab && changeActiveTab();
                         }
                       }}
-                      className="bg-transparent outline-none flex items-center gap-1 border border-[#A4D7FF] px-2 py-1 rounded w-full h-full pr-6"
+                      className="bg-transparent outline-none flex items-center gap-1 border border-[#C4B5FD] px-2 py-1 rounded w-full h-full pr-6"
                     >
                       {Array.from({ length: 24 }, (_, i) => (
                         <option key={i} value={i}>
@@ -240,7 +240,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                           changeActiveTab && changeActiveTab();
                         }
                       }}
-                      className="bg-transparent outline-none flex items-center gap-1 border border-[#A4D7FF] px-2 py-1 rounded w-full h-full pr-6"
+                      className="bg-transparent outline-none flex items-center gap-1 border border-[#C4B5FD] px-2 py-1 rounded w-full h-full pr-6"
                     >
                       {Array.from({ length: 60 }, (_, i) => (
                         <option key={i} value={i}>
@@ -254,7 +254,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                     <Icon
                       iconName="clock"
                       svgProps={{ width: 16, height: 16 }}
-                      className="flex items-center justify-center self-center gap-1 bg-gray-300 border border-[#A4D7FF] rounded px-2 h-full w-9"
+                      className="flex items-center justify-center self-center gap-1 bg-gray-300 border border-[#C4B5FD] rounded px-2 h-full w-9"
                     />
                     <select
                       value={endDate?.getHours() || 0}
@@ -266,7 +266,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                           changeActiveTab && changeActiveTab();
                         }
                       }}
-                      className="bg-transparent outline-none flex items-center gap-1 border border-[#A4D7FF] px-2 rounded w-full h-full pr-6"
+                      className="bg-transparent outline-none flex items-center gap-1 border border-[#C4B5FD] px-2 rounded w-full h-full pr-6"
                     >
                       {Array.from({ length: 24 }, (_, i) => (
                         <option key={i} value={i}>
@@ -285,7 +285,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                           changeActiveTab && changeActiveTab();
                         }
                       }}
-                      className="bg-transparent outline-none flex items-center gap-1 border border-[#A4D7FF] px-2 rounded w-full h-full pr-6"
+                      className="bg-transparent outline-none flex items-center gap-1 border border-[#C4B5FD] px-2 rounded w-full h-full pr-6"
                     >
                       {Array.from({ length: 60 }, (_, i) => (
                         <option key={i} value={i}>

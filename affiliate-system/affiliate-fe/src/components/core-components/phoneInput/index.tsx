@@ -40,7 +40,7 @@ const CustomPhoneInput: React.FC<CustomPhoneInputProps> = ({
             height: '40px',
             borderRadius: '6px',
             background: disabled ? '#fcfcfc' : '#fdfeff',
-            border: disabled ? '1px solid #d4d9e6' : '1px solid #A4D7FF',
+            border: disabled ? '1px solid #d4d9e6' : '1px solid #C4B5FD',
             paddingLeft: '10px',
             cursor: disabled ? 'not-allowed' : 'pointer',
           }}
@@ -48,7 +48,7 @@ const CustomPhoneInput: React.FC<CustomPhoneInputProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            border: disabled ? '1px solid #d4d9e6' : '1px solid #A4D7FF',
+            border: disabled ? '1px solid #d4d9e6' : '1px solid #C4B5FD',
             borderRadius: '6px',
             marginRight: '10px',
             background: disabled ? '#fcfcfc' : '#fdfeff',

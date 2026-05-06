@@ -122,7 +122,7 @@ function UpdateLimits({
             <div id="currency-dropdown" className="relative w-full pb-4">
               <button
                 disabled
-                className="opacity-50 cursor-not-allowed w-full h-[42px] flex items-center justify-between px-3 border border-[#A4D7FF] rounded-md bg-gray-100"
+                className="opacity-50 cursor-not-allowed w-full h-[42px] flex items-center justify-between px-3 border border-[#C4B5FD] rounded-md bg-gray-100"
               >
                 <div className="flex items-center gap-2">
                   <Icon
@@ -175,7 +175,7 @@ function UpdateLimits({
                       svgProps={{
                         width: 27,
                         height: 27,
-                        fill: isActive ? '#329EF0' : undefined,
+                        fill: isActive ? '#8B5CF6' : undefined,
                       }}
                     />
                     <span>{item.label}</span>

@@ -25,7 +25,7 @@ const LimitedByButton = ({ label, value, icon, isActive, onClick }: LimitedByBut
       svgProps={{
         width: 27,
         height: 27,
-        fill: isActive ? '#329EF0' : undefined,
+        fill: isActive ? '#8B5CF6' : undefined,
       }}
     />
     <span>{label}</span>

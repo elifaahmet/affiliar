@@ -63,7 +63,7 @@ const PIDropDown: React.FC<BSelectProps> = ({
           ${
             disabled
               ? 'bg-gray-200 cursor-not-allowed border-gray-300 text-gray-500'
-              : 'bg-white border-gray-300 focus:ring-[#45A9EF] focus:border-[#45A9EF]'
+              : 'bg-white border-gray-300 focus:ring-[#8B5CF6] focus:border-[#8B5CF6]'
           }
         `}
       >

@@ -64,7 +64,7 @@ function DateTimePicker({
   };
 
   return (
-    <div className="flex h-10 border border-[#A4D7FF] items-center bg-gray-100 rounded-md z-40">
+    <div className="flex h-10 border border-[#C4B5FD] items-center bg-gray-100 rounded-md z-40">
       <BSelect
         id={label.toLocaleLowerCase().replace(' ', '_')}
         border={false}
@@ -74,7 +74,7 @@ function DateTimePicker({
         onChange={handleSelectChange}
         className="h-9 bg-transparent text-sm pr-0 m-0 w-1/2 border-0 focus:outline-none"
       />
-      <div className="border-r h-10 border-[#A4D7FF]"></div>
+      <div className="border-r h-10 border-[#C4B5FD]"></div>
       <div className="flex items-center h-10 w-1/2 relative">
         <DatePicker
           selected={value ? new Date(value) : null}

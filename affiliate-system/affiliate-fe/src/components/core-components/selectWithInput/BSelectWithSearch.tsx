@@ -92,7 +92,7 @@ const BSelectWithSearch: React.FC<BSelectWithSearchProps> = ({
     <>
       <div
         ref={selectRef}
-        className={`relative h-10 bg-gray-100 rounded-md border border-[#A4D7FF] cursor-pointer ${
+        className={`relative h-10 bg-gray-100 rounded-md border border-[#C4B5FD] cursor-pointer ${
           classname ? classname : ' w-full '
         } ${disabled ? 'border-gray-400 cursor-not-allowed opacity-50' : ''}`}
       >

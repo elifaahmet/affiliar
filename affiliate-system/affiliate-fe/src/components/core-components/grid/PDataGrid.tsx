@@ -87,7 +87,7 @@ export const PDataGrid = ({
   const detailCellRendererParams = {};
   const loadingOverlayTemplate = `
   <div class="flex items-center justify-center h-full">
-    <div class="loader ease-linear rounded-full border-4 border-t-4 border-transparent border-t-[#45a9ef] h-12 w-12"></div>
+    <div class="loader ease-linear rounded-full border-4 border-t-4 border-transparent border-t-[#8b5cf6] h-12 w-12"></div>
   </div>
 `;
 

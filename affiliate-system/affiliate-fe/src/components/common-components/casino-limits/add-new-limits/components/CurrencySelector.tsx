@@ -44,7 +44,7 @@ const CurrencySelector = ({
     <div id="currency-dropdown" className="relative w-full pb-4">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full h-[42px] flex items-center justify-between px-3 border border-[#A4D7FF] rounded-md bg-gray-100"
+        className="w-full h-[42px] flex items-center justify-between px-3 border border-[#C4B5FD] rounded-md bg-gray-100"
       >
         <div className="flex items-center gap-2">
           <Icon iconName={getIconName(selectedCurrency)} svgProps={{ width: 20, height: 20 }} />

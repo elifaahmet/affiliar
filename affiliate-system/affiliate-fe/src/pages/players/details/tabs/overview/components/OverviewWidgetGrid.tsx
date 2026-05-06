@@ -200,7 +200,7 @@ const pieData = [
   { name: 'Exchange', value: 20, change: 'up', amount: '€185,00' },
 ];
 
-const COLORS = ['#45A9EF', '#F57A34', '#B66FED'];
+const COLORS = ['#8B5CF6', '#F57A34', '#B66FED'];
 const headers = ['TYPE', 'Pre-match', 'Live', 'Mixed', 'Total'];
 
 const activityCardData = [

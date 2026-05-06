@@ -12,11 +12,15 @@ module.exports = {
       colors: {
         purple: "#7859E9",
         "menu-color": "#CECCE4",
-        primary: "#329EF0",
-        "primary-dark": "#3481B6",
-        "primary-medium": "#BBE0FA",
-        "primary-light": "#DDECFF",
-        "primary-chip": "#1B84FF1A",
+        // Electric violet — neon-leaning primary on a light theme.
+        // Keep tokens semantically compatible with the old blue palette
+        // so existing classes (text-primary, bg-primary-light, etc.) just
+        // re-skin without component-level edits.
+        primary: "#8B5CF6",
+        "primary-dark": "#6D28D9",
+        "primary-medium": "#C4B5FD",
+        "primary-light": "#F3EEFF",
+        "primary-chip": "#8B5CF61A",
         secondary: "#12B5D1",
         "secondary-dark": "#119DB3",
         "secondary-medium": "#A7CFD5",
@@ -68,7 +72,7 @@ module.exports = {
       backgroundImage: {
         "success-gradient": "linear-gradient(225deg, #009C2C 0%, #00691E 100%)",
         "danger-gradient": "linear-gradient(225deg, #F1416C 0%, #C63659 100%)",
-        "primary-gradient": "linear-gradient(225deg, #45A9EF 0%, #3481B7 100%)",
+        "primary-gradient": "linear-gradient(225deg, #A78BFA 0%, #6D28D9 100%)",
         "purple-gradient": "linear-gradient(225deg, #7859E9 0%, #543EA4 100%)",
         "orange-gradient": "linear-gradient(225deg, #FF7B31 0%, #D66627 100%)",
         "warning-gradient": "linear-gradient(225deg, #FFAD31 0%, #CE8D2A 100%)",

@@ -203,8 +203,8 @@ input[class^='ag-'] {
 
 /* Highlight selected option */
 .ag-select-list-item.ag-selected {
-  background-color: #3b82f6 !important; /* Highlight color */
-  color: #78829d !important;
+  background-color: #f3eeff !important; /* primary-light tint */
+  color: #6d28d9 !important;
 }
 
 /* Hover effect on dropdown options */
@@ -291,7 +291,7 @@ input[type='datetime-local'] {
   box-shadow: none !important;
 }
 .ag-cell-range-selected {
-  border: 1px solid #45a9ef !important;
+  border: 1px solid #8b5cf6 !important;
 }
 .ag-pinned-left-header {
   border: none !important;
@@ -369,7 +369,7 @@ body {
 }
 .loader {
   animation: spin 1s linear infinite;
-  border: 4px solid #45a9ef;
+  border: 4px solid #8b5cf6;
   border-top: 4px solid transparent;
   border-radius: 50%;
   width: 58px;
@@ -451,13 +451,13 @@ body {
 .react-datepicker__day--selected,
 .react-datepicker__day--in-selecting-range,
 .react-datepicker__day--in-range {
-  background-color: #329ef0 !important;
+  background-color: #8b5cf6 !important;
   color: white !important;
   border-radius: 8px !important;
 }
 
 .react-datepicker__day:hover {
-  background-color: #a4d7ff;
+  background-color: #ddd6fe;
   border-radius: 8px;
 }
 

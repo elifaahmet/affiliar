@@ -56,7 +56,7 @@ const PInput: React.FC<PInputProps> = ({
   name,
 }) => {
   const inputClassNames = cx(
-    `${className} bg-gray-100 border text-sm font-medium border-[#A4D7FF] ${
+    `${className} bg-gray-100 border text-sm font-medium border-[#C4B5FD] ${
       multiline ? 'h-24' : height
     } rounded-md px-3 py-2 text-gray-900 placeholder:font-medium placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-primary`,
     {
