@@ -81,15 +81,13 @@ function AuthLayout({ children }: AuthLayoutProps) {
         </div>
       </div>
 
-      {/* ── Footer (mobile + desktop) ─────────────────────────────────── */}
+      {/* ── Footer ─────────────────────────────────────────────────────── */}
       <footer className="border-t border-gray-100 bg-white">
         <div className="mx-auto flex max-w-[1700px] flex-col items-center justify-between gap-3 px-6 py-5 sm:flex-row sm:px-10">
-          <div className="flex items-center gap-3 text-xs text-gray-500">
-            <Icon iconName="affiliarDark" svgProps={{ width: 120, height: 24 }} />
-            <span>·</span>
-            <span>Affiliate management platform</span>
-          </div>
-          <div className="flex flex-wrap justify-center gap-6 text-xs text-gray-500">
+          <p className="text-xs text-gray-400">
+            ©  {new Date().getFullYear()} Affiliar
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-gray-500">
             {footerLinks.map((link, index) => (
               <Link
                 key={index}
