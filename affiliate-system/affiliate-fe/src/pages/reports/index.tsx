@@ -417,7 +417,7 @@ export default function Reports() {
       <div className='flex justify-end'>
         <Link
           to='/reports/campaigns'
-          className='text-sm font-medium text-primary hover:text-blue-600 transition-colors'
+          className='text-sm font-medium text-primary hover:text-primary-dark transition-colors'
         >
           Campaign Reports &rarr;
         </Link>

@@ -87,7 +87,7 @@ export default function AffiliatePlayers() {
 
   return (
     <div className='h-full overflow-auto p-6 pb-24 space-y-6'>
-      <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
+      <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
         <div className='px-5 py-3 border-b border-gray-100 flex items-center justify-between'>
           <p className='text-sm font-semibold text-gray-800'>My Players</p>
           <p className='text-xs text-gray-400'>{total} total</p>

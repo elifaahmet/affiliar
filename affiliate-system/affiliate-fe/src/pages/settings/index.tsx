@@ -55,7 +55,7 @@ const PLANS = [
 ] as const;
 
 const STATUS_BADGE: Record<string, string> = {
-  trial: 'bg-blue-100 text-blue-700',
+  trial: 'bg-violet-100 text-violet-700',
   active: 'bg-green-100 text-green-700',
   past_due: 'bg-red-100 text-red-700',
   cancelled: 'bg-gray-100 text-gray-500',
@@ -328,7 +328,7 @@ export default function Settings() {
             </div>
 
             {billingData.billingStatus === 'trial' && billingData.trialEndsAt && (
-              <p className='text-sm text-blue-700 bg-blue-50 px-3 py-2 rounded-lg'>
+              <p className='text-sm text-violet-700 bg-violet-50 px-3 py-2 rounded-lg'>
                 Trial ends on {formatDate(billingData.trialEndsAt)} ({daysUntil(billingData.trialEndsAt)} days remaining)
               </p>
             )}

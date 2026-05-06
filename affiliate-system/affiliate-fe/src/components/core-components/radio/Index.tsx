@@ -20,7 +20,7 @@ const Radio: React.FC<RadioProps> = ({ onChange, checked, name, disabled = false
       />
       <span
         className={`w-[26px] h-[26px] rounded-full border-2 flex items-center justify-center cursor-pointer 
-          ${checked ? 'bg-blue-500 border-blue-500' : 'bg-gray-400 border-gray-400'} 
+          ${checked ? 'bg-primary border-primary' : 'bg-gray-400 border-gray-400'}
           ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
         onClick={!disabled ? onChange : undefined}
       >

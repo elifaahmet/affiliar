@@ -310,7 +310,7 @@ function QuickCharts({
   const points = chartData.map(row => ({ date: row.date, value: getValue(row) }));
 
   return (
-    <div className='bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4'>
+    <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-5 space-y-4'>
       <h2 className='text-sm font-semibold text-gray-800'>Quick Charts</h2>
 
       {/* Filters row */}

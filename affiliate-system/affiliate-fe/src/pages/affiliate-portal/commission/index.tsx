@@ -8,13 +8,13 @@ function fmt(cents: number) {
 const STATUS_STYLES: Record<string, string> = {
   draft:            'bg-gray-100 text-gray-600',
   pending_approval: 'bg-warning-light text-warning',
-  approved:         'bg-blue-50 text-blue-700',
+  approved:         'bg-violet-50 text-violet-700',
   paid:             'bg-green-50 text-green-700',
 };
 
 const TYPE_STYLES: Record<string, string> = {
-  revshare:        'bg-blue-50 text-blue-700',
-  cpa:             'bg-purple-50 text-purple-700',
+  revshare:        'bg-violet-50 text-violet-700',
+  cpa:             'bg-fuchsia-50 text-fuchsia-700',
   hybrid:          'bg-indigo-50 text-indigo-700',
   tiered_revshare: 'bg-cyan-50 text-cyan-700',
 };
@@ -82,7 +82,7 @@ export default function AffiliateCommission() {
       </div>
 
       {/* Reports table */}
-      <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
+      <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
         <div className='px-5 py-3 border-b border-gray-100 flex items-center justify-between'>
           <p className='text-sm font-semibold text-gray-800'>Commission Reports</p>
           <p className='text-xs text-gray-400'>{data?.total ?? 0} total</p>

@@ -101,9 +101,9 @@ function planTypeLabel(type: PlanType) {
 
 function planTypeBadge(type: PlanType) {
   const map: Record<string, string> = {
-    revshare:        'bg-blue-100 text-blue-700',
+    revshare:        'bg-violet-100 text-violet-700',
     cpa:             'bg-green-100 text-green-700',
-    hybrid:          'bg-purple-100 text-purple-700',
+    hybrid:          'bg-fuchsia-100 text-fuchsia-700',
     tiered_revshare: 'bg-warning-light text-warning',
   };
   return `inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${map[type] ?? 'bg-gray-100 text-gray-600'}`;
@@ -113,7 +113,7 @@ function statusBadge(status: ReportStatus) {
   const map: Record<string, string> = {
     draft:            'bg-gray-100 text-gray-600',
     pending_approval: 'bg-yellow-100 text-yellow-700',
-    approved:         'bg-blue-100 text-blue-700',
+    approved:         'bg-violet-100 text-violet-700',
     paid:             'bg-green-100 text-green-700',
   };
   const labels: Record<string, string> = {
@@ -350,8 +350,8 @@ function PlanModal({
 
           {/* RevShare config */}
           {showRevshare && (
-            <div className='bg-blue-50 rounded-lg p-4 space-y-3'>
-              <p className='text-xs font-semibold text-blue-700'>Revenue Share</p>
+            <div className='bg-violet-50 rounded-lg p-4 space-y-3'>
+              <p className='text-xs font-semibold text-violet-700'>Revenue Share</p>
               <div className='flex gap-3'>
                 <div className='flex-1'>
                   <label className='block text-xs text-gray-600 mb-1'>Metric</label>
@@ -634,7 +634,7 @@ function PlansTab() {
         </button>
       </div>
 
-      <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
+      <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
         {isLoading && <p className='text-sm text-gray-400 px-5 py-6 text-center'>Loading…</p>}
 
         {!isLoading && plans.length === 0 && (
@@ -802,7 +802,7 @@ function ReportsTab() {
             {submitting ? '…' : 'Submit All'}
           </button>
           <button onClick={() => approveAll({ year, month } as any)} disabled={approving}
-            className='h-9 px-4 text-sm bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-60'>
+            className='h-9 px-4 text-sm bg-primary text-white rounded-lg font-medium hover:bg-primary-dark disabled:opacity-60'>
             {approving ? '…' : 'Approve All'}
           </button>
           <button onClick={() => markPaidAll({ year, month } as any)} disabled={paying}
@@ -814,7 +814,7 @@ function ReportsTab() {
 
       {/* Calc result banner */}
       {calcResult && (
-        <div className='bg-blue-50 rounded-lg px-4 py-3 text-xs text-blue-700 flex gap-4'>
+        <div className='bg-violet-50 rounded-lg px-4 py-3 text-xs text-violet-700 flex gap-4'>
           <span><span className='font-semibold'>{calcResult.created}</span> created</span>
           <span><span className='font-semibold'>{calcResult.updated}</span> updated</span>
           {calcResult.skipped > 0 && <span><span className='font-semibold'>{calcResult.skipped}</span> skipped (locked)</span>}
@@ -839,7 +839,7 @@ function ReportsTab() {
       )}
 
       {/* Table */}
-      <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
+      <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
         {isLoading && <p className='text-sm text-gray-400 px-5 py-6 text-center'>Loading…</p>}
 
         {!isLoading && reports.length === 0 && (

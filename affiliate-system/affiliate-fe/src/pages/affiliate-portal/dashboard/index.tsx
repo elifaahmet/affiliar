@@ -119,10 +119,14 @@ function KpiCard({ label, value, sub, accent }: {
   label: string; value: string; sub?: string; accent?: boolean;
 }) {
   return (
-    <div className={`rounded-xl p-5 shadow-sm border ${accent ? 'bg-primary border-primary/20' : 'bg-white border-gray-100'}`}>
-      <p className={`text-xs mb-1 ${accent ? 'text-blue-100' : 'text-gray-500'}`}>{label}</p>
-      <p className={`text-xl font-semibold ${accent ? 'text-white' : 'text-gray-800'}`}>{value}</p>
-      {sub && <p className={`text-xs mt-1 ${accent ? 'text-blue-200' : 'text-gray-400'}`}>{sub}</p>}
+    <div className={`rounded-xl p-5 border transition-shadow ${
+      accent
+        ? 'bg-gradient-to-br from-primary to-primary-dark border-primary/30 shadow-lg shadow-primary/20'
+        : 'bg-white/80 backdrop-blur-sm border-violet-100 hover:shadow-sm'
+    }`}>
+      <p className={`text-[11px] font-medium uppercase tracking-[0.12em] mb-2 ${accent ? 'text-violet-100' : 'text-gray-400'}`}>{label}</p>
+      <p className={`text-2xl font-semibold tracking-tight ${accent ? 'text-white' : 'text-gray-900'}`}>{value}</p>
+      {sub && <p className={`text-xs mt-1 ${accent ? 'text-violet-200' : 'text-gray-400'}`}>{sub}</p>}
     </div>
   );
 }
@@ -267,7 +271,7 @@ export default function AffiliateDashboard() {
           {providers.length > 0 && (
             <div>
               <p className='text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3'>Providers</p>
-              <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
+              <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
                 <div className='overflow-x-auto'>
                   <table className='w-full'>
                     <thead className='bg-gray-50'>
@@ -327,7 +331,7 @@ export default function AffiliateDashboard() {
 
           {/* Activity chart */}
           {(data?.byDay?.length ?? 0) > 0 && (
-            <div className='bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4'>
+            <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-5 space-y-4'>
               <h2 className='text-sm font-semibold text-gray-800'>Registrations Over Time</h2>
               <ResponsiveContainer width='100%' height={220}>
                 <AreaChart

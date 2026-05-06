@@ -121,7 +121,7 @@ export default function Brands() {
     <div className='h-full overflow-auto p-6 pb-24 space-y-6'>
       <h1 className='text-xl font-semibold text-gray-800'>Brands</h1>
 
-      <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
+      <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
         {isLoading && <p className='text-sm text-gray-400 px-5 py-4'>Loading...</p>}
 
         {!isLoading && brands.length === 0 && (

@@ -89,7 +89,7 @@ export default function AffiliateSubAffiliates() {
       </div>
 
       {/* Sub-affiliate table */}
-      <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
+      <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
         <div className='px-5 py-3 border-b border-gray-100 flex items-center justify-between'>
           <p className='text-sm font-semibold text-gray-800'>Sub-Affiliates</p>
           <p className='text-xs text-gray-400'>{data?.total ?? 0} total</p>
@@ -159,7 +159,7 @@ export default function AffiliateSubAffiliates() {
       </div>
 
       {/* Recruit link */}
-      <div className='bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-3'>
+      <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-6 space-y-3'>
         <h2 className='text-sm font-semibold text-gray-800'>Recruit Sub-Affiliates</h2>
         <p className='text-xs text-gray-500'>
           Share the link below to invite other affiliates under your account.
@@ -195,7 +195,7 @@ export default function AffiliateSubAffiliates() {
                     className={`shrink-0 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                       isCopied
                         ? 'bg-green-100 text-green-700'
-                        : 'bg-primary text-white hover:bg-blue-600'
+                        : 'bg-primary text-white hover:bg-primary-dark'
                     }`}
                   >
                     {isCopied ? 'Copied!' : 'Copy Recruit Link'}

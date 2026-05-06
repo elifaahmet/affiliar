@@ -140,7 +140,7 @@ export default function Filters({
                 {activeTags.map(({ key, display }) => (
                   <div
                     key={key}
-                    className='bg-blue-400 text-white px-2 py-1 rounded-md inline-flex text-[13px] items-center gap-2 shrink-0'
+                    className='bg-primary text-white px-2 py-1 rounded-md inline-flex text-[13px] items-center gap-2 shrink-0'
                     title={display as string}
                   >
                     <span className='max-w-[260px] truncate'>{display}</span>

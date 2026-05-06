@@ -114,7 +114,7 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
     return selected.map((item) => (
       <span
         key={item.value}
-        className="flex shrink-0 items-center gap-1 px-2 bg-blue-100 text-primary rounded-full text-xs"
+        className="flex shrink-0 items-center gap-1 px-2 bg-violet-100 text-primary rounded-full text-xs"
       >
         {item.label}
         <button

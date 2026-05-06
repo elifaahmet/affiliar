@@ -87,7 +87,7 @@ export default function AffiliateMarketing() {
     <div className='h-full overflow-auto p-6 pb-24 space-y-6'>
 
       {/* Campaign Performance */}
-      <div className='bg-white rounded-xl shadow-sm border border-gray-100 p-6'>
+      <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-6'>
         <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4'>
           <div>
             <h2 className='text-sm font-semibold text-gray-800 mb-1'>Campaign Performance</h2>
@@ -155,7 +155,7 @@ export default function AffiliateMarketing() {
       </div>
 
       {/* Referral Links */}
-      <div className='bg-white rounded-xl shadow-sm border border-gray-100 p-6'>
+      <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-6'>
         <h2 className='text-sm font-semibold text-gray-800 mb-1'>Your Referral Links</h2>
         <p className='text-xs text-gray-400 mb-4'>Share these links to refer new players. Each player registered through your link will be tracked to your account.</p>
 
@@ -198,7 +198,7 @@ export default function AffiliateMarketing() {
                     className={`shrink-0 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                       isCopied
                         ? 'bg-green-100 text-green-700'
-                        : 'bg-primary text-white hover:bg-blue-600'
+                        : 'bg-primary text-white hover:bg-primary-dark'
                     }`}
                   >
                     {isCopied ? 'Copied!' : 'Copy Link'}
@@ -217,7 +217,7 @@ export default function AffiliateMarketing() {
       </div>
 
       {/* How it works */}
-      <div className='bg-white rounded-xl shadow-sm border border-gray-100 p-6'>
+      <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-6'>
         <h2 className='text-sm font-semibold text-gray-800 mb-4'>How It Works</h2>
         <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
           {[
@@ -239,7 +239,7 @@ export default function AffiliateMarketing() {
       </div>
 
       {/* Tracking parameters */}
-      <div className='bg-white rounded-xl shadow-sm border border-gray-100 p-6'>
+      <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-6'>
         <h2 className='text-sm font-semibold text-gray-800 mb-2'>Advanced Tracking</h2>
         <p className='text-xs text-gray-500 mb-4'>
           Add optional query parameters to your referral link for campaign tracking.

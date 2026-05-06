@@ -4,8 +4,8 @@ interface PlanBadgeProps {
 
 const BADGE_STYLES: Record<string, string> = {
   starter: 'bg-gray-100 text-gray-600',
-  growth:  'bg-blue-100 text-blue-700',
-  scale:   'bg-purple-100 text-purple-700',
+  growth:  'bg-violet-100 text-violet-700',
+  scale:   'bg-fuchsia-100 text-fuchsia-700',
 };
 
 export default function PlanBadge({ plan }: PlanBadgeProps) {

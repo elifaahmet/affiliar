@@ -37,7 +37,7 @@ type Scope = 'default' | string;
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
+    <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
       <div className='px-5 py-3 border-b border-gray-100'>
         <p className='text-sm font-semibold text-gray-800'>{title}</p>
       </div>
@@ -376,7 +376,7 @@ function ProviderRatesTable({ scope }: { scope: Scope }) {
                   <td className='px-4 py-2 text-xs text-right'>
                     <button
                       onClick={() => setEditing(r)}
-                      className='text-blue-600 hover:underline mr-3'
+                      className='text-primary-dark hover:underline mr-3'
                     >
                       Edit
                     </button>

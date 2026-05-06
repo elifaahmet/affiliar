@@ -34,8 +34,8 @@ interface BrandReferralCode {
 }
 
 const TYPE_STYLES: Record<string, string> = {
-  revshare:        'bg-blue-50 text-blue-700',
-  cpa:             'bg-purple-50 text-purple-700',
+  revshare:        'bg-violet-50 text-violet-700',
+  cpa:             'bg-fuchsia-50 text-fuchsia-700',
   hybrid:          'bg-indigo-50 text-indigo-700',
   tiered_revshare: 'bg-cyan-50 text-cyan-700',
 };
@@ -100,7 +100,7 @@ export default function AffiliateProfile() {
     <div className='h-full overflow-auto p-6 pb-24 space-y-6'>
 
       {/* Account info (read-only) */}
-      <div className='bg-white rounded-xl shadow-sm border border-gray-100 p-6 max-w-2xl'>
+      <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-6 max-w-2xl'>
         <h2 className='text-sm font-semibold text-gray-800 mb-4'>Account Info</h2>
         <div className='space-y-3'>
           <div className='flex items-center justify-between py-2 border-b border-gray-100'>
@@ -123,7 +123,7 @@ export default function AffiliateProfile() {
       </div>
 
       {/* Editable profile */}
-      <div className='bg-white rounded-xl shadow-sm border border-gray-100 p-6 max-w-2xl'>
+      <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-6 max-w-2xl'>
         <h2 className='text-sm font-semibold text-gray-800 mb-4'>Edit Profile</h2>
         <div className='space-y-4'>
           <div>
@@ -157,7 +157,7 @@ export default function AffiliateProfile() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className='px-5 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-60 transition-colors'
+              className='px-5 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-dark disabled:opacity-60 transition-colors'
             >
               {saving ? 'Saving...' : 'Save Changes'}
             </button>
@@ -171,7 +171,7 @@ export default function AffiliateProfile() {
       </div>
 
       {/* Commission plan (read-only) */}
-      <div className='bg-white rounded-xl shadow-sm border border-gray-100 p-6 max-w-2xl'>
+      <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-6 max-w-2xl'>
         <h2 className='text-sm font-semibold text-gray-800 mb-4'>My Commission Plan</h2>
         {!plan ? (
           <p className='text-xs text-gray-400'>No commission plan assigned. Contact your account manager.</p>
@@ -230,7 +230,7 @@ export default function AffiliateProfile() {
       </div>
 
       {/* Referral codes (read-only) */}
-      <div className='bg-white rounded-xl shadow-sm border border-gray-100 p-6 max-w-2xl'>
+      <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-6 max-w-2xl'>
         <h2 className='text-sm font-semibold text-gray-800 mb-4'>My Referral Codes</h2>
         {(data?.referralCodes ?? []).length === 0 ? (
           <p className='text-xs text-gray-400'>No referral codes assigned.</p>

@@ -108,9 +108,9 @@ function Field({
 
 function planTypeBadgeCls(type: string) {
   const map: Record<string, string> = {
-    revshare:        'bg-blue-100 text-blue-700',
+    revshare:        'bg-violet-100 text-violet-700',
     cpa:             'bg-green-100 text-green-700',
-    hybrid:          'bg-purple-100 text-purple-700',
+    hybrid:          'bg-fuchsia-100 text-fuchsia-700',
     tiered_revshare: 'bg-warning-light text-warning',
   };
   return `inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${map[type] ?? 'bg-gray-100 text-gray-600'}`;
@@ -397,7 +397,7 @@ function AffiliatesTab() {
   const affiliates = data?.affiliates ?? [];
 
   return (
-    <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
+    <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
       <div className='px-5 py-3 border-b border-gray-100 flex items-center justify-between'>
         <p className='text-sm font-medium text-gray-800'>Affiliates</p>
         <div className='flex items-center gap-3'>

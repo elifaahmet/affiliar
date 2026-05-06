@@ -319,7 +319,7 @@ function FilterTags({
               filterDisplay && (
                 <div
                   key={key}
-                  className="bg-blue-400 text-white  p-2 rounded-md flex text-[13px] items-center space-x-2"
+                  className="bg-primary text-white  p-2 rounded-md flex text-[13px] items-center space-x-2"
                 >
                   <span>{filterDisplay}</span>
                   <button

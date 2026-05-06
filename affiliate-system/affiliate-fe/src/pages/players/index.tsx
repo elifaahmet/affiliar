@@ -47,8 +47,8 @@ function fmt(d: string | null) {
 
 function sourceBadge(source: string) {
   const map: Record<string, string> = {
-    realtime: 'bg-blue-100 text-blue-700',
-    bulk: 'bg-purple-100 text-purple-700',
+    realtime: 'bg-violet-100 text-violet-700',
+    bulk: 'bg-fuchsia-100 text-fuchsia-700',
     csv: 'bg-green-100 text-green-700',
   };
   return `inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
@@ -187,7 +187,7 @@ function PlayersTab() {
       </form>
 
       {/* Table */}
-      <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
+      <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
         {isLoading && (
           <p className='text-sm text-gray-400 px-5 py-6 text-center'>Loading…</p>
         )}
@@ -400,7 +400,7 @@ function ImportPlayersTab() {
           </button>
         </div>
 
-        <div className='bg-blue-50 rounded-lg px-4 py-3 text-xs text-blue-700 space-y-1'>
+        <div className='bg-violet-50 rounded-lg px-4 py-3 text-xs text-violet-700 space-y-1'>
           <p className='font-semibold'>CSV columns</p>
           <p>
             <span className='font-medium'>Required:</span> playerId, affiliateCode
