@@ -80,17 +80,13 @@ function AuthLayout({ children }: AuthLayoutProps) {
         </div>
 
         {/* ── Right: form column ──────────────────────────────────────────
-            grid + place-content-center centers content on both axes
-            deterministically. min-h-full forces the column to fill the
-            viewport even on mobile so the centering reference is the
-            screen, not just the form's own height.
-
-            When the form is taller than the column, content overflows
-            symmetrically and the outer h-screen overflow-y-auto on the
-            shell lets the user scroll. */}
+            Textbook centering: flex + items-center + justify-center on a
+            box guaranteed to be at least viewport-tall. The inline
+            minHeight is explicit so the centering reference doesn't
+            depend on parent percentage resolution. */}
         <div
-          className="grid min-h-full flex-1 px-6 py-12 lg:px-12 lg:py-16"
-          style={{ placeContent: 'center' }}
+          className="flex flex-1 items-center justify-center px-6 py-12 lg:px-12 lg:py-16"
+          style={{ minHeight: '100vh' }}
         >
           <div className="w-full">{children}</div>
         </div>
