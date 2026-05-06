@@ -1,17 +1,12 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import Icon from '@components/core-components/icon';
 import axiosInstance from 'config/axiosInstance';
 
-const PageWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="min-h-screen bg-grayBg flex items-center justify-center p-4">
-    <div className="flex items-center flex-col max-w-lg w-full my-8 py-12 px-2 justify-center rounded-[20px] bg-black space-y-6">
-      {children}
-    </div>
-  </div>
-);
+const inputClass =
+  'w-full bg-white h-[44px] border border-gray-200 rounded-lg px-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors';
 
-const InputField = ({
+function Field({
   label,
   value,
   onChange,
@@ -23,18 +18,20 @@ const InputField = ({
   onChange: (v: string) => void;
   type?: string;
   placeholder?: string;
-}) => (
-  <div className="space-y-1">
-    <label className="block text-xs font-medium text-gray-400">{label}</label>
-    <input
-      type={type}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full bg-white h-[52px] text-gray-700 text-sm rounded-lg px-4 border border-gray-200 focus:outline-none focus:border-primary"
-    />
-  </div>
-);
+}) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-xs font-semibold text-gray-700">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className={inputClass}
+      />
+    </div>
+  );
+}
 
 export default function ResetPassword() {
   const [params] = useSearchParams();
@@ -76,65 +73,94 @@ export default function ResetPassword() {
     }
   };
 
-  return (
-    <PageWrapper>
-      <div className="flex justify-center">
-        <Icon iconName="affiliar" svgProps={{ width: 280, height: 56 }} />
+  if (done) {
+    return (
+      <div className="flex w-full max-w-md flex-col">
+        <MobileLogo />
+        <Eyebrow>Password updated</Eyebrow>
+        <Headline>
+          You&apos;re all <span className="italic text-primary">set</span>.
+        </Headline>
+        <p className="mt-3 text-sm text-gray-500">
+          Your password has been reset. You can now sign in with the new one.
+        </p>
+        <Link
+          to="/"
+          className="mt-8 inline-flex h-[46px] items-center justify-center rounded-lg bg-gray-900 text-sm font-semibold text-white transition-colors hover:bg-black"
+        >
+          Go to sign in
+        </Link>
       </div>
+    );
+  }
 
-      {done ? (
-        <div className="text-center space-y-3">
-          <div className="text-4xl">✓</div>
-          <h2 className="text-white text-lg font-semibold">Password Updated</h2>
-          <p className="text-gray-400 text-sm">Your password has been reset. You can now sign in.</p>
-          <a
-            href="/login"
-            className="block w-full bg-primary text-white text-sm font-medium py-3 rounded-xl text-center hover:bg-primary/90 transition-colors mt-4"
-          >
-            Go to Sign In
-          </a>
-        </div>
-      ) : (
-        <>
-          <div className="text-center">
-            <h2 className="text-white text-xl font-semibold">Reset Your Password</h2>
-            <p className="text-gray-400 text-sm mt-1">Choose a new password for your account</p>
-          </div>
+  return (
+    <div className="flex w-full max-w-md flex-col">
+      <MobileLogo />
+      <Eyebrow>Account recovery</Eyebrow>
+      <Headline>
+        Choose a new <span className="italic text-primary">password</span>.
+      </Headline>
+      <p className="mt-3 text-sm text-gray-500">
+        Pick something you don&apos;t use anywhere else. At least 8 characters.
+      </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4 w-full px-8">
-            <InputField
-              label="New Password"
-              type="password"
-              value={password}
-              onChange={setPassword}
-              placeholder="At least 8 characters"
-            />
-            <InputField
-              label="Confirm Password"
-              type="password"
-              value={confirm}
-              onChange={setConfirm}
-              placeholder="Repeat your password"
-            />
+      <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
+        <Field
+          label="New password"
+          type="password"
+          value={password}
+          onChange={setPassword}
+          placeholder="At least 8 characters"
+        />
+        <Field
+          label="Confirm password"
+          type="password"
+          value={confirm}
+          onChange={setConfirm}
+          placeholder="Repeat password"
+        />
 
-            {error && <p className="text-red-400 text-xs">{error}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
 
-            {!token && (
-              <p className="text-yellow-400 text-xs">
-                Invalid reset link. Please request a new password reset.
-              </p>
-            )}
+        {!token && (
+          <p className="text-sm text-yellow-700">
+            Invalid reset link. Please request a new password reset email.
+          </p>
+        )}
 
-            <button
-              type="submit"
-              disabled={submitting || !token}
-              className="w-full bg-primary text-white text-sm font-semibold py-3 rounded-xl hover:bg-primary/90 disabled:opacity-60 transition-colors"
-            >
-              {submitting ? 'Resetting...' : 'Reset Password'}
-            </button>
-          </form>
-        </>
-      )}
-    </PageWrapper>
+        <button
+          type="submit"
+          disabled={submitting || !token}
+          className="mt-2 inline-flex h-[46px] w-full items-center justify-center rounded-lg bg-gray-900 text-sm font-semibold text-white transition-colors hover:bg-black focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
+        >
+          {submitting ? 'Resetting…' : 'Reset password'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function MobileLogo() {
+  return (
+    <div className="lg:hidden mb-10">
+      <Icon iconName="affiliarDark" svgProps={{ width: 130, height: 28 }} />
+    </div>
+  );
+}
+
+function Eyebrow({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-3 text-xs font-medium uppercase tracking-[0.18em] text-gray-400">
+      {children}
+    </p>
+  );
+}
+
+function Headline({ children }: { children: React.ReactNode }) {
+  return (
+    <h1 className="font-display text-4xl leading-tight tracking-tight text-gray-900">
+      {children}
+    </h1>
   );
 }

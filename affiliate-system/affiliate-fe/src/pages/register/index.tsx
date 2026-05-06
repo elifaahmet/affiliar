@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import Icon from '@components/core-components/icon';
 import axiosInstance from 'config/axiosInstance';
 import { AFFILIATES_API_URLS } from 'config/apiUrls';
@@ -24,8 +24,9 @@ const EMPTY_FORM: FormState = {
   mobileNumber: '',
 };
 
-const inputClass = 'w-full bg-white h-[42px] border border-gray-200 rounded-lg px-3 text-sm text-gray-700 focus:outline-none focus:border-primary';
-const labelClass = 'block text-xs font-medium text-gray-400 mb-1';
+const inputClass =
+  'w-full bg-white h-[44px] border border-gray-200 rounded-lg px-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors';
+const labelClass = 'mb-1.5 block text-xs font-semibold text-gray-700';
 
 function Field({
   label,
@@ -44,7 +45,10 @@ function Field({
 }) {
   return (
     <div>
-      <label className={labelClass}>{label}{required && ' *'}</label>
+      <label className={labelClass}>
+        {label}
+        {required && ' *'}
+      </label>
       <input
         type={type}
         value={value}
@@ -57,23 +61,10 @@ function Field({
   );
 }
 
-function PageWrapper({ children }: { children: React.ReactNode }) {
-  return (
-    <div className='min-h-screen bg-grayBg flex items-center justify-center p-4'>
-      <div className='flex items-center flex-col max-w-lg w-full my-8 py-12 p-8 justify-center rounded-[20px] bg-black'>
-        <div className='w-[253px] h-32 flex items-center justify-center'>
-          <Icon iconName='affiliar' svgProps={{ width: 280, height: 56 }} />
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
-
 function AffiliateRegister() {
   const [searchParams] = useSearchParams();
-  const operatorId  = searchParams.get('operatorId');
-  const parentCode  = searchParams.get('parentCode');
+  const operatorId = searchParams.get('operatorId');
+  const parentCode = searchParams.get('parentCode');
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
@@ -99,14 +90,14 @@ function AffiliateRegister() {
     setLoading(true);
     try {
       const res = await axiosInstance.post(AFFILIATES_API_URLS.REGISTER(), {
-        operatorId:        operatorId  || undefined,
-        parentCode:        parentCode  || undefined,
-        name:              form.name,
-        email:             form.email,
-        username:          form.username,
-        password:          form.password,
+        operatorId: operatorId || undefined,
+        parentCode: parentCode || undefined,
+        name: form.name,
+        email: form.email,
+        username: form.username,
+        password: form.password,
         mobileCountryCode: form.mobileCountryCode || undefined,
-        mobileNumber:      form.mobileNumber      || undefined,
+        mobileNumber: form.mobileNumber || undefined,
       });
       setSuccess({ affiliateCode: res.data.affiliateCode });
     } catch (err: any) {
@@ -116,90 +107,187 @@ function AffiliateRegister() {
     }
   };
 
+  // ── Invalid invite ──────────────────────────────────────────────────────
   if (!operatorId && !parentCode) {
     return (
-      <PageWrapper>
-        <p className='text-red-400 text-sm text-center mt-4'>
-          Invalid invite link. Please request a new one from your operator.
+      <div className="flex w-full max-w-md flex-col">
+        <MobileLogo />
+        <Eyebrow>Invite required</Eyebrow>
+        <Headline>
+          Your invite link looks <span className="italic text-primary">incomplete</span>.
+        </Headline>
+        <p className="mt-3 text-sm text-gray-500">
+          Operator and referrer information is missing. Please request a new link from your
+          operator and try again.
         </p>
-      </PageWrapper>
+        <Link
+          to="/"
+          className="mt-8 inline-flex h-[46px] items-center justify-center rounded-lg bg-gray-900 text-sm font-semibold text-white transition-colors hover:bg-black"
+        >
+          Back to sign in
+        </Link>
+      </div>
     );
   }
 
+  // ── Success ────────────────────────────────────────────────────────────
   if (success) {
     return (
-      <PageWrapper>
-        <div className='text-center space-y-4 mt-4 w-full max-w-sm'>
-          <div className='w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mx-auto'>
-            <svg className='w-6 h-6 text-green-400' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
-              <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M5 13l4 4L19 7' />
-            </svg>
-          </div>
-          <h2 className='text-heading-20 text-white font-extrabold'>Registration complete!</h2>
-          <p className='text-sm text-gray-400'>Your affiliate account has been created.</p>
-          <div className='bg-white/10 border border-white/20 rounded-lg p-4 mt-2'>
-            <p className='text-xs text-gray-400 mb-1'>Your affiliate code</p>
-            <p className='text-2xl font-mono font-bold text-white tracking-widest'>{success.affiliateCode}</p>
-          </div>
-          <p className='text-xs text-gray-500'>Save this code &mdash; use it to track your referrals.</p>
+      <div className="flex w-full max-w-md flex-col">
+        <MobileLogo />
+        <Eyebrow>You&apos;re in</Eyebrow>
+        <Headline>
+          Welcome to <span className="italic text-primary">Affiliar</span>.
+        </Headline>
+        <p className="mt-3 text-sm text-gray-500">
+          Your affiliate account is ready. Save the code below — it tracks every player you refer.
+        </p>
+
+        <div className="mt-8 rounded-xl border border-gray-200 bg-gray-50 p-5">
+          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-gray-400 mb-2">
+            Your affiliate code
+          </p>
+          <p className="font-mono text-3xl font-semibold tracking-[0.2em] text-gray-900">
+            {success.affiliateCode}
+          </p>
         </div>
-      </PageWrapper>
+
+        <Link
+          to="/"
+          className="mt-6 inline-flex h-[46px] items-center justify-center rounded-lg bg-gray-900 text-sm font-semibold text-white transition-colors hover:bg-black"
+        >
+          Go to sign in
+        </Link>
+      </div>
     );
   }
 
+  // ── Form ───────────────────────────────────────────────────────────────
   return (
-    <PageWrapper>
-      <div className='pb-8 text-center'>
-        <h1 className='text-heading-20 text-white font-extrabold'>Create affiliate account</h1>
-        <p className='text-sm text-gray-400 mt-1'>You&apos;ve been invited to join as an affiliate.</p>
-      </div>
+    <div className="flex w-full max-w-md flex-col">
+      <MobileLogo />
+      <Eyebrow>Affiliate sign-up</Eyebrow>
+      <Headline>
+        Create your <span className="italic text-primary">workspace</span>.
+      </Headline>
+      <p className="mt-3 text-sm text-gray-500">
+        You&apos;ve been invited to join as an affiliate. Set up your account to get your
+        referral code and start tracking commissions.
+      </p>
 
       {error && (
-        <div className='w-full max-w-96 mb-4'>
-          <p className='text-sm text-red-400 text-center'>{error}</p>
+        <div className="mt-6 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className='w-full max-w-96 space-y-3'>
-        <Field label='Full name' value={form.name} onChange={set('name')} placeholder='Jane Doe' required />
-        <Field label='Email' type='email' value={form.email} onChange={set('email')} placeholder='jane@example.com' required />
-        <Field label='Username' value={form.username} onChange={set('username')} placeholder='janedoe' required />
+      <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
+        <Field
+          label="Full name"
+          value={form.name}
+          onChange={set('name')}
+          placeholder="Jane Doe"
+          required
+        />
+        <Field
+          label="Email"
+          type="email"
+          value={form.email}
+          onChange={set('email')}
+          placeholder="jane@example.com"
+          required
+        />
+        <Field
+          label="Username"
+          value={form.username}
+          onChange={set('username')}
+          placeholder="janedoe"
+          required
+        />
 
-        <div className='flex gap-3'>
-          <div className='w-28'>
+        <div className="flex gap-3">
+          <div className="w-28">
             <label className={labelClass}>Country code</label>
             <input
-              type='text'
+              type="text"
               value={form.mobileCountryCode}
               onChange={set('mobileCountryCode')}
-              placeholder='+49'
+              placeholder="+49"
               className={inputClass}
             />
           </div>
-          <div className='flex-1'>
+          <div className="flex-1">
             <label className={labelClass}>Phone number</label>
             <input
-              type='tel'
+              type="tel"
               value={form.mobileNumber}
               onChange={set('mobileNumber')}
-              placeholder='171 234 5678'
+              placeholder="171 234 5678"
               className={inputClass}
             />
           </div>
         </div>
 
-        <Field label='Password' type='password' value={form.password} onChange={set('password')} placeholder='Min. 8 characters' required />
-        <Field label='Confirm password' type='password' value={form.confirmPassword} onChange={set('confirmPassword')} placeholder='Repeat password' required />
+        <Field
+          label="Password"
+          type="password"
+          value={form.password}
+          onChange={set('password')}
+          placeholder="Min. 8 characters"
+          required
+        />
+        <Field
+          label="Confirm password"
+          type="password"
+          value={form.confirmPassword}
+          onChange={set('confirmPassword')}
+          placeholder="Repeat password"
+          required
+        />
 
         <button
-          type='submit'
+          type="submit"
           disabled={loading}
-          className='bg-primary text-white font-bold rounded-lg hover:bg-primary-dark transition-colors focus:outline-none focus:ring-2 h-[45px] w-full text-sm disabled:opacity-60 mt-2'
+          className="mt-3 inline-flex h-[46px] w-full items-center justify-center rounded-lg bg-gray-900 text-sm font-semibold text-white transition-colors hover:bg-black focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
         >
-          {loading ? 'Creating account...' : 'CREATE ACCOUNT'}
+          {loading ? 'Creating account…' : 'Create account'}
         </button>
       </form>
-    </PageWrapper>
+
+      <p className="mt-6 text-xs text-gray-400">
+        Already have an account?{' '}
+        <Link to="/" className="font-medium text-gray-700 hover:text-gray-900">
+          Sign in
+        </Link>
+        .
+      </p>
+    </div>
+  );
+}
+
+// ── Shared building blocks ────────────────────────────────────────────────
+
+function MobileLogo() {
+  return (
+    <div className="lg:hidden mb-10">
+      <Icon iconName="affiliarDark" svgProps={{ width: 130, height: 28 }} />
+    </div>
+  );
+}
+
+function Eyebrow({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-3 text-xs font-medium uppercase tracking-[0.18em] text-gray-400">
+      {children}
+    </p>
+  );
+}
+
+function Headline({ children }: { children: React.ReactNode }) {
+  return (
+    <h1 className="font-display text-4xl leading-tight tracking-tight text-gray-900">
+      {children}
+    </h1>
   );
 }
 

@@ -15,13 +15,20 @@ import Login from './login';
 export default function AuthRoutes() {
   return useAppRoutes([
     {
+      // Editorial split-screen shell. All auth-flow pages share this so
+      // login / register / reset / activate look like one product.
       path: '/',
       element: (
         <AuthLayout>
           <Outlet />
         </AuthLayout>
       ),
-      children: [{ path: '/', element: <Login /> }],
+      children: [
+        { path: '/',                element: <Login /> },
+        { path: 'register',         element: <Register /> },
+        { path: 'reset-password',   element: <ResetPassword /> },
+        { path: 'activate',         element: <Activate /> },
+      ],
     },
     {
       path: '/',
@@ -36,9 +43,6 @@ export default function AuthRoutes() {
         { path: 'cookie-policy', element: <CookiePolicy /> },
       ],
     },
-    { path: 'reset-password', element: <ResetPassword /> },
-    { path: 'activate', element: <Activate /> },
-    { path: 'register', element: <Register /> },
     { path: '*', element: <Navigate to="/" replace /> },
   ]);
 }
