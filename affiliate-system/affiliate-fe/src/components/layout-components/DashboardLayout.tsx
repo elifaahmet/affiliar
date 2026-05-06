@@ -1,6 +1,16 @@
-import { ReactElement, useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useLocation } from 'react-router-dom';
+import {
+  AdjustmentsHorizontalIcon,
+  BanknotesIcon,
+  BuildingStorefrontIcon,
+  ChartBarSquareIcon,
+  Cog6ToothIcon,
+  Squares2X2Icon,
+  UserGroupIcon,
+  UsersIcon,
+} from '@heroicons/react/24/outline';
 import Icon from '@components/core-components/icon';
 import cx from 'classnames';
 import { getBrandingConfig } from 'config/brandConfig';
@@ -15,11 +25,13 @@ import LanguageSelect from './LanguageSelect';
 import TimezoneSelect from './TimezoneSelect';
 import UserProfile from './UserProfile';
 
+type IconComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>;
+
 interface NavigationItem {
   key: string;
   name: string;
   href: string;
-  icon: ReactElement;
+  Icon: IconComponent;
   current: boolean;
 }
 
@@ -52,19 +64,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [isAuthenticated, logout, userId]);
 
   const handleMouseEnter = () => {
-    if (hoverTimeout.current) {
-      clearTimeout(hoverTimeout.current);
-    }
-    if (navCollapsed) {
-      setNavCollapsed(false);
-    }
+    if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
+    if (navCollapsed) setNavCollapsed(false);
   };
 
   const handleMouseLeave = () => {
     hoverTimeout.current = setTimeout(() => {
-      if (!navCollapsed) {
-        setNavCollapsed(true);
-      }
+      if (!navCollapsed) setNavCollapsed(true);
     }, 200);
   };
 
@@ -76,11 +82,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         setNavCollapsed(true);
       }
     }
-
     document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const navigation: NavigationItem[] = [
@@ -88,158 +91,97 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       key: 'dashboard',
       name: t('menuItems.dashboard') || 'Dashboard',
       href: '/dashboard',
-      icon: (
-        <Icon
-          iconName="categoryIcon2"
-          className="h-5 w-5 shrink-0"
-          svgProps={{
-            fill: pathname === '/dashboard' || pathname === '/' ? 'white' : '#99A1B7',
-          }}
-        />
-      ),
+      Icon: Squares2X2Icon,
       current: pathname === '/dashboard' || pathname === '/',
     },
     {
       key: 'players',
       name: t('menuItems.players') || 'Players',
       href: '/players/list',
-      icon: (
-        <Icon
-          iconName="players"
-          className="h-5 w-5 shrink-0"
-          svgProps={{
-            fill: pathname.startsWith('/players') ? 'white' : '#99A1B7',
-          }}
-        />
-      ),
+      Icon: UsersIcon,
       current: pathname.startsWith('/players'),
     },
     {
       key: 'affiliates',
       name: t('menuItems.affiliates') || 'Affiliates',
       href: '/affiliates',
-      icon: (
-        <Icon
-          iconName="referal"
-          className="h-5 w-5 shrink-0"
-          svgProps={{
-            fill: pathname.startsWith('/affiliates') ? 'white' : '#99A1B7',
-          }}
-        />
-      ),
+      Icon: UserGroupIcon,
       current: pathname.startsWith('/affiliates'),
     },
     {
       key: 'reports',
       name: t('menuItems.reports') || 'Reports',
       href: '/reports',
-      icon: (
-        <Icon
-          iconName="report"
-          className="h-5 w-5 shrink-0"
-          svgProps={{
-            fill: pathname.startsWith('/reports') ? 'white' : '#99A1B7',
-          }}
-        />
-      ),
+      Icon: ChartBarSquareIcon,
       current: pathname.startsWith('/reports'),
     },
     {
       key: 'brands',
       name: t('menuItems.brands') || 'Brands',
       href: '/brands',
-      icon: (
-        <Icon
-          iconName="settings"
-          className="h-5 w-5 shrink-0"
-          svgProps={{
-            fill: pathname.startsWith('/brands') ? 'white' : '#99A1B7',
-          }}
-        />
-      ),
+      Icon: BuildingStorefrontIcon,
       current: pathname.startsWith('/brands'),
     },
     {
       key: 'commission',
       name: t('menuItems.commission') || 'Commission',
       href: '/commission',
-      icon: (
-        <Icon
-          iconName="report"
-          className="h-5 w-5 shrink-0"
-          svgProps={{
-            fill: pathname.startsWith('/commission') ? 'white' : '#99A1B7',
-          }}
-        />
-      ),
+      Icon: BanknotesIcon,
       current: pathname.startsWith('/commission'),
     },
     {
       key: 'fees',
       name: t('menuItems.fees') || 'Fees',
       href: '/fees',
-      icon: (
-        <Icon
-          iconName="settings"
-          className="h-5 w-5 shrink-0"
-          svgProps={{
-            fill: pathname.startsWith('/fees') ? 'white' : '#99A1B7',
-          }}
-        />
-      ),
+      Icon: AdjustmentsHorizontalIcon,
       current: pathname.startsWith('/fees'),
     },
     {
       key: 'settings',
       name: t('menuItems.settings') || 'Settings',
       href: '/settings',
-      icon: (
-        <Icon
-          iconName="settings"
-          className="h-5 w-5 shrink-0"
-          svgProps={{
-            fill: pathname.startsWith('/settings') ? 'white' : '#99A1B7',
-          }}
-        />
-      ),
+      Icon: Cog6ToothIcon,
       current: pathname.startsWith('/settings'),
     },
   ];
 
+  // Frosted violet glass sidebar — translucent so the body bg tints
+  // through, with a soft right border to separate from the main area.
   const sidebarClassNames = cx(
-    'h-full bg-gray-900 p-6 overflow-y-auto overflow-x-hidden transition-all duration-300 ease-in-out absolute z-50',
+    'h-full overflow-y-auto overflow-x-hidden transition-all duration-300 ease-in-out absolute z-50',
+    'bg-gradient-to-b from-violet-100/85 via-violet-50/80 to-white/70 backdrop-blur-xl',
+    'border-r border-violet-200/60',
+    'p-5',
     {
-      'w-[82px]': navCollapsed,
-      'sm:w-1/2 md:w-1/3 lg:w-[253px]': !navCollapsed,
-    }
+      'w-[78px]': navCollapsed,
+      'sm:w-1/2 md:w-1/3 lg:w-[240px]': !navCollapsed,
+    },
   );
 
-  const contentClassNames = cx('flex-grow flex flex-col relative ml-[85px] overflow-y-auto');
+  const contentClassNames = cx('flex-grow flex flex-col relative ml-[78px] overflow-y-auto');
 
   const anchorClassName = (current: boolean) =>
     cx(
-      'flex flex-row w-full items-center group gap-x-3 rounded-md px-4 py-3 text-sm font-normal text-gray-400 whitespace-nowrap',
+      'group flex w-full items-center gap-x-3 rounded-lg px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors',
       {
-        'justify-center items-center': navCollapsed,
-        'bg-primary text-white': current,
-        'hover:text-gray-300 hover:bg-gray-700': !current,
-      }
+        'justify-center': navCollapsed,
+        // Active: solid violet pill — primary token
+        'bg-primary text-white shadow-sm shadow-primary/20': current,
+        // Idle: warm gray that picks up violet on hover
+        'text-gray-600 hover:bg-violet-200/40 hover:text-violet-900': !current,
+      },
     );
 
   const breadcrumbs = (() => {
-    if (pathname === '/') {
-      return [{ name: 'Home', href: '/', current: true }];
-    }
+    if (pathname === '/') return [{ name: 'Home', href: '/', current: true }];
 
     const pathnames = pathname.split('/').filter(Boolean);
-
     return pathnames
       .filter((segment) => !/^\d+$/.test(segment))
       .map((segment, index, arr) => {
         const href = `/${pathnames.slice(0, index + 1).join('/')}`;
         const isLast = index === arr.length - 1;
         const translationKey = segment.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
-
         return {
           name: t(`menuItems.${translationKey}`) || segment,
           href,
@@ -249,7 +191,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   })();
 
   return (
-    <div className="flex bg-grayBg h-screen w-full overflow-hidden">
+    <div
+      className="flex h-screen w-full overflow-hidden"
+      style={{
+        backgroundImage: `
+          radial-gradient(60% 50% at 0% 0%, rgba(139, 92, 246, 0.10) 0%, rgba(139, 92, 246, 0) 60%),
+          radial-gradient(50% 40% at 100% 100%, rgba(124, 58, 237, 0.06) 0%, rgba(124, 58, 237, 0) 60%),
+          linear-gradient(180deg, #fafaff 0%, #ffffff 100%)
+        `,
+      }}
+    >
       <Helmet>
         <title>{appTitle}</title>
         <meta name="description" content={appDescription} />
@@ -264,38 +215,29 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         role="navigation"
         tabIndex={0}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            setNavCollapsed(!navCollapsed);
-          }
+          if (e.key === 'Enter' || e.key === ' ') setNavCollapsed(!navCollapsed);
         }}
       >
-        <div className="mb-8">
+        <div className="mb-8 flex h-9 items-center px-1">
           {navCollapsed ? (
-            <div className="flex justify-center items-center">
-              <Icon
-                iconName="affiliarMark"
-                className="shrink-0"
-                svgProps={{ width: 36, height: 36 }}
-              />
-            </div>
+            <Icon iconName="affiliarMark" className="shrink-0" svgProps={{ width: 36, height: 36 }} />
           ) : (
-            <div className="flex justify-start items-center">
-              <Icon
-                iconName="affiliar"
-                className="shrink-0"
-                svgProps={{ width: 140, height: 36 }}
-              />
-            </div>
+            <Icon iconName="affiliarDark" className="shrink-0" svgProps={{ width: 130, height: 28 }} />
           )}
         </div>
 
         <nav className="flex flex-1 flex-col">
-          <ul className="-mx-2 space-y-1">
-            {navigation.map((item) => (
-              <li key={item.key}>
-                <Link to={item.href} className={anchorClassName(item.current)}>
-                  {item.icon}
-                  {!navCollapsed && item.name}
+          <ul className="space-y-1">
+            {navigation.map(({ key, name, href, Icon: NavIcon, current }) => (
+              <li key={key}>
+                <Link to={href} className={anchorClassName(current)}>
+                  <NavIcon
+                    className={cx('h-5 w-5 shrink-0', {
+                      'stroke-[1.6]': true,
+                    })}
+                    aria-hidden="true"
+                  />
+                  {!navCollapsed && <span className="truncate">{name}</span>}
                 </Link>
               </li>
             ))}
@@ -304,15 +246,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       <div className={contentClassNames}>
-        <div className="shadow-[0px_2px_6px_0px_rgba(0,0,0,0.10)] bg-white h-[60px] flex pl-8 justify-between fixed top-0 right-0 left-[85px] z-10">
+        <div className="fixed top-0 right-0 left-[78px] z-10 flex h-[60px] items-center justify-between border-b border-violet-100 bg-white/70 pl-8 backdrop-blur-md">
           <BreadCrumb pages={breadcrumbs} />
-          <div className="flex relative items-center gap-3 pr-8">
+          <div className="relative flex items-center gap-3 pr-8">
             <TimezoneSelect />
             <LanguageSelect />
             <UserProfile />
           </div>
         </div>
-        <div className="h-[calc(100vh-65px)] mt-[60px] bg-gray-100">{children}</div>
+        <div className="mt-[60px] h-[calc(100vh-65px)]">{children}</div>
       </div>
     </div>
   );
