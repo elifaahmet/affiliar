@@ -22,7 +22,6 @@ import { useTranslate } from '../../utils/locales/use-locales';
 
 import BreadCrumb from './BreadCrumb';
 import LanguageSelect from './LanguageSelect';
-import TimezoneSelect from './TimezoneSelect';
 import UserProfile from './UserProfile';
 
 type IconComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>;
@@ -248,9 +247,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       <div className={contentClassNames}>
         <div className="fixed top-0 right-0 left-[78px] z-10 flex h-[60px] items-center justify-between border-b border-violet-100 bg-white/70 pl-8 backdrop-blur-md">
           <BreadCrumb pages={breadcrumbs} />
-          <div className="relative flex items-center gap-3 pr-8">
-            <TimezoneSelect />
+          <div className="relative flex items-center gap-2 pr-8">
             <LanguageSelect />
+            <span className="mx-1 h-5 w-px bg-violet-100" aria-hidden="true" />
             <UserProfile />
           </div>
         </div>
