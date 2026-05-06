@@ -26,27 +26,29 @@
       theme: {
         extend: {
           colors: {
-            primary: '#4F6EF7',
-            'primary-dark': '#3B55D4',
-            'primary-light': '#EEF1FE',
+            primary: '#8B5CF6',
+            'primary-dark': '#6D28D9',
+            'primary-light': '#F3EEFF',
           },
           fontFamily: {
             sans: ['Inter', 'system-ui', 'sans-serif'],
             mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+            display: ['"Instrument Serif"', 'Georgia', 'serif'],
           },
         },
       },
     }
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     html { scroll-behavior: smooth; }
 
     /* Sidebar active */
     .nav-link { display: block; padding: 5px 10px; border-radius: 6px; font-size: 13px; color: #6b7280; transition: all 0.15s; }
     .nav-link:hover { color: #111827; background: #f3f4f6; }
-    .nav-link.active { color: #4F6EF7; background: #EEF1FE; font-weight: 600; }
+    .nav-link.active { color: #6D28D9; background: #F3EEFF; font-weight: 600; }
 
     /* Content headings anchor offset */
     .content section { scroll-margin-top: 80px; }
@@ -65,12 +67,12 @@
     td { padding: 10px 14px; border-bottom: 1px solid #f3f4f6; color: #4b5563; vertical-align: top; }
 
     /* Callouts */
-    .callout-info  { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13.5px; color: #1e40af; }
+    .callout-info  { background: #F3EEFF; border-left: 3px solid #8B5CF6; padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13.5px; color: #5B21B6; }
     .callout-warn  { background: #fffbeb; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13.5px; color: #92400e; }
     .callout-tip   { background: #f0fdf4; border-left: 3px solid #22c55e; padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13.5px; color: #166534; }
 
     /* Step number */
-    .step-num { width: 28px; height: 28px; border-radius: 50%; background: #4F6EF7; color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+    .step-num { width: 28px; height: 28px; border-radius: 50%; background: #8B5CF6; color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
 
     /* UI Mockup */
     .ui-mockup { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; font-size: 13px; }
@@ -99,8 +101,8 @@
       <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
     </button>
     <a href="index.html" class="flex items-center gap-2 shrink-0">
-      <div class="w-7 h-7 rounded-lg bg-primary flex items-center justify-center text-white font-black text-xs">A</div>
-      <span class="font-bold text-gray-900">Affiliar</span>
+      <span class="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-400 to-violet-700 flex items-center justify-center text-white font-display italic text-[18px] leading-none pb-[2px]">a</span>
+      <span class="font-display italic text-gray-900 text-xl leading-none">affiliar</span>
     </a>
     <span class="text-gray-300 text-lg hidden sm:block">|</span>
     <span class="text-sm text-gray-500 hidden sm:block">User Guide</span>
@@ -1190,9 +1192,9 @@ maria_g,maria@example.com,Maria Garcia,CPA $50</code></pre>
               <span class="text-sm font-semibold text-yellow-700">Pending</span>
             </div>
             <svg class="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-            <div class="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg">
-              <div class="w-2.5 h-2.5 rounded-full bg-blue-400"></div>
-              <span class="text-sm font-semibold text-blue-700">Approved</span>
+            <div class="flex items-center gap-2 px-3 py-2 bg-violet-50 rounded-lg">
+              <div class="w-2.5 h-2.5 rounded-full bg-violet-400"></div>
+              <span class="text-sm font-semibold text-violet-700">Approved</span>
             </div>
             <svg class="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             <div class="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-lg">

@@ -34,28 +34,31 @@
       theme: {
         extend: {
           colors: {
-            primary: '#4F6EF7',
-            'primary-dark': '#3B55D4',
-            'primary-light': '#EEF1FE',
+            primary: '#8B5CF6',
+            'primary-dark': '#6D28D9',
+            'primary-light': '#F3EEFF',
           },
           fontFamily: {
             sans: ['Inter', 'system-ui', 'sans-serif'],
+            display: ['"Instrument Serif"', 'Georgia', 'serif'],
           },
         },
       },
     }
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
   <style>
     html { scroll-behavior: smooth; }
     .card-hover {
       transition: box-shadow 0.2s, transform 0.2s;
     }
     .card-hover:hover {
-      box-shadow: 0 8px 40px rgba(79,110,247,0.12);
+      box-shadow: 0 8px 40px rgba(139,92,246,0.14);
       transform: translateY(-2px);
     }
+    .font-display { font-family: 'Instrument Serif', Georgia, serif; }
     @keyframes fadeUp {
       from { opacity: 0; transform: translateY(20px); }
       to   { opacity: 1; transform: translateY(0); }
@@ -75,8 +78,8 @@
   <nav class="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
     <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
       <a href="index.html" class="flex items-center gap-2">
-        <div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white font-black text-sm">A</div>
-        <span class="font-bold text-gray-900 text-lg tracking-tight">Affiliar</span>
+        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-400 to-violet-700 flex items-center justify-center text-white font-display italic text-[22px] leading-none pb-[3px] shadow-sm shadow-primary/30">a</span>
+        <span class="font-display italic text-gray-900 text-2xl tracking-tight leading-none">affiliar</span>
       </a>
       <div class="hidden md:flex items-center gap-8 text-sm text-gray-500">
         <a href="index.html"   class="hover:text-gray-900 transition-colors">Home</a>
@@ -94,8 +97,8 @@
   <!-- HERO -->
   <section class="pt-32 pb-16 px-6">
     <div class="max-w-4xl mx-auto text-center fade-up">
-      <h1 class="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-[1.1] text-gray-900 mb-5">
-        Simple, transparent <span class="text-primary">pricing</span>
+      <h1 class="text-4xl sm:text-5xl md:text-6xl font-semibold tracking-tight leading-[1.05] text-gray-900 mb-5">
+        Simple, transparent <span class="font-display italic font-normal bg-gradient-to-br from-primary to-primary-dark bg-clip-text text-transparent">pricing.</span>
       </h1>
       <p class="text-lg sm:text-xl text-gray-500 max-w-2xl mx-auto leading-relaxed">
         Choose the plan that fits your scale. All plans include a 14-day free trial.
@@ -393,8 +396,8 @@
   <footer class="border-t border-gray-100 py-10 px-6 bg-white">
     <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
       <div class="flex items-center gap-2">
-        <div class="w-7 h-7 rounded-lg bg-primary flex items-center justify-center text-white font-black text-xs">A</div>
-        <span class="font-bold text-gray-900">Affiliar</span>
+        <span class="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-400 to-violet-700 flex items-center justify-center text-white font-display italic text-[18px] leading-none pb-[2px]">a</span>
+        <span class="font-display italic text-gray-900 text-xl leading-none">affiliar</span>
         <span class="text-gray-400 text-sm ml-3">Affiliate management for iGaming operators.</span>
       </div>
       <p class="text-xs text-gray-400">&copy; 2026 Affiliar. All rights reserved.</p>
