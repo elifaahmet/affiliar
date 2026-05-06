@@ -80,11 +80,14 @@ function AuthLayout({ children }: AuthLayoutProps) {
         </div>
 
         {/* ── Right: form column ──────────────────────────────────────────
-            `flex items-stretch` + `m-auto` on the inner wrapper centers
-            children when they fit and lets the page scroll naturally
-            when content is taller than the column (e.g. register).
-            Each page picks its own max-w on the actual form column. */}
-        <div className="flex flex-1 items-stretch px-6 py-12 lg:px-12 lg:py-16">
+            flex-col + m-auto reliably centers vertically. With flex-col
+            the auto-margin trick consumes main-axis (vertical) space, so
+            short forms sit mid-column. min-h-full forces the column to
+            fill the viewport even on mobile (where the brand panel is
+            hidden). When the form is taller than the viewport, the outer
+            h-screen overflow-y-auto kicks in — auto margins collapse to
+            0 and the page scrolls naturally with the configured padding. */}
+        <div className="flex min-h-full flex-1 flex-col px-6 py-12 lg:px-12 lg:py-16">
           <div className="m-auto w-full">{children}</div>
         </div>
       </div>
