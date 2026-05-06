@@ -1,4 +1,4 @@
-<svg width="140" height="32" viewBox="0 0 140 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="150" height="32" viewBox="0 0 150 32" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="affiliarDarkMark" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
       <stop stop-color="#A78BFA" />
@@ -18,15 +18,16 @@
     text-anchor="middle"
     dominant-baseline="central"
   >a</text>
-  <!-- Wordmark: Inter 600 in deep gray for light backgrounds -->
+  <!-- Wordmark in italic serif, dark on light surfaces -->
   <text
     x="42"
-    y="16.5"
+    y="18"
     fill="#0A0A0A"
-    font-family="Inter, 'Helvetica Neue', Arial, sans-serif"
-    font-size="16"
-    font-weight="600"
-    letter-spacing="-0.4"
+    font-family="'Instrument Serif', 'Iowan Old Style', 'Apple Garamond', Baskerville, 'Times New Roman', serif"
+    font-size="23"
+    font-style="italic"
+    font-weight="400"
+    letter-spacing="-0.2"
     dominant-baseline="central"
   >affiliar</text>
 </svg>
