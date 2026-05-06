@@ -1,6 +1,7 @@
 import React from 'react';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import { useSelector } from 'react-redux';
+import Icon from '@components/core-components/icon';
 import PInput from '@components/core-components/input';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useAppDispatch } from 'hooks/redux';
@@ -44,11 +45,8 @@ function MainSection(props: ForgotPasswordSectionProps) {
   return (
     <div className="flex flex-col">
       {/* Mobile-only logo (the desktop hero panel handles this on lg+) */}
-      <div className="lg:hidden mb-10 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-white font-bold">
-          A
-        </div>
-        <span className="text-lg font-semibold text-gray-900">Affiliar</span>
+      <div className="lg:hidden mb-10">
+        <Icon iconName="affiliarDark" svgProps={{ width: 130, height: 28 }} />
       </div>
 
       <div className="mb-8">
