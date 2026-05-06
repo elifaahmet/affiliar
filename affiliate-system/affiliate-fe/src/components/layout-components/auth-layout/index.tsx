@@ -21,8 +21,12 @@ type AuthLayoutProps = {
  */
 function AuthLayout({ children }: AuthLayoutProps) {
   return (
-    <div className="flex flex-col min-h-screen w-full bg-white">
-      <div className="flex flex-1 flex-col lg:flex-row">
+    // Owns its own scroll context. The global `body { overflow: hidden }`
+    // (set for the dashboard's fixed sidebar layout) would otherwise
+    // prevent any scroll on auth pages, so a tall form like register got
+    // clipped under the viewport. h-screen + overflow-y-auto fixes it.
+    <div className="flex h-screen w-full flex-col overflow-y-auto bg-white">
+      <div className="flex min-h-full flex-1 flex-col lg:flex-row">
         {/* ── Left: editorial brand panel ───────────────────────────────── */}
         <div className="relative hidden lg:flex lg:w-[58%] xxl:w-3/5 overflow-hidden bg-[#0a0a0a]">
           {/* Gradient mesh — soft violet glow on a near-black canvas */}
@@ -76,12 +80,12 @@ function AuthLayout({ children }: AuthLayoutProps) {
         </div>
 
         {/* ── Right: form column ──────────────────────────────────────────
-            Grid + place-items-center centers the form on both axes
-            reliably, including when the form gets tall (e.g. register).
-            min-h-screen on lg+ ensures vertical centering relative to
-            the viewport, not just the flex parent's content height. */}
-        <div className="grid flex-1 place-items-center px-6 py-12 lg:min-h-screen lg:px-12 lg:py-16">
-          {children}
+            `flex items-stretch` + `m-auto` on the inner wrapper centers
+            children when they fit and lets the page scroll naturally
+            when content is taller than the column (e.g. register).
+            Each page picks its own max-w on the actual form column. */}
+        <div className="flex flex-1 items-stretch px-6 py-12 lg:px-12 lg:py-16">
+          <div className="m-auto w-full">{children}</div>
         </div>
       </div>
 

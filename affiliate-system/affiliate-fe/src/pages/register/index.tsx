@@ -117,8 +117,8 @@ function AffiliateRegister() {
           Your invite link looks <span className="italic text-primary">incomplete</span>.
         </Headline>
         <p className="mt-3 text-sm text-gray-500">
-          Operator and referrer information is missing. Please request a new link from your
-          operator and try again.
+          Operator and referrer information is missing. Please request a new link from your operator
+          and try again.
         </p>
         <Link
           to="/"
@@ -171,8 +171,8 @@ function AffiliateRegister() {
         Create your <span className="italic text-primary">workspace</span>.
       </Headline>
       <p className="mt-3 text-sm text-gray-500">
-        You&apos;ve been invited to join as an affiliate. Set up your account to get your
-        referral code and start tracking commissions.
+        You&apos;ve been invited to join as an affiliate. Set up your account to get your referral
+        code and start tracking commissions.
       </p>
 
       {error && (
@@ -277,17 +277,13 @@ function MobileLogo() {
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
-    <p className="mb-3 text-xs font-medium uppercase tracking-[0.18em] text-gray-400">
-      {children}
-    </p>
+    <p className="mb-3 text-xs font-medium uppercase tracking-[0.18em] text-gray-400">{children}</p>
   );
 }
 
 function Headline({ children }: { children: React.ReactNode }) {
   return (
-    <h1 className="font-display text-4xl leading-tight tracking-tight text-gray-900">
-      {children}
-    </h1>
+    <h1 className="font-display text-4xl leading-tight tracking-tight text-gray-900">{children}</h1>
   );
 }
 
