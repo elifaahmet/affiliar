@@ -960,7 +960,7 @@ export default function Affiliates() {
   const hasBrands = (brandsData?.brands?.length ?? 0) > 0;
 
   return (
-    <div className='bg-gray-100 h-full overflow-auto p-6 pb-24 space-y-6'>
+    <div className='h-full overflow-auto p-6 pb-24 space-y-6'>
       <h1 className='text-xl font-semibold text-gray-800'>Affiliates</h1>
 
       {!hasBrands && (

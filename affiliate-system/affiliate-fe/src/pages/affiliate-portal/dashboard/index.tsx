@@ -161,7 +161,7 @@ export default function AffiliateDashboard() {
   const com = data?.commission;
 
   return (
-    <div className='bg-gray-100 h-full overflow-auto p-6 pb-24 space-y-6'>
+    <div className='h-full overflow-auto p-6 pb-24 space-y-6'>
 
       {/* Period selector */}
       <div className='space-y-3'>

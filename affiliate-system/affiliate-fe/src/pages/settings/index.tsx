@@ -263,7 +263,7 @@ export default function Settings() {
   }
 
   return (
-    <div className='bg-gray-100 h-full overflow-auto p-6 pb-24 space-y-6'>
+    <div className='h-full overflow-auto p-6 pb-24 space-y-6'>
       <h1 className='text-xl font-semibold text-gray-800'>Settings</h1>
 
       {isLoading && <p className='text-sm text-gray-400'>Loading plan info...</p>}

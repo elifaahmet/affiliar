@@ -154,7 +154,7 @@ export default function CampaignReports() {
 
   if (campaignBlocked) {
     return (
-      <div className='bg-gray-100 h-full overflow-auto p-6 pb-24 space-y-6'>
+      <div className='h-full overflow-auto p-6 pb-24 space-y-6'>
         <h1 className='text-xl font-semibold text-gray-800'>Campaign Reports</h1>
         <UpgradeBanner
           message={`Campaign tracking is not available on the ${planData.limits.name} plan. Upgrade to access campaign-level reporting.`}
@@ -166,7 +166,7 @@ export default function CampaignReports() {
   }
 
   return (
-    <div className='bg-gray-100 h-full overflow-auto p-6 pb-24 space-y-6'>
+    <div className='h-full overflow-auto p-6 pb-24 space-y-6'>
       {/* Header + filters */}
       <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
         <h1 className='text-xl font-semibold text-gray-800'>Campaign Reports</h1>

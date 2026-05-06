@@ -86,7 +86,7 @@ export default function AffiliateProfile() {
 
   if (isLoading) {
     return (
-      <div className='bg-gray-100 h-full overflow-auto p-6'>
+      <div className='h-full overflow-auto p-6'>
         <div className='space-y-4 max-w-2xl'>
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className='bg-white rounded-xl p-6 border border-gray-100 animate-pulse h-24' />
@@ -97,7 +97,7 @@ export default function AffiliateProfile() {
   }
 
   return (
-    <div className='bg-gray-100 h-full overflow-auto p-6 pb-24 space-y-6'>
+    <div className='h-full overflow-auto p-6 pb-24 space-y-6'>
 
       {/* Account info (read-only) */}
       <div className='bg-white rounded-xl shadow-sm border border-gray-100 p-6 max-w-2xl'>

@@ -63,7 +63,7 @@ export default function AffiliateCommission() {
   const totalPending  = reports.filter(r => ['draft','pending_approval'].includes(r.status)).reduce((s, r) => s + (r.breakdown?.totalCents ?? 0), 0);
 
   return (
-    <div className='bg-gray-100 h-full overflow-auto p-6 pb-24 space-y-6'>
+    <div className='h-full overflow-auto p-6 pb-24 space-y-6'>
 
       {/* Summary cards */}
       <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>

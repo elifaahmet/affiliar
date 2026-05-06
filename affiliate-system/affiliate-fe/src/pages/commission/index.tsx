@@ -931,7 +931,7 @@ export default function Commission() {
   const [activeTab, setActiveTab] = useState<Tab>('Reports');
 
   return (
-    <div className='bg-gray-100 h-full overflow-auto p-6 pb-24 space-y-5'>
+    <div className='h-full overflow-auto p-6 pb-24 space-y-5'>
       <h1 className='text-xl font-semibold text-gray-800'>Commission</h1>
 
       <div className='flex gap-1 bg-white rounded-xl p-1 shadow-sm border border-gray-100 w-full'>

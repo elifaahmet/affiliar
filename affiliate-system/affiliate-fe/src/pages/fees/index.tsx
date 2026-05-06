@@ -543,7 +543,7 @@ export default function FeesPage() {
   const [scope, setScope] = useState<Scope>('default');
 
   return (
-    <div className='bg-gray-100 h-full overflow-auto p-6 pb-24 space-y-6'>
+    <div className='h-full overflow-auto p-6 pb-24 space-y-6'>
       <div className='bg-amber-50 border-2 border-amber-400 rounded-xl p-4 flex gap-3 items-start'>
         <span className='text-amber-600 text-xl leading-none'>⚠️</span>
         <div>

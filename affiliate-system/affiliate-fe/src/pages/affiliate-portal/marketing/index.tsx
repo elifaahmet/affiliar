@@ -84,7 +84,7 @@ export default function AffiliateMarketing() {
   }
 
   return (
-    <div className='bg-gray-100 h-full overflow-auto p-6 pb-24 space-y-6'>
+    <div className='h-full overflow-auto p-6 pb-24 space-y-6'>
 
       {/* Campaign Performance */}
       <div className='bg-white rounded-xl shadow-sm border border-gray-100 p-6'>
