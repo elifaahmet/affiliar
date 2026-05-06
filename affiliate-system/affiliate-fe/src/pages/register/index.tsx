@@ -110,7 +110,7 @@ function AffiliateRegister() {
   // ── Invalid invite ──────────────────────────────────────────────────────
   if (!operatorId && !parentCode) {
     return (
-      <div className="flex w-full max-w-md flex-col">
+      <div className="mx-auto flex w-full max-w-md flex-col">
         <MobileLogo />
         <Eyebrow>Invite required</Eyebrow>
         <Headline>
@@ -133,7 +133,7 @@ function AffiliateRegister() {
   // ── Success ────────────────────────────────────────────────────────────
   if (success) {
     return (
-      <div className="flex w-full max-w-md flex-col">
+      <div className="mx-auto flex w-full max-w-md flex-col">
         <MobileLogo />
         <Eyebrow>You&apos;re in</Eyebrow>
         <Headline>
@@ -164,7 +164,7 @@ function AffiliateRegister() {
 
   // ── Form ───────────────────────────────────────────────────────────────
   return (
-    <div className="flex w-full max-w-md flex-col">
+    <div className="mx-auto flex w-full max-w-lg flex-col">
       <MobileLogo />
       <Eyebrow>Affiliate sign-up</Eyebrow>
       <Headline>

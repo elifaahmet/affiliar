@@ -23,7 +23,7 @@ const Login = () => {
   }, [twoFactorRequired, authStep]);
 
   return (
-    <div className="flex w-full max-w-md flex-col">
+    <div className="mx-auto flex w-full max-w-md flex-col">
       {authStep === 'login' && <MainSection setAuthStep={setAuthStep} />}
       {authStep === 'forgotPassword' && <ForgotPasswordSection setAuthStep={setAuthStep} />}
       {authStep === 'otp' && <OtpSection />}

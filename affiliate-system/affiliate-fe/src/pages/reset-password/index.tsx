@@ -75,7 +75,7 @@ export default function ResetPassword() {
 
   if (done) {
     return (
-      <div className="flex w-full max-w-md flex-col">
+      <div className="mx-auto flex w-full max-w-md flex-col">
         <MobileLogo />
         <Eyebrow>Password updated</Eyebrow>
         <Headline>
@@ -95,7 +95,7 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="flex w-full max-w-md flex-col">
+    <div className="mx-auto flex w-full max-w-md flex-col">
       <MobileLogo />
       <Eyebrow>Account recovery</Eyebrow>
       <Headline>

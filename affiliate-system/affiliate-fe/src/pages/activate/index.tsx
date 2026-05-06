@@ -71,7 +71,7 @@ export default function Activate() {
 
   if (done) {
     return (
-      <div className="flex w-full max-w-md flex-col">
+      <div className="mx-auto flex w-full max-w-md flex-col">
         <MobileLogo />
         <Eyebrow>Account activated</Eyebrow>
         <Headline>
@@ -91,7 +91,7 @@ export default function Activate() {
   }
 
   return (
-    <div className="flex w-full max-w-md flex-col">
+    <div className="mx-auto flex w-full max-w-md flex-col">
       <MobileLogo />
       <Eyebrow>Account activation</Eyebrow>
       <Headline>
