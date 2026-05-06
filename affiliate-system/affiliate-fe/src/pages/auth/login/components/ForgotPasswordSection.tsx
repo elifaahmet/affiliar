@@ -1,5 +1,4 @@
 import React, { useState, type FormEvent } from 'react';
-import Icon from '@components/core-components/icon';
 import PInput from '@components/core-components/input';
 import axiosInstance from 'config/axiosInstance';
 
@@ -27,7 +26,8 @@ function ForgotPasswordSection(props: ForgotPasswordSectionProps) {
       await axiosInstance.post('auth/forgot-password', { email });
       setSubmitted(true);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      const message =
+        err instanceof Error ? err.message : 'Something went wrong. Please try again.';
       setError(message);
     } finally {
       setSubmitting(false);
@@ -35,50 +35,57 @@ function ForgotPasswordSection(props: ForgotPasswordSectionProps) {
   };
 
   return (
-    <>
-      <div className="flex flex-row w-full pb-4 gap-4 items-center">
-        <Icon
-          iconName="backIcon"
-          svgProps={{ width: 34, height: 34 }}
-          onClick={() => setAuthStep('login')}
-        />
-        <span className="text-heading-24 font-semibold text-white">Back</span>
-      </div>
-      <div className="w-[253px] h-32">
-        <Icon iconName="affiliar" svgProps={{ width: 253, height: 75 }} />
-      </div>
-      <div className="pb-12">
-        <h1 className="text-heading-20 text-white font-extrabold">Forgot your password?</h1>
-        <p className="text-body-reg-13 text-white/70 mt-2">
-          Enter your email and we'll send you a reset link.
+    <div className="flex flex-col">
+      <button
+        type="button"
+        onClick={() => setAuthStep('login')}
+        className="mb-8 inline-flex items-center gap-2 text-xs font-medium text-gray-500 transition-colors hover:text-gray-900"
+      >
+        <span aria-hidden>←</span> Back to sign in
+      </button>
+
+      <div className="mb-8">
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-400 mb-3">
+          Account recovery
+        </p>
+        <h1 className="font-display text-4xl leading-tight tracking-tight text-gray-900">
+          Forgot your <span className="italic text-primary">password</span>?
+        </h1>
+        <p className="mt-3 text-sm text-gray-500">
+          Enter the email tied to your operator account and we&apos;ll send you a reset link.
         </p>
       </div>
 
       {submitted ? (
-        <div className="bg-white/10 border border-white/20 rounded-lg p-4 text-white text-body-reg-13">
-          If an account exists for that email, a reset link has been sent. Check your inbox.
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+          If an account exists for that email, a reset link is on its way. Check your inbox.
         </div>
       ) : (
-        <form className="w-full" onSubmit={handleSubmit}>
-          <PInput
-            placeholder="Email Address"
-            id="email"
-            name="email"
-            type="email"
-            required
-            className="w-full text-body-reg-13 h-[42px] mb-[18px]"
-          />
-          {error && <p className="text-red-400 text-body-reg-13 mb-2">{error}</p>}
+        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+          <div>
+            <label htmlFor="email" className="mb-1.5 block text-xs font-semibold text-gray-700">
+              Email
+            </label>
+            <PInput
+              placeholder="you@operator.com"
+              id="email"
+              name="email"
+              type="email"
+              required
+              className="w-full bg-white h-[44px]"
+            />
+          </div>
+          {error && <p className="text-sm text-danger">{error}</p>}
           <button
             type="submit"
             disabled={submitting}
-            className="bg-primary text-white font-semibold rounded-md hover:bg-primary-dark transition-colors focus:outline-none focus:ring-2 h-[45px] w-full text-body-reg-13 disabled:opacity-60"
+            className="mt-2 inline-flex h-[46px] w-full items-center justify-center rounded-lg bg-gray-900 text-sm font-semibold text-white transition-colors hover:bg-black focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
           >
-            {submitting ? 'Sending...' : 'Send Reset Link'}
+            {submitting ? 'Sending…' : 'Send reset link'}
           </button>
         </form>
       )}
-    </>
+    </div>
   );
 }
 

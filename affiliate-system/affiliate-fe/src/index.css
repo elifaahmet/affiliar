@@ -351,21 +351,54 @@ input[type='datetime-local'] {
 }
 
 body {
-  font-family: 'Manrope', sans-serif !important;
+  font-family:
+    'Inter',
+    'Manrope',
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif !important;
+  font-feature-settings:
+    'cv02',
+    'cv03',
+    'cv04',
+    'cv11';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-display {
+  font-family:
+    'Instrument Serif',
+    'Iowan Old Style',
+    'Apple Garamond',
+    Baskerville,
+    'Times New Roman',
+    serif !important;
 }
 
 .ag-theme-quartz {
-  font-family: 'Manrope', sans-serif !important;
+  font-family:
+    'Inter',
+    'Manrope',
+    ui-sans-serif,
+    system-ui,
+    sans-serif !important;
 }
 
-/* Ensure all AG Grid text elements use Gilroy */
 .ag-header,
 .ag-header-cell,
 .ag-header-group-cell,
 .ag-cell,
 .ag-row,
 .ag-paging-panel {
-  font-family: 'Manrope', sans-serif !important;
+  font-family:
+    'Inter',
+    'Manrope',
+    ui-sans-serif,
+    system-ui,
+    sans-serif !important;
 }
 .loader {
   animation: spin 1s linear infinite;

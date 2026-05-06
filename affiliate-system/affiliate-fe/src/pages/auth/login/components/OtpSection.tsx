@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
-import Icon from '@components/core-components/icon';
 import { unwrapResult } from '@reduxjs/toolkit';
 import { useAppDispatch } from 'hooks/redux';
 import { RootState } from 'store';
@@ -90,80 +89,73 @@ function OtpSection() {
   const allFieldsFilled = otpValues.every((value) => value !== '' && value.length === 1);
 
   return (
-    <>
-      <div className="h-full w-full">
-        <div className="mb-16">
-          <Icon iconName="pixupplay" svgProps={{ width: 142, height: 42 }} />
-        </div>
-        <div className="flex flex-col gap-4 text-center">
-          <h1 className="text-heading-20 text-white font-extrabold">Two-Factor Authentication</h1>
-          <h4 className="text-gray-400">
-            {showQrCode ? (
-              <>
-                To set up 2FA, please scan the QR code that appears, then enter the code from your
-                authenticator app.
-              </>
-            ) : (
-              <>Open the Google Authenticator app on your phone and enter the generated code.</>
-            )}
-          </h4>
-        </div>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleOtpSubmit();
-          }}
-          className="flex flex-col gap-6"
-        >
-          <div>
-            <div className="grid grid-cols-6 gap-4 mt-8 justify-center">
-              {otpValues.map((value, index) => (
-                <input
-                  key={index}
-                  // type="password"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  placeholder="▪"
-                  pattern="\d{1}"
-                  maxLength={1}
-                  className="aspect-square min-w-0 text-center text-lg rounded-md bg-white text-black border border-gray-400 otp-input"
-                  value={value}
-                  onChange={(e) => {
-                    const inputType = (e.nativeEvent as InputEvent).inputType;
-                    if (inputType !== 'deleteContentBackward') {
-                      handleChange(index, e.target.value, e);
-                    }
-                  }}
-                  onKeyDown={(e) => e.key !== 'Enter' && handleChange(index, '', e)}
-                  ref={(el) => (inputRefs.current[index] = el)}
-                />
-              ))}
-            </div>
-            {error && (
-              <p className="mt-2 text-red-500 text-body-reg-12 font-medium text-left">{error}</p>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            disabled={!allFieldsFilled || loading}
-            className="bg-primary text-white font-bold rounded-lg uppercase  hover:bg-primary-dark transition-colors focus:outline-none focus:ring-2 h-[45px] w-full text-sm"
-          >
-            {loading ? 'Verifying...' : 'Confirm'}
-          </button>
-        </form>
-        <div className="mt-10 text-center">
-          {showQrCode && !isQRcodePopupOpen && (
-            <button
-              type="button"
-              onClick={() => setIsQRcodePopupOpen(true)}
-              className="text-primary text-sm font-semibold underline hover:opacity-80 transition-opacity"
-            >
-              Open QR Code
-            </button>
-          )}
-        </div>
+    <div className="flex flex-col">
+      <div className="mb-8">
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-400 mb-3">
+          Two-factor authentication
+        </p>
+        <h1 className="font-display text-4xl leading-tight tracking-tight text-gray-900">
+          Verify it&apos;s <span className="italic text-primary">you</span>.
+        </h1>
+        <p className="mt-3 text-sm text-gray-500">
+          {showQrCode
+            ? 'Scan the QR code with your authenticator app, then enter the 6-digit code below.'
+            : 'Open Google Authenticator on your phone and enter the 6-digit code.'}
+        </p>
       </div>
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleOtpSubmit();
+        }}
+        className="flex flex-col gap-6"
+      >
+        <div>
+          <div className="grid grid-cols-6 gap-3">
+            {otpValues.map((value, index) => (
+              <input
+                key={index}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="•"
+                pattern="\d{1}"
+                maxLength={1}
+                className="aspect-square min-w-0 rounded-lg border border-gray-200 bg-white text-center text-2xl font-semibold text-gray-900 transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 otp-input"
+                value={value}
+                onChange={(e) => {
+                  const inputType = (e.nativeEvent as InputEvent).inputType;
+                  if (inputType !== 'deleteContentBackward') {
+                    handleChange(index, e.target.value, e);
+                  }
+                }}
+                onKeyDown={(e) => e.key !== 'Enter' && handleChange(index, '', e)}
+                ref={(el) => (inputRefs.current[index] = el)}
+              />
+            ))}
+          </div>
+          {error && <p className="mt-3 text-sm text-danger">{error}</p>}
+        </div>
+
+        <button
+          type="submit"
+          disabled={!allFieldsFilled || loading}
+          className="inline-flex h-[46px] w-full items-center justify-center rounded-lg bg-gray-900 text-sm font-semibold text-white transition-colors hover:bg-black focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
+        >
+          {loading ? 'Verifying…' : 'Confirm'}
+        </button>
+      </form>
+
+      {showQrCode && !isQRcodePopupOpen && (
+        <button
+          type="button"
+          onClick={() => setIsQRcodePopupOpen(true)}
+          className="mt-6 self-start text-xs font-medium text-primary hover:text-primary-dark"
+        >
+          Open QR Code →
+        </button>
+      )}
+
       <QRcodePopup
         isOpen={isQRcodePopupOpen}
         onClose={() => setIsQRcodePopupOpen(false)}
@@ -172,7 +164,7 @@ function OtpSection() {
         loading={loading}
         error={error}
       />
-    </>
+    </div>
   );
 }
 

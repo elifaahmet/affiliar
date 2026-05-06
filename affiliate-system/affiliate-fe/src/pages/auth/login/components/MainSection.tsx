@@ -1,7 +1,6 @@
 import React from 'react';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import { useSelector } from 'react-redux';
-import Icon from '@components/core-components/icon';
 import PInput from '@components/core-components/input';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useAppDispatch } from 'hooks/redux';
@@ -41,54 +40,91 @@ function MainSection(props: ForgotPasswordSectionProps) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars, unused-imports/no-unused-vars
     const datas = await dispatch(authenticationLogin(data));
   };
+
   return (
-    <>
-      <div className="w-[253px] h-32">
-        <Icon iconName="affiliar" svgProps={{ width: 280, height: 56 }} />
-      </div>
-      <div className="pb-12">
-        <h1 className="text-heading-20 text-white font-extrabold">Sign in to your account</h1>
+    <div className="flex flex-col">
+      {/* Mobile-only logo (the desktop hero panel handles this on lg+) */}
+      <div className="lg:hidden mb-10 flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-white font-bold">
+          A
+        </div>
+        <span className="text-lg font-semibold text-gray-900">Affiliar</span>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-96">
-        <PInput
-          placeholder="Username or Email Address"
-          id="identifier"
-          type="text"
-          register={register}
-          error={errors.identifier}
-          className="w-full bg-white h-[42px]"
-        />
-        <PInput
-          placeholder="Password"
-          id="password"
-          type="password"
-          register={register}
-          error={errors.password}
-          className="w-full bg-white h-[42px] mt-3"
-        />
+      <div className="mb-8">
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-400 mb-3">
+          Welcome back
+        </p>
+        <h1 className="font-display text-4xl leading-tight tracking-tight text-gray-900">
+          Sign in to your <span className="italic text-primary">workspace</span>.
+        </h1>
+        <p className="mt-3 text-sm text-gray-500">
+          Use your operator credentials to access affiliate reports, commissions and payouts.
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+        <div>
+          <label
+            htmlFor="identifier"
+            className="mb-1.5 block text-xs font-semibold text-gray-700"
+          >
+            Username or email
+          </label>
+          <PInput
+            placeholder="you@operator.com"
+            id="identifier"
+            type="text"
+            register={register}
+            error={errors.identifier}
+            className="w-full bg-white h-[44px]"
+          />
+        </div>
+
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <label htmlFor="password" className="text-xs font-semibold text-gray-700">
+              Password
+            </label>
+            <button
+              type="button"
+              className="text-xs font-medium text-primary hover:text-primary-dark"
+              onClick={() => setAuthStep('forgotPassword')}
+            >
+              Forgot password?
+            </button>
+          </div>
+          <PInput
+            placeholder="••••••••"
+            id="password"
+            type="password"
+            register={register}
+            error={errors.password}
+            className="w-full bg-white h-[44px]"
+          />
+        </div>
+
         {!errors.password && !errors.identifier && authError && (
-          <p className="mt-2 text-red-500 text-body-reg-12 font-medium">{authError}</p>
+          <p className="text-sm text-danger">{authError}</p>
         )}
 
-        <div className="flex justify-end w-full">
-          <button
-            type="button"
-            className="text-primary font-bold text-body-reg-14 my-6"
-            onClick={() => setAuthStep('forgotPassword')}
-          >
-            Forgot password
-          </button>
-        </div>
         <button
           onClick={handleSubmit(onSubmit)}
           type="submit"
-          className="bg-primary text-white font-bold rounded-lg hover:bg-primary-dark transition-colors focus:outline-none focus:ring-2 h-[45px] w-full text-sm"
+          className="mt-2 inline-flex h-[46px] w-full items-center justify-center rounded-lg bg-gray-900 text-sm font-semibold text-white transition-colors hover:bg-black focus:outline-none focus:ring-2 focus:ring-primary/40"
         >
-          SIGN IN
+          Sign in
         </button>
       </form>
-    </>
+
+      <p className="mt-8 text-xs text-gray-400">
+        Need an Affiliar account for your operation?{' '}
+        <a href="mailto:hello@affiliar.co" className="font-medium text-gray-700 hover:text-gray-900">
+          Get in touch
+        </a>
+        .
+      </p>
+    </div>
   );
 }
 

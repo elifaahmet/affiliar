@@ -7,22 +7,23 @@ import MainSection from './components/MainSection';
 import OtpSection from './components/OtpSection';
 import { AuthStep } from './types';
 
+/**
+ * Single-column form panel that lives inside AuthLayout's right side.
+ * The black-background card is gone — this panel is a clean white column,
+ * the editorial brand panel sits to its left in AuthLayout.
+ */
 const Login = () => {
   const [authStep, setAuthStep] = useState<AuthStep>('login');
   const { twoFactorRequired } = useSelector((state: RootState) => state.auth);
+
   useEffect(() => {
     if (twoFactorRequired) {
       setAuthStep('otp');
-    } else if (authStep === 'otp' && !twoFactorRequired) {
-      // 2FA no longer required. User should be authenticated.
     }
   }, [twoFactorRequired, authStep]);
+
   return (
-    <div
-      className={`flex items-center flex-col max-w-full lg:max-w-lg 2xl:max-w-[640px] w-full my-8 py-12 lg:my-[66px] ${
-        authStep === 'otp' ? 'lg:py-12' : 'lg:py-24'
-      } p-4 lg:p-8 justify-center rounded-[20px] bg-black order-1 lg:order-2`}
-    >
+    <div className="flex w-full max-w-md flex-col">
       {authStep === 'login' && <MainSection setAuthStep={setAuthStep} />}
       {authStep === 'forgotPassword' && <ForgotPasswordSection setAuthStep={setAuthStep} />}
       {authStep === 'otp' && <OtpSection />}

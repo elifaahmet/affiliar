@@ -102,6 +102,27 @@ module.exports = {
       letterSpacing: {
         tightest: "0px", // Harf boşlukları (Spacing)
       },
+      fontFamily: {
+        // Inter for body and UI. Instrument Serif for editorial display
+        // (login hero headlines, marketing-feeling moments inside the app).
+        sans: [
+          "Inter",
+          "Manrope",
+          "ui-sans-serif",
+          "system-ui",
+          "-apple-system",
+          "Segoe UI",
+          "sans-serif",
+        ],
+        display: [
+          "Instrument Serif",
+          "Iowan Old Style",
+          "Apple Garamond",
+          "Baskerville",
+          "Times New Roman",
+          "serif",
+        ],
+      },
       keyframes: {
         fadeIn: {
           "0%": { opacity: "0", transform: "translateY(-10px)" },
