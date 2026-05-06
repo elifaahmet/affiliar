@@ -80,14 +80,11 @@ function AuthLayout({ children }: AuthLayoutProps) {
         </div>
 
         {/* ── Right: form column ──────────────────────────────────────────
-            Textbook centering: flex + items-center + justify-center on a
-            box guaranteed to be at least viewport-tall. The inline
-            minHeight is explicit so the centering reference doesn't
-            depend on parent percentage resolution. */}
-        <div
-          className="flex flex-1 items-center justify-center px-6 py-12 lg:px-12 lg:py-16"
-          style={{ minHeight: '100vh' }}
-        >
+            Big explicit top + bottom padding so there's always visible
+            breathing room above and below the form, regardless of any
+            centering math. The form sits in a horizontally-centered
+            column. */}
+        <div className="flex flex-1 justify-center px-6 pt-24 pb-16 lg:px-12 lg:pt-32 lg:pb-20">
           <div className="w-full">{children}</div>
         </div>
       </div>
