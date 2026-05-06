@@ -21,12 +21,11 @@ type AuthLayoutProps = {
  */
 function AuthLayout({ children }: AuthLayoutProps) {
   return (
-    // Owns its own scroll context. The global `body { overflow: hidden }`
-    // (set for the dashboard's fixed sidebar layout) would otherwise
-    // prevent any scroll on auth pages, so a tall form like register got
-    // clipped under the viewport. h-screen + overflow-y-auto fixes it.
-    <div className="flex h-screen w-full flex-col overflow-y-auto bg-white">
-      <div className="flex min-h-full flex-1 flex-col lg:flex-row">
+    // h-screen on the outer + overflow-y-auto only on the form column
+    // means the brand panel and footer stay put while a tall register
+    // form scrolls inside its own column.
+    <div className="flex h-screen w-full flex-col bg-white">
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* ── Left: editorial brand panel ───────────────────────────────── */}
         <div className="relative hidden lg:flex lg:w-[58%] xxl:w-3/5 overflow-hidden bg-[#0a0a0a]">
           {/* Gradient mesh — soft violet glow on a near-black canvas */}
@@ -80,11 +79,10 @@ function AuthLayout({ children }: AuthLayoutProps) {
         </div>
 
         {/* ── Right: form column ──────────────────────────────────────────
-            Big explicit top + bottom padding so there's always visible
-            breathing room above and below the form, regardless of any
-            centering math. The form sits in a horizontally-centered
-            column. */}
-        <div className="flex flex-1 justify-center px-6 pt-24 pb-16 lg:px-12 lg:pt-32 lg:pb-20">
+            Own scroll context — only this column scrolls, brand panel
+            and footer stay put. Generous top/bottom padding so the
+            form has breathing room at every viewport height. */}
+        <div className="flex flex-1 justify-center overflow-y-auto px-6 pt-24 pb-16 lg:px-12 lg:pt-32 lg:pb-20">
           <div className="w-full">{children}</div>
         </div>
       </div>
