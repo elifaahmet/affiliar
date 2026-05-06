@@ -71,7 +71,7 @@ function AuthLayout({ children }: AuthLayoutProps) {
             </div>
 
             <div className="flex items-center gap-8 text-xs text-white/50">
-              <span>©  {new Date().getFullYear()} Affiliar</span>
+              <span>© {new Date().getFullYear()} Affiliar</span>
               <span className="h-3 w-px bg-white/20" />
               <span>Built for fast decisions and clear, actionable insights.</span>
             </div>
@@ -82,7 +82,7 @@ function AuthLayout({ children }: AuthLayoutProps) {
             Own scroll context — only this column scrolls, brand panel
             and footer stay put. Generous top/bottom padding so the
             form has breathing room at every viewport height. */}
-        <div className="flex flex-1 justify-center overflow-y-auto px-6 pt-24 pb-16 lg:px-12 lg:pt-32 lg:pb-20">
+        <div className="flex flex-1 justify-center overflow-y-auto px-6 pt-8 pb-16 lg:px-12 lg:pt-8 lg:pb-20">
           <div className="w-full">{children}</div>
         </div>
       </div>
@@ -90,16 +90,10 @@ function AuthLayout({ children }: AuthLayoutProps) {
       {/* ── Footer ─────────────────────────────────────────────────────── */}
       <footer className="border-t border-gray-100 bg-white">
         <div className="mx-auto flex max-w-[1700px] flex-col items-center justify-between gap-3 px-6 py-5 sm:flex-row sm:px-10">
-          <p className="text-xs text-gray-400">
-            ©  {new Date().getFullYear()} Affiliar
-          </p>
+          <p className="text-xs text-gray-400">© {new Date().getFullYear()} Affiliar</p>
           <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-gray-500">
             {footerLinks.map((link, index) => (
-              <Link
-                key={index}
-                to={link.to}
-                className="transition-colors hover:text-gray-900"
-              >
+              <Link key={index} to={link.to} className="transition-colors hover:text-gray-900">
                 {link.label}
               </Link>
             ))}
