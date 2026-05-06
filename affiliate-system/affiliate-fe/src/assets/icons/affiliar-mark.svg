@@ -6,11 +6,11 @@
     </linearGradient>
   </defs>
   <rect width="36" height="36" rx="9" fill="url(#affiliarMark)" />
-  <!-- Italic serif "a", baseline at y=26 so the glyph sits visually
-       centered in the 36×36 chip across browsers. -->
+  <!-- Italic serif "a" — baseline y=24.5 (chip center 18 + half x-height
+       ≈ 6.5) so the lowercase glyph sits visually centered. -->
   <text
     x="18"
-    y="26"
+    y="24.5"
     fill="#FFFFFF"
     font-family="'Instrument Serif', 'Iowan Old Style', 'Apple Garamond', Baskerville, 'Times New Roman', serif"
     font-size="26"

@@ -6,11 +6,11 @@
     </linearGradient>
   </defs>
   <rect width="32" height="32" rx="8" fill="url(#affiliarDarkMark)" />
-  <!-- Mark "a" baseline at y=23 so the 23px italic glyph sits centered in
-       the 32px chip across browsers. -->
+  <!-- Mark "a" — baseline y=21.75 (chip center 16 + half x-height ≈
+       5.75) so the 23px italic glyph sits visually centered. -->
   <text
     x="16"
-    y="23"
+    y="21.75"
     fill="#FFFFFF"
     font-family="'Instrument Serif', 'Iowan Old Style', 'Apple Garamond', Baskerville, 'Times New Roman', serif"
     font-size="23"
@@ -18,10 +18,10 @@
     font-weight="400"
     text-anchor="middle"
   >a</text>
-  <!-- Wordmark shares the same baseline as the mark. -->
+  <!-- Wordmark sharing the mark's baseline. -->
   <text
     x="42"
-    y="23"
+    y="21.75"
     fill="#0A0A0A"
     font-family="'Instrument Serif', 'Iowan Old Style', 'Apple Garamond', Baskerville, 'Times New Roman', serif"
     font-size="23"
