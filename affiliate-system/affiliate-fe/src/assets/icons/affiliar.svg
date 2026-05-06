@@ -5,32 +5,29 @@
       <stop offset="1" stop-color="#6D28D9" />
     </linearGradient>
   </defs>
-  <!-- Mark: violet rounded chip -->
   <rect width="36" height="36" rx="9" fill="url(#affiliarLightMark)" />
-  <!-- Italic serif "a" inside the chip -->
+  <!-- Mark "a" — explicit alphabetic baseline at y=26 (centers a 26px
+       italic glyph in a 36px chip across browsers). -->
   <text
     x="18"
-    y="18"
+    y="26"
     fill="#FFFFFF"
     font-family="'Instrument Serif', 'Iowan Old Style', 'Apple Garamond', Baskerville, 'Times New Roman', serif"
     font-size="26"
     font-style="italic"
     font-weight="400"
     text-anchor="middle"
-    dominant-baseline="central"
   >a</text>
-  <!-- Wordmark — same italic serif as the mark for an editorial cursive feel.
-       Sized larger than the previous Inter 600 since serif italic glyphs read
-       narrower at the same point size. -->
+  <!-- Wordmark on the same baseline as the mark so the chip and the
+       lockup type ride the same line. -->
   <text
     x="48"
-    y="20"
+    y="26"
     fill="#FFFFFF"
     font-family="'Instrument Serif', 'Iowan Old Style', 'Apple Garamond', Baskerville, 'Times New Roman', serif"
     font-size="26"
     font-style="italic"
     font-weight="400"
     letter-spacing="-0.2"
-    dominant-baseline="central"
   >affiliar</text>
 </svg>

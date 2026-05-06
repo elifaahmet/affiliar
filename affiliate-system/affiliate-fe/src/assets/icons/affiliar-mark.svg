@@ -5,20 +5,17 @@
       <stop offset="1" stop-color="#6D28D9" />
     </linearGradient>
   </defs>
-  <!-- Rounded chip — soft violet gradient that matches the new theme. -->
   <rect width="36" height="36" rx="9" fill="url(#affiliarMark)" />
-  <!-- Italic serif "a" — picks up Instrument Serif when loaded, falls
-       back to system serif italics. Renders as a filled letterform
-       inside the chip. -->
+  <!-- Italic serif "a", baseline at y=26 so the glyph sits visually
+       centered in the 36×36 chip across browsers. -->
   <text
     x="18"
-    y="18"
+    y="26"
     fill="#FFFFFF"
     font-family="'Instrument Serif', 'Iowan Old Style', 'Apple Garamond', Baskerville, 'Times New Roman', serif"
     font-size="26"
     font-style="italic"
     font-weight="400"
     text-anchor="middle"
-    dominant-baseline="central"
   >a</text>
 </svg>

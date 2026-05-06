@@ -5,29 +5,28 @@
       <stop offset="1" stop-color="#6D28D9" />
     </linearGradient>
   </defs>
-  <!-- Mark: violet rounded chip -->
   <rect width="32" height="32" rx="8" fill="url(#affiliarDarkMark)" />
+  <!-- Mark "a" baseline at y=23 so the 23px italic glyph sits centered in
+       the 32px chip across browsers. -->
   <text
     x="16"
-    y="16"
+    y="23"
     fill="#FFFFFF"
     font-family="'Instrument Serif', 'Iowan Old Style', 'Apple Garamond', Baskerville, 'Times New Roman', serif"
     font-size="23"
     font-style="italic"
     font-weight="400"
     text-anchor="middle"
-    dominant-baseline="central"
   >a</text>
-  <!-- Wordmark in italic serif, dark on light surfaces -->
+  <!-- Wordmark shares the same baseline as the mark. -->
   <text
     x="42"
-    y="18"
+    y="23"
     fill="#0A0A0A"
     font-family="'Instrument Serif', 'Iowan Old Style', 'Apple Garamond', Baskerville, 'Times New Roman', serif"
     font-size="23"
     font-style="italic"
     font-weight="400"
     letter-spacing="-0.2"
-    dominant-baseline="central"
   >affiliar</text>
 </svg>
