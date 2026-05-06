@@ -75,8 +75,12 @@ function AuthLayout({ children }: AuthLayoutProps) {
           </div>
         </div>
 
-        {/* ── Right: form column ────────────────────────────────────────── */}
-        <div className="flex flex-1 items-center justify-center px-6 py-16 lg:px-12">
+        {/* ── Right: form column ──────────────────────────────────────────
+            Grid + place-items-center centers the form on both axes
+            reliably, including when the form gets tall (e.g. register).
+            min-h-screen on lg+ ensures vertical centering relative to
+            the viewport, not just the flex parent's content height. */}
+        <div className="grid flex-1 place-items-center px-6 py-12 lg:min-h-screen lg:px-12 lg:py-16">
           {children}
         </div>
       </div>
