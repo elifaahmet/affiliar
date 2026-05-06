@@ -2,6 +2,7 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { ToastProvider } from '@components/core-components/toaster/ToastContext';
 import DashboardLayout from '@components/layout-components/DashboardLayout';
 import AffiliateDashboardLayout from '@components/layout-components/AffiliateDashboardLayout';
+import AuthLayout from '@components/layout-components/auth-layout';
 import { CasinoModeProvider } from 'context/CasinoModeContext';
 
 import { useAppRoutes } from '../hooks/router/useAppRoutes';
@@ -48,9 +49,23 @@ export default function Router() {
         ...settingsRoutes,
       ],
     },
-    ...registerRoutes,
-    ...activateRoutes,
-    ...resetPasswordRoutes,
+    // Auth-flow pages always render through the editorial auth shell,
+    // even when an authenticated session is open (someone clicking an
+    // invite link while logged in elsewhere shouldn't see the dashboard
+    // chrome).
+    {
+      path: '/',
+      element: (
+        <AuthLayout>
+          <Outlet />
+        </AuthLayout>
+      ),
+      children: [
+        ...registerRoutes,
+        ...activateRoutes,
+        ...resetPasswordRoutes,
+      ],
+    },
     { path: '*', element: <Navigate to='/' replace /> },
   ];
 
@@ -68,9 +83,23 @@ export default function Router() {
         ...affiliatePortalRoutes,
       ],
     },
-    ...registerRoutes,
-    ...activateRoutes,
-    ...resetPasswordRoutes,
+    // Auth-flow pages always render through the editorial auth shell,
+    // even when an authenticated session is open (someone clicking an
+    // invite link while logged in elsewhere shouldn't see the dashboard
+    // chrome).
+    {
+      path: '/',
+      element: (
+        <AuthLayout>
+          <Outlet />
+        </AuthLayout>
+      ),
+      children: [
+        ...registerRoutes,
+        ...activateRoutes,
+        ...resetPasswordRoutes,
+      ],
+    },
     { path: '*', element: <Navigate to='/affiliate/dashboard' replace /> },
   ];
 
