@@ -181,7 +181,7 @@ function ReferralDetailModal({
   const deliveries = data?.deliveries ?? [];
 
   return (
-    <div className='fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/30 backdrop-blur-sm p-4 sm:p-8'>
+    <div className='fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/50 backdrop-blur-sm p-4 sm:p-8'>
       <div className='bg-white/95 backdrop-blur-md rounded-xl shadow-xl w-full max-w-2xl border border-violet-100 my-8'>
         <div className='p-5 border-b border-violet-100 flex items-start justify-between'>
           <div>

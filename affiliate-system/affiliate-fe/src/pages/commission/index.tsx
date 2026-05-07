@@ -281,7 +281,7 @@ function PlanModal({
   const showTiers    = form.type === 'tiered_revshare';
 
   return (
-    <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/30 overflow-y-auto py-8'>
+    <div className='fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto p-4'>
       <div className='bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-5 m-auto'>
         <h2 className='text-base font-semibold text-gray-800'>{isEdit ? 'Edit Plan' : 'New Commission Plan'}</h2>
 

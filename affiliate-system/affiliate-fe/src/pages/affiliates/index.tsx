@@ -173,7 +173,7 @@ function PlanAssignModal({
   }
 
   return (
-    <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/30'>
+    <div className='fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4'>
       <div className='bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-5'>
         <div>
           <h2 className='text-base font-semibold text-gray-800'>Assign Commission Plans</h2>
@@ -285,7 +285,7 @@ function SetParentModal({
   }
 
   return (
-    <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/30'>
+    <div className='fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4'>
       <div className='bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-5'>
         <div>
           <h2 className='text-base font-semibold text-gray-800'>Set Parent Affiliate</h2>
