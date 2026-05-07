@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { useBaseMutation } from 'api/core/useBaseMutation';
@@ -172,7 +173,7 @@ function PlanAssignModal({
     }
   }
 
-  return (
+  return createPortal(
     <div className='fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4'>
       <div className='bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-5'>
         <div>
@@ -225,7 +226,8 @@ function PlanAssignModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -284,7 +286,7 @@ function SetParentModal({
     }
   }
 
-  return (
+  return createPortal(
     <div className='fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4'>
       <div className='bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-5'>
         <div>
@@ -365,7 +367,8 @@ function SetParentModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
