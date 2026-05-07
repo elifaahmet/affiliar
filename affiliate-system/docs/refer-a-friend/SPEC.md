@@ -312,9 +312,25 @@ Response is split in two halves:
 
 See [INTEGRATION.md §5b](./INTEGRATION.md) for the full payload shape and bucket definitions.
 
-### 11.3 Remaining Phase 2 backlog (not yet implemented)
+### 11.3 Stale-referral expiry job (Step 3 — shipped)
 
-- Stale-referral expiry job (auto-reject `pending_qualification` rows stuck > N days)
+Daily cron that retires dead-end referrals so the qualification job stops cycling on rows that will never settle:
+
+| Row state | Cutoff anchor | New `rejectionReason` |
+|---|---|---|
+| `pending_ftd` older than N days | `signedUpAt` (or `createdAt` fallback) | `signup_no_ftd` |
+| `pending_qualification` older than N days | `ftdAt` | `expired_no_qualify` |
+
+N is controlled by `REFERRAL_EXPIRY_DAYS` (env, default 90). Job interval is `REFERRAL_EXPIRY_JOB_REFRESH_MS` (default 24h) with a 5-minute initial delay so it doesn't collide with the qualification job's startup pass.
+
+No webhook is fired — neither side was paid, so there's nothing to claw back. The dashboard's Activity tab simply shows the new `rejectionReason` strings on the row.
+
+Single `updateMany` per status path keeps the sweep cheap; existing
+`(operatorId, status, createdAt)` and brand-scoped indexes handle the
+match.
+
+### 11.4 Remaining Phase 2 backlog (not yet implemented)
+
 - Recurring rewards (% of friend's NGR over time, integrated with the monthly commission cycle)
 - Multi-hop chains (A → B → C with diminishing rewards)
 - Affiliar-managed code generation
