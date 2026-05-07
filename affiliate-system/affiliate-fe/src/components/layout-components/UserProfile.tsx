@@ -16,8 +16,9 @@ function initials(source?: string | null) {
 }
 
 function UserProfile() {
-  const { email, userId, name } = useAppSelector((state) => state.auth);
+  const { email, userId, name, role } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
+  const profileHref = role === 'affiliate' ? '/affiliate/profile' : '/profile/profile-details';
   const [isProfileVisible, setProfileVisible] = useState<boolean>(false);
   const ref = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -74,7 +75,7 @@ function UserProfile() {
 
           <div className="p-1">
             <Link
-              to="/profile/profile-details"
+              to={profileHref}
               onClick={() => setProfileVisible(false)}
               className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-violet-50 hover:text-violet-900"
             >

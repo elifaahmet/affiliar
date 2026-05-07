@@ -2,7 +2,7 @@ import ProfileDetailsTab from './components/ProfileDetailsTab';
 
 function ProfileDetails() {
   return (
-    <div className='bg-gray-100 flex flex-col p-6 pb-24'>
+    <div className='flex flex-col p-6 pb-24 h-full overflow-auto'>
       <ProfileDetailsTab />
     </div>
   );
