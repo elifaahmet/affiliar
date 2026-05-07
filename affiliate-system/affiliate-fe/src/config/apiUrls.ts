@@ -326,6 +326,17 @@ export const BILLING_API_URLS = {
   TRANSACTIONS: () => `${API_BASE_URL}api/billing/transactions`,
 };
 
+export const REFER_API_URLS = {
+  CONFIGS:        () => `${API_BASE_URL}api/refer/config`,
+  CONFIG:         (brandId: string) => `${API_BASE_URL}api/refer/config/${brandId}`,
+  ROTATE_SECRET:  (brandId: string) => `${API_BASE_URL}api/refer/config/${brandId}/secret/rotate`,
+  TEST_EVENT:     (brandId: string) => `${API_BASE_URL}api/refer/config/${brandId}/test-event`,
+  REFERRALS:      () => `${API_BASE_URL}api/refer/referrals`,
+  REFERRAL:       (id: string) => `${API_BASE_URL}api/refer/referrals/${id}`,
+  DELIVERIES:     () => `${API_BASE_URL}api/refer/deliveries`,
+  REPLAY:         (id: string) => `${API_BASE_URL}api/refer/deliveries/${id}/replay`,
+};
+
 export const AFFILIATE_PLAYERS_API_URLS = {
   LIST:              () => `${API_BASE_URL}api/players`,
   BULK_REGISTER:     () => `${API_BASE_URL}api/integration/player/bulk`,

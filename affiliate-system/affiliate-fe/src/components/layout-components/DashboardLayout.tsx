@@ -7,6 +7,7 @@ import {
   BuildingStorefrontIcon,
   ChartBarSquareIcon,
   Cog6ToothIcon,
+  HeartIcon,
   Squares2X2Icon,
   UserGroupIcon,
   UsersIcon,
@@ -134,6 +135,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       href: '/fees',
       Icon: AdjustmentsHorizontalIcon,
       current: pathname.startsWith('/fees'),
+    },
+    {
+      key: 'refer-a-friend',
+      name: t('menuItems.referAFriend') || 'Refer-a-Friend',
+      href: '/refer-a-friend',
+      Icon: HeartIcon,
+      current: pathname.startsWith('/refer-a-friend'),
     },
     {
       key: 'settings',
