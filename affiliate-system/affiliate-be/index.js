@@ -84,6 +84,7 @@ app.use(`${prefix}/commission`,        affiliateRoutes.commissionRoutes);
 app.use(`${prefix}/affiliate-portal`, affiliateRoutes.affiliatePortalRoutes);
 app.use(`${prefix}/billing`, affiliateRoutes.billingRoutes);
 app.use(`${prefix}/fees`, affiliateRoutes.feesRoutes);
+app.use(`${prefix}/refer`, affiliateRoutes.referAFriendRoutes);
 app.post(`${prefix}/billing/callback`, billingController.handleCallback);
 app.use(`${prefix}/integration`, integrationRoutes);
 
