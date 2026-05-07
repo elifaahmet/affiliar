@@ -194,7 +194,7 @@ function PlanAssignModal({
                 <select
                   value={slots[slot]}
                   onChange={(e) => setSlots((s) => ({ ...s, [slot]: e.target.value }))}
-                  className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary bg-white'>
+                  className='w-full text-sm rounded-lg pl-3 pr-9 py-2 border border-gray-200 focus:outline-none focus:border-primary bg-white'>
                   <option value=''>— none (use operator default) —</option>
                   {options.map((p) => (
                     <option key={p._id} value={p._id}>
@@ -286,7 +286,7 @@ function SetParentModal({
 
   return (
     <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/30'>
-      <div className='bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-5'>
+      <div className='bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-5'>
         <div>
           <h2 className='text-base font-semibold text-gray-800'>Set Parent Affiliate</h2>
           <p className='text-xs text-gray-400 mt-0.5'>{affiliate.username} · {affiliate.email}</p>
@@ -306,7 +306,7 @@ function SetParentModal({
                 <select
                   value={parentId}
                   onChange={(e) => setParentId(e.target.value)}
-                  className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
+                  className='w-full text-sm rounded-lg pl-3 pr-9 py-2 border border-gray-200 focus:outline-none focus:border-primary'
                 >
                   <option value=''>— None (clear parent) —</option>
                   {candidates.map((a) => (
