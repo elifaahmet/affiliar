@@ -116,4 +116,12 @@ app.listen(PORT, () => {
   // deltas to activity_hourly_delta.
   const { startFeesDailyJob } = require("./jobs/feesDailyJob");
   startFeesDailyJob();
+
+  // Refer-a-Friend: re-evaluate pending_qualification referrals daily.
+  const { startReferralQualificationJob } = require("./jobs/referralQualificationJob");
+  startReferralQualificationJob();
+
+  // Refer-a-Friend: outbound webhook dispatcher (continuous polling).
+  const { startReferralDeliveryWorker } = require("./jobs/referralDeliveryWorker");
+  startReferralDeliveryWorker();
 });
