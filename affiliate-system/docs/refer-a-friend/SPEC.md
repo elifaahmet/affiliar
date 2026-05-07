@@ -329,9 +329,32 @@ Single `updateMany` per status path keeps the sweep cheap; existing
 `(operatorId, status, createdAt)` and brand-scoped indexes handle the
 match.
 
-### 11.4 Remaining Phase 2 backlog (not yet implemented)
+### 11.4 Recurring rewards (Step 4 — shipped)
 
-- Recurring rewards (% of friend's NGR over time, integrated with the monthly commission cycle)
+After a referral reaches `status: 'rewarded'`, the operator can configure a monthly % share of the friend's base (NGR or GGR) to keep flowing to the referrer. This adds the first ongoing-payout flow to the system.
+
+**Config:** `ReferAFriendConfig.recurringReward`
+- `enabled` (default false — opt-in per brand)
+- `percent` (0–100)
+- `ngrMetric: 'ngr' | 'ggr'` — `ngr` = bets − wins − bonuses; `ggr` = bets − wins. Simplified vs the commission engine's NGR (no fees subtracted) on purpose: refer-a-friend is meant to be a transparent, dispute-free program.
+- `durationMonths` (null = forever)
+- `monthlyCapCents` (null = no cap)
+- `rewardKind` ('cash' default)
+
+**Ledger:** `PlayerReferral.recurringPayments[]` — one row per (year, month). Each row carries `ngrCents`, `rewardCents`, `enqueuedAt`, and a back-filled `paidAt` set when the delivery worker gets the operator ack. The `(year, month)` pair acts as the dedup key — re-running the job on the same month is a cheap no-op.
+
+**Job schedule:** `jobs/referralRecurringJob.js` runs daily, but only fires on day ≥ `REFERRAL_RECURRING_RUN_DAY` (default 5) for the *previous* calendar month. Gives the fees-daily cron + ClickHouse SummingMerge replication time to settle yesterday's data before we read it.
+
+**Lifecycle interaction with reversal:**
+- Only `status: 'rewarded'` referrals accrue. If FTD is later reversed (`status: 'reversed'`), the recurring job's match filter excludes that referral — future months stop.
+- Past `recurringPayments` rows stay on the ledger. They were earned on real activity; clawing them back via FTD reversal is operator-policy-dependent and out of scope for Phase 2.
+
+**Webhook:** new event type `referral.reward.recurring.issued`. Same envelope + signing as the other event types; `data.period.{year, month}`, `data.ngrCents`, `data.ngrMetric`, `data.rewardCents` describe the payout. No `recurring.reversed` counterpart in this step (see lifecycle note above).
+
+**Engine wiring:** `engine/referralEngine.js` exposes `enqueueRecurringDelivery(referral, payment, recurringConfig)` and `fetchPlayerMonthlyBase({ operatorId, refereePlayerId, year, month, ngrMetric })`. The job assembles the row + delivery; the worker handles the ack and stamps `paidAt` on the matching ledger entry by `deliveryId`.
+
+### 11.5 Remaining Phase 2 backlog (not yet implemented)
+
 - Multi-hop chains (A → B → C with diminishing rewards)
 - Affiliar-managed code generation
 - Referrer leaderboards

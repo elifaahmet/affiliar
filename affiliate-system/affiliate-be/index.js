@@ -130,4 +130,11 @@ app.listen(PORT, () => {
   // dead rows forever.
   const { startReferralExpiryJob } = require("./jobs/referralExpiryJob");
   startReferralExpiryJob();
+
+  // Refer-a-Friend: monthly % share of the friend's NGR for rewarded
+  // referrals (Phase 2 Step 4 recurring rewards). Daily-checked, but
+  // only fires on day >=5 of the month for the *previous* month, so
+  // ClickHouse aggregates have time to settle.
+  const { startReferralRecurringJob } = require("./jobs/referralRecurringJob");
+  startReferralRecurringJob();
 });

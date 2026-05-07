@@ -8,6 +8,7 @@ This document is for the operator's backend team integrating Affiliar's Refer-a-
 | `referral.reward.reversed` | A previously paid referrer reward must be clawed back (chargeback / refund) | `data.referrerPlayerId` |
 | `referral.reward.referee.issued` | Two-sided rewards enabled and the friend's welcome bonus is owed | `data.refereePlayerId` (the friend) |
 | `referral.reward.referee.reversed` | A previously paid referee bonus must be clawed back | `data.refereePlayerId` |
+| `referral.reward.recurring.issued` | Monthly % share of the friend's NGR/GGR (Phase 2 Step 4 recurring rewards, opt-in) | `data.referrerPlayerId` |
 
 All four events use the same webhook URL, signature scheme, retry policy, and payload envelope. Branch on the `X-Affiliar-Event` header to decide which player to credit / debit.
 

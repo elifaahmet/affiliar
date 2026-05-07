@@ -18,10 +18,11 @@ const STATUS_BADGE: Record<DeliveryStatus, string> = {
 };
 
 const EVENT_BADGE: Record<string, string> = {
-  'referral.reward.issued':           'bg-violet-100 text-violet-700',
-  'referral.reward.reversed':         'bg-orange-100 text-orange-700',
-  'referral.reward.referee.issued':   'bg-fuchsia-100 text-fuchsia-700',
-  'referral.reward.referee.reversed': 'bg-amber-100 text-amber-700',
+  'referral.reward.issued':            'bg-violet-100 text-violet-700',
+  'referral.reward.reversed':          'bg-orange-100 text-orange-700',
+  'referral.reward.referee.issued':    'bg-fuchsia-100 text-fuchsia-700',
+  'referral.reward.referee.reversed':  'bg-amber-100 text-amber-700',
+  'referral.reward.recurring.issued':  'bg-emerald-100 text-emerald-700',
 };
 
 function formatRelative(iso: string | null) {

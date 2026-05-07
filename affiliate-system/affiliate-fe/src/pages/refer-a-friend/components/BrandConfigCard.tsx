@@ -31,6 +31,14 @@ const DEFAULT_CONFIG: Omit<ReferConfig, 'brandId'> = {
     capCents: null,
     rewardKind: 'bonus',
   },
+  recurringReward: {
+    enabled: false,
+    percent: 5,
+    ngrMetric: 'ngr',
+    durationMonths: 6,
+    monthlyCapCents: null,
+    rewardKind: 'cash',
+  },
   qualification: {
     minDepositCents: 1000,
     holdDays: 7,
@@ -54,9 +62,10 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
   const [form, setForm]   = useState<Omit<ReferConfig, 'brandId'>>(() => ({
     ...DEFAULT_CONFIG,
     ...(existingConfig ?? {}),
-    reward:        { ...DEFAULT_CONFIG.reward,        ...(existingConfig?.reward ?? {}) },
-    refereeReward: { ...DEFAULT_CONFIG.refereeReward, ...(existingConfig?.refereeReward ?? {}) },
-    qualification: { ...DEFAULT_CONFIG.qualification, ...(existingConfig?.qualification ?? {}) },
+    reward:          { ...DEFAULT_CONFIG.reward,          ...(existingConfig?.reward ?? {}) },
+    refereeReward:   { ...DEFAULT_CONFIG.refereeReward,   ...(existingConfig?.refereeReward ?? {}) },
+    recurringReward: { ...DEFAULT_CONFIG.recurringReward, ...(existingConfig?.recurringReward ?? {}) },
+    qualification:   { ...DEFAULT_CONFIG.qualification,   ...(existingConfig?.qualification ?? {}) },
     caps:          { ...DEFAULT_CONFIG.caps,          ...(existingConfig?.caps ?? {}) },
     webhook:       { ...DEFAULT_CONFIG.webhook,       ...(existingConfig?.webhook ?? {}) },
   }));
@@ -98,6 +107,7 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
       enabled: form.enabled,
       reward: form.reward,
       refereeReward: form.refereeReward,
+      recurringReward: form.recurringReward,
       qualification: form.qualification,
       caps: form.caps,
       webhook: { url: form.webhook.url, enabled: form.webhook.enabled },
@@ -109,6 +119,9 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
   }
   function setRefereeReward<K extends keyof ReferConfig['refereeReward']>(key: K, value: ReferConfig['refereeReward'][K]) {
     setForm((f) => ({ ...f, refereeReward: { ...f.refereeReward, [key]: value } }));
+  }
+  function setRecurring<K extends keyof ReferConfig['recurringReward']>(key: K, value: ReferConfig['recurringReward'][K]) {
+    setForm((f) => ({ ...f, recurringReward: { ...f.recurringReward, [key]: value } }));
   }
   function setQual<K extends keyof ReferConfig['qualification']>(key: K, value: ReferConfig['qualification'][K]) {
     setForm((f) => ({ ...f, qualification: { ...f.qualification, [key]: value } }));
@@ -307,6 +320,82 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
                     </Field>
                   </Row>
                 )}
+              </>
+            )}
+          </Section>
+
+          {/* Recurring referrer reward (Phase 2 Step 4) */}
+          <Section title='Recurring referrer reward' hint='Optional ongoing % of the friend’s monthly NGR/GGR. Pays once per calendar month for as long as the referral stays active.'>
+            <div className='flex items-center justify-between gap-4 p-3 rounded-lg bg-violet-50/40'>
+              <div>
+                <p className='text-sm font-medium text-gray-900'>Pay the referrer monthly</p>
+                <p className='text-xs text-gray-500'>
+                  Fires <code className='text-[11px] font-mono'>referral.reward.recurring.issued</code> webhook on day 5 of each month for the previous month. Stops automatically when the friend's FTD is reversed (past payments stay).
+                </p>
+              </div>
+              <input
+                type='checkbox'
+                checked={form.recurringReward.enabled}
+                onChange={(e) => setRecurring('enabled', e.target.checked)}
+                className='h-5 w-5 rounded accent-primary cursor-pointer'
+              />
+            </div>
+
+            {form.recurringReward.enabled && (
+              <>
+                <Row>
+                  <Field label='Percent' hint='0–100 of friend’s monthly base'>
+                    <input
+                      type='number' min={0} max={100}
+                      value={form.recurringReward.percent}
+                      onChange={(e) => setRecurring('percent', Number(e.target.value) || 0)}
+                      className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
+                    />
+                  </Field>
+                  <Field label='Base metric' hint='NGR = bets−wins−bonuses · GGR = bets−wins'>
+                    <select
+                      value={form.recurringReward.ngrMetric}
+                      onChange={(e) => setRecurring('ngrMetric', e.target.value as any)}
+                      className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
+                    >
+                      <option value='ngr'>NGR (bets − wins − bonuses)</option>
+                      <option value='ggr'>GGR (bets − wins)</option>
+                    </select>
+                  </Field>
+                  <Field label='Reward kind'>
+                    <select
+                      value={form.recurringReward.rewardKind}
+                      onChange={(e) => setRecurring('rewardKind', e.target.value as any)}
+                      className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
+                    >
+                      <option value='cash'>Cash</option>
+                      <option value='bonus'>Bonus</option>
+                      <option value='freespins'>Free spins</option>
+                    </select>
+                  </Field>
+                </Row>
+                <Row>
+                  <Field label='Duration (months)' hint='Empty = forever'>
+                    <input
+                      type='number' min={1}
+                      value={form.recurringReward.durationMonths ?? ''}
+                      onChange={(e) =>
+                        setRecurring('durationMonths', e.target.value === '' ? null : Number(e.target.value) || null)
+                      }
+                      className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
+                    />
+                  </Field>
+                  <Field label='Monthly cap (cents)' hint='Empty = no cap'>
+                    <input
+                      type='number' min={0}
+                      value={form.recurringReward.monthlyCapCents ?? ''}
+                      onChange={(e) =>
+                        setRecurring('monthlyCapCents', e.target.value === '' ? null : Number(e.target.value) || 0)
+                      }
+                      className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
+                    />
+                  </Field>
+                </Row>
               </>
             )}
           </Section>

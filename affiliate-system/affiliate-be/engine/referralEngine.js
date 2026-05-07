@@ -641,6 +641,102 @@ async function enqueueRefereeReversedDelivery(referral, originalDelivery) {
 }
 
 /**
+ * Phase 2 Step 4 — recurring reward delivery. The recurring job builds
+ * the payment record on PlayerReferral.recurringPayments, then calls
+ * this to write the actual webhook row. Returns the created delivery
+ * so the caller can link `recurringPayments[i].deliveryId`.
+ */
+async function enqueueRecurringDelivery(referral, payment, recurringConfig) {
+  const payload = {
+    id: `evt_${randomId()}`,
+    type: "referral.reward.recurring.issued",
+    createdAt: new Date().toISOString(),
+    data: {
+      brandId: String(referral.brandId),
+      referralId: String(referral._id),
+      referrerPlayerId: referral.referrerPlayerId,
+      refereePlayerId: referral.refereePlayerId,
+      period: { year: payment.year, month: payment.month },
+      ngrCents: payment.ngrCents,
+      ngrMetric: (recurringConfig && recurringConfig.ngrMetric) || "ngr",
+      rewardCents: payment.rewardCents,
+      rewardCurrency: payment.rewardCurrency,
+      rewardKind: (recurringConfig && recurringConfig.rewardKind) || "cash",
+      qualifiedAt: referral.qualifiedAt && referral.qualifiedAt.toISOString(),
+    },
+  };
+
+  return RewardDelivery.create({
+    referralId: referral._id,
+    brandId: referral.brandId,
+    operatorId: referral.operatorId,
+    eventType: "referral.reward.recurring.issued",
+    payload,
+    payloadHash: hashJson(payload),
+    status: "pending",
+    nextAttemptAt: new Date(),
+  });
+}
+
+/**
+ * Pull a single player's monthly NGR (or GGR) from ClickHouse for the
+ * recurring job. Returns 0 if ClickHouse isn't wired up or the player
+ * had no activity that month — caller should treat 0 as "skip this
+ * month, nothing to pay" rather than an error.
+ *
+ * `ngrMetric`:
+ *   ggr — bets - wins (simplest, least disputable)
+ *   ngr — bets - wins - bonuses (simplified; no fees subtracted, unlike
+ *         the commission engine's NGR which is heavier)
+ */
+async function fetchPlayerMonthlyBase({ operatorId, refereePlayerId, year, month, ngrMetric = "ngr" }) {
+  let clickhouse;
+  try {
+    clickhouse = require("../config/clickhouse");
+  } catch (_e) {
+    return 0;
+  }
+
+  const pad = (n) => String(n).padStart(2, "0");
+  const lastDay = new Date(year, month, 0).getDate(); // month is 1-based
+  const fromTs = `${year}-${pad(month)}-01 00:00:00`;
+  const toTs   = `${year}-${pad(month)}-${pad(lastDay)} 23:59:59`;
+
+  // Casino bonuses live in `casino_bonuses_sum_cents` on the delta.
+  // For sportsbook the same column is reused (operators that need a
+  // different sb base should use 'ggr').
+  const sql = ngrMetric === "ggr"
+    ? `SELECT toInt64(SUM(toInt64(bets_sum_cents) - toInt64(wins_sum_cents))) AS baseCents
+       FROM affiliate.activity_hourly_delta
+       WHERE tenant_id = {tenantId:String}
+         AND player_id = {playerId:String}
+         AND hour_bucket >= {fromTs:DateTime}
+         AND hour_bucket <= {toTs:DateTime}`
+    : `SELECT toInt64(SUM(
+           toInt64(bets_sum_cents)
+         - toInt64(wins_sum_cents)
+         - toInt64(casino_bonuses_sum_cents)
+       )) AS baseCents
+       FROM affiliate.activity_hourly_delta
+       WHERE tenant_id = {tenantId:String}
+         AND player_id = {playerId:String}
+         AND hour_bucket >= {fromTs:DateTime}
+         AND hour_bucket <= {toTs:DateTime}`;
+
+  try {
+    const result = await clickhouse.query({
+      query: sql,
+      query_params: { tenantId: String(operatorId), playerId: refereePlayerId, fromTs, toTs },
+      format: "JSONEachRow",
+    });
+    const rows = await result.json();
+    return Math.max(0, Number(rows[0] && rows[0].baseCents) || 0);
+  } catch (_e) {
+    return 0;
+  }
+}
+
+/**
  * Wager-since-FTD lookup via ClickHouse. Mirrors the activity_hourly_delta
  * query the affiliate engine uses, narrowed to a single (operator, player)
  * pair. Kept inside the engine so the integration / qualification flow has
@@ -700,6 +796,8 @@ module.exports = {
   trackFtd,
   trackFtdReversal,
   evaluateQualification,
+  enqueueRecurringDelivery,
+  fetchPlayerMonthlyBase,
   ReferralEngineError,
   // exposed for testing
   _internals: { fetchWagerSinceFtd, snapshotConfig, checkMonthlyCaps },

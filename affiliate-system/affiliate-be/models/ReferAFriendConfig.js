@@ -96,6 +96,42 @@ const referAFriendConfigSchema = new mongoose.Schema(
     },
 
     /**
+     * Recurring referrer reward (Phase 2 Step 4) — operator pays the
+     * referrer a % of the friend's monthly base each month, for an
+     * optional fixed duration. Lives alongside the one-shot `reward`
+     * (operators commonly run both: e.g. "€10 one-shot + 5% of NGR for
+     * 6 months").
+     *
+     * Eligibility: only referrals in `status: 'rewarded'` accrue
+     * recurring payments. If the FTD is reversed (`status: 'reversed'`),
+     * future months stop; already-paid recurring stays — those were
+     * earned on real activity.
+     *
+     * `ngrMetric` controls the base:
+     *   ggr — bets − wins (simplest, least disputable)
+     *   ngr — bets − wins − bonuses (simplified; not the same as the
+     *         commission engine's NGR which subtracts fees too)
+     */
+    recurringReward: {
+      enabled: { type: Boolean, default: false },
+      percent: { type: Number, default: 0, min: 0, max: 100 },
+      ngrMetric: {
+        type: String,
+        enum: ["ngr", "ggr"],
+        default: "ngr",
+      },
+      // null = no time limit (pays forever as long as friend stays active).
+      durationMonths: { type: Number, default: null, min: 1 },
+      // Per-month payout cap for this referral. null = no cap.
+      monthlyCapCents: { type: Number, default: null, min: 0 },
+      rewardKind: {
+        type: String,
+        enum: ["cash", "bonus", "freespins"],
+        default: "cash",
+      },
+    },
+
+    /**
      * Qualification gates. Slim parallel of CommissionPlan.cpa.qualification —
      * shape kept similar so operators familiar with CPA gates land on the
      * same mental model. Compile-time decoupled from cpaQualification.js.

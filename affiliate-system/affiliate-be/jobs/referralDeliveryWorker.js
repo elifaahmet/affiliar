@@ -247,6 +247,21 @@ async function maybeMarkRewarded(delivery) {
     return;
   }
 
+  // Recurring monthly payment acked. Find the matching ledger row by
+  // deliveryId (back-filled by the recurring job at enqueue time) and
+  // stamp paidAt. Idempotent — re-acks are no-ops.
+  if (delivery.eventType === "referral.reward.recurring.issued") {
+    const payments = referral.recurringPayments || [];
+    const match = payments.find(
+      (p) => p.deliveryId && String(p.deliveryId) === String(delivery._id),
+    );
+    if (match && !match.paidAt) {
+      match.paidAt = new Date();
+      await referral.save();
+    }
+    return;
+  }
+
   // Reversed events: no referral mutation here. The engine has already
   // moved status to 'reversed' before the delivery was queued.
 }

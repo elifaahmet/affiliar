@@ -30,6 +30,17 @@ export interface RefereeRewardConfig {
   rewardKind: 'bonus' | 'cash' | 'freespins';
 }
 
+// Phase 2 Step 4 recurring rewards: % of friend's monthly NGR/GGR for
+// the referrer, optionally bounded by a fixed number of months.
+export interface RecurringRewardConfig {
+  enabled: boolean;
+  percent: number;
+  ngrMetric: 'ngr' | 'ggr';
+  durationMonths: number | null;   // null = forever
+  monthlyCapCents: number | null;  // null = no cap
+  rewardKind: 'cash' | 'bonus' | 'freespins';
+}
+
 export interface QualificationGates {
   minDepositCents: number;
   holdDays: number;
@@ -55,6 +66,7 @@ export interface ReferConfig {
   enabled: boolean;
   reward: RewardConfig;
   refereeReward: RefereeRewardConfig;
+  recurringReward: RecurringRewardConfig;
   qualification: QualificationGates;
   caps: CapsConfig;
   webhook: WebhookConfig;
@@ -109,7 +121,8 @@ export type DeliveryEventType =
   | 'referral.reward.issued'
   | 'referral.reward.reversed'
   | 'referral.reward.referee.issued'
-  | 'referral.reward.referee.reversed';
+  | 'referral.reward.referee.reversed'
+  | 'referral.reward.recurring.issued';
 
 export type DeliveryStatus = 'pending' | 'delivered' | 'failed';
 

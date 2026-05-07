@@ -111,6 +111,31 @@ const playerReferralSchema = new mongoose.Schema(
     reversalReason:      { type: String, default: null },
 
     /**
+     * Recurring rewards ledger (Phase 2 Step 4). One entry per monthly
+     * payout, appended by the recurring job. `paidAt` is set when the
+     * delivery worker gets a 2xx — until then the row is "queued".
+     *
+     * The (year, month) pair is the dedup key — the job won't re-pay
+     * a month that's already in this array.
+     */
+    recurringPayments: [
+      {
+        year:           { type: Number, required: true },
+        month:          { type: Number, required: true, min: 1, max: 12 },
+        ngrCents:       { type: Number, required: true, min: 0 },
+        rewardCents:    { type: Number, required: true, min: 0 },
+        rewardCurrency: { type: String, default: null },
+        deliveryId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "RewardDelivery",
+          default: null,
+        },
+        enqueuedAt:     { type: Date, default: Date.now },
+        paidAt:         { type: Date, default: null },
+      },
+    ],
+
+    /**
      * Snapshot of the ReferAFriendConfig at the moment of qualification.
      * Captures the reward shape + gates as they were then, so historical
      * referrals stay valid even if the operator later changes config.
