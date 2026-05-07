@@ -1,9 +1,9 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { useBaseMutation } from 'api/core/useBaseMutation';
+import { PlusIcon } from '@heroicons/react/24/outline';
 import { BRANDS_API_URLS } from 'config/apiUrls';
-
-
 
 interface Brand {
   _id: string;
@@ -18,36 +18,49 @@ interface BrandsResponse { brands: Brand[]; }
 // ── modal ─────────────────────────────────────────────────────────────────────
 
 interface ModalProps {
-  brand?: Brand;
+  brand?: Brand;          // undefined → create mode; defined → edit
   onClose: () => void;
   onSaved: () => void;
 }
 
 function BrandModal({ brand, onClose, onSaved }: ModalProps) {
+  const isEdit = !!brand;
   const [name, setName]       = useState(brand?.name ?? '');
   const [url, setUrl]         = useState(brand?.url ?? '');
   const [enabled, setEnabled] = useState(brand?.enabled ?? true);
   const [error, setError]     = useState('');
 
-  const { mutate: update, isPending: saving } = useBaseMutation({
+  const updateMutation = useBaseMutation({
     endpoint: BRANDS_API_URLS.UPDATE(brand?._id ?? ''),
     method: 'patch',
     onSuccess: () => { onSaved(); onClose(); },
     onError: (e: any) => setError(e?.message ?? 'Failed to update brand'),
   });
 
+  const createMutation = useBaseMutation({
+    endpoint: BRANDS_API_URLS.CREATE(),
+    method: 'post',
+    onSuccess: () => { onSaved(); onClose(); },
+    onError: (e: any) => setError(e?.message ?? 'Failed to create brand'),
+  });
+
+  const saving = isEdit ? updateMutation.isPending : createMutation.isPending;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     if (!name.trim()) { setError('Name is required'); return; }
     const payload = { name: name.trim(), url: url.trim() || null, enabled };
-    update(payload);
+    if (isEdit) updateMutation.mutate(payload);
+    else        createMutation.mutate(payload);
   };
 
-  return (
+  return createPortal(
     <div className='fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4'>
       <div className='bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-5'>
-        <h2 className='text-base font-semibold text-gray-800'>Edit Brand</h2>
+        <h2 className='text-base font-semibold text-gray-800'>
+          {isEdit ? 'Edit Brand' : 'Add Brand'}
+        </h2>
 
         <form onSubmit={handleSubmit} className='space-y-4'>
           <div>
@@ -57,6 +70,7 @@ function BrandModal({ brand, onClose, onSaved }: ModalProps) {
               onChange={(e) => setName(e.target.value)}
               className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
               placeholder='Pixup Play'
+              autoFocus
             />
           </div>
 
@@ -94,14 +108,15 @@ function BrandModal({ brand, onClose, onSaved }: ModalProps) {
             <button
               type='submit'
               disabled={saving}
-              className='px-4 py-2 text-sm rounded-lg bg-primary text-white font-medium hover:bg-primary/90 disabled:opacity-60'
+              className='px-4 py-2 text-sm rounded-lg bg-primary text-white font-medium hover:bg-primary-dark disabled:opacity-60'
             >
-              {saving ? 'Saving...' : 'Save'}
+              {saving ? 'Saving...' : isEdit ? 'Save' : 'Create'}
             </button>
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -109,6 +124,7 @@ function BrandModal({ brand, onClose, onSaved }: ModalProps) {
 
 export default function Brands() {
   const [editBrand, setEditBrand] = useState<Brand | null>(null);
+  const [creating, setCreating]   = useState(false);
 
   const { data, isLoading, refetch } = useBaseQuery<BrandsResponse>({
     endpoint: BRANDS_API_URLS.LIST(),
@@ -119,15 +135,31 @@ export default function Brands() {
 
   return (
     <div className='h-full overflow-auto p-6 pb-24 space-y-6'>
-      <h1 className='text-xl font-semibold text-gray-800'>Brands</h1>
+      <div className='flex items-center justify-between'>
+        <h1 className='text-xl font-semibold text-gray-800'>Brands</h1>
+        <button
+          onClick={() => setCreating(true)}
+          className='inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-dark transition-colors shadow-sm shadow-primary/20'
+        >
+          <PlusIcon className='h-4 w-4' />
+          Add Brand
+        </button>
+      </div>
 
       <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
         {isLoading && <p className='text-sm text-gray-400 px-5 py-4'>Loading...</p>}
 
         {!isLoading && brands.length === 0 && (
-          <p className='text-sm text-gray-400 px-5 py-6 text-center'>
-            No brands yet. Add your first brand to get started.
-          </p>
+          <div className='px-5 py-12 text-center space-y-3'>
+            <p className='text-sm text-gray-500'>No brands yet.</p>
+            <button
+              onClick={() => setCreating(true)}
+              className='inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary-dark'
+            >
+              <PlusIcon className='h-4 w-4' />
+              Add your first brand
+            </button>
+          </div>
         )}
 
         {brands.length > 0 && (
@@ -180,6 +212,10 @@ export default function Brands() {
 
       {editBrand && (
         <BrandModal brand={editBrand} onClose={() => setEditBrand(null)} onSaved={() => refetch()} />
+      )}
+
+      {creating && (
+        <BrandModal onClose={() => setCreating(false)} onSaved={() => refetch()} />
       )}
     </div>
   );
