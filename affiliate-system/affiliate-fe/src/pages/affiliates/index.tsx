@@ -174,7 +174,7 @@ function PlanAssignModal({
 
   return (
     <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/30'>
-      <div className='bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-5'>
+      <div className='bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-5'>
         <div>
           <h2 className='text-base font-semibold text-gray-800'>Assign Commission Plans</h2>
           <p className='text-xs text-gray-400 mt-0.5'>{affiliate.username} · {affiliate.email}</p>

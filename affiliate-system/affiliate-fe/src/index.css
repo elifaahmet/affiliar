@@ -12,7 +12,11 @@
   /* Native <select> elements get a custom chevron + clean padding so they
      match the violet design system. AG Grid uses its own dropdown
      component (.ag-select-list), not native select, so this rule is
-     safe globally. */
+     safe globally.
+     The padding-right uses !important so Tailwind's `px-3` / `px-4`
+     utility classes (which set both sides) don't overwrite the room
+     reserved for the chevron — otherwise option text crashes into the
+     arrow on selects that style themselves with `px-N`. */
   select {
     -webkit-appearance: none;
     -moz-appearance: none;
@@ -21,7 +25,7 @@
     background-repeat: no-repeat;
     background-position: right 0.625rem center;
     background-size: 1rem 1rem;
-    padding-right: 2rem;
+    padding-right: 2rem !important;
   }
   select:hover {
     background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%236D28D9'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3E%3C/svg%3E");
@@ -29,7 +33,7 @@
   /* Hide the chevron when an explicit override class wants its own arrow */
   select.no-chevron {
     background-image: none;
-    padding-right: 0.75rem;
+    padding-right: 0.75rem !important;
   }
 }
 
