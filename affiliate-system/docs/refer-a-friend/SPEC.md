@@ -300,9 +300,20 @@ The existing `referral.reward.issued` / `referral.reward.reversed` events contin
 
 **Lifecycle:** the main `referral.status` is still driven by the referrer reward path — `'qualified'` → referrer ack → `'rewarded'`. The referee reward succeeds/fails independently and is tracked via `refereeRewardedAt`. A failed referee delivery does not block the referral from reaching `'rewarded'`; operators can replay the failed referee delivery from the dashboard.
 
-### 11.2 Remaining Phase 2 backlog (not yet implemented)
+### 11.2 Player stats API (Step 2 — shipped)
 
-- Player-facing API: `GET /api/v1/refer/stats?playerId=…` for casino UI to show "you've referred X friends, earned €Y"
+`GET /api/v1/refer/stats?playerId=…&brandId=…&limit=…` returns a player's full refer-a-friend picture so the operator's casino UI can render a "your referrals" widget without bookkeeping on its own.
+
+Response is split in two halves:
+- `asReferrer` — counts (`invited`, `pending`, `qualified`, `rewarded`, `reversed`, `rejected`), earnings (`totalEarnedCents`, `totalReversedCents`, `netEarnedCents`), the common `currency` if any, and a `recentReferrals[]` array (last N rows, `limit` 1–50, default 10) for "show me who I invited" widgets.
+- `asReferee` — single row or `null`. When the player was invited by someone else, returns the referrer id, the referral state, and the welcome-bonus details.
+
+`brandId` is optional — omitted aggregates across all brands of the operator. Aggregation runs against the existing `(operatorId, referrerPlayerId, createdAt)` compound index, so it stays cheap as the operator's referral table grows.
+
+See [INTEGRATION.md §5b](./INTEGRATION.md) for the full payload shape and bucket definitions.
+
+### 11.3 Remaining Phase 2 backlog (not yet implemented)
+
 - Stale-referral expiry job (auto-reject `pending_qualification` rows stuck > N days)
 - Recurring rewards (% of friend's NGR over time, integrated with the monthly commission cycle)
 - Multi-hop chains (A → B → C with diminishing rewards)

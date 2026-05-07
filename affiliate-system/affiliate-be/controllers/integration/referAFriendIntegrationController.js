@@ -8,8 +8,9 @@
  * for the wiring. All endpoints require an authenticated operator JWT.
  */
 
-const Brand = require("../../models/Brand");
-const engine = require("../../engine/referralEngine");
+const Brand          = require("../../models/Brand");
+const PlayerReferral = require("../../models/PlayerReferral");
+const engine         = require("../../engine/referralEngine");
 
 /** Resolve the operator behind the JWT. Returns null + writes the response on failure. */
 function operatorOnly(req, res) {
@@ -148,4 +149,146 @@ exports.trackFtdReversal = async (req, res) => {
   } catch (err) {
     return sendEngineError(res, err);
   }
+};
+
+// GET /api/v1/refer/stats?playerId=…&brandId=…&limit=…
+//
+// Player-facing summary: how many friends this player has invited, what
+// status those referrals are in, and how much they've earned. Used by
+// the operator's casino UI to surface a "Refer-a-Friend" widget without
+// the operator having to track this themselves.
+//
+// Returns two payload halves:
+//   asReferrer — counts + totals when this player invited others
+//   asReferee  — single record (or null) when this player was invited
+//                by someone else, with the welcome bonus state
+//
+// brandId is optional. Omitted = aggregate across every brand of this
+// operator. Provided = scope to that one brand (after ownership check).
+exports.getStats = async (req, res) => {
+  const operatorId = operatorOnly(req, res);
+  if (!operatorId) return;
+
+  const { playerId, brandId } = req.query || {};
+  const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 50);
+
+  if (!playerId || typeof playerId !== "string") {
+    return res.status(400).json({ error: "missing_field", message: "playerId required" });
+  }
+  if (brandId) {
+    const ownership = await assertBrandOwnedByOperator(brandId, operatorId);
+    if (!ownership.ok) return res.status(ownership.status).json({ error: ownership.error });
+  }
+
+  const referrerMatch = { operatorId, referrerPlayerId: playerId };
+  if (brandId) referrerMatch.brandId = brandId;
+
+  // Aggregation: one pass to bucket everything by status + sum rewards.
+  // Cheaper than running multiple count queries; the
+  // (operatorId, referrerPlayerId) compound index keeps it fast.
+  const buckets = await PlayerReferral.aggregate([
+    { $match: referrerMatch },
+    {
+      $group: {
+        _id: "$status",
+        count: { $sum: 1 },
+        rewardSum: { $sum: { $ifNull: ["$rewardCents", 0] } },
+      },
+    },
+  ]);
+
+  const counts = {
+    pending_ftd: 0,
+    pending_qualification: 0,
+    qualified: 0,
+    rewarded: 0,
+    reversed: 0,
+    rejected: 0,
+  };
+  let totalEarnedCents   = 0;
+  let totalReversedCents = 0;
+  for (const b of buckets) {
+    counts[b._id] = b.count;
+    if (b._id === "rewarded") totalEarnedCents   += b.rewardSum;
+    if (b._id === "reversed") totalReversedCents += b.rewardSum;
+  }
+
+  // Recent referrals — last N rows for "show me who I invited" widgets.
+  // Use lean + select so we don't ship the configSnapshot blob to the
+  // casino UI.
+  const recent = await PlayerReferral.find(referrerMatch)
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .select({
+      refereePlayerId: 1,
+      status: 1,
+      signedUpAt: 1,
+      ftdAt: 1,
+      qualifiedAt: 1,
+      rewardCents: 1,
+      rewardCurrency: 1,
+      createdAt: 1,
+    })
+    .lean();
+
+  // Common currency: if all rewarded rewards share a currency, expose
+  // it as a hint for the UI's display formatter. If mixed (rare), null.
+  const distinctCurrencies = await PlayerReferral.distinct("rewardCurrency", {
+    ...referrerMatch,
+    rewardCurrency: { $ne: null },
+  });
+  const currency = distinctCurrencies.length === 1 ? distinctCurrencies[0] : null;
+
+  // asReferee — single row at most, by uniqueness invariant
+  // (operatorId, refereePlayerId) is unique on PlayerReferral.
+  const refereeRow = await PlayerReferral.findOne({
+    operatorId,
+    refereePlayerId: playerId,
+  })
+    .select({
+      brandId: 1,
+      referrerPlayerId: 1,
+      status: 1,
+      signedUpAt: 1,
+      ftdAt: 1,
+      qualifiedAt: 1,
+      refereeRewardCents: 1,
+      refereeRewardCurrency: 1,
+      refereeRewardedAt: 1,
+    })
+    .lean();
+
+  return res.status(200).json({
+    asReferrer: {
+      invited:            (counts.pending_ftd
+                          + counts.pending_qualification
+                          + counts.qualified
+                          + counts.rewarded
+                          + counts.reversed
+                          + counts.rejected),
+      pending:            counts.pending_ftd + counts.pending_qualification,
+      qualified:          counts.qualified + counts.rewarded + counts.reversed,
+      rewarded:           counts.rewarded,
+      reversed:           counts.reversed,
+      rejected:           counts.rejected,
+      totalEarnedCents,
+      totalReversedCents,
+      netEarnedCents:     totalEarnedCents - totalReversedCents,
+      currency,
+      recentReferrals:    recent,
+    },
+    asReferee: refereeRow
+      ? {
+          brandId: String(refereeRow.brandId),
+          referrerPlayerId: refereeRow.referrerPlayerId,
+          status: refereeRow.status,
+          signedUpAt: refereeRow.signedUpAt,
+          ftdAt: refereeRow.ftdAt,
+          qualifiedAt: refereeRow.qualifiedAt,
+          refereeRewardCents: refereeRow.refereeRewardCents,
+          refereeRewardCurrency: refereeRow.refereeRewardCurrency,
+          refereeRewardedAt: refereeRow.refereeRewardedAt,
+        }
+      : null,
+  });
 };

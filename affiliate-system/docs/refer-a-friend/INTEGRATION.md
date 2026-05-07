@@ -2,15 +2,18 @@
 
 This document is for the operator's product/engineering team enabling a player-to-player referral feature inside their casino. Affiliar provides the engine, the qualification rules, and the reward emission. Your casino owns the player-facing UI (share button, code copy, leaderboards, etc.).
 
-Phase 1 ships with these integration surfaces:
+Integration surfaces:
 
 | Surface | Direction | Use |
 |---|---|---|
 | **REST: track-signup** | operator → affiliar | Tell affiliar a friend signed up using a referrer's code |
 | **REST: track-ftd** | operator → affiliar | Tell affiliar a friend made their first deposit |
 | **REST: track-ftd-reversal** | operator → affiliar | Tell affiliar a previously tracked FTD was reversed (chargeback, fraud, etc.) |
+| **REST: stats** | operator → affiliar | Pull a player's referral counts + earnings to render the casino's "Refer-a-Friend" widget |
 | **Webhook: reward.issued** | affiliar → operator | Credit the referrer (see [WEBHOOK.md](./WEBHOOK.md)) |
-| **Webhook: reward.reversed** | affiliar → operator | Claw back a previously credited reward |
+| **Webhook: reward.reversed** | affiliar → operator | Claw back a previously credited referrer reward |
+| **Webhook: reward.referee.issued** | affiliar → operator | Credit the friend's welcome bonus (Phase 2 two-sided rewards, opt-in) |
+| **Webhook: reward.referee.reversed** | affiliar → operator | Claw back a previously credited referee bonus |
 
 There is intentionally no Kafka path in Phase 1. If you need higher throughput later, raise an issue — Phase 2 reuses the same payload schema over Kafka.
 
@@ -203,6 +206,77 @@ Notes:
 - Idempotent on `(operatorId, refereePlayerId)`. Re-calling returns the same referral state.
 - Affiliar does not arbitrate the reversal — if you say it reversed, it reversed. We just propagate.
 - `reversedCents` is recorded for audit but does not need to equal `ftdCents`. The reward we fire to claw back is the original `rewardCents`, not a recalculated amount.
+
+## 5b. REST: player stats
+
+Read-only endpoint your casino backend can poll to render a "Refer-a-Friend" widget for a logged-in player. Returns referral counts + earnings totals from both directions: when this player invited others (`asReferrer`) and when this player was invited by someone else (`asReferee`).
+
+```
+GET /api/v1/refer/stats?playerId=p_A&brandId=optional&limit=optional
+Authorization: Bearer <token>
+```
+
+Query params:
+
+| Param | Required | Description |
+|---|---|---|
+| `playerId` | yes | The operator-scoped player id you want stats for |
+| `brandId` | no | Scope to a single brand. Omitted → aggregate across all brands of this operator |
+| `limit` | no | How many recent referrals to include in `recentReferrals`. 1–50, default 10 |
+
+Response:
+
+```json
+{
+  "asReferrer": {
+    "invited": 12,
+    "pending": 3,
+    "qualified": 9,
+    "rewarded": 8,
+    "reversed": 1,
+    "rejected": 0,
+    "totalEarnedCents": 4000,
+    "totalReversedCents": 500,
+    "netEarnedCents": 3500,
+    "currency": "EUR",
+    "recentReferrals": [
+      {
+        "refereePlayerId": "p_B",
+        "status": "rewarded",
+        "signedUpAt": "2026-04-12T10:00:00.000Z",
+        "ftdAt":      "2026-04-13T08:32:11.000Z",
+        "qualifiedAt":"2026-04-20T08:32:11.000Z",
+        "rewardCents": 500,
+        "rewardCurrency": "EUR",
+        "createdAt":  "2026-04-12T10:00:00.000Z"
+      }
+    ]
+  },
+  "asReferee": {
+    "brandId": "65b4...",
+    "referrerPlayerId": "p_X",
+    "status": "rewarded",
+    "signedUpAt": "2026-03-01T...",
+    "ftdAt":      "2026-03-02T...",
+    "qualifiedAt":"2026-03-09T...",
+    "refereeRewardCents": 500,
+    "refereeRewardCurrency": "EUR",
+    "refereeRewardedAt": "2026-03-09T..."
+  }
+}
+```
+
+`asReferee` is `null` when the player was never invited (or was, but not in your operator's tree). The duplicate-referee invariant means there is at most one such row per `(operator, player)`.
+
+Buckets explained:
+- `invited` — total referrals attributed to this player as referrer, regardless of state
+- `pending` — `pending_ftd` + `pending_qualification` (still in flight)
+- `qualified` — gates were cleared at some point: union of `qualified` (delivery in flight), `rewarded` (paid), and `reversed` (paid then reversed)
+- `rewarded` — referrer reward delivered + acked
+- `reversed` — referrer reward delivered then later reversed
+- `rejected` — failed qualification or capped out
+
+`currency` is filled in when every rewarded referral shares the same currency; mixed-currency operators get `null` and should format per-row.
 
 ## 6. Webhooks: reward.issued and reward.reversed
 

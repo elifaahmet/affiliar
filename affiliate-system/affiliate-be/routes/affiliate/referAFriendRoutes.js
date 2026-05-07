@@ -22,6 +22,7 @@ const operatorCtl = require("../../controllers/affiliate/referAFriendController"
 router.post("/track-signup",        integration.trackSignup);
 router.post("/track-ftd",           integration.trackFtd);
 router.post("/track-ftd-reversal",  integration.trackFtdReversal);
+router.get ("/stats",               integration.getStats);
 
 // ── Operator: per-brand config CRUD ──────────────────────────────────────────
 
