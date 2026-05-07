@@ -73,7 +73,7 @@ const BSelect: React.FC<BSelectProps> = ({
           multiple={isMulti}
           onChange={onChange}
           name={name}
-          className={`peer h-10 bg-gray-100 overflow-hidden relative bg-transparent pt-3 px-3 w-full text-sm text-gray-900 appearance-none focus:outline-none rounded-md cursor-pointer
+          className={`peer h-10 bg-gray-100 overflow-hidden relative bg-transparent pt-3 px-3 w-full text-sm text-gray-900 appearance-none focus:outline-none rounded-md cursor-pointer no-chevron
             ${border ? 'border border-[#C4B5FD] focus:ring-2 focus:ring-primary' : 'px-2'}
             ${disabled ? 'cursor-not-allowed opacity-50' : ''}
           `}
