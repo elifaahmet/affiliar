@@ -1,6 +1,11 @@
 # Refer-a-Friend — Outbound Webhook Contract
 
-This document is for the operator's backend team integrating Affiliar's Refer-a-Friend reward webhook. When a player-referral qualifies, Affiliar POSTs a signed payload to your endpoint. Your job is to credit the referrer's wallet/bonus balance and respond with `2xx`.
+This document is for the operator's backend team integrating Affiliar's Refer-a-Friend reward webhook. Affiliar POSTs signed payloads to your endpoint at two moments:
+
+- **`referral.reward.issued`** — a friend cleared qualification gates; credit the referrer.
+- **`referral.reward.reversed`** — a previously rewarded referral was reversed (the referee's FTD was charged back / refunded); claw the reward back.
+
+Both events go to the same webhook URL with the same signature scheme; you branch on the `X-Affiliar-Event` header.
 
 ## 1. Configuration
 
@@ -12,6 +17,8 @@ Configure your webhook in **Affiliar → Settings → Refer-a-Friend → [Brand]
 You can rotate the secret at any time. The new secret begins signing immediately; in-flight retries use the secret valid at delivery time.
 
 ## 2. Request format
+
+### 2.1 `referral.reward.issued`
 
 ```http
 POST {your-webhook-url}
@@ -41,12 +48,49 @@ X-Affiliar-Signature: t=1746611820,v1=5257a869e7ecebeda32afb5cb1dd2b1f9d6f54b08b
 }
 ```
 
+### 2.2 `referral.reward.reversed`
+
+Fires when an operator calls `POST /api/v1/refer/track-ftd-reversal` on a referral that was already in the `rewarded` state (or `qualified` with a confirmed delivery). Same envelope, same signing, different event type and a couple of extra fields:
+
+```http
+POST {your-webhook-url}
+Content-Type: application/json
+User-Agent: Affiliar-Webhooks/1.0
+X-Affiliar-Event: referral.reward.reversed
+X-Affiliar-Delivery: 4c2a16fb-0e91-4a7d-b8f3-9c1d2e8a0b4e
+X-Affiliar-Timestamp: 1749482400
+X-Affiliar-Signature: t=1749482400,v1=8d4cf3...
+
+{
+  "id": "evt_01HM2YB8C3VXPQ7TR1KZ5W6SE0",
+  "type": "referral.reward.reversed",
+  "createdAt": "2026-06-12T14:20:00.000Z",
+  "data": {
+    "brandId": "65b4...",
+    "referralId": "65f7...",                     // same id as the original issued event
+    "originalDeliveryId": "65fb...",             // the issued delivery this reverses
+    "referrerPlayerId": "p_842931",
+    "refereePlayerId": "p_991042",
+    "rewardCents": 500,                          // the amount to claw back, equals original reward
+    "rewardCurrency": "EUR",
+    "rewardKind": "bonus",
+    "qualifiedAt": "2026-05-07T11:30:19.412Z",
+    "reversedAt": "2026-06-12T14:20:00.000Z",
+    "reversalReason": "chargeback",              // operator-supplied free-form
+    "reversedAmountCents": 5000,                 // the FTD amount that was reversed (for audit)
+    "ftdCurrency": "EUR"
+  }
+}
+```
+
+The `referralId` is stable across both events. Use `referralId + type` as your idempotency key — see §6.
+
 ### Headers
 
 | Header | Description |
 |---|---|
-| `X-Affiliar-Event` | Event type. Phase 1 ships exactly one: `referral.reward.issued`. |
-| `X-Affiliar-Delivery` | Unique per delivery attempt. **Use this for idempotency.** Same event id may appear with different delivery ids on retries — dedupe by event `data.referralId` plus `id`. |
+| `X-Affiliar-Event` | Event type: `referral.reward.issued` or `referral.reward.reversed`. Branch on this. |
+| `X-Affiliar-Delivery` | Unique per delivery attempt. Same event may appear with different delivery ids on retries — use the event `id` (or `referralId + type`) for dedupe, not the delivery id. |
 | `X-Affiliar-Timestamp` | Unix timestamp (seconds) used in the signature. Reject events with timestamps older than 5 minutes to prevent replay. |
 | `X-Affiliar-Signature` | HMAC-SHA256 signature, see §3. |
 
@@ -107,19 +151,27 @@ After 6 unsuccessful attempts, delivery is marked `failed`. The reward is not lo
 
 ## 6. Idempotency
 
-Affiliar guarantees at-least-once delivery per qualified referral. Dedupe on the operator side by `data.referralId` (or `id`); both are stable across retries.
+Affiliar guarantees at-least-once delivery per qualified referral and per reversal. Dedupe on the operator side by **`(referralId, type)`** — the same referral may produce one `issued` and one `reversed` event, both legitimate, but never two of the same type.
 
-A single `referralId` will never appear in more than one `referral.reward.issued` event. If you see two with the same `referralId`, the second is a duplicate — return 2xx without re-crediting.
+Recommended dedupe table on the operator side:
 
-## 7. Test event
+| Key | Action on first sight | Action on duplicate |
+|---|---|---|
+| `(referralId, "referral.reward.issued")` | Credit referrer | Return 2xx, do nothing |
+| `(referralId, "referral.reward.reversed")` | Debit referrer | Return 2xx, do nothing |
 
-Use the **"Send test event"** button in the operator dashboard to deliver a synthetic event:
+The event `id` is also unique per delivery and never reused, so you can dedupe by `id` alone if you prefer — both schemes are correct.
+
+## 7. Test events
+
+The operator dashboard has two **"Send test event"** buttons — one per event type. Both deliver a synthetic payload to your configured URL with the same signature scheme as production events.
 
 ```json
+// referral.reward.issued
 {
-  "id": "evt_test_…",
+  "id": "evt_test_issued_…",
   "type": "referral.reward.issued",
-  "createdAt": "…",
+  "createdAt": "<now>",
   "data": {
     "brandId": "<your-brand>",
     "referralId": "test_referral_id",
@@ -133,9 +185,31 @@ Use the **"Send test event"** button in the operator dashboard to deliver a synt
     "ftdCurrency": "EUR"
   }
 }
+
+// referral.reward.reversed
+{
+  "id": "evt_test_reversed_…",
+  "type": "referral.reward.reversed",
+  "createdAt": "<now>",
+  "data": {
+    "brandId": "<your-brand>",
+    "referralId": "test_referral_id",
+    "originalDeliveryId": "test_original_delivery",
+    "referrerPlayerId": "test_referrer",
+    "refereePlayerId": "test_referee",
+    "rewardCents": 500,
+    "rewardCurrency": "EUR",
+    "rewardKind": "bonus",
+    "qualifiedAt": "<now>",
+    "reversedAt": "<now>",
+    "reversalReason": "test_chargeback",
+    "reversedAmountCents": 5000,
+    "ftdCurrency": "EUR"
+  }
+}
 ```
 
-Test events carry the same signature scheme as production events. We recommend rejecting `referralId === "test_referral_id"` from your wallet logic but still returning 2xx so the dashboard shows green.
+We recommend rejecting `referralId === "test_referral_id"` from your wallet logic but still returning 2xx so the dashboard shows green.
 
 ## 8. Operations
 

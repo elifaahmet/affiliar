@@ -75,15 +75,15 @@ Reuse pattern: the `qualification` block deliberately mirrors the shape of `Comm
 {
   brandId: ObjectId,
   operatorId: ObjectId,
-  referrerPlayerId: String,           // operator-scoped player id, NOT an Affiliar user
-  refereePlayerId: String,            // the friend
-  refCode: String,                    // short code shared with referee, indexed
-  status: 'pending_signup'             // refCode generated, no signup yet
-        | 'pending_ftd'                // friend signed up, awaiting first deposit
+  referrerPlayerId: String,           // operator-scoped player id, the inviter
+  refereePlayerId: String,            // the friend, also operator-scoped
+  refCode: String | null,             // optional metadata; operator generates it
+  status: 'pending_ftd'                // signed up, awaiting first deposit
         | 'pending_qualification'      // FTD made, gates not cleared yet
-        | 'qualified'                  // gates cleared, reward owed
-        | 'rewarded'                   // reward emitted to operator and acknowledged
-        | 'rejected',                  // failed gates / fraud / capped
+        | 'qualified'                  // gates cleared, reward computed
+        | 'rewarded'                   // reward emitted and acknowledged by operator
+        | 'reversed'                   // FTD reversed after reward — operator notified to claw back
+        | 'rejected',                  // failed gates / fraud / capped (terminal)
   rejectionReason: String | null,
   signedUpAt: Date | null,
   ftdAt: Date | null,
@@ -92,15 +92,18 @@ Reuse pattern: the `qualification` block deliberately mirrors the shape of `Comm
   qualifiedAt: Date | null,
   rewardCents: Number | null,         // computed at qualification time
   rewardCurrency: String | null,
+  reversedAt: Date | null,
+  reversedAmountCents: Number | null, // amount reversed (operator-supplied)
+  reversalReason: String | null,      // 'chargeback' | 'fraud' | other free-form
   configSnapshot: Object,             // copy of ReferAFriendConfig at qualification time, for audit
   createdAt, updatedAt
 }
 ```
 
 Key invariants:
-- `(brandId, refereePlayerId)` is unique — a player can only be referred once
-- `(brandId, refCode)` is unique — codes don't collide
-- A player cannot refer themselves (same `refereePlayerId === referrerPlayerId` rejected at track-signup)
+- `(operatorId, refereePlayerId)` is unique — a player can be referred at most once across all of an operator's brands
+- A player cannot refer themselves — `refereePlayerId === referrerPlayerId` is rejected at track-signup
+- `refCode` is operator-owned; affiliar does not generate or guarantee uniqueness
 
 ### 3.3 `RewardDelivery` — outbound webhook queue
 
@@ -131,14 +134,9 @@ See [WEBHOOK.md](./WEBHOOK.md) for the contract details.
 
 ```
                   ┌────────────────┐
-                  │ pending_signup │  refCode generated
+                  │ pending_ftd    │  ← created by track-signup
                   └───────┬────────┘
-                          │ track-signup event
-                          ▼
-                  ┌────────────────┐
-                  │ pending_ftd    │
-                  └───────┬────────┘
-                          │ track-ftd event
+                          │ track-ftd
                           ▼
               ┌────────────────────────┐
               │ pending_qualification  │  ← qualification job re-runs daily
@@ -148,24 +146,45 @@ See [WEBHOOK.md](./WEBHOOK.md) for the contract details.
                ┌──────────┐   ┌──────────┐
                │ qualified│   │ rejected │  (terminal)
                └────┬─────┘   └──────────┘
-                    │ emit reward → enqueue RewardDelivery
+                    │ emit reward.issued → enqueue RewardDelivery
                     ▼
                ┌──────────┐
-               │ rewarded │  (terminal, after 2xx ack from webhook)
-               └──────────┘
+               │ rewarded │
+               └────┬─────┘
+                    │ track-ftd-reversal (any time after 'rewarded')
+                    ▼
+               ┌──────────┐
+               │ reversed │  emit reward.reversed → enqueue RewardDelivery
+               └──────────┘  (terminal)
 ```
+
+Reversal also short-circuits earlier states:
+
+| State at reversal time | Result |
+|---|---|
+| `pending_qualification` | → `rejected` with reason `ftd_reversed`. No webhook fired (nothing was paid). |
+| `qualified` | → `rejected`. Cancel the in-flight `referral.reward.issued` delivery if not yet sent; if already sent and `2xx` received, treat as `rewarded` and fire `referral.reward.reversed`. |
+| `rewarded` | → `reversed`. Fire `referral.reward.reversed`. |
+| `reversed` / `rejected` | No-op. Idempotent. |
 
 ## 5. Engine: `referralEngine`
 
-A single orchestrator with three entry points:
+A single orchestrator with four entry points:
 
 | Function | Caller | Job |
 |---|---|---|
-| `trackSignup({ brandId, refereePlayerId, refCode })` | integration controller | Create `PlayerReferral` in `pending_ftd` if `refCode` is valid and referee is not already referred. |
-| `trackFtd({ brandId, refereePlayerId, depositCents, currency })` | integration controller | Mark FTD on the matching referral, transition to `pending_qualification`. |
-| `evaluateQualification(referralId)` | nightly cron + on-demand after FTD | Apply gates from `ReferAFriendConfig`. If clear → `qualified` + emit reward. If hold not expired → leave pending. If permanently failed → `rejected`. |
+| `trackSignup({ brandId, referrerPlayerId, refereePlayerId, refCode? })` | integration controller | Create `PlayerReferral` in `pending_ftd` if referee not already referred for this operator and not self-referring. |
+| `trackFtd({ brandId, refereePlayerId, depositCents, currency, depositedAt? })` | integration controller | Mark FTD on the matching referral, transition to `pending_qualification`. |
+| `trackFtdReversal({ brandId, refereePlayerId, reversedCents, reason })` | integration controller | Apply reversal logic per §4 table. May enqueue `referral.reward.reversed` delivery. |
+| `evaluateQualification(referralId)` | nightly cron + on-demand after FTD | Apply gates from `ReferAFriendConfig`. If clear → `qualified` + enqueue `referral.reward.issued` delivery. If hold not expired → leave pending. If permanently failed → `rejected`. |
 
-The engine never modifies player wallets directly. Reward emission is a write to `RewardDelivery` with status `pending`; the delivery worker handles the HTTP call.
+The engine never modifies player wallets directly. Reward emission is always a write to `RewardDelivery` with status `pending`; the delivery worker handles the HTTP call.
+
+### 5.1 Borrowing patterns from `commissionEngine` / `cpaQualification`
+
+The qualification math (hold period, min deposit, wager threshold) closely resembles the existing CPA gate logic. We **do not import** from `engine/cpaQualification.js` — that file lives inside the affiliate program and we want the refer-a-friend module to remain entirely standalone, so existing affiliate code can be modified without breaking us.
+
+Instead, `engine/referralQualification.js` reimplements the same algorithm against `ReferAFriendConfig.qualification` (which has a slimmer shape). If we ever extract a shared "QualificationGates" library, both modules can adopt it; until then, the duplication is intentional.
 
 ## 6. Anti-abuse (Phase 1 baseline)
 
@@ -213,16 +232,16 @@ Per-brand cards. Each card:
 
 ## 9. Phase 1 build list
 
-Backend:
+Backend (all under net-new paths; no edits to existing files):
 - [ ] `models/ReferAFriendConfig.js`
 - [ ] `models/PlayerReferral.js`
 - [ ] `models/RewardDelivery.js`
 - [ ] `engine/referralEngine.js`
-- [ ] `engine/referralQualification.js` (slim, modeled on `cpaQualification.js`)
+- [ ] `engine/referralQualification.js` (parallel to `cpaQualification.js`, no import)
 - [ ] `jobs/referralQualificationJob.js` (nightly)
-- [ ] `jobs/referralDeliveryWorker.js` (continuous queue worker)
+- [ ] `jobs/referralDeliveryWorker.js` (continuous queue worker, HMAC signing, retry policy)
 - [ ] `controllers/affiliate/referAFriendController.js` (operator config + reports + replay)
-- [ ] `controllers/integration/referAFriendIntegrationController.js` (track-signup, track-ftd)
+- [ ] `controllers/integration/referAFriendIntegrationController.js` (track-signup, track-ftd, track-ftd-reversal)
 - [ ] `routes/affiliate/referAFriendRoutes.js`
 - [ ] `routes/integration/referAFriendIntegrationRoutes.js`
 
@@ -239,20 +258,24 @@ Docs:
 - [x] `docs/refer-a-friend/WEBHOOK.md`
 - [x] `docs/refer-a-friend/INTEGRATION.md`
 
-## 10. Non-trivial open questions
+## 10. Resolved decisions
 
-| Question | Default |
+| Question | Decision |
 |---|---|
-| Where does `refCode` get generated — affiliar or operator? | Affiliar. `POST /api/refer/code/issue` returns `{ code, link }`. Operator caches it on their player record. |
-| What happens if a referee is also a registered affiliate? | Refer-a-Friend track-signup is rejected with reason `referee_is_affiliate`. Affiliate program takes precedence. |
-| Can a player accumulate referrals across multiple brands? | Yes — `PlayerReferral` is brand-scoped. A player can be a referrer at brand A and a referee at brand B without conflict. The "duplicate referee" check is operator-scoped, not brand-scoped. |
+| Where does `refCode` get generated — affiliar or operator? | **Operator owns it.** Affiliar receives `referrerPlayerId` directly on track-signup; `refCode` is optional metadata for reporting. We do not generate or validate code uniqueness. |
+| What happens if a referee is also a registered affiliate? | Track-signup is rejected with reason `referee_is_affiliate`. Affiliate program takes precedence. |
+| Can a player be referred across multiple brands? | **No.** The duplicate-referee check is operator-scoped — a player can only be a referee on one brand of one operator, ever. Cross-brand referee spam is blocked. |
 | What if `ReferAFriendConfig` is disabled mid-qualification? | Existing in-flight referrals continue. New track-signup requests on a disabled brand are rejected. |
-| FX for `percent_of_first_deposit`? | Use the same FX path as commission engine (ECB daily rate); store both native and normalized. |
+| FX for `percent_of_first_deposit`? | Use the same FX path as commission engine (ECB daily rate); store both native and normalized amounts. |
+| Chargeback / FTD reversal handling? | **Phase 1.** Operator calls `track-ftd-reversal`. Engine transitions per §4 table; emits `referral.reward.reversed` if a reward was already paid. Operator's wallet system performs the actual claw-back. |
 
 ## 11. Phase 2 sketch (for context, do not implement)
 
-- Kafka outbound transport as an alternative to webhook
+- Kafka outbound transport as an alternative to webhook (same payload schema)
 - Multi-hop chains (A → B → C with diminishing rewards)
-- Player API: `GET /api/v1/refer/code`, `GET /api/v1/refer/stats` for the referrer
+- Affiliar-managed code generation (currently operator-owned)
+- Player-facing API: `GET /api/v1/refer/stats` for the referrer (currently operator handles all UX)
 - Referrer leaderboards
 - Co-op campaigns (two friends sign up together → both rewarded)
+- Device fingerprint / KYC match for fraud detection
+- Stale-referral expiry job (auto-reject referrals stuck in `pending_qualification` for > N days)
