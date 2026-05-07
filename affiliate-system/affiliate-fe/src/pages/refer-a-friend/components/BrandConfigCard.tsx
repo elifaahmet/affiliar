@@ -23,6 +23,14 @@ const DEFAULT_CONFIG: Omit<ReferConfig, 'brandId'> = {
     currency: 'EUR',
     rewardKind: 'bonus',
   },
+  refereeReward: {
+    enabled: false,
+    type: 'fixed_bonus',
+    amountCents: 500,
+    percent: 10,
+    capCents: null,
+    rewardKind: 'bonus',
+  },
   qualification: {
     minDepositCents: 1000,
     holdDays: 7,
@@ -47,6 +55,7 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
     ...DEFAULT_CONFIG,
     ...(existingConfig ?? {}),
     reward:        { ...DEFAULT_CONFIG.reward,        ...(existingConfig?.reward ?? {}) },
+    refereeReward: { ...DEFAULT_CONFIG.refereeReward, ...(existingConfig?.refereeReward ?? {}) },
     qualification: { ...DEFAULT_CONFIG.qualification, ...(existingConfig?.qualification ?? {}) },
     caps:          { ...DEFAULT_CONFIG.caps,          ...(existingConfig?.caps ?? {}) },
     webhook:       { ...DEFAULT_CONFIG.webhook,       ...(existingConfig?.webhook ?? {}) },
@@ -88,6 +97,7 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
     upsert.mutate({
       enabled: form.enabled,
       reward: form.reward,
+      refereeReward: form.refereeReward,
       qualification: form.qualification,
       caps: form.caps,
       webhook: { url: form.webhook.url, enabled: form.webhook.enabled },
@@ -96,6 +106,9 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
 
   function setReward<K extends keyof ReferConfig['reward']>(key: K, value: ReferConfig['reward'][K]) {
     setForm((f) => ({ ...f, reward: { ...f.reward, [key]: value } }));
+  }
+  function setRefereeReward<K extends keyof ReferConfig['refereeReward']>(key: K, value: ReferConfig['refereeReward'][K]) {
+    setForm((f) => ({ ...f, refereeReward: { ...f.refereeReward, [key]: value } }));
   }
   function setQual<K extends keyof ReferConfig['qualification']>(key: K, value: ReferConfig['qualification'][K]) {
     setForm((f) => ({ ...f, qualification: { ...f.qualification, [key]: value } }));
@@ -214,6 +227,87 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
                   />
                 </Field>
               </Row>
+            )}
+          </Section>
+
+          {/* Referee reward (Phase 2 two-sided rewards) */}
+          <Section title='Referee reward' hint='Optional welcome bonus paid to the friend at the same time the referrer is rewarded. Currency inherits from the main reward.'>
+            <div className='flex items-center justify-between gap-4 p-3 rounded-lg bg-violet-50/40'>
+              <div>
+                <p className='text-sm font-medium text-gray-900'>Pay the friend too</p>
+                <p className='text-xs text-gray-500'>
+                  Fires <code className='text-[11px] font-mono'>referral.reward.referee.issued</code> webhook on qualification.
+                  Operator must handle the new event type to credit the friend.
+                </p>
+              </div>
+              <input
+                type='checkbox'
+                checked={form.refereeReward.enabled}
+                onChange={(e) => setRefereeReward('enabled', e.target.checked)}
+                className='h-5 w-5 rounded accent-primary cursor-pointer'
+              />
+            </div>
+
+            {form.refereeReward.enabled && (
+              <>
+                <Row>
+                  <Field label='Type'>
+                    <select
+                      value={form.refereeReward.type}
+                      onChange={(e) => setRefereeReward('type', e.target.value as any)}
+                      className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
+                    >
+                      <option value='fixed_bonus'>Fixed bonus</option>
+                      <option value='percent_of_first_deposit'>Percent of first deposit</option>
+                    </select>
+                  </Field>
+                  <Field label='Reward kind'>
+                    <select
+                      value={form.refereeReward.rewardKind}
+                      onChange={(e) => setRefereeReward('rewardKind', e.target.value as any)}
+                      className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
+                    >
+                      <option value='bonus'>Bonus</option>
+                      <option value='cash'>Cash</option>
+                      <option value='freespins'>Free spins</option>
+                    </select>
+                  </Field>
+                </Row>
+                {form.refereeReward.type === 'fixed_bonus' && (
+                  <Row>
+                    <Field label='Amount (cents)' hint='Flat welcome bonus per qualified referral'>
+                      <input
+                        type='number' min={0}
+                        value={form.refereeReward.amountCents}
+                        onChange={(e) => setRefereeReward('amountCents', Number(e.target.value) || 0)}
+                        className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
+                      />
+                    </Field>
+                  </Row>
+                )}
+                {form.refereeReward.type === 'percent_of_first_deposit' && (
+                  <Row>
+                    <Field label='Percent' hint='0–100 of friend’s FTD'>
+                      <input
+                        type='number' min={0} max={100}
+                        value={form.refereeReward.percent}
+                        onChange={(e) => setRefereeReward('percent', Number(e.target.value) || 0)}
+                        className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
+                      />
+                    </Field>
+                    <Field label='Cap (cents)' hint='Optional max payout. Empty = no cap.'>
+                      <input
+                        type='number' min={0}
+                        value={form.refereeReward.capCents ?? ''}
+                        onChange={(e) =>
+                          setRefereeReward('capCents', e.target.value === '' ? null : Number(e.target.value) || 0)
+                        }
+                        className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
+                      />
+                    </Field>
+                  </Row>
+                )}
+              </>
             )}
           </Section>
 

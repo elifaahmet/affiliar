@@ -218,51 +218,40 @@ async function trackFtdReversal({ brandId, refereePlayerId, reversedCents, reaso
     return { referral, delivery: null };
   }
 
-  // qualified — there is a pending RewardDelivery for the issued reward.
-  // If it hasn't gone out yet, cancel it and bail; if it already did and
-  // the operator acked, treat as 'rewarded' and fire reversed.
+  // qualified — there are pending RewardDelivery rows. Cancel any pending,
+  // fire reversals only for those that already delivered + acked.
   if (referral.status === "qualified") {
-    const issued = await RewardDelivery.findOne({
-      referralId: referral._id,
-      eventType: "referral.reward.issued",
-    }).sort({ createdAt: -1 });
+    const cancelled = await cancelPendingDeliveries(referral._id);
+    const issued        = await findDeliveredDelivery(referral._id, "referral.reward.issued");
+    const refereeIssued = await findDeliveredDelivery(referral._id, "referral.reward.referee.issued");
 
-    if (issued && issued.status === "delivered") {
-      // Already acked — treat as if rewarded and fire reversal.
+    if (issued || refereeIssued) {
+      // At least one side acked — treat as rewarded and fire reversals.
       referral.status = "reversed";
       await referral.save();
-      const delivery = await enqueueReversedDelivery(referral, issued);
-      return { referral, delivery };
+      const delivery        = issued        ? await enqueueReversedDelivery(referral, issued)               : null;
+      const refereeDelivery = refereeIssued ? await enqueueRefereeReversedDelivery(referral, refereeIssued) : null;
+      return { referral, delivery, refereeDelivery };
     }
 
-    // Otherwise: cancel the in-flight delivery and reject.
-    if (issued && issued.status === "pending") {
-      issued.status = "failed";
-      issued.lastResponse = {
-        ...issued.lastResponse,
-        errorMessage: "cancelled_by_reversal",
-        attemptedAt: new Date(),
-      };
-      await issued.save();
-    }
+    // Nothing delivered yet — just reject.
     referral.status          = "rejected";
     referral.rejectionReason = "ftd_reversed";
     await referral.save();
-    return { referral, delivery: null };
+    return { referral, delivery: null, refereeDelivery: null, cancelled };
   }
 
-  // rewarded — fire reversal delivery.
+  // rewarded — fire reversal deliveries for whichever sides were paid.
   if (referral.status === "rewarded") {
-    const issued = await RewardDelivery.findOne({
-      referralId: referral._id,
-      eventType: "referral.reward.issued",
-      status: "delivered",
-    }).sort({ createdAt: -1 });
+    const issued        = await findDeliveredDelivery(referral._id, "referral.reward.issued");
+    const refereeIssued = await findDeliveredDelivery(referral._id, "referral.reward.referee.issued");
 
     referral.status = "reversed";
     await referral.save();
-    const delivery = await enqueueReversedDelivery(referral, issued);
-    return { referral, delivery };
+
+    const delivery        = issued        ? await enqueueReversedDelivery(referral, issued)               : null;
+    const refereeDelivery = refereeIssued ? await enqueueRefereeReversedDelivery(referral, refereeIssued) : null;
+    return { referral, delivery, refereeDelivery };
   }
 
   // pending_ftd or any other unexpected state — refuse to silently swallow.
@@ -323,19 +312,32 @@ async function evaluateQualification(referralId, { now } = {}) {
   }
 
   // Gates clear — but we still must check monthly caps before paying out.
-  const rewardCents = computeReward(config.reward, referral.ftdCents);
-  if (rewardCents <= 0) {
+  const referrerRewardCents = computeReward(config.reward, referral.ftdCents);
+  if (referrerRewardCents <= 0) {
     referral.status = "rejected";
     referral.rejectionReason = "reward_zero";
     await referral.save();
     return referral;
   }
 
+  // Two-sided rewards: compute the referee bonus too, if enabled. The
+  // referee reward is opt-in (defaults disabled), so existing operators
+  // see no behavioral change.
+  const refereeRewardCents =
+    config.refereeReward && config.refereeReward.enabled
+      ? computeReward(config.refereeReward, referral.ftdCents)
+      : 0;
+
+  // Caps are evaluated against the combined operator spend per referral.
+  // Partial payouts are not allowed — if the total would exceed any cap,
+  // the entire referral is rejected. Cleaner audit story than picking a
+  // winner.
+  const totalRewardCents = referrerRewardCents + refereeRewardCents;
   const capCheck = await checkMonthlyCaps({
     operatorId: referral.operatorId,
     brandId: referral.brandId,
     referrerPlayerId: referral.referrerPlayerId,
-    rewardCents,
+    rewardCents: totalRewardCents,
     caps: config.caps || {},
     now: now || new Date(),
   });
@@ -346,15 +348,24 @@ async function evaluateQualification(referralId, { now } = {}) {
     return referral;
   }
 
-  // All clear — qualify and enqueue the issued delivery.
+  // All clear — qualify and enqueue both deliveries (referrer always,
+  // referee only if its reward computed to a positive amount).
+  const rewardCurrency = config.reward.currency || "EUR";
   referral.status         = "qualified";
   referral.qualifiedAt    = new Date();
-  referral.rewardCents    = rewardCents;
-  referral.rewardCurrency = config.reward.currency || "EUR";
+  referral.rewardCents    = referrerRewardCents;
+  referral.rewardCurrency = rewardCurrency;
+  if (refereeRewardCents > 0) {
+    referral.refereeRewardCents    = refereeRewardCents;
+    referral.refereeRewardCurrency = rewardCurrency;
+  }
   referral.configSnapshot = snapshotConfig(config);
   await referral.save();
 
   await enqueueIssuedDelivery(referral, config);
+  if (refereeRewardCents > 0) {
+    await enqueueRefereeIssuedDelivery(referral, config);
+  }
 
   return referral;
 }
@@ -434,12 +445,47 @@ async function sumRewards(match) {
  * audit. The operator may edit config later; the snapshot stays frozen.
  */
 function snapshotConfig(config) {
+  const lift = (sub) => (sub ? (sub.toObject ? sub.toObject() : { ...sub }) : null);
   return {
-    reward: config.reward ? config.reward.toObject ? config.reward.toObject() : { ...config.reward } : null,
-    qualification: config.qualification ? config.qualification.toObject ? config.qualification.toObject() : { ...config.qualification } : null,
-    caps: config.caps ? config.caps.toObject ? config.caps.toObject() : { ...config.caps } : null,
-    snapshotAt: new Date().toISOString(),
+    reward:         lift(config.reward),
+    refereeReward:  lift(config.refereeReward),
+    qualification:  lift(config.qualification),
+    caps:           lift(config.caps),
+    snapshotAt:     new Date().toISOString(),
   };
+}
+
+/**
+ * Find the latest already-delivered (and acked) row of a given event
+ * type for a referral. Returns null if none. Used by reversal logic to
+ * decide whether to fire a reversed event for that side.
+ */
+async function findDeliveredDelivery(referralId, eventType) {
+  return RewardDelivery.findOne({
+    referralId,
+    eventType,
+    status: "delivered",
+  }).sort({ createdAt: -1 });
+}
+
+/**
+ * Cancel any in-flight (pending) deliveries for this referral when the
+ * operator reverses the FTD before either side acked. Marks them
+ * 'failed' with a `cancelled_by_reversal` error so the dashboard reads
+ * are clean. Returns the number of rows cancelled.
+ */
+async function cancelPendingDeliveries(referralId) {
+  const rows = await RewardDelivery.find({ referralId, status: "pending" });
+  for (const row of rows) {
+    row.status = "failed";
+    row.lastResponse = {
+      ...(row.lastResponse || {}),
+      errorMessage: "cancelled_by_reversal",
+      attemptedAt: new Date(),
+    };
+    await row.save();
+  }
+  return rows.length;
 }
 
 /**
@@ -510,6 +556,83 @@ async function enqueueReversedDelivery(referral, originalDelivery) {
     brandId: referral.brandId,
     operatorId: referral.operatorId,
     eventType: "referral.reward.reversed",
+    payload,
+    payloadHash: hashJson(payload),
+    status: "pending",
+    nextAttemptAt: new Date(),
+  });
+}
+
+/**
+ * Phase 2 two-sided rewards: queue the referee welcome bonus delivery.
+ * Same envelope + signing as the referrer event, but the recipient is
+ * `data.refereePlayerId`. Operators MUST handle this event type to
+ * credit the friend's wallet — the referrer event no longer covers
+ * both sides on its own.
+ */
+async function enqueueRefereeIssuedDelivery(referral, config) {
+  const payload = {
+    id: `evt_${randomId()}`,
+    type: "referral.reward.referee.issued",
+    createdAt: new Date().toISOString(),
+    data: {
+      brandId: String(referral.brandId),
+      referralId: String(referral._id),
+      referrerPlayerId: referral.referrerPlayerId,
+      refereePlayerId: referral.refereePlayerId,
+      rewardCents: referral.refereeRewardCents,
+      rewardCurrency: referral.refereeRewardCurrency,
+      rewardKind: (config.refereeReward && config.refereeReward.rewardKind) || "bonus",
+      qualifiedAt: referral.qualifiedAt && referral.qualifiedAt.toISOString(),
+      ftdCents: referral.ftdCents,
+      ftdCurrency: referral.ftdCurrency,
+    },
+  };
+
+  return RewardDelivery.create({
+    referralId: referral._id,
+    brandId: referral.brandId,
+    operatorId: referral.operatorId,
+    eventType: "referral.reward.referee.issued",
+    payload,
+    payloadHash: hashJson(payload),
+    status: "pending",
+    nextAttemptAt: new Date(),
+  });
+}
+
+/**
+ * Reversal counterpart for the referee bonus. Fires only if the referee
+ * side actually delivered (operator already credited the friend).
+ */
+async function enqueueRefereeReversedDelivery(referral, originalDelivery) {
+  const payload = {
+    id: `evt_${randomId()}`,
+    type: "referral.reward.referee.reversed",
+    createdAt: new Date().toISOString(),
+    data: {
+      brandId: String(referral.brandId),
+      referralId: String(referral._id),
+      originalDeliveryId: originalDelivery ? String(originalDelivery._id) : null,
+      referrerPlayerId: referral.referrerPlayerId,
+      refereePlayerId: referral.refereePlayerId,
+      rewardCents: referral.refereeRewardCents,
+      rewardCurrency: referral.refereeRewardCurrency,
+      rewardKind:
+        (referral.configSnapshot && referral.configSnapshot.refereeReward && referral.configSnapshot.refereeReward.rewardKind) || "bonus",
+      qualifiedAt: referral.qualifiedAt && referral.qualifiedAt.toISOString(),
+      reversedAt: referral.reversedAt && referral.reversedAt.toISOString(),
+      reversalReason: referral.reversalReason,
+      reversedAmountCents: referral.reversedAmountCents,
+      ftdCurrency: referral.ftdCurrency,
+    },
+  };
+
+  return RewardDelivery.create({
+    referralId: referral._id,
+    brandId: referral.brandId,
+    operatorId: referral.operatorId,
+    eventType: "referral.reward.referee.reversed",
     payload,
     payloadHash: hashJson(payload),
     status: "pending",

@@ -206,8 +206,10 @@ function ReferralDetailModal({
             <DetailField label='FTD'>{fmtCents(detail.ftdCents, detail.ftdCurrency)}</DetailField>
             <DetailField label='FTD date'>{fmtDate(detail.ftdAt)}</DetailField>
             <DetailField label='Qualified at'>{fmtDate(detail.qualifiedAt)}</DetailField>
-            <DetailField label='Reward'>{fmtCents(detail.rewardCents, detail.rewardCurrency)}</DetailField>
-            <DetailField label='Rewarded at'>{fmtDate(detail.rewardedAt)}</DetailField>
+            <DetailField label='Referrer reward'>{fmtCents(detail.rewardCents, detail.rewardCurrency)}</DetailField>
+            <DetailField label='Referrer paid at'>{fmtDate(detail.rewardedAt)}</DetailField>
+            <DetailField label='Referee reward'>{fmtCents(detail.refereeRewardCents, detail.refereeRewardCurrency)}</DetailField>
+            <DetailField label='Referee paid at'>{fmtDate(detail.refereeRewardedAt)}</DetailField>
             <DetailField label='Reversed at'>{fmtDate(detail.reversedAt)}</DetailField>
           </div>
 

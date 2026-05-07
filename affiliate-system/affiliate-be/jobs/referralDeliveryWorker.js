@@ -219,16 +219,36 @@ async function dispatch(delivery) {
 // ── Referral status transitions on delivery ───────────────────────────────────
 
 async function maybeMarkRewarded(delivery) {
-  if (delivery.eventType !== "referral.reward.issued") return;
   if (!delivery.referralId) return; // test events have no referral
 
   const referral = await PlayerReferral.findById(delivery.referralId);
   if (!referral) return;
-  if (referral.status !== "qualified") return; // already past, idempotent
 
-  referral.status = "rewarded";
-  referral.rewardedAt = new Date();
-  await referral.save();
+  // Referrer side drives the main referral.status. After the referrer
+  // payout is acked, the referral is officially "rewarded" — the
+  // referee side settles independently via refereeRewardedAt.
+  if (delivery.eventType === "referral.reward.issued") {
+    if (referral.status === "qualified") {
+      referral.status = "rewarded";
+      referral.rewardedAt = new Date();
+      await referral.save();
+    }
+    return;
+  }
+
+  // Referee bonus delivery acked. Stamp refereeRewardedAt so the
+  // dashboard / activity table can show "friend's bonus delivered".
+  // Does not move referral.status (referrer path owns that).
+  if (delivery.eventType === "referral.reward.referee.issued") {
+    if (!referral.refereeRewardedAt) {
+      referral.refereeRewardedAt = new Date();
+      await referral.save();
+    }
+    return;
+  }
+
+  // Reversed events: no referral mutation here. The engine has already
+  // moved status to 'reversed' before the delivery was queued.
 }
 
 // ── Signing + HTTP ────────────────────────────────────────────────────────────

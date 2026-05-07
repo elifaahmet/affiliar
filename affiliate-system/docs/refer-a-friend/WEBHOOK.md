@@ -1,11 +1,17 @@
 # Refer-a-Friend — Outbound Webhook Contract
 
-This document is for the operator's backend team integrating Affiliar's Refer-a-Friend reward webhook. Affiliar POSTs signed payloads to your endpoint at two moments:
+This document is for the operator's backend team integrating Affiliar's Refer-a-Friend reward webhook. Affiliar POSTs signed payloads to your endpoint at these moments:
 
-- **`referral.reward.issued`** — a friend cleared qualification gates; credit the referrer.
-- **`referral.reward.reversed`** — a previously rewarded referral was reversed (the referee's FTD was charged back / refunded); claw the reward back.
+| Event | When it fires | Recipient to credit / debit |
+|---|---|---|
+| `referral.reward.issued` | Referral cleared qualification gates | `data.referrerPlayerId` (the inviter) |
+| `referral.reward.reversed` | A previously paid referrer reward must be clawed back (chargeback / refund) | `data.referrerPlayerId` |
+| `referral.reward.referee.issued` | Two-sided rewards enabled and the friend's welcome bonus is owed | `data.refereePlayerId` (the friend) |
+| `referral.reward.referee.reversed` | A previously paid referee bonus must be clawed back | `data.refereePlayerId` |
 
-Both events go to the same webhook URL with the same signature scheme; you branch on the `X-Affiliar-Event` header.
+All four events use the same webhook URL, signature scheme, retry policy, and payload envelope. Branch on the `X-Affiliar-Event` header to decide which player to credit / debit.
+
+Operators who never enable two-sided rewards (`ReferAFriendConfig.refereeReward.enabled = false`) only ever see the first two event types. The two `referee.*` events are opt-in.
 
 ## 1. Configuration
 

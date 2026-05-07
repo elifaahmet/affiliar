@@ -92,10 +92,19 @@ const playerReferralSchema = new mongoose.Schema(
     ftdCents:    { type: Number, default: null, min: 0 },
     ftdCurrency: { type: String, default: null },
 
-    // Reward computed at qualification time. Stored even after `rewarded`
-    // so the activity tab can show "what we paid".
+    // Referrer reward computed at qualification time. Stored even after
+    // `rewarded` so the activity tab can show "what we paid".
     rewardCents:    { type: Number, default: null, min: 0 },
     rewardCurrency: { type: String, default: null },
+
+    // Referee reward (Phase 2 two-sided rewards). Null when refereeReward
+    // was disabled at qualification time.
+    refereeRewardCents:    { type: Number, default: null, min: 0 },
+    refereeRewardCurrency: { type: String, default: null },
+    // Set when the referee.issued delivery is acked by the operator
+    // webhook. Independent of `rewardedAt` (referrer's ack timestamp) —
+    // both sides settle on their own pace.
+    refereeRewardedAt:     { type: Date, default: null },
 
     // Reversal details (set by track-ftd-reversal).
     reversedAmountCents: { type: Number, default: null, min: 0 },

@@ -276,13 +276,37 @@ Docs:
 | FX for `percent_of_first_deposit`? | Use the same FX path as commission engine (ECB daily rate); store both native and normalized amounts. |
 | Chargeback / FTD reversal handling? | **Phase 1.** Operator calls `track-ftd-reversal`. Engine transitions per §4 table; emits `referral.reward.reversed` if a reward was already paid. Operator's wallet system performs the actual claw-back. |
 
-## 11. Phase 2 sketch (for context, do not implement)
+## 11. Phase 2
 
-- Kafka outbound transport as an alternative to webhook (same payload schema)
+### 11.1 Two-sided rewards (Step 1 — shipped)
+
+Both the inviter (referrer) and the invited friend (referee) can earn a reward when qualification clears. The referee bonus is a "welcome reward" that the operator credits to the friend's wallet at the same time the referrer is paid.
+
+Backward compatible — `refereeReward.enabled` defaults to `false`, so existing operators see no behavioral change until they explicitly turn it on.
+
+**Schema additions:**
+- `ReferAFriendConfig.refereeReward` — same shape as `reward` (type / amount / percent / cap / rewardKind), plus an `enabled` toggle. Currency inherits from the main `reward.currency`.
+- `PlayerReferral.refereeRewardCents`, `refereeRewardCurrency`, `refereeRewardedAt`.
+
+**New webhook event types:**
+- `referral.reward.referee.issued` — fired when the referee bonus is paid out
+- `referral.reward.referee.reversed` — fired when a previously paid referee bonus needs to be clawed back
+
+The existing `referral.reward.issued` / `referral.reward.reversed` events continue to mean "referrer reward" — operators who never enable `refereeReward` keep working unchanged. Operators who enable it must add handlers for the two new event types; their existing handlers stay untouched.
+
+**Caps logic:** monthly caps (per-referrer + per-brand) are evaluated against `referrerReward + refereeReward`. If the combined total would exceed any cap, the entire referral is rejected — no partial payouts.
+
+**Reversal logic:** when `track-ftd-reversal` fires, the engine checks which rewards were actually delivered (`rewardedAt` set → referrer; `refereeRewardedAt` set → referee) and queues a separate reversal for each. If neither was delivered yet, the referral is simply rejected with no webhook fired.
+
+**Lifecycle:** the main `referral.status` is still driven by the referrer reward path — `'qualified'` → referrer ack → `'rewarded'`. The referee reward succeeds/fails independently and is tracked via `refereeRewardedAt`. A failed referee delivery does not block the referral from reaching `'rewarded'`; operators can replay the failed referee delivery from the dashboard.
+
+### 11.2 Remaining Phase 2 backlog (not yet implemented)
+
+- Player-facing API: `GET /api/v1/refer/stats?playerId=…` for casino UI to show "you've referred X friends, earned €Y"
+- Stale-referral expiry job (auto-reject `pending_qualification` rows stuck > N days)
+- Recurring rewards (% of friend's NGR over time, integrated with the monthly commission cycle)
 - Multi-hop chains (A → B → C with diminishing rewards)
-- Affiliar-managed code generation (currently operator-owned)
-- Player-facing API: `GET /api/v1/refer/stats` for the referrer (currently operator handles all UX)
+- Affiliar-managed code generation
 - Referrer leaderboards
-- Co-op campaigns (two friends sign up together → both rewarded)
-- Device fingerprint / KYC match for fraud detection
-- Stale-referral expiry job (auto-reject referrals stuck in `pending_qualification` for > N days)
+- Device fingerprint / KYC fraud signals
+- Kafka outbound transport (same payload schema, different transport)

@@ -39,12 +39,21 @@ const rewardDeliverySchema = new mongoose.Schema(
       index: true,
     },
 
-    // The two events Phase 1 emits. The same referralId can produce one
-    // 'issued' delivery followed (much later) by one 'reversed' delivery —
-    // they are separate rows.
+    // Event types this queue carries:
+    //   referral.reward.issued           — referrer earned a reward
+    //   referral.reward.reversed         — referrer reward clawed back
+    //   referral.reward.referee.issued   — referee (friend) welcome bonus
+    //   referral.reward.referee.reversed — referee bonus clawed back
+    // The same referralId can produce up to four separate delivery rows
+    // (one per event/recipient combination).
     eventType: {
       type: String,
-      enum: ["referral.reward.issued", "referral.reward.reversed"],
+      enum: [
+        "referral.reward.issued",
+        "referral.reward.reversed",
+        "referral.reward.referee.issued",
+        "referral.reward.referee.reversed",
+      ],
       required: true,
       index: true,
     },

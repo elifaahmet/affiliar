@@ -39,7 +39,8 @@ const referAFriendConfigSchema = new mongoose.Schema(
     },
 
     /**
-     * Reward shape.
+     * Referrer reward shape — what the inviter earns when their friend
+     * qualifies.
      *   fixed_bonus                — pay `amountCents` regardless of FTD size
      *   percent_of_first_deposit   — pay `percent`% of the referee's FTD,
      *                                capped at `capCents` if set
@@ -61,6 +62,32 @@ const referAFriendConfigSchema = new mongoose.Schema(
       // Hint to the operator's wallet system about how to credit the reward.
       // Affiliar does not interpret this — operator policy decides the
       // mechanics (bonus terms, wager requirements, expiry).
+      rewardKind: {
+        type: String,
+        enum: ["bonus", "cash", "freespins"],
+        default: "bonus",
+      },
+    },
+
+    /**
+     * Referee reward — the welcome bonus the invited friend receives at the
+     * same time the referrer is paid (Phase 2 two-sided rewards).
+     *
+     * Backward compatibility: `enabled` defaults to `false`. Existing
+     * operators see no behavioral change until they explicitly turn it on
+     * and configure an amount. Currency is inherited from `reward.currency`
+     * (one currency per brand keeps reporting clean).
+     */
+    refereeReward: {
+      enabled: { type: Boolean, default: false },
+      type: {
+        type: String,
+        enum: ["fixed_bonus", "percent_of_first_deposit"],
+        default: "fixed_bonus",
+      },
+      amountCents: { type: Number, default: 0, min: 0 },
+      percent: { type: Number, default: 0, min: 0, max: 100 },
+      capCents: { type: Number, default: null, min: 0 },
       rewardKind: {
         type: String,
         enum: ["bonus", "cash", "freespins"],

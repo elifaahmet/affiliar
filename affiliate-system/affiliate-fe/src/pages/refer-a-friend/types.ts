@@ -18,6 +18,18 @@ export interface RewardConfig {
   rewardKind: 'bonus' | 'cash' | 'freespins';
 }
 
+// Phase 2 two-sided rewards. Same shape as RewardConfig minus currency
+// (currency is inherited from the referrer reward), plus an enabled
+// toggle so operators can opt in without changing other fields.
+export interface RefereeRewardConfig {
+  enabled: boolean;
+  type: 'fixed_bonus' | 'percent_of_first_deposit';
+  amountCents: number;
+  percent: number;
+  capCents: number | null;
+  rewardKind: 'bonus' | 'cash' | 'freespins';
+}
+
 export interface QualificationGates {
   minDepositCents: number;
   holdDays: number;
@@ -42,6 +54,7 @@ export interface ReferConfig {
   brandId: string;
   enabled: boolean;
   reward: RewardConfig;
+  refereeReward: RefereeRewardConfig;
   qualification: QualificationGates;
   caps: CapsConfig;
   webhook: WebhookConfig;
@@ -79,6 +92,9 @@ export interface PlayerReferral {
   ftdCurrency: string | null;
   rewardCents: number | null;
   rewardCurrency: string | null;
+  refereeRewardCents: number | null;
+  refereeRewardCurrency: string | null;
+  refereeRewardedAt: string | null;
   reversedAmountCents: number | null;
   reversalReason: string | null;
   createdAt: string;
@@ -91,7 +107,9 @@ export interface ReferralsResponse {
 
 export type DeliveryEventType =
   | 'referral.reward.issued'
-  | 'referral.reward.reversed';
+  | 'referral.reward.reversed'
+  | 'referral.reward.referee.issued'
+  | 'referral.reward.referee.reversed';
 
 export type DeliveryStatus = 'pending' | 'delivered' | 'failed';
 
