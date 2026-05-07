@@ -60,7 +60,8 @@ Three new collections, no changes to existing ones.
   },
   webhook: {
     url: String,                      // operator endpoint to receive reward events
-    secretHash: String,               // bcrypt hash of signing secret (secret revealed once at creation)
+    signingSecret: String,            // HMAC-SHA256 key; revealed once in dashboard at generation time, kept literal in DB so the worker can sign requests (KMS-encrypted-at-rest is a future upgrade)
+    secretRotatedAt: Date,            // audit: when the secret was last regenerated
     enabled: Boolean,
   },
   createdAt, updatedAt
@@ -111,24 +112,30 @@ Key invariants:
 {
   referralId: ObjectId,               // ref to PlayerReferral
   brandId, operatorId,
+  eventType: 'referral.reward.issued' | 'referral.reward.reversed',
   payload: Object,                    // immutable; what we POST to operator's webhook
-  payloadHash: String,                // sha256 of payload for idempotency on operator side
+  payloadHash: String,                // sha256 of payload body
   status: 'pending' | 'delivered' | 'failed',
   attempts: Number,                   // 0..6
-  nextAttemptAt: Date,
+  nextAttemptAt: Date,                // worker only picks up rows whose nextAttemptAt has elapsed
   lastAttemptAt: Date | null,
-  lastResponse: {
-    statusCode: Number,
-    bodySnippet: String,              // first 256 chars
-    latencyMs: Number,
-    errorMessage: String | null,
-  } | null,
   deliveredAt: Date | null,
-  createdAt
+  lastResponse: {                     // overwritten each attempt
+    statusCode: Number | null,
+    bodySnippet: String | null,       // first 256 chars
+    latencyMs: Number | null,
+    errorMessage: String | null,      // network/timeout failures
+    attemptedAt: Date | null,
+  },
+  attemptHistory: [                   // full audit trail, capped at 6 entries
+    { attemptedAt, statusCode, bodySnippet, latencyMs, errorMessage }
+  ],
+  replayOf: ObjectId | null,          // when an operator replays a failed delivery, the new row points at the original; null on first delivery
+  createdAt, updatedAt
 }
 ```
 
-See [WEBHOOK.md](./WEBHOOK.md) for the contract details.
+See [WEBHOOK.md](./WEBHOOK.md) for the contract details. The same `referralId` can produce one `issued` delivery and (much later) one `reversed` delivery — they are separate rows.
 
 ## 4. Lifecycle
 
