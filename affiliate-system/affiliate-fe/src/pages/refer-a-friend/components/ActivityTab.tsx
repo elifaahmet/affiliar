@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useBaseQuery } from 'api/core/useBaseQuery';
+import StyledSelect from '@components/core-components/StyledSelect';
 import { REFER_API_URLS } from 'config/apiUrls';
 
 import type {
@@ -80,16 +81,16 @@ export default function ActivityTab({ brands }: Props) {
       <div className='flex flex-wrap items-center gap-3 bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-4'>
         <div className='flex items-center gap-2'>
           <label className='text-xs font-medium text-gray-700'>Brand</label>
-          <select
-            value={brandId}
-            onChange={(e) => setBrandId(e.target.value)}
-            className='h-9 text-sm rounded-lg px-3 border border-gray-200 focus:outline-none focus:border-primary bg-white'
-          >
-            <option value=''>All brands</option>
-            {brands.map((b) => (
-              <option key={b._id} value={b._id}>{b.name}</option>
-            ))}
-          </select>
+          <div className='min-w-[200px]'>
+            <StyledSelect
+              value={brandId}
+              onChange={(v) => setBrandId(v)}
+              options={[
+                { value: '', label: 'All brands' },
+                ...brands.map((b) => ({ value: b._id, label: b.name })),
+              ]}
+            />
+          </div>
         </div>
         <div className='flex flex-wrap gap-1'>
           {STATUS_FILTERS.map((f) => (

@@ -7,6 +7,7 @@ import { AFFILIATES_API_URLS, OPERATOR_API_URLS, COMMISSION_API_URLS, BRANDS_API
 import axiosInstance from 'config/axiosInstance';
 import UpgradeBanner from '@components/core-components/UpgradeBanner';
 import PlanBadge from '@components/core-components/PlanBadge';
+import StyledSelect from '@components/core-components/StyledSelect';
 
 interface InviteLinkResponse { inviteLink: string; }
 
@@ -192,17 +193,19 @@ function PlanAssignModal({
             return (
               <div key={slot}>
                 <label className='block text-xs font-medium text-gray-600 mb-1 capitalize'>{slot}</label>
-                <select
+                <StyledSelect
                   value={slots[slot]}
-                  onChange={(e) => setSlots((s) => ({ ...s, [slot]: e.target.value }))}
-                  className='w-full text-sm rounded-lg pl-3 pr-9 py-2 border border-gray-200 focus:outline-none focus:border-primary bg-white'>
-                  <option value=''>— none (use operator default) —</option>
-                  {options.map((p) => (
-                    <option key={p._id} value={p._id}>
-                      {p.name} ({p.type.replace('_', ' ')})
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setSlots((s) => ({ ...s, [slot]: v }))}
+                  placeholder='— none (use operator default) —'
+                  options={[
+                    { value: '', label: '— none (use operator default) —' },
+                    ...options.map((p) => ({
+                      value: p._id,
+                      label: p.name,
+                      description: p.type.replace('_', ' '),
+                    })),
+                  ]}
+                />
                 {options.length === 0 && (
                   <p className='text-[11px] text-gray-400 mt-1'>
                     No {slot} plans yet. Create one in the Commission page first.
@@ -305,18 +308,19 @@ function SetParentModal({
             <div className='space-y-4'>
               <div>
                 <label className='block text-xs font-medium text-gray-600 mb-1'>Parent Affiliate</label>
-                <select
+                <StyledSelect
                   value={parentId}
-                  onChange={(e) => setParentId(e.target.value)}
-                  className='w-full text-sm rounded-lg pl-3 pr-9 py-2 border border-gray-200 focus:outline-none focus:border-primary'
-                >
-                  <option value=''>— None (clear parent) —</option>
-                  {candidates.map((a) => (
-                    <option key={a._id} value={a._id}>
-                      {a.username} ({a.email})
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setParentId(v)}
+                  placeholder='— None (clear parent) —'
+                  options={[
+                    { value: '', label: '— None (clear parent) —' },
+                    ...candidates.map((a) => ({
+                      value: a._id,
+                      label: a.username,
+                      description: a.email,
+                    })),
+                  ]}
+                />
                 {candidates.length === 0 && (
                   <p className='text-xs text-gray-400 mt-1'>No eligible parent affiliates (active affiliates without a parent).</p>
                 )}

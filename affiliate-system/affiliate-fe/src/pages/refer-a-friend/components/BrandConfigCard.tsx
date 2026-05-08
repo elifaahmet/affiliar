@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ChevronDownIcon, KeyIcon, BoltIcon } from '@heroicons/react/24/outline';
 import { REFER_API_URLS } from 'config/apiUrls';
 
+import StyledSelect from '@components/core-components/StyledSelect';
 import type { Brand, ReferConfig } from '../types';
 import DeliveriesPanel from './DeliveriesPanel';
 
@@ -174,25 +175,25 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
           <Section title='Reward'>
             <Row>
               <Field label='Type'>
-                <select
+                <StyledSelect
                   value={form.reward.type}
-                  onChange={(e) => setReward('type', e.target.value as any)}
-                  className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
-                >
-                  <option value='fixed_bonus'>Fixed bonus</option>
-                  <option value='percent_of_first_deposit'>Percent of first deposit</option>
-                </select>
+                  onChange={(v) => setReward('type', v as any)}
+                  options={[
+                    { value: 'fixed_bonus', label: 'Fixed bonus' },
+                    { value: 'percent_of_first_deposit', label: 'Percent of first deposit' },
+                  ]}
+                />
               </Field>
               <Field label='Reward kind'>
-                <select
+                <StyledSelect
                   value={form.reward.rewardKind}
-                  onChange={(e) => setReward('rewardKind', e.target.value as any)}
-                  className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
-                >
-                  <option value='bonus'>Bonus</option>
-                  <option value='cash'>Cash</option>
-                  <option value='freespins'>Free spins</option>
-                </select>
+                  onChange={(v) => setReward('rewardKind', v as any)}
+                  options={[
+                    { value: 'bonus', label: 'Bonus' },
+                    { value: 'cash', label: 'Cash' },
+                    { value: 'freespins', label: 'Free spins' },
+                  ]}
+                />
               </Field>
               <Field label='Currency'>
                 <input
@@ -265,25 +266,25 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
               <>
                 <Row>
                   <Field label='Type'>
-                    <select
+                    <StyledSelect
                       value={form.refereeReward.type}
-                      onChange={(e) => setRefereeReward('type', e.target.value as any)}
-                      className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
-                    >
-                      <option value='fixed_bonus'>Fixed bonus</option>
-                      <option value='percent_of_first_deposit'>Percent of first deposit</option>
-                    </select>
+                      onChange={(v) => setRefereeReward('type', v as any)}
+                      options={[
+                        { value: 'fixed_bonus', label: 'Fixed bonus' },
+                        { value: 'percent_of_first_deposit', label: 'Percent of first deposit' },
+                      ]}
+                    />
                   </Field>
                   <Field label='Reward kind'>
-                    <select
+                    <StyledSelect
                       value={form.refereeReward.rewardKind}
-                      onChange={(e) => setRefereeReward('rewardKind', e.target.value as any)}
-                      className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
-                    >
-                      <option value='bonus'>Bonus</option>
-                      <option value='cash'>Cash</option>
-                      <option value='freespins'>Free spins</option>
-                    </select>
+                      onChange={(v) => setRefereeReward('rewardKind', v as any)}
+                      options={[
+                        { value: 'bonus', label: 'Bonus' },
+                        { value: 'cash', label: 'Cash' },
+                        { value: 'freespins', label: 'Free spins' },
+                      ]}
+                    />
                   </Field>
                 </Row>
                 {form.refereeReward.type === 'fixed_bonus' && (
@@ -353,25 +354,25 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
                     />
                   </Field>
                   <Field label='Base metric' hint='NGR = bets−wins−bonuses · GGR = bets−wins'>
-                    <select
+                    <StyledSelect
                       value={form.recurringReward.ngrMetric}
-                      onChange={(e) => setRecurring('ngrMetric', e.target.value as any)}
-                      className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
-                    >
-                      <option value='ngr'>NGR (bets − wins − bonuses)</option>
-                      <option value='ggr'>GGR (bets − wins)</option>
-                    </select>
+                      onChange={(v) => setRecurring('ngrMetric', v as any)}
+                      options={[
+                        { value: 'ngr', label: 'NGR', description: 'bets − wins − bonuses' },
+                        { value: 'ggr', label: 'GGR', description: 'bets − wins' },
+                      ]}
+                    />
                   </Field>
                   <Field label='Reward kind'>
-                    <select
+                    <StyledSelect
                       value={form.recurringReward.rewardKind}
-                      onChange={(e) => setRecurring('rewardKind', e.target.value as any)}
-                      className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
-                    >
-                      <option value='cash'>Cash</option>
-                      <option value='bonus'>Bonus</option>
-                      <option value='freespins'>Free spins</option>
-                    </select>
+                      onChange={(v) => setRecurring('rewardKind', v as any)}
+                      options={[
+                        { value: 'cash', label: 'Cash' },
+                        { value: 'bonus', label: 'Bonus' },
+                        { value: 'freespins', label: 'Free spins' },
+                      ]}
+                    />
                   </Field>
                 </Row>
                 <Row>
