@@ -80,7 +80,7 @@ export default function AffiliateMarketing() {
 
   function buildLink(rc: BrandReferralCode) {
     const base = (rc.brandUrl || fallbackBaseUrl).replace(/\/+$/, '');
-    return `${base}/?affiliate=${rc.code}`;
+    return `${base}/?ref=${rc.code}`;
   }
 
   return (
