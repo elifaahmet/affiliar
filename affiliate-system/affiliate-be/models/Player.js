@@ -218,13 +218,12 @@ const playerSchema = new mongoose.Schema(
       default: null,
     },
     acquisitionSourceType: {
+      // 'admin_affiliate' is kept on the enum for legacy documents that
+      // were created before that flow was retired. New players never get
+      // tagged with it; the active enum members are 'player_referral'
+      // and null.
       type: String,
       enum: ["admin_affiliate", "player_referral", null],
-      default: null,
-    },
-    affiliateAdminUserId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
       default: null,
     },
     referralCode: {
@@ -281,7 +280,6 @@ playerSchema.index({ email: 1 });
 
 // Referral / acquisition indexes
 playerSchema.index({ acquisitionSourceType: 1 });
-playerSchema.index({ affiliateAdminUserId: 1 });
 playerSchema.index({ referredByPlayerId: 1 });
 playerSchema.index({ referredByPlayerId: 1, createdAt: -1 });
 playerSchema.index(
@@ -296,7 +294,6 @@ playerSchema.index(
 playerSchema.index({ referralCodeUsed: 1 });
 playerSchema.index({ isReferralCodeActive: 1 });
 playerSchema.index({ isReferralCodeActive: 1, referralCode: 1 });
-playerSchema.index({ affiliateAdminUserId: 1, createdAt: -1 });
 
 // Normalize referral fields before validation
 playerSchema.pre("validate", function (next) {
@@ -313,18 +310,9 @@ playerSchema.pre("validate", function (next) {
 
 // Validate acquisition flow consistency
 playerSchema.pre("validate", function (next) {
-  const isAdminAffiliate = this.acquisitionSourceType === "admin_affiliate";
   const isPlayerReferral = this.acquisitionSourceType === "player_referral";
 
   if (!this.acquisitionSourceType) {
-    if (this.affiliateAdminUserId) {
-      return next(
-        new Error(
-          "affiliateAdminUserId cannot be set when acquisitionSourceType is null",
-        ),
-      );
-    }
-
     if (this.referredByPlayerId || this.referralCodeUsed) {
       return next(
         new Error(
@@ -334,41 +322,7 @@ playerSchema.pre("validate", function (next) {
     }
   }
 
-  if (isAdminAffiliate) {
-    if (!this.affiliateAdminUserId) {
-      return next(
-        new Error(
-          "Player with admin_affiliate source must have affiliateAdminUserId",
-        ),
-      );
-    }
-
-    if (this.referredByPlayerId) {
-      return next(
-        new Error(
-          "Player with admin_affiliate source cannot have referredByPlayerId",
-        ),
-      );
-    }
-
-    if (this.referralCodeUsed) {
-      return next(
-        new Error(
-          "Player with admin_affiliate source cannot have referralCodeUsed",
-        ),
-      );
-    }
-  }
-
   if (isPlayerReferral) {
-    if (this.affiliateAdminUserId) {
-      return next(
-        new Error(
-          "Player with player_referral source cannot have affiliateAdminUserId",
-        ),
-      );
-    }
-
     if (!this.referredByPlayerId) {
       return next(
         new Error(
@@ -384,7 +338,6 @@ playerSchema.pre("validate", function (next) {
         ),
       );
     }
-
   }
 
   if (

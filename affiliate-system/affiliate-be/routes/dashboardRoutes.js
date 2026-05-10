@@ -17,7 +17,6 @@ const { logger } = require("../middlewares/logger");
 
 dayjs.extend(isBetween);
 
-const getAffiliateAdminUserId = (req) => req?.adminUser?._id || null;
 
 /**
  * Dedicated Axios client for the STATS API
@@ -214,7 +213,6 @@ router.post("/dashboard/backfill", async (req, res) => {
  */
 router.get("/lmtd-data", async (req, res) => {
   const { start, end } = req.query;
-  const affiliateAdminUserId = getAffiliateAdminUserId(req);
 
   if (!start || !end)
     return res.status(400).json({ error: "Missing start or end date" });
@@ -226,7 +224,6 @@ router.get("/lmtd-data", async (req, res) => {
     const data = await calculateDashboardData({
       start: startDate,
       end: endDate,
-      affiliateAdminUserId,
     });
     return res.json({ success: true, data });
   } catch (err) {
@@ -264,7 +261,6 @@ router.get("/lmtd-data", async (req, res) => {
  */
 router.get("/range", async (req, res) => {
   const { start, end } = req.query;
-  const affiliateAdminUserId = getAffiliateAdminUserId(req);
 
   if (!start || !end)
     return res.status(400).json({ error: "Missing start or end date" });
@@ -276,7 +272,6 @@ router.get("/range", async (req, res) => {
     const combined = await calculateDashboardData({
       start: startDate,
       end: endDate,
-      affiliateAdminUserId,
     });
 
     const round2 = (value) => Number(Number(value || 0).toFixed(2));
@@ -483,7 +478,6 @@ router.post("/dashboard/player-backfill", async (req, res) => {
  */
 router.get("/player/range", async (req, res) => {
   const { playerId, start, end } = req.query;
-  const affiliateAdminUserId = getAffiliateAdminUserId(req);
 
   if (!playerId || !start || !end) {
     return res.status(400).json({ error: "Missing playerId, start, or end" });
@@ -497,7 +491,6 @@ router.get("/player/range", async (req, res) => {
 
     const player = await Player.findOne({
       id: numericPlayerId,
-      ...(affiliateAdminUserId ? { affiliateAdminUserId } : {}),
     })
       .select("_id")
       .lean();
@@ -600,7 +593,6 @@ router.get("/player/range", async (req, res) => {
  */
 router.get("/player/lmtd-data", async (req, res) => {
   const { playerId, start, end } = req.query;
-  const affiliateAdminUserId = getAffiliateAdminUserId(req);
 
   if (!playerId || !start || !end) {
     return res.status(400).json({ error: "Missing playerId, start, or end" });
@@ -614,7 +606,6 @@ router.get("/player/lmtd-data", async (req, res) => {
 
     const player = await Player.findOne({
       id: numericPlayerId,
-      ...(affiliateAdminUserId ? { affiliateAdminUserId } : {}),
     })
       .select("_id")
       .exec();

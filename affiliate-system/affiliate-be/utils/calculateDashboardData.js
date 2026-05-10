@@ -78,20 +78,6 @@ const toEUR = async (amount, currencyId) => {
   return toNumber(amount) * rate;
 };
 
-const buildScopedPlayerIds = async (affiliateAdminUserId) => {
-  if (!affiliateAdminUserId) return null;
-
-  const players = await Player.find(
-    {
-      affiliateAdminUserId,
-      isDeleted: false,
-    },
-    { _id: 1 },
-  ).lean();
-
-  return players.map((player) => player._id);
-};
-
 const buildEmptyDashboardData = () => ({
   total_deposits: 0,
   total_withdrawals: 0,
@@ -108,35 +94,12 @@ const buildEmptyDashboardData = () => ({
   player_balance: 0,
 });
 
-const calculateDashboardData = async ({
-  start,
-  end,
-  affiliateAdminUserId,
-} = {}) => {
+const calculateDashboardData = async ({ start, end } = {}) => {
   const startDate =
     start || dayjs().utc().subtract(1, "day").startOf("day").toDate();
   const endDate = end || dayjs().utc().subtract(1, "day").endOf("day").toDate();
 
-  const scopedPlayerIds = await buildScopedPlayerIds(affiliateAdminUserId);
-
-  if (scopedPlayerIds && scopedPlayerIds.length === 0) {
-    return buildEmptyDashboardData();
-  }
-
-  const txPlayerFilter = scopedPlayerIds
-    ? {
-        playerId: { $in: scopedPlayerIds },
-      }
-    : {};
-
-  const playerFilter = scopedPlayerIds
-    ? {
-        _id: { $in: scopedPlayerIds },
-      }
-    : {};
-
   const confirmedWithdrawalsRaw = await WithdrawalTransaction.find({
-    ...txPlayerFilter,
     status: { $in: SUCCESS_STATUSES },
     method: { $ne: "correction" },
     updatedAt: { $gte: startDate, $lte: endDate },
@@ -148,7 +111,6 @@ const calculateDashboardData = async ({
   }
 
   const pendingWithdrawalsRaw = await WithdrawalTransaction.find({
-    ...txPlayerFilter,
     status: { $in: ["pending", "processing"] },
     updatedAt: { $gte: startDate, $lte: endDate },
   }).select("amount currency");
@@ -159,7 +121,6 @@ const calculateDashboardData = async ({
   }
 
   const confirmedDepositsRaw = await DepositTransaction.find({
-    ...txPlayerFilter,
     status: { $in: SUCCESS_STATUSES },
     method: { $ne: "correction" },
     updatedAt: { $gte: startDate, $lte: endDate },
@@ -171,14 +132,12 @@ const calculateDashboardData = async ({
   }
 
   const correctionDepositsRaw = await DepositTransaction.find({
-    ...txPlayerFilter,
     status: { $in: SUCCESS_STATUSES },
     method: "correction",
     updatedAt: { $gte: startDate, $lte: endDate },
   }).select("amount currency");
 
   const correctionWithdrawalsRaw = await WithdrawalTransaction.find({
-    ...txPlayerFilter,
     status: { $in: SUCCESS_STATUSES },
     method: "correction",
     updatedAt: { $gte: startDate, $lte: endDate },
@@ -195,38 +154,32 @@ const calculateDashboardData = async ({
   }
 
   const uniquePlayersDeposit = await DepositTransaction.distinct("playerId", {
-    ...txPlayerFilter,
     status: { $in: SUCCESS_STATUSES },
     method: { $ne: "correction" },
     updatedAt: { $gte: startDate, $lte: endDate },
   });
 
   const totalPlayersDeposit = await DepositTransaction.countDocuments({
-    ...txPlayerFilter,
     status: { $in: SUCCESS_STATUSES },
     method: { $ne: "correction" },
     updatedAt: { $gte: startDate, $lte: endDate },
   });
 
   const uniquePlayersLogin = await Player.distinct("_id", {
-    ...playerFilter,
     lastLogin: { $gte: startDate, $lte: endDate },
   });
 
   const totalPlayersLogin = await Player.countDocuments({
-    ...playerFilter,
     lastLogin: { $gte: startDate, $lte: endDate },
   });
 
   const uniqueWithdrawals = await WithdrawalTransaction.distinct("playerId", {
-    ...txPlayerFilter,
     status: { $in: SUCCESS_STATUSES },
     method: { $ne: "correction" },
     updatedAt: { $gte: startDate, $lte: endDate },
   });
 
   const totalWithdrawalsCount = await WithdrawalTransaction.countDocuments({
-    ...txPlayerFilter,
     status: { $in: SUCCESS_STATUSES },
     method: { $ne: "correction" },
     updatedAt: { $gte: startDate, $lte: endDate },

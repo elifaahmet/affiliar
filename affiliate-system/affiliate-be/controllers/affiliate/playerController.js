@@ -8,12 +8,6 @@ const { MSG } = require("../../middlewares/log-messages");
 const { logger } = require("../../middlewares/logger");
 const { publishPlayerForceLogout } = require("../../redis/dashboardService");
 
-const getAffiliateFilter = (req) => {
-  const affiliateId = req?.adminUser?._id;
-  if (!affiliateId) return null;
-  return { affiliateAdminUserId: affiliateId };
-};
-
 const buildDateRangeFilter = (start, end, inclusiveEnd = true, tz) => {
   const { start: s, end: e, error } = buildDateRange({
     startDate: start,
@@ -93,10 +87,6 @@ const playerController = {
       const isExportRequest = exportTypeNorm !== "";
 
       const filters = { isDeleted: false, isActive: true };
-      const affiliateFilter = getAffiliateFilter(req);
-      if (affiliateFilter) {
-        Object.assign(filters, affiliateFilter);
-      }
       const sourceTypeRaw = Array.isArray(req.query.sourceType)
         ? req.query.sourceType[0]
         : req.query.sourceType;
@@ -601,12 +591,10 @@ const playerController = {
 
   getSimplePlayerList: async (req, res) => {
     try {
-      const affiliateFilter = getAffiliateFilter(req);
       const players = await Player.find(
         {
           isDeleted: false,
           isActive: true,
-          ...(affiliateFilter || {}),
         },
         { username: 1, id: 1 },
       )
@@ -628,7 +616,6 @@ const playerController = {
   getByGeneratedId: async (req, res) => {
     try {
       const playerId = parseInt(req.params.id); // Convert id to number if necessary
-      const affiliateFilter = getAffiliateFilter(req);
 
       const players = await Player.aggregate([
         {
@@ -636,7 +623,6 @@ const playerController = {
             id: playerId,
             isDeleted: false,
             isActive: true,
-            ...(affiliateFilter || {}),
           },
         },
         {
@@ -726,20 +712,6 @@ const playerController = {
           },
         },
         {
-          $lookup: {
-            from: "affiliateusers",
-            localField: "affiliateAdminUserId",
-            foreignField: "_id",
-            as: "affiliateAdminUserDoc",
-          },
-        },
-        {
-          $unwind: {
-            path: "$affiliateAdminUserDoc",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
           $addFields: {
             blockedBy: "$blockedByAdmin.email",
             blockedById: "$blockedByObjId",
@@ -753,18 +725,6 @@ const playerController = {
                   username: "$referredByPlayerDoc.username",
                   email: "$referredByPlayerDoc.email",
                   referralCode: "$referredByPlayerDoc.referralCode",
-                },
-                null,
-              ],
-            },
-            affiliateAdminUser: {
-              $cond: [
-                { $ifNull: ["$affiliateAdminUserDoc._id", false] },
-                {
-                  _id: "$affiliateAdminUserDoc._id",
-                  id: "$affiliateAdminUserDoc.id",
-                  username: "$affiliateAdminUserDoc.username",
-                  email: "$affiliateAdminUserDoc.email",
                 },
                 null,
               ],
@@ -806,10 +766,8 @@ const playerController = {
     try {
       logger.debug("players.get_by_id.params", { playerId: req.params.id });
 
-      const affiliateFilter = getAffiliateFilter(req);
       const baseQuery = {
         _id: req.params.id,
-        ...(affiliateFilter || {}),
       };
       const player = await Player.findOne(baseQuery)
         .select("-__v -createdAt -updatedAt -isDeleted")
@@ -851,10 +809,6 @@ const playerController = {
   filterPlayers: async (req, res) => {
     try {
       const filters = { isDeleted: false, isActive: true };
-      const affiliateFilter = getAffiliateFilter(req);
-      if (affiliateFilter) {
-        Object.assign(filters, affiliateFilter);
-      }
 
       if (req.query.id) filters.id = parseInt(req.query.id);
       if (req.query.email) filters.email = req.query.email;
@@ -1004,10 +958,8 @@ const playerController = {
     try {
       const { id } = req.params;
 
-      const affiliateFilter = getAffiliateFilter(req);
       let player = await Player.findOne({
         _id: id,
-        ...(affiliateFilter || {}),
       });
       if (!player) {
         return res.status(404).json({ message: "Player not found" });
@@ -1071,11 +1023,9 @@ const playerController = {
         typeof blockReason === "string" && blockReason.trim()
           ? blockReason.trim()
           : "Your account has been blocked by admin.";
-      const affiliateFilter = getAffiliateFilter(req);
       const player = await Player.findOneAndUpdate(
         {
           _id: id,
-          ...(affiliateFilter || {}),
         },
         {
           isBlocked: true,
@@ -1105,11 +1055,9 @@ const playerController = {
     try {
       const { id } = req.params;
 
-      const affiliateFilter = getAffiliateFilter(req);
       const player = await Player.findOneAndUpdate(
         {
           _id: id,
-          ...(affiliateFilter || {}),
         },
         {
           isBlocked: false,
@@ -1146,10 +1094,8 @@ const playerController = {
         return res.status(400).json({ message: "Passwords do not match" });
       }
 
-      const affiliateFilter = getAffiliateFilter(req);
       const player = await Player.findOne({
         _id: id,
-        ...(affiliateFilter || {}),
       });
       if (!player) {
         return res.status(404).json({ message: "Player not found" });
@@ -1170,7 +1116,6 @@ const playerController = {
     const session = await mongoose.startSession();
     try {
       let resultPayload;
-      const affiliateFilter = getAffiliateFilter(req);
       await session.withTransaction(
         async () => {
           const {
@@ -1227,9 +1172,6 @@ const playerController = {
             password: hashedPassword,
             isActive: true,
             isDeleted: false,
-            ...(affiliateFilter
-              ? { affiliateAdminUserId: affiliateFilter.affiliateAdminUserId }
-              : {}),
             registerDate: new Date(),
             preferences: {
               ghostMode: false,
