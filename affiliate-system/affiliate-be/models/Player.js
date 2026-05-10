@@ -217,15 +217,6 @@ const playerSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
-    acquisitionSourceType: {
-      // 'admin_affiliate' is kept on the enum for legacy documents that
-      // were created before that flow was retired. New players never get
-      // tagged with it; the active enum members are 'player_referral'
-      // and null.
-      type: String,
-      enum: ["admin_affiliate", "player_referral", null],
-      default: null,
-    },
     referralCode: {
       type: String,
       uppercase: true,
@@ -279,7 +270,6 @@ playerSchema.index({ username: 1 });
 playerSchema.index({ email: 1 });
 
 // Referral / acquisition indexes
-playerSchema.index({ acquisitionSourceType: 1 });
 playerSchema.index({ referredByPlayerId: 1 });
 playerSchema.index({ referredByPlayerId: 1, createdAt: -1 });
 playerSchema.index(
@@ -308,36 +298,20 @@ playerSchema.pre("validate", function (next) {
   next();
 });
 
-// Validate acquisition flow consistency
+// Validate referral consistency
 playerSchema.pre("validate", function (next) {
-  const isPlayerReferral = this.acquisitionSourceType === "player_referral";
-
-  if (!this.acquisitionSourceType) {
-    if (this.referredByPlayerId || this.referralCodeUsed) {
-      return next(
-        new Error(
-          "Referral ownership fields cannot be set when acquisitionSourceType is null",
-        ),
-      );
-    }
+  // referredByPlayerId and referralCodeUsed travel together — either
+  // both are set (player came in via another player's referral) or
+  // neither is. Catches half-filled writes early.
+  if (this.referredByPlayerId && !this.referralCodeUsed) {
+    return next(
+      new Error("referredByPlayerId requires referralCodeUsed"),
+    );
   }
-
-  if (isPlayerReferral) {
-    if (!this.referredByPlayerId) {
-      return next(
-        new Error(
-          "Player with player_referral source must have referredByPlayerId",
-        ),
-      );
-    }
-
-    if (!this.referralCodeUsed) {
-      return next(
-        new Error(
-          "Player with player_referral source must have referralCodeUsed",
-        ),
-      );
-    }
+  if (this.referralCodeUsed && !this.referredByPlayerId) {
+    return next(
+      new Error("referralCodeUsed requires referredByPlayerId"),
+    );
   }
 
   if (

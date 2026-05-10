@@ -12,7 +12,6 @@ interface Player {
   id: string;
   username: string;
   email: string;
-  acquisitionSourceLabel?: string;
   mobileNumber?: string;
   mobileCountryCode?: string;
   country?: string;
@@ -50,7 +49,6 @@ export const downloadPlayersCSV = (data: ApiResponse) =>
       'Country',
       'City',
       'Verification Status',
-      'Acquisition Source',
       'Balance',
       'Winnig Tendency',
       'Last Login',
@@ -82,7 +80,6 @@ export const downloadPlayersCSV = (data: ApiResponse) =>
         player.country || '-',
         player.city || '-',
         player.verifyLevel === 0 ? 'No' : `Level ${player.verifyLevel}`,
-        player.acquisitionSourceLabel || '-',
         balance,
         player.winningTendency || 'Low',
         lastLogin,

@@ -71,8 +71,6 @@ export interface Player {
   blockedAt?: string | null;
   blockedBy?: string | null;
   blockReason?: string | null;
-  acquisitionSourceType?: 'admin_affiliate' | 'player_referral' | null;
-  acquisitionSourceLabel?: string;
   referredByPlayerId?: string | null;
   referredByPlayer?: {
     _id: string;

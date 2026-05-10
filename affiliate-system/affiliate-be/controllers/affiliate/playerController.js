@@ -57,21 +57,6 @@ const normalizeGameCategories = (gameCategories) => {
   return [];
 };
 
-const buildAcquisitionSourceLabelProjection = () => ({
-  $switch: {
-    branches: [
-      {
-        case: { $eq: ["$acquisitionSourceType", "admin_affiliate"] },
-        then: "Admin Affiliate",
-      },
-      {
-        case: { $eq: ["$acquisitionSourceType", "player_referral"] },
-        then: "Player Referral",
-      },
-    ],
-    default: "Direct",
-  },
-});
 const playerController = {
   getAllPlayers: async (req, res) => {
     try {
@@ -87,17 +72,6 @@ const playerController = {
       const isExportRequest = exportTypeNorm !== "";
 
       const filters = { isDeleted: false, isActive: true };
-      const sourceTypeRaw = Array.isArray(req.query.sourceType)
-        ? req.query.sourceType[0]
-        : req.query.sourceType;
-      if (typeof sourceTypeRaw === "string" && sourceTypeRaw.trim()) {
-        const sourceType = sourceTypeRaw.trim().toLowerCase();
-        if (sourceType === "admin_affiliate" || sourceType === "player_referral") {
-          filters.acquisitionSourceType = sourceType;
-        } else if (sourceType === "direct") {
-          filters.acquisitionSourceType = null;
-        }
-      }
       const MAIN_CURRENCY_CODE = process.env.APP_MAIN_CURRENCY.toUpperCase();
       const sortByBalanceValue = Array.isArray(req.query.sortByBalance)
         ? req.query.sortByBalance[0]
@@ -534,8 +508,6 @@ const playerController = {
             country: "$verify1.countryName",
             city: "$verify1.cityId",
             verifyLevel: 1,
-            acquisitionSourceType: 1,
-            acquisitionSourceLabel: buildAcquisitionSourceLabelProjection(),
             winningTendency: 1,
             lastLogin: 1,
             createdAt: 1,
@@ -715,7 +687,6 @@ const playerController = {
           $addFields: {
             blockedBy: "$blockedByAdmin.email",
             blockedById: "$blockedByObjId",
-            acquisitionSourceLabel: buildAcquisitionSourceLabelProjection(),
             referredByPlayer: {
               $cond: [
                 { $ifNull: ["$referredByPlayerDoc._id", false] },

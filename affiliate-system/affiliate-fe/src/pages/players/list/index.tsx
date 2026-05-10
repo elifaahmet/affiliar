@@ -328,26 +328,6 @@ function List() {
       },
     },
     {
-      headerName: 'Acquisition Source',
-      field: 'acquisitionSourceLabel',
-      filter: null,
-      floatingFilter: false,
-      menuTabs: [],
-      sortable: false,
-      flex: 1,
-      minWidth: 180,
-      cellStyle: {
-        ...customStyles,
-      },
-      cellRenderer: (params: any) => {
-        if (params?.data?.isTotalsRow) {
-          return '';
-        }
-
-        return params?.data?.acquisitionSourceLabel || '-';
-      },
-    },
-    {
       headerName: 'Gamification Level',
       field: 'gamificationLevel',
       filter: null,
