@@ -73,13 +73,6 @@ export interface Player {
   blockReason?: string | null;
   acquisitionSourceType?: 'admin_affiliate' | 'player_referral' | null;
   acquisitionSourceLabel?: string;
-  affiliateAdminUserId?: string | null;
-  affiliateAdminUser?: {
-    _id: string;
-    id?: number;
-    username?: string;
-    email?: string;
-  } | null;
   referredByPlayerId?: string | null;
   referredByPlayer?: {
     _id: string;

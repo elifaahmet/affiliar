@@ -101,10 +101,6 @@ export const subscribeDashboard = (cb: Callback) => {
   return subscribeRoom('dashboard', cb);
 };
 
-export const subscribeAffiliateDashboard = (affiliateAdminUserId: string, cb: Callback) => {
-  return subscribeRoom(`dashboard:affiliate:${affiliateAdminUserId}`, cb);
-};
-
 export const subscribePlayerStatus = (playerId: string, cb: Callback) => {
   return subscribeRoom(`player:${playerId}`, cb);
 };
