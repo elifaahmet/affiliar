@@ -163,25 +163,6 @@ const referAFriendConfigSchema = new mongoose.Schema(
       perBrandMonthlyCents: { type: Number, default: 0, min: 0 },
     },
 
-    /**
-     * Outbound webhook config. Reward emission flows here.
-     *
-     * `signingSecret` is the HMAC key affiliar uses to sign payloads. It is
-     * shown to the operator exactly once at generation time (the dashboard
-     * display-once flow); we keep the literal value in the DB so the worker
-     * can sign requests. If the deployment uses encrypted-at-rest storage,
-     * this is fine; KMS-based encryption is a future upgrade.
-     *
-     * Disabling `webhook.enabled` parks pending deliveries — the worker
-     * skips this brand until re-enabled. No deliveries are dropped.
-     */
-    webhook: {
-      url: { type: String, default: null, trim: true },
-      signingSecret: { type: String, default: null },
-      enabled: { type: Boolean, default: false },
-      // When the secret was last rotated, for auditing.
-      secretRotatedAt: { type: Date, default: null },
-    },
   },
   { timestamps: true },
 );

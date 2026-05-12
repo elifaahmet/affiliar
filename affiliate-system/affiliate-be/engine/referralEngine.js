@@ -791,6 +791,54 @@ function hashJson(obj) {
   return crypto.createHash("sha256").update(JSON.stringify(obj)).digest("hex");
 }
 
+/**
+ * Run the referral-state cascade for a delivery that just transitioned
+ * to 'delivered'. Used by the pull-model claim endpoint (and previously
+ * by the now-retired webhook worker). Idempotent — re-running on an
+ * already-cascaded referral is a no-op.
+ *
+ * Cascade rules (mirror what the old worker did):
+ *   referral.reward.issued            → referral.status='rewarded', rewardedAt=now
+ *   referral.reward.referee.issued    → referral.refereeRewardedAt=now
+ *   referral.reward.recurring.issued  → matching recurringPayments[].paidAt=now
+ *   reversed events                   → no cascade (engine already moved status)
+ */
+async function applyDeliveryAck(delivery) {
+  if (!delivery || !delivery.referralId) return;
+
+  const referral = await PlayerReferral.findById(delivery.referralId);
+  if (!referral) return;
+
+  if (delivery.eventType === "referral.reward.issued") {
+    if (referral.status === "qualified") {
+      referral.status = "rewarded";
+      referral.rewardedAt = new Date();
+      await referral.save();
+    }
+    return;
+  }
+
+  if (delivery.eventType === "referral.reward.referee.issued") {
+    if (!referral.refereeRewardedAt) {
+      referral.refereeRewardedAt = new Date();
+      await referral.save();
+    }
+    return;
+  }
+
+  if (delivery.eventType === "referral.reward.recurring.issued") {
+    const payments = referral.recurringPayments || [];
+    const match = payments.find(
+      (p) => p.deliveryId && String(p.deliveryId) === String(delivery._id),
+    );
+    if (match && !match.paidAt) {
+      match.paidAt = new Date();
+      await referral.save();
+    }
+  }
+  // Reversed events: engine already moved referral.status to 'reversed'.
+}
+
 module.exports = {
   trackSignup,
   trackFtd,
@@ -798,6 +846,7 @@ module.exports = {
   evaluateQualification,
   enqueueRecurringDelivery,
   fetchPlayerMonthlyBase,
+  applyDeliveryAck,
   ReferralEngineError,
   // exposed for testing
   _internals: { fetchWagerSinceFtd, snapshotConfig, checkMonthlyCaps },

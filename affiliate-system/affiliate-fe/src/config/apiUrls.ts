@@ -327,14 +327,11 @@ export const BILLING_API_URLS = {
 };
 
 export const REFER_API_URLS = {
-  CONFIGS:        () => `${API_BASE_URL}api/refer/config`,
-  CONFIG:         (brandId: string) => `${API_BASE_URL}api/refer/config/${brandId}`,
-  ROTATE_SECRET:  (brandId: string) => `${API_BASE_URL}api/refer/config/${brandId}/secret/rotate`,
-  TEST_EVENT:     (brandId: string) => `${API_BASE_URL}api/refer/config/${brandId}/test-event`,
-  REFERRALS:      () => `${API_BASE_URL}api/refer/referrals`,
-  REFERRAL:       (id: string) => `${API_BASE_URL}api/refer/referrals/${id}`,
-  DELIVERIES:     () => `${API_BASE_URL}api/refer/deliveries`,
-  REPLAY:         (id: string) => `${API_BASE_URL}api/refer/deliveries/${id}/replay`,
+  CONFIGS:    () => `${API_BASE_URL}api/refer/config`,
+  CONFIG:     (brandId: string) => `${API_BASE_URL}api/refer/config/${brandId}`,
+  REFERRALS:  () => `${API_BASE_URL}api/refer/referrals`,
+  REFERRAL:   (id: string) => `${API_BASE_URL}api/refer/referrals/${id}`,
+  DELIVERIES: () => `${API_BASE_URL}api/refer/deliveries`,
 };
 
 export const AFFILIATE_PLAYERS_API_URLS = {

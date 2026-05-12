@@ -24,19 +24,20 @@ router.post("/track-ftd",           integration.trackFtd);
 router.post("/track-ftd-reversal",  integration.trackFtdReversal);
 router.get ("/stats",               integration.getStats);
 
+// Pull-model reward ledger (replaces the old webhook push)
+router.get ("/player/:playerId/rewards",        integration.listPlayerRewards);
+router.post("/player/:playerId/rewards/claim",  integration.claimPlayerRewards);
+
 // ── Operator: per-brand config CRUD ──────────────────────────────────────────
 
 router.get ("/config",                              operatorCtl.listConfigs);
 router.get ("/config/:brandId",                     operatorCtl.getConfig);
 router.put ("/config/:brandId",                     operatorCtl.upsertConfig);
-router.post("/config/:brandId/secret/rotate",       operatorCtl.rotateSecret);
-router.post("/config/:brandId/test-event",          operatorCtl.sendTestEvent);
 
-// ── Operator: activity (referrals + deliveries) ──────────────────────────────
+// ── Operator: activity (referrals + deliveries / ledger) ─────────────────────
 
 router.get ("/referrals",                operatorCtl.listReferrals);
 router.get ("/referrals/:id",            operatorCtl.getReferral);
 router.get ("/deliveries",               operatorCtl.listDeliveries);
-router.post("/deliveries/:id/replay",    operatorCtl.replayDelivery);
 
 module.exports = router;

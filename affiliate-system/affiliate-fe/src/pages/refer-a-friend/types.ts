@@ -53,13 +53,6 @@ export interface CapsConfig {
   perBrandMonthlyCents: number;
 }
 
-export interface WebhookConfig {
-  url: string | null;
-  enabled: boolean;
-  secretPresent?: boolean;
-  secretRotatedAt?: string | null;
-}
-
 export interface ReferConfig {
   _id?: string;
   brandId: string;
@@ -69,7 +62,6 @@ export interface ReferConfig {
   recurringReward: RecurringRewardConfig;
   qualification: QualificationGates;
   caps: CapsConfig;
-  webhook: WebhookConfig;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -126,6 +118,21 @@ export type DeliveryEventType =
 
 export type DeliveryStatus = 'pending' | 'delivered' | 'failed';
 
+export interface RewardDeliveryPayloadData {
+  brandId?: string;
+  referralId?: string;
+  referrerPlayerId?: string;
+  refereePlayerId?: string;
+  rewardCents?: number;
+  rewardCurrency?: string;
+  rewardKind?: 'bonus' | 'cash' | 'freespins';
+  qualifiedAt?: string;
+  reversedAt?: string;
+  reversalReason?: string;
+  period?: { year: number; month: number };
+  ngrCents?: number;
+}
+
 export interface RewardDelivery {
   _id: string;
   referralId: string | null;
@@ -133,7 +140,12 @@ export interface RewardDelivery {
   eventType: DeliveryEventType;
   status: DeliveryStatus;
   attempts: number;
-  payload: Record<string, unknown>;
+  payload: {
+    id?: string;
+    type?: string;
+    createdAt?: string;
+    data?: RewardDeliveryPayloadData;
+  };
   payloadHash: string;
   nextAttemptAt: string;
   lastAttemptAt: string | null;

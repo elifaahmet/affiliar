@@ -10,6 +10,7 @@
 
 const Brand          = require("../../models/Brand");
 const PlayerReferral = require("../../models/PlayerReferral");
+const RewardDelivery = require("../../models/RewardDelivery");
 const engine         = require("../../engine/referralEngine");
 
 /** Resolve the operator behind the JWT. Returns null + writes the response on failure. */
@@ -292,3 +293,186 @@ exports.getStats = async (req, res) => {
       : null,
   });
 };
+
+// GET /api/v1/refer/player/:playerId/rewards?limit=
+//
+// Pull-model ledger: returns every refer-a-friend reward owed to (or
+// recently paid out to) a given player on the operator's side. The
+// casino backend polls this when a player visits their "My Rewards"
+// page, credits the wallet for every `pending` row, then ACKs via
+// /claim below so the same reward isn't paid twice.
+//
+// A reward concerns a player when either:
+//   • the recipient field for that event type matches the player, OR
+//   • for the four reversal/forward-pair event types, the same player
+//     id appears in the matching role inside the snapshotted payload.
+//
+// Returns { pending, history }.
+// `history` is the last `limit` (default 20, max 200) already-claimed
+// rows in descending deliveredAt order. `pending` is unbounded but
+// in practice tiny.
+exports.listPlayerRewards = async (req, res) => {
+  const operatorId = operatorOnly(req, res);
+  if (!operatorId) return;
+
+  const { playerId } = req.params;
+  if (!playerId) {
+    return res.status(400).json({ error: "missing_player_id" });
+  }
+  const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 200);
+
+  // Match on the recipient field embedded in the payload. The pair-of-
+  // event-types convention means we can resolve recipient cheaply with
+  // a $or against the two ids — the eventType field then narrows to
+  // the right side, but matching either id is fine because operator-
+  // scoping below catches mistakes.
+  const match = {
+    operatorId,
+    $or: [
+      // referrer-side events (issued / reversed / recurring.issued)
+      {
+        eventType: {
+          $in: [
+            "referral.reward.issued",
+            "referral.reward.reversed",
+            "referral.reward.recurring.issued",
+          ],
+        },
+        "payload.data.referrerPlayerId": playerId,
+      },
+      // referee-side events (referee.issued / referee.reversed)
+      {
+        eventType: {
+          $in: [
+            "referral.reward.referee.issued",
+            "referral.reward.referee.reversed",
+          ],
+        },
+        "payload.data.refereePlayerId": playerId,
+      },
+    ],
+  };
+
+  const [pendingRaw, historyRaw] = await Promise.all([
+    RewardDelivery.find({ ...match, status: "pending" })
+      .sort({ createdAt: 1 })
+      .lean(),
+    RewardDelivery.find({ ...match, status: "delivered" })
+      .sort({ deliveredAt: -1 })
+      .limit(limit)
+      .lean(),
+  ]);
+
+  return res.status(200).json({
+    pending: pendingRaw.map(serializeReward),
+    history: historyRaw.map(serializeReward),
+  });
+};
+
+// POST /api/v1/refer/player/:playerId/rewards/claim
+//
+// Casino backend posts this after it has credited (or debited, for
+// reversal events) the player's wallet. Each id in the body is flipped
+// from `pending` to `delivered` (with deliveredAt=now) and the
+// matching referral state cascade runs (the same one the old webhook
+// worker used to run on a 2xx). Idempotent — already-`delivered` rows
+// are skipped.
+//
+// Returns { claimed: [ids…], skipped: [{ id, reason }] }.
+exports.claimPlayerRewards = async (req, res) => {
+  const operatorId = operatorOnly(req, res);
+  if (!operatorId) return;
+
+  const { playerId } = req.params;
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids : null;
+  if (!playerId) return res.status(400).json({ error: "missing_player_id" });
+  if (!ids || ids.length === 0) {
+    return res.status(400).json({ error: "missing_ids", message: "body.ids must be a non-empty array" });
+  }
+  if (ids.length > 200) {
+    return res.status(400).json({ error: "too_many_ids", message: "max 200 ids per request" });
+  }
+
+  const claimed = [];
+  const skipped = [];
+
+  for (const rawId of ids) {
+    let delivery;
+    try {
+      delivery = await RewardDelivery.findById(rawId);
+    } catch (_) {
+      skipped.push({ id: String(rawId), reason: "invalid_id" });
+      continue;
+    }
+    if (!delivery) {
+      skipped.push({ id: String(rawId), reason: "not_found" });
+      continue;
+    }
+    if (String(delivery.operatorId) !== operatorId) {
+      skipped.push({ id: String(rawId), reason: "not_owned" });
+      continue;
+    }
+
+    // Defense-in-depth: make sure the reward really belongs to this
+    // player (matches the payload's recipient field). Prevents an
+    // operator from claiming Player A's reward while passing Player B
+    // in the URL.
+    const data = (delivery.payload && delivery.payload.data) || {};
+    const isRefereeEvent = String(delivery.eventType).startsWith(
+      "referral.reward.referee.",
+    );
+    const expectedPlayer = isRefereeEvent
+      ? data.refereePlayerId
+      : data.referrerPlayerId;
+    if (String(expectedPlayer) !== String(playerId)) {
+      skipped.push({ id: String(rawId), reason: "player_mismatch" });
+      continue;
+    }
+
+    if (delivery.status === "delivered") {
+      skipped.push({ id: String(rawId), reason: "already_claimed" });
+      continue;
+    }
+    if (delivery.status !== "pending") {
+      skipped.push({ id: String(rawId), reason: `invalid_state_${delivery.status}` });
+      continue;
+    }
+
+    delivery.status = "delivered";
+    delivery.deliveredAt = new Date();
+    await delivery.save();
+    await engine.applyDeliveryAck(delivery);
+
+    claimed.push(String(delivery._id));
+  }
+
+  return res.status(200).json({ claimed, skipped });
+};
+
+// Internal — shape RewardDelivery rows for the FE / casino BE.
+function serializeReward(row) {
+  const data = (row.payload && row.payload.data) || {};
+  const isRefereeEvent = String(row.eventType).startsWith(
+    "referral.reward.referee.",
+  );
+  return {
+    id: String(row._id),
+    eventType: row.eventType,
+    referralId: data.referralId || null,
+    recipientPlayerId: isRefereeEvent
+      ? data.refereePlayerId
+      : data.referrerPlayerId,
+    rewardCents: data.rewardCents || 0,
+    rewardCurrency: data.rewardCurrency || null,
+    rewardKind: data.rewardKind || null,
+    qualifiedAt: data.qualifiedAt || null,
+    // Reversed events carry these for clarity in the dashboard.
+    reversedAt: data.reversedAt || null,
+    reversalReason: data.reversalReason || null,
+    // Recurring period info, when present.
+    period: data.period || null,
+    ngrCents: data.ngrCents || null,
+    createdAt: row.createdAt,
+    deliveredAt: row.deliveredAt || null,
+  };
+}

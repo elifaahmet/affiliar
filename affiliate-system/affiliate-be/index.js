@@ -121,10 +121,6 @@ app.listen(PORT, () => {
   const { startReferralQualificationJob } = require("./jobs/referralQualificationJob");
   startReferralQualificationJob();
 
-  // Refer-a-Friend: outbound webhook dispatcher (continuous polling).
-  const { startReferralDeliveryWorker } = require("./jobs/referralDeliveryWorker");
-  startReferralDeliveryWorker();
-
   // Refer-a-Friend: expire stale pending referrals (no FTD or no qualify
   // after N days, default 90) so the qualification job stops re-checking
   // dead rows forever.

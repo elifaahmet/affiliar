@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useBaseMutation } from 'api/core/useBaseMutation';
 import { useQueryClient } from '@tanstack/react-query';
-import { ChevronDownIcon, KeyIcon, BoltIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import { REFER_API_URLS } from 'config/apiUrls';
 
 import StyledSelect from '@components/core-components/StyledSelect';
@@ -50,11 +50,6 @@ const DEFAULT_CONFIG: Omit<ReferConfig, 'brandId'> = {
     perReferrerMonthlyCents: 0,
     perBrandMonthlyCents: 0,
   },
-  webhook: {
-    url: '',
-    enabled: false,
-    secretPresent: false,
-  },
 };
 
 export default function BrandConfigCard({ brand, existingConfig, onSaved }: Props) {
@@ -67,10 +62,8 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
     refereeReward:   { ...DEFAULT_CONFIG.refereeReward,   ...(existingConfig?.refereeReward ?? {}) },
     recurringReward: { ...DEFAULT_CONFIG.recurringReward, ...(existingConfig?.recurringReward ?? {}) },
     qualification:   { ...DEFAULT_CONFIG.qualification,   ...(existingConfig?.qualification ?? {}) },
-    caps:          { ...DEFAULT_CONFIG.caps,          ...(existingConfig?.caps ?? {}) },
-    webhook:       { ...DEFAULT_CONFIG.webhook,       ...(existingConfig?.webhook ?? {}) },
+    caps:            { ...DEFAULT_CONFIG.caps,            ...(existingConfig?.caps ?? {}) },
   }));
-  const [revealedSecret, setRevealedSecret] = useState<string | null>(null);
   const [savedNotice, setSavedNotice] = useState<string | null>(null);
 
   const upsert = useBaseMutation({
@@ -84,25 +77,6 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
     },
   });
 
-  const rotateSecret = useBaseMutation({
-    endpoint: REFER_API_URLS.ROTATE_SECRET(brand._id),
-    method: 'post',
-    onSuccess: (data: any) => {
-      if (data?.signingSecret) setRevealedSecret(data.signingSecret);
-      queryClient.invalidateQueries({ queryKey: ['refer-configs'] });
-    },
-  });
-
-  const sendTest = useBaseMutation({
-    endpoint: REFER_API_URLS.TEST_EVENT(brand._id),
-    method: 'post',
-    onSuccess: () => {
-      setSavedNotice('Test event queued.');
-      setTimeout(() => setSavedNotice(null), 2200);
-      queryClient.invalidateQueries({ queryKey: ['refer-deliveries', brand._id] });
-    },
-  });
-
   function handleSave() {
     upsert.mutate({
       enabled: form.enabled,
@@ -111,7 +85,6 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
       recurringReward: form.recurringReward,
       qualification: form.qualification,
       caps: form.caps,
-      webhook: { url: form.webhook.url, enabled: form.webhook.enabled },
     });
   }
 
@@ -130,9 +103,6 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
   function setCap<K extends keyof ReferConfig['caps']>(key: K, value: ReferConfig['caps'][K]) {
     setForm((f) => ({ ...f, caps: { ...f.caps, [key]: value } }));
   }
-  function setWebhook<K extends keyof ReferConfig['webhook']>(key: K, value: ReferConfig['webhook'][K]) {
-    setForm((f) => ({ ...f, webhook: { ...f.webhook, [key]: value } }));
-  }
 
   return (
     <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
@@ -148,7 +118,6 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
             <p className='font-semibold text-gray-900'>{brand.name}</p>
             <p className='text-xs text-gray-500'>
               {form.enabled ? 'Active' : 'Disabled'}
-              {form.webhook.secretPresent ? ' · Webhook secret set' : ' · No secret yet'}
             </p>
           </div>
         </div>
@@ -250,8 +219,8 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
               <div>
                 <p className='text-sm font-medium text-gray-900'>Pay the friend too</p>
                 <p className='text-xs text-gray-500'>
-                  Fires <code className='text-[11px] font-mono'>referral.reward.referee.issued</code> webhook on qualification.
-                  Operator must handle the new event type to credit the friend.
+                  Emits a <code className='text-[11px] font-mono'>referral.reward.referee.issued</code> ledger row on qualification.
+                  Casino backend picks it up when the friend visits their rewards page.
                 </p>
               </div>
               <input
@@ -331,7 +300,7 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
               <div>
                 <p className='text-sm font-medium text-gray-900'>Pay the referrer monthly</p>
                 <p className='text-xs text-gray-500'>
-                  Fires <code className='text-[11px] font-mono'>referral.reward.recurring.issued</code> webhook on day 5 of each month for the previous month. Stops automatically when the friend's FTD is reversed (past payments stay).
+                  Emits a <code className='text-[11px] font-mono'>referral.reward.recurring.issued</code> ledger row on day 5 of each month for the previous month. Stops automatically when the friend's FTD is reversed (past payments stay).
                 </p>
               </div>
               <input
@@ -463,79 +432,7 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
             </Row>
           </Section>
 
-          {/* Webhook */}
-          <Section title='Webhook' hint='Affiliar POSTs reward.issued / reward.reversed events here'>
-            <Row>
-              <Field label='Webhook URL' wide>
-                <input
-                  type='url'
-                  value={form.webhook.url ?? ''}
-                  onChange={(e) => setWebhook('url', e.target.value)}
-                  placeholder='https://api.your-casino.com/internal/affiliar-rewards'
-                  className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
-                />
-              </Field>
-            </Row>
-
-            <div className='flex items-center justify-between gap-4 p-3 rounded-lg bg-violet-50/40'>
-              <div>
-                <p className='text-sm font-medium text-gray-900'>Webhook delivery enabled</p>
-                <p className='text-xs text-gray-500'>Pause to halt new deliveries without losing pending events.</p>
-              </div>
-              <input
-                type='checkbox'
-                checked={form.webhook.enabled}
-                onChange={(e) => setWebhook('enabled', e.target.checked)}
-                className='h-5 w-5 rounded accent-primary cursor-pointer'
-              />
-            </div>
-
-            <div className='flex flex-wrap gap-2 items-center'>
-              <button
-                type='button'
-                onClick={() => rotateSecret.mutate({})}
-                disabled={rotateSecret.isPending}
-                className='inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-violet-200 text-sm font-medium text-violet-800 hover:bg-violet-50 disabled:opacity-60'
-              >
-                <KeyIcon className='h-4 w-4' />
-                {form.webhook.secretPresent ? 'Rotate signing secret' : 'Generate signing secret'}
-              </button>
-              <button
-                type='button'
-                onClick={() => sendTest.mutate({})}
-                disabled={sendTest.isPending || !form.webhook.url || !form.webhook.secretPresent}
-                title={
-                  !form.webhook.url
-                    ? 'Set a webhook URL first'
-                    : !form.webhook.secretPresent
-                      ? 'Generate a signing secret first'
-                      : ''
-                }
-                className='inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-violet-200 text-sm font-medium text-violet-800 hover:bg-violet-50 disabled:opacity-60'
-              >
-                <BoltIcon className='h-4 w-4' />
-                Send test event
-              </button>
-            </div>
-
-            {revealedSecret && (
-              <div className='mt-2 p-3 rounded-lg border border-amber-200 bg-amber-50 text-xs space-y-2'>
-                <p className='font-semibold text-amber-900'>Save this secret now. It will not be shown again.</p>
-                <code className='block break-all bg-white p-2 rounded border border-amber-200 font-mono text-amber-900'>
-                  {revealedSecret}
-                </code>
-                <button
-                  type='button'
-                  onClick={() => setRevealedSecret(null)}
-                  className='text-xs font-medium text-amber-900 underline'
-                >
-                  I've saved it, dismiss
-                </button>
-              </div>
-            )}
-          </Section>
-
-          {/* Deliveries panel */}
+          {/* Reward ledger — pending pickups + recently claimed */}
           <DeliveriesPanel brandId={brand._id} />
 
           {/* Save */}

@@ -1,6 +1,4 @@
-import { useState } from 'react';
 import { useBaseQuery } from 'api/core/useBaseQuery';
-import { baseService } from 'api/core/baseService';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
 
@@ -11,10 +9,19 @@ interface Props {
   brandId: string;
 }
 
+// Pull-model ledger: 'pending' = waiting for the casino backend to
+// pull this row when the player visits their "My Rewards" page;
+// 'delivered' = casino confirmed receipt + claimed.
 const STATUS_BADGE: Record<DeliveryStatus, string> = {
   pending:   'bg-yellow-100 text-yellow-700',
   delivered: 'bg-green-100 text-green-700',
   failed:    'bg-red-100 text-red-700',
+};
+
+const STATUS_LABEL: Record<DeliveryStatus, string> = {
+  pending:   'Awaiting pickup',
+  delivered: 'Claimed',
+  failed:    'Failed',
 };
 
 const EVENT_BADGE: Record<string, string> = {
@@ -38,9 +45,13 @@ function formatRelative(iso: string | null) {
   return new Date(iso).toLocaleDateString();
 }
 
+function formatAmount(cents: number | null, currency: string | null) {
+  if (cents == null) return '—';
+  return `${currency || ''} ${(cents / 100).toFixed(2)}`.trim();
+}
+
 export default function DeliveriesPanel({ brandId }: Props) {
   const queryClient = useQueryClient();
-  const [replayingId, setReplayingId] = useState<string | null>(null);
 
   const { data, isLoading } = useBaseQuery<DeliveriesResponse>({
     endpoint: REFER_API_URLS.DELIVERIES(),
@@ -48,22 +59,12 @@ export default function DeliveriesPanel({ brandId }: Props) {
     params: { brandId, limit: 20 },
   });
 
-  async function handleReplay(id: string) {
-    try {
-      setReplayingId(id);
-      await baseService.add(REFER_API_URLS.REPLAY(id), {});
-      queryClient.invalidateQueries({ queryKey: ['refer-deliveries', brandId] });
-    } finally {
-      setReplayingId(null);
-    }
-  }
-
   const deliveries = data?.deliveries ?? [];
 
   return (
     <div className='space-y-3'>
       <div className='flex items-center justify-between'>
-        <h3 className='text-sm font-semibold text-gray-900'>Recent deliveries</h3>
+        <h3 className='text-sm font-semibold text-gray-900'>Reward ledger</h3>
         <button
           type='button'
           onClick={() => queryClient.invalidateQueries({ queryKey: ['refer-deliveries', brandId] })}
@@ -78,7 +79,7 @@ export default function DeliveriesPanel({ brandId }: Props) {
 
       {!isLoading && deliveries.length === 0 && (
         <p className='text-xs text-gray-500'>
-          No deliveries yet. Send a test event after generating a signing secret.
+          No rewards yet. Rows show up here when a referral qualifies — the casino backend pulls them on the player&rsquo;s next visit.
         </p>
       )}
 
@@ -89,50 +90,48 @@ export default function DeliveriesPanel({ brandId }: Props) {
               <tr className='bg-violet-50/60 text-left text-[10px] uppercase tracking-wider text-gray-500'>
                 <th className='px-3 py-2 font-semibold'>Event</th>
                 <th className='px-3 py-2 font-semibold'>Status</th>
-                <th className='px-3 py-2 font-semibold text-right'>Attempts</th>
-                <th className='px-3 py-2 font-semibold'>Last attempt</th>
-                <th className='px-3 py-2 font-semibold'>Latency</th>
-                <th className='px-3 py-2 font-semibold'>HTTP</th>
-                <th className='px-3 py-2'></th>
+                <th className='px-3 py-2 font-semibold text-right'>Amount</th>
+                <th className='px-3 py-2 font-semibold'>Recipient</th>
+                <th className='px-3 py-2 font-semibold'>Queued</th>
+                <th className='px-3 py-2 font-semibold'>Claimed</th>
               </tr>
             </thead>
             <tbody className='divide-y divide-violet-50'>
-              {deliveries.map((d) => (
-                <tr key={d._id} className='hover:bg-violet-50/30'>
-                  <td className='px-3 py-2'>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded font-medium ${EVENT_BADGE[d.eventType] ?? 'bg-gray-100 text-gray-600'}`}>
-                      {d.eventType.replace('referral.reward.', '')}
-                    </span>
-                  </td>
-                  <td className='px-3 py-2'>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded font-medium ${STATUS_BADGE[d.status]}`}>
-                      {d.status}
-                    </span>
-                  </td>
-                  <td className='px-3 py-2 text-right tabular-nums'>{d.attempts} / 6</td>
-                  <td className='px-3 py-2 text-gray-600' title={d.lastAttemptAt || ''}>
-                    {formatRelative(d.lastAttemptAt)}
-                  </td>
-                  <td className='px-3 py-2 text-gray-600 tabular-nums'>
-                    {d.lastResponse?.latencyMs != null ? `${d.lastResponse.latencyMs}ms` : '—'}
-                  </td>
-                  <td className='px-3 py-2 text-gray-600 tabular-nums'>
-                    {d.lastResponse?.statusCode ?? d.lastResponse?.errorMessage?.slice(0, 24) ?? '—'}
-                  </td>
-                  <td className='px-3 py-2 text-right'>
-                    {d.status === 'failed' && (
-                      <button
-                        type='button'
-                        onClick={() => handleReplay(d._id)}
-                        disabled={replayingId === d._id}
-                        className='text-xs font-medium text-violet-700 hover:text-violet-900 disabled:opacity-50'
-                      >
-                        {replayingId === d._id ? 'Replaying…' : 'Replay'}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {deliveries.map((d) => {
+                const data = d.payload?.data;
+                const recipient =
+                  d.eventType.startsWith('referral.reward.referee.')
+                    ? data?.refereePlayerId
+                    : data?.referrerPlayerId;
+                const rewardCents = data?.rewardCents ?? null;
+                const rewardCurrency = data?.rewardCurrency ?? null;
+                return (
+                  <tr key={d._id} className='hover:bg-violet-50/30'>
+                    <td className='px-3 py-2'>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded font-medium ${EVENT_BADGE[d.eventType] ?? 'bg-gray-100 text-gray-600'}`}>
+                        {d.eventType.replace('referral.reward.', '')}
+                      </span>
+                    </td>
+                    <td className='px-3 py-2'>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded font-medium ${STATUS_BADGE[d.status]}`}>
+                        {STATUS_LABEL[d.status]}
+                      </span>
+                    </td>
+                    <td className='px-3 py-2 text-right tabular-nums text-gray-700'>
+                      {formatAmount(rewardCents ?? null, rewardCurrency ?? null)}
+                    </td>
+                    <td className='px-3 py-2 text-gray-600 font-mono text-[11px]'>
+                      {recipient || '—'}
+                    </td>
+                    <td className='px-3 py-2 text-gray-600' title={d.createdAt || ''}>
+                      {formatRelative(d.createdAt)}
+                    </td>
+                    <td className='px-3 py-2 text-gray-600' title={d.deliveredAt || ''}>
+                      {formatRelative(d.deliveredAt)}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
