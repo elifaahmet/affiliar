@@ -13,18 +13,27 @@ const PlayerReferral = require("../../models/PlayerReferral");
 const RewardDelivery = require("../../models/RewardDelivery");
 const engine         = require("../../engine/referralEngine");
 
-/** Resolve the operator behind the JWT. Returns null + writes the response on failure. */
+/**
+ * Resolve the operator scope from the JWT. We use the operator user's
+ * own _id, NOT user.operatorId (which is a tenant pointer in this
+ * codebase). Brand.operatorId — and therefore everything we scope by
+ * "operator" in refer-a-friend (PlayerReferral, ReferAFriendConfig,
+ * RewardDelivery) — references the user. brandController + fees
+ * controller follow the same convention.
+ *
+ * Returns null + writes the response on failure.
+ */
 function operatorOnly(req, res) {
   const user = req.affiliateUser;
   if (!user || user.role !== "operator") {
     res.status(403).json({ error: "Operator authentication required" });
     return null;
   }
-  if (!user.operatorId) {
+  if (!user._id) {
     res.status(403).json({ error: "No operator linked to account" });
     return null;
   }
-  return String(user.operatorId);
+  return String(user._id);
 }
 
 /**

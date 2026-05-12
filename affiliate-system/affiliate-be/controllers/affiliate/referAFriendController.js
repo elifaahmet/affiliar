@@ -20,17 +20,21 @@ const RewardDelivery     = require("../../models/RewardDelivery");
 
 // ── Auth helpers ──────────────────────────────────────────────────────────────
 
+// We scope refer-a-friend by the operator user's own _id, NOT
+// user.operatorId (a tenant pointer in this codebase). Brand.operatorId
+// already points at the user — brandController and feesController
+// follow the same convention.
 function operatorOnly(req, res) {
   const user = req.affiliateUser;
   if (!user || user.role !== "operator") {
     res.status(403).json({ error: "Operator authentication required" });
     return null;
   }
-  if (!user.operatorId) {
+  if (!user._id) {
     res.status(403).json({ error: "No operator linked to account" });
     return null;
   }
-  return String(user.operatorId);
+  return String(user._id);
 }
 
 async function loadOwnedBrand(brandId, operatorId) {
