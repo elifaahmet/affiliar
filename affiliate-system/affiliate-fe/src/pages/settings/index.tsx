@@ -58,14 +58,14 @@ const STATUS_BADGE: Record<string, string> = {
   trial: 'bg-violet-100 text-violet-700',
   active: 'bg-green-100 text-green-700',
   past_due: 'bg-red-100 text-red-700',
-  cancelled: 'bg-gray-100 text-gray-500',
+  cancelled: 'bg-gray-100 text-gray-700',
 };
 
 const TX_STATUS_BADGE: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-700',
   paid: 'bg-green-100 text-green-700',
   failed: 'bg-red-100 text-red-700',
-  expired: 'bg-gray-100 text-gray-500',
+  expired: 'bg-gray-100 text-gray-700',
 };
 
 function FeatureRow({ label, enabled }: { label: string; enabled: boolean }) {
@@ -75,7 +75,7 @@ function FeatureRow({ label, enabled }: { label: string; enabled: boolean }) {
       {enabled ? (
         <span className='text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded'>Available</span>
       ) : (
-        <span className='text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded'>Locked</span>
+        <span className='text-xs font-medium text-gray-700 bg-gray-100 px-2 py-0.5 rounded'>Locked</span>
       )}
     </div>
   );
@@ -83,7 +83,7 @@ function FeatureRow({ label, enabled }: { label: string; enabled: boolean }) {
 
 function StatusBadge({ status }: { status: string }) {
   const s = status || 'trial';
-  const cls = STATUS_BADGE[s] ?? 'bg-gray-100 text-gray-500';
+  const cls = STATUS_BADGE[s] ?? 'bg-gray-100 text-gray-700';
   const label = s.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cls}`}>
@@ -93,7 +93,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function TxStatusBadge({ status }: { status: string }) {
-  const cls = TX_STATUS_BADGE[status] ?? 'bg-gray-100 text-gray-500';
+  const cls = TX_STATUS_BADGE[status] ?? 'bg-gray-100 text-gray-700';
   const label = status.charAt(0).toUpperCase() + status.slice(1);
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cls}`}>
@@ -158,7 +158,7 @@ function PaymentModal({
           <h3 className='text-sm font-semibold text-gray-800'>Complete Payment</h3>
           <button
             onClick={onClose}
-            className='text-gray-400 hover:text-gray-600 text-xs'
+            className='text-gray-600 hover:text-gray-600 text-xs'
           >
             Close
           </button>
@@ -168,26 +168,26 @@ function PaymentModal({
           <div className='text-center py-6 space-y-2'>
             <div className='text-green-600 text-3xl font-bold'>&#10003;</div>
             <p className='text-sm font-medium text-green-700'>Payment confirmed</p>
-            <p className='text-xs text-gray-500'>Your subscription is now active.</p>
+            <p className='text-xs text-gray-700'>Your subscription is now active.</p>
           </div>
         ) : (
           <>
             <div className='space-y-3'>
               <div>
-                <p className='text-xs text-gray-500'>Amount</p>
+                <p className='text-xs text-gray-700'>Amount</p>
                 <p className='text-sm font-medium text-gray-800'>
                   {formatUsd(payData.transaction.amount)}
                 </p>
               </div>
               <div>
-                <p className='text-xs text-gray-500'>Payment Address</p>
+                <p className='text-xs text-gray-700'>Payment Address</p>
                 <p className='text-xs font-mono text-gray-700 bg-gray-50 p-2 rounded break-all'>
                   {payData.address}
                 </p>
               </div>
               {payData.qrCode && (
                 <div>
-                  <p className='text-xs text-gray-500'>QR Code Address</p>
+                  <p className='text-xs text-gray-700'>QR Code Address</p>
                   <p className='text-xs font-mono text-gray-700 bg-gray-50 p-2 rounded break-all'>
                     {payData.qrCode}
                   </p>
@@ -208,7 +208,7 @@ function PaymentModal({
             </div>
             <div className='flex items-center gap-2 pt-2'>
               <span className='inline-block h-2 w-2 rounded-full bg-yellow-400 animate-pulse' />
-              <span className='text-xs text-gray-500'>Waiting for payment...</span>
+              <span className='text-xs text-gray-700'>Waiting for payment...</span>
             </div>
           </>
         )}
@@ -266,7 +266,7 @@ export default function Settings() {
     <div className='h-full overflow-auto p-6 pb-24 space-y-6'>
       <h1 className='text-xl font-semibold text-gray-800'>Settings</h1>
 
-      {isLoading && <p className='text-sm text-gray-400'>Loading plan info...</p>}
+      {isLoading && <p className='text-sm text-gray-600'>Loading plan info...</p>}
 
       {planData?.limits && (
         <div className='max-w-lg space-y-6'>
@@ -279,7 +279,7 @@ export default function Settings() {
 
             {/* Usage */}
             <div>
-              <p className='text-xs text-gray-500 mb-1'>Affiliate Usage</p>
+              <p className='text-xs text-gray-700 mb-1'>Affiliate Usage</p>
               <div className='flex items-center gap-3'>
                 <div className='flex-1 bg-gray-100 rounded-full h-2 overflow-hidden'>
                   <div
@@ -295,7 +295,7 @@ export default function Settings() {
 
             {/* Features */}
             <div>
-              <p className='text-xs text-gray-500 mb-2'>Features</p>
+              <p className='text-xs text-gray-700 mb-2'>Features</p>
               <div className='divide-y divide-gray-100'>
                 <FeatureRow label='RevShare Commission' enabled={planData.limits.commissionTypes.includes('revshare')} />
                 <FeatureRow label='CPA Commission' enabled={planData.limits.commissionTypes.includes('cpa')} />
@@ -314,7 +314,7 @@ export default function Settings() {
       <div className='max-w-3xl space-y-6'>
         <h2 className='text-lg font-semibold text-gray-800'>Billing</h2>
 
-        {billingLoading && <p className='text-sm text-gray-400'>Loading billing info...</p>}
+        {billingLoading && <p className='text-sm text-gray-600'>Loading billing info...</p>}
 
         {/* Billing Status Card */}
         {billingData && (
@@ -365,10 +365,10 @@ export default function Settings() {
                   <p className='text-sm font-semibold text-gray-800'>{p.label}</p>
                   <p className='text-2xl font-bold text-gray-900'>
                     {formatUsd(p.price)}
-                    <span className='text-xs font-normal text-gray-500'>/mo</span>
+                    <span className='text-xs font-normal text-gray-700'>/mo</span>
                   </p>
                   {isCurrent ? (
-                    <span className='inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-500'>
+                    <span className='inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-700'>
                       Current Plan
                     </span>
                   ) : (
@@ -399,11 +399,11 @@ export default function Settings() {
               <table className='w-full text-left'>
                 <thead>
                   <tr className='border-b border-gray-100'>
-                    <th className='text-xs font-medium text-gray-500 pb-2 pr-4'>Date</th>
-                    <th className='text-xs font-medium text-gray-500 pb-2 pr-4'>Plan</th>
-                    <th className='text-xs font-medium text-gray-500 pb-2 pr-4'>Amount</th>
-                    <th className='text-xs font-medium text-gray-500 pb-2 pr-4'>Status</th>
-                    <th className='text-xs font-medium text-gray-500 pb-2'>Transaction ID</th>
+                    <th className='text-xs font-medium text-gray-700 pb-2 pr-4'>Date</th>
+                    <th className='text-xs font-medium text-gray-700 pb-2 pr-4'>Plan</th>
+                    <th className='text-xs font-medium text-gray-700 pb-2 pr-4'>Amount</th>
+                    <th className='text-xs font-medium text-gray-700 pb-2 pr-4'>Status</th>
+                    <th className='text-xs font-medium text-gray-700 pb-2'>Transaction ID</th>
                   </tr>
                 </thead>
                 <tbody className='divide-y divide-gray-50'>
@@ -421,7 +421,7 @@ export default function Settings() {
                       <td className='py-2 pr-4'>
                         <TxStatusBadge status={tx.status} />
                       </td>
-                      <td className='text-xs text-gray-500 py-2 font-mono'>
+                      <td className='text-xs text-gray-700 py-2 font-mono'>
                         {tx.transactionId ?? tx._id}
                       </td>
                     </tr>

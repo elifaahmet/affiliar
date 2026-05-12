@@ -104,15 +104,15 @@ export default function AffiliateProfile() {
         <h2 className='text-sm font-semibold text-gray-800 mb-4'>Account Info</h2>
         <div className='space-y-3'>
           <div className='flex items-center justify-between py-2 border-b border-gray-100'>
-            <span className='text-xs text-gray-500'>Email</span>
+            <span className='text-xs text-gray-700'>Email</span>
             <span className='text-xs text-gray-800 font-medium'>{data?.user.email ?? '—'}</span>
           </div>
           <div className='flex items-center justify-between py-2 border-b border-gray-100'>
-            <span className='text-xs text-gray-500'>Username</span>
+            <span className='text-xs text-gray-700'>Username</span>
             <span className='text-xs text-gray-800 font-medium'>{data?.user.username ?? '—'}</span>
           </div>
           <div className='flex items-center justify-between py-2'>
-            <span className='text-xs text-gray-500'>Status</span>
+            <span className='text-xs text-gray-700'>Status</span>
             <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
               data?.user.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'
             }`}>
@@ -174,7 +174,7 @@ export default function AffiliateProfile() {
       <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-6 max-w-2xl'>
         <h2 className='text-sm font-semibold text-gray-800 mb-4'>My Commission Plan</h2>
         {!plan ? (
-          <p className='text-xs text-gray-400'>No commission plan assigned. Contact your account manager.</p>
+          <p className='text-xs text-gray-600'>No commission plan assigned. Contact your account manager.</p>
         ) : (
           <div className='space-y-3'>
             <div className='flex items-center gap-2'>
@@ -208,9 +208,9 @@ export default function AffiliateProfile() {
                 <table className='w-full text-xs'>
                   <thead>
                     <tr className='bg-gray-50'>
-                      <th className='px-3 py-2 text-left font-semibold text-gray-500'>NGR From</th>
-                      <th className='px-3 py-2 text-left font-semibold text-gray-500'>NGR To</th>
-                      <th className='px-3 py-2 text-left font-semibold text-gray-500'>Rate</th>
+                      <th className='px-3 py-2 text-left font-semibold text-gray-700'>NGR From</th>
+                      <th className='px-3 py-2 text-left font-semibold text-gray-700'>NGR To</th>
+                      <th className='px-3 py-2 text-left font-semibold text-gray-700'>Rate</th>
                     </tr>
                   </thead>
                   <tbody className='divide-y divide-gray-100'>
@@ -233,7 +233,7 @@ export default function AffiliateProfile() {
       <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-6 max-w-2xl'>
         <h2 className='text-sm font-semibold text-gray-800 mb-4'>My Referral Codes</h2>
         {(data?.referralCodes ?? []).length === 0 ? (
-          <p className='text-xs text-gray-400'>No referral codes assigned.</p>
+          <p className='text-xs text-gray-600'>No referral codes assigned.</p>
         ) : (
           <div className='flex flex-wrap gap-2'>
             {data!.referralCodes.map((rc) => (

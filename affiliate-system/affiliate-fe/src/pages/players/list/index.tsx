@@ -542,7 +542,7 @@ function List() {
 
         const trend = trends.find((t) => t.text === params.value);
 
-        if (!trend) return <span className="text-gray-400 italic">Unknown</span>;
+        if (!trend) return <span className="text-gray-600 italic">Unknown</span>;
 
         return (
           <div

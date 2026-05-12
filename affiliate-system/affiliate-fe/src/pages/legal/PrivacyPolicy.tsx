@@ -3,7 +3,7 @@ function PrivacyPolicy() {
   return (
     <div className="prose prose-gray max-w-none">
       <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Privacy Policy</h1>
-      <p className="text-sm text-gray-500 mb-8">Effective date: April 2, 2026 · Last updated: April 2, 2026</p>
+      <p className="text-sm text-gray-700 mb-8">Effective date: April 2, 2026 · Last updated: April 2, 2026</p>
 
       <section className="mb-8">
         <h2 className="text-xl font-bold text-gray-800 mb-3">1. Who We Are</h2>

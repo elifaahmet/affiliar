@@ -351,7 +351,7 @@ function AddNewLimits({
               <div className="flex flex-row gap-3 items-center justify-start w-1/2">
                 <span
                   className={`text-sm cursor-pointer ${
-                    isPercentage ? 'text-primary font-bold' : 'text-gray-500 font-medium'
+                    isPercentage ? 'text-primary font-bold' : 'text-gray-700 font-medium'
                   }`}
                 >
                   (%)
@@ -383,7 +383,7 @@ function AddNewLimits({
                 </label>
                 <span
                   className={`text-sm cursor-pointer ${
-                    !isPercentage ? 'text-primary font-bold' : 'text-gray-500 font-medium'
+                    !isPercentage ? 'text-primary font-bold' : 'text-gray-700 font-medium'
                   }`}
                 >
                   Amount

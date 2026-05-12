@@ -91,7 +91,7 @@ export default function AffiliateMarketing() {
         <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4'>
           <div>
             <h2 className='text-sm font-semibold text-gray-800 mb-1'>Campaign Performance</h2>
-            <p className='text-xs text-gray-400'>Metrics for your tracked campaigns (UTM-style identifiers).</p>
+            <p className='text-xs text-gray-600'>Metrics for your tracked campaigns (UTM-style identifiers).</p>
           </div>
           <div className='flex items-center gap-2'>
             <input
@@ -100,7 +100,7 @@ export default function AffiliateMarketing() {
               onChange={(e) => setDateRange((r) => ({ ...r, from: e.target.value }))}
               className='bg-white text-gray-700 text-xs rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
             />
-            <span className='text-gray-400 text-xs'>&rarr;</span>
+            <span className='text-gray-600 text-xs'>&rarr;</span>
             <input
               type='date'
               value={dateRange.to}
@@ -120,7 +120,7 @@ export default function AffiliateMarketing() {
 
         {!campaignLoading && campaignRows.length === 0 && (
           <div className='rounded-lg border border-dashed border-gray-200 p-6 text-center'>
-            <p className='text-sm text-gray-400'>No campaign data for this period. Use the &ldquo;campaign&rdquo; query parameter in your referral links to start tracking.</p>
+            <p className='text-sm text-gray-600'>No campaign data for this period. Use the &ldquo;campaign&rdquo; query parameter in your referral links to start tracking.</p>
           </div>
         )}
 
@@ -129,12 +129,12 @@ export default function AffiliateMarketing() {
             <table className='w-full'>
               <thead className='bg-gray-50'>
                 <tr>
-                  <th className='px-4 py-2 text-left text-xs font-semibold text-gray-500'>Campaign</th>
-                  <th className='px-4 py-2 text-right text-xs font-semibold text-gray-500'>Regs</th>
-                  <th className='px-4 py-2 text-right text-xs font-semibold text-gray-500'>FTDs</th>
-                  <th className='px-4 py-2 text-right text-xs font-semibold text-gray-500'>Deposits (&euro;)</th>
-                  <th className='px-4 py-2 text-right text-xs font-semibold text-gray-500'>NGR (&euro;)</th>
-                  <th className='px-4 py-2 text-right text-xs font-semibold text-gray-500'>Players</th>
+                  <th className='px-4 py-2 text-left text-xs font-semibold text-gray-700'>Campaign</th>
+                  <th className='px-4 py-2 text-right text-xs font-semibold text-gray-700'>Regs</th>
+                  <th className='px-4 py-2 text-right text-xs font-semibold text-gray-700'>FTDs</th>
+                  <th className='px-4 py-2 text-right text-xs font-semibold text-gray-700'>Deposits (&euro;)</th>
+                  <th className='px-4 py-2 text-right text-xs font-semibold text-gray-700'>NGR (&euro;)</th>
+                  <th className='px-4 py-2 text-right text-xs font-semibold text-gray-700'>Players</th>
                 </tr>
               </thead>
               <tbody className='divide-y divide-gray-100'>
@@ -157,7 +157,7 @@ export default function AffiliateMarketing() {
       {/* Referral Links */}
       <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-6'>
         <h2 className='text-sm font-semibold text-gray-800 mb-1'>Your Referral Links</h2>
-        <p className='text-xs text-gray-400 mb-4'>Share these links to refer new players. Each player registered through your link will be tracked to your account.</p>
+        <p className='text-xs text-gray-600 mb-4'>Share these links to refer new players. Each player registered through your link will be tracked to your account.</p>
 
         {isLoading && (
           <div className='space-y-3'>
@@ -169,7 +169,7 @@ export default function AffiliateMarketing() {
 
         {!isLoading && referralCodes.length === 0 && (
           <div className='rounded-lg border border-dashed border-gray-200 p-6 text-center'>
-            <p className='text-sm text-gray-400'>No referral codes yet. Contact your account manager to receive your referral codes.</p>
+            <p className='text-sm text-gray-600'>No referral codes yet. Contact your account manager to receive your referral codes.</p>
           </div>
         )}
 
@@ -191,7 +191,7 @@ export default function AffiliateMarketing() {
                         Code: <span className='font-mono text-primary'>{rc.code}</span>
                       </p>
                     </div>
-                    <p className='text-xs text-gray-400 truncate font-mono'>{link}</p>
+                    <p className='text-xs text-gray-600 truncate font-mono'>{link}</p>
                   </div>
                   <button
                     onClick={() => copy(link)}
@@ -231,7 +231,7 @@ export default function AffiliateMarketing() {
               </div>
               <div>
                 <p className='text-sm font-semibold text-gray-800 mb-1'>{title}</p>
-                <p className='text-xs text-gray-500 leading-relaxed'>{desc}</p>
+                <p className='text-xs text-gray-700 leading-relaxed'>{desc}</p>
               </div>
             </div>
           ))}
@@ -241,39 +241,39 @@ export default function AffiliateMarketing() {
       {/* Tracking parameters */}
       <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-6'>
         <h2 className='text-sm font-semibold text-gray-800 mb-2'>Advanced Tracking</h2>
-        <p className='text-xs text-gray-500 mb-4'>
+        <p className='text-xs text-gray-700 mb-4'>
           Add optional query parameters to your referral link for campaign tracking.
         </p>
         <div className='overflow-x-auto'>
           <table className='w-full text-xs'>
             <thead>
               <tr className='bg-gray-50'>
-                <th className='px-4 py-2 text-left font-semibold text-gray-500'>Parameter</th>
-                <th className='px-4 py-2 text-left font-semibold text-gray-500'>Example</th>
-                <th className='px-4 py-2 text-left font-semibold text-gray-500'>Description</th>
+                <th className='px-4 py-2 text-left font-semibold text-gray-700'>Parameter</th>
+                <th className='px-4 py-2 text-left font-semibold text-gray-700'>Example</th>
+                <th className='px-4 py-2 text-left font-semibold text-gray-700'>Description</th>
               </tr>
             </thead>
             <tbody className='divide-y divide-gray-100'>
               <tr>
                 <td className='px-4 py-2 font-mono text-primary'>affiliate</td>
                 <td className='px-4 py-2 font-mono text-gray-600'>ABC123</td>
-                <td className='px-4 py-2 text-gray-500'>Your referral code (required)</td>
+                <td className='px-4 py-2 text-gray-700'>Your referral code (required)</td>
               </tr>
               <tr>
                 <td className='px-4 py-2 font-mono text-primary'>campaign</td>
                 <td className='px-4 py-2 font-mono text-gray-600'>summer_promo</td>
-                <td className='px-4 py-2 text-gray-500'>Campaign identifier</td>
+                <td className='px-4 py-2 text-gray-700'>Campaign identifier</td>
               </tr>
               <tr>
                 <td className='px-4 py-2 font-mono text-primary'>sub</td>
                 <td className='px-4 py-2 font-mono text-gray-600'>banner_1</td>
-                <td className='px-4 py-2 text-gray-500'>Sub-source / placement</td>
+                <td className='px-4 py-2 text-gray-700'>Sub-source / placement</td>
               </tr>
             </tbody>
           </table>
         </div>
         {referralCodes.length > 0 && (
-          <p className='text-xs text-gray-400 mt-3'>
+          <p className='text-xs text-gray-600 mt-3'>
             Example: <span className='font-mono text-primary'>{buildLink(referralCodes[0])}&campaign=summer_promo&sub=banner_1</span>
           </p>
         )}

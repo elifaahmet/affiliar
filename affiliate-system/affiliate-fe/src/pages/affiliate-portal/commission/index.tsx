@@ -68,15 +68,15 @@ export default function AffiliateCommission() {
       {/* Summary cards */}
       <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
         <div className='bg-white rounded-xl p-5 shadow-sm border border-gray-100'>
-          <p className='text-xs text-gray-500 mb-1'>Total Earned</p>
+          <p className='text-xs text-gray-700 mb-1'>Total Earned</p>
           <p className='text-xl font-semibold text-gray-800'>€{fmt(totalEarned)}</p>
         </div>
         <div className='bg-white rounded-xl p-5 shadow-sm border border-gray-100'>
-          <p className='text-xs text-gray-500 mb-1'>Total Paid</p>
+          <p className='text-xs text-gray-700 mb-1'>Total Paid</p>
           <p className='text-xl font-semibold text-green-700'>€{fmt(totalPaid)}</p>
         </div>
         <div className='bg-white rounded-xl p-5 shadow-sm border border-gray-100'>
-          <p className='text-xs text-gray-500 mb-1'>Pending / In Review</p>
+          <p className='text-xs text-gray-700 mb-1'>Pending / In Review</p>
           <p className='text-xl font-semibold text-warning'>€{fmt(totalPending)}</p>
         </div>
       </div>
@@ -85,12 +85,12 @@ export default function AffiliateCommission() {
       <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
         <div className='px-5 py-3 border-b border-gray-100 flex items-center justify-between'>
           <p className='text-sm font-semibold text-gray-800'>Commission Reports</p>
-          <p className='text-xs text-gray-400'>{data?.total ?? 0} total</p>
+          <p className='text-xs text-gray-600'>{data?.total ?? 0} total</p>
         </div>
 
         {isLoading && (
           <div className='p-8 text-center'>
-            <p className='text-sm text-gray-400'>Loading...</p>
+            <p className='text-sm text-gray-600'>Loading...</p>
           </div>
         )}
 
@@ -102,7 +102,7 @@ export default function AffiliateCommission() {
 
         {!isLoading && !isError && reports.length === 0 && (
           <div className='p-8 text-center'>
-            <p className='text-sm text-gray-400'>No commission reports yet. Reports are generated monthly by your account manager.</p>
+            <p className='text-sm text-gray-600'>No commission reports yet. Reports are generated monthly by your account manager.</p>
           </div>
         )}
 
@@ -111,16 +111,16 @@ export default function AffiliateCommission() {
             <table className='w-full'>
               <thead className='bg-gray-50'>
                 <tr>
-                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-500'>Period</th>
-                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-500'>Plan</th>
-                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-500'>Regs</th>
-                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-500'>FTDs</th>
-                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-500'>NGR (€)</th>
-                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-500'>Rev Share (€)</th>
-                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-500'>CPA (€)</th>
-                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-500'>Override (€)</th>
-                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-500'>Total (€)</th>
-                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-500'>Status</th>
+                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Period</th>
+                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Plan</th>
+                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>Regs</th>
+                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>FTDs</th>
+                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>NGR (€)</th>
+                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>Rev Share (€)</th>
+                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>CPA (€)</th>
+                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>Override (€)</th>
+                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>Total (€)</th>
+                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Status</th>
                 </tr>
               </thead>
               <tbody className='divide-y divide-gray-100'>
@@ -150,7 +150,7 @@ export default function AffiliateCommission() {
                         {(r.breakdown?.overrideCents ?? 0) > 0 ? (
                           <span className='text-purple-700 font-medium'>{fmt(r.breakdown.overrideCents)}</span>
                         ) : (
-                          <span className='text-gray-400'>—</span>
+                          <span className='text-gray-600'>—</span>
                         )}
                       </td>
                       <td className='px-4 py-3 text-xs font-semibold text-gray-800 text-right'>{fmt(r.breakdown?.totalCents ?? 0)}</td>

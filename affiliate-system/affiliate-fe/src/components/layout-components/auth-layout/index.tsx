@@ -90,8 +90,8 @@ function AuthLayout({ children }: AuthLayoutProps) {
       {/* ── Footer ─────────────────────────────────────────────────────── */}
       <footer className="border-t border-gray-100 bg-white">
         <div className="mx-auto flex max-w-[1700px] flex-col items-center justify-between gap-3 px-6 py-5 sm:flex-row sm:px-10">
-          <p className="text-xs text-gray-400">© {new Date().getFullYear()} Affiliar</p>
-          <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-gray-500">
+          <p className="text-xs text-gray-600">© {new Date().getFullYear()} Affiliar</p>
+          <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-gray-700">
             {footerLinks.map((link, index) => (
               <Link key={index} to={link.to} className="transition-colors hover:text-gray-900">
                 {link.label}

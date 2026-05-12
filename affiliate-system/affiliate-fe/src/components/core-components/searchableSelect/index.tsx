@@ -97,7 +97,7 @@ const SearchableSelect: React.FC<BSelectProps> = ({
               </li>
             ))
           ) : (
-            <li className="px-3 py-2 text-gray-500">No options found</li>
+            <li className="px-3 py-2 text-gray-700">No options found</li>
           )}
         </ul>
       )}

@@ -28,7 +28,7 @@ function TopGamesTable(props: TopGamesTableProps) {
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-400">
+                      <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-600">
                         No Image
                       </div>
                     )}
@@ -38,7 +38,7 @@ function TopGamesTable(props: TopGamesTableProps) {
                   </h5>{' '}
                 </div>
                 <div className="flex items-center overflow-hidden">
-                  <h5 className="text-gray-500 text-xs truncate ">{item.game.provider}</h5>
+                  <h5 className="text-gray-700 text-xs truncate ">{item.game.provider}</h5>
                 </div>
 
                 <div className="flex items-center">
@@ -71,7 +71,7 @@ function TopGamesTable(props: TopGamesTableProps) {
             ))
           )
         ) : (
-          <div className="py-4 px-3 text-center text-sm text-gray-500">No data available</div>
+          <div className="py-4 px-3 text-center text-sm text-gray-700">No data available</div>
         )}
       </div>
     </>

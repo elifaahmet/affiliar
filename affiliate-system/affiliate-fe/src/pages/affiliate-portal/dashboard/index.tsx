@@ -124,9 +124,9 @@ function KpiCard({ label, value, sub, accent }: {
         ? 'bg-gradient-to-br from-primary to-primary-dark border-primary/30 shadow-lg shadow-primary/20'
         : 'bg-white/80 backdrop-blur-sm border-violet-100 hover:shadow-sm'
     }`}>
-      <p className={`text-[11px] font-medium uppercase tracking-[0.12em] mb-2 ${accent ? 'text-violet-100' : 'text-gray-400'}`}>{label}</p>
+      <p className={`text-[11px] font-medium uppercase tracking-[0.12em] mb-2 ${accent ? 'text-violet-100' : 'text-gray-600'}`}>{label}</p>
       <p className={`text-2xl font-semibold tracking-tight ${accent ? 'text-white' : 'text-gray-900'}`}>{value}</p>
-      {sub && <p className={`text-xs mt-1 ${accent ? 'text-violet-200' : 'text-gray-400'}`}>{sub}</p>}
+      {sub && <p className={`text-xs mt-1 ${accent ? 'text-violet-200' : 'text-gray-600'}`}>{sub}</p>}
     </div>
   );
 }
@@ -190,7 +190,7 @@ export default function AffiliateDashboard() {
             onChange={(e) => setCustomRange((r) => ({ from: e.target.value, to: r?.to ?? period.to }))}
             className='bg-white text-gray-700 text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
           />
-          <span className='text-gray-400 text-sm'>→</span>
+          <span className='text-gray-600 text-sm'>→</span>
           <input
             type='date' value={customRange?.to ?? period.to}
             onChange={(e) => setCustomRange((r) => ({ from: r?.from ?? period.from, to: e.target.value }))}
@@ -220,7 +220,7 @@ export default function AffiliateDashboard() {
                 className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-colors capitalize ${
                   product === p
                     ? 'bg-primary text-white'
-                    : 'text-gray-500 hover:text-gray-700'
+                    : 'text-gray-700 hover:text-gray-700'
                 }`}
               >
                 {p === 'all' ? 'All products' : p}
@@ -230,7 +230,7 @@ export default function AffiliateDashboard() {
 
           {/* Traffic KPIs */}
           <div>
-            <p className='text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3'>Traffic</p>
+            <p className='text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3'>Traffic</p>
             <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4'>
               <KpiCard label='Registrations' value={String(s?.registrations ?? 0)} sub={`${s?.playerCount ?? 0} active players`} />
               <KpiCard label='FTDs'          value={String(s?.ftdCount ?? 0)} sub={`€${fmt(s?.ftdSumCents ?? 0)}`} />
@@ -242,7 +242,7 @@ export default function AffiliateDashboard() {
 
           {/* Revenue KPIs — swap per product */}
           <div>
-            <p className='text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3'>Revenue</p>
+            <p className='text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3'>Revenue</p>
             {product === 'casino' && (
               <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4'>
                 <KpiCard label='Casino GGR' value={`€${fmt(s?.ggrCents ?? 0)}`} />
@@ -270,20 +270,20 @@ export default function AffiliateDashboard() {
           {/* Providers breakdown */}
           {providers.length > 0 && (
             <div>
-              <p className='text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3'>Providers</p>
+              <p className='text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3'>Providers</p>
               <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
                 <div className='overflow-x-auto'>
                   <table className='w-full'>
                     <thead className='bg-gray-50'>
                       <tr>
-                        <th className='px-4 py-3 text-left text-xs font-semibold text-gray-500'>Provider</th>
-                        <th className='px-4 py-3 text-right text-xs font-semibold text-gray-500'>Fee %</th>
-                        <th className='px-4 py-3 text-right text-xs font-semibold text-gray-500'>Rounds</th>
-                        <th className='px-4 py-3 text-right text-xs font-semibold text-gray-500'>Bets</th>
-                        <th className='px-4 py-3 text-right text-xs font-semibold text-gray-500'>Wins</th>
-                        <th className='px-4 py-3 text-right text-xs font-semibold text-gray-500'>GGR</th>
-                        <th className='px-4 py-3 text-right text-xs font-semibold text-gray-500'>Provider Fees</th>
-                        <th className='px-4 py-3 text-right text-xs font-semibold text-gray-500'>NGR</th>
+                        <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Provider</th>
+                        <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>Fee %</th>
+                        <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>Rounds</th>
+                        <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>Bets</th>
+                        <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>Wins</th>
+                        <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>GGR</th>
+                        <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>Provider Fees</th>
+                        <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>NGR</th>
                       </tr>
                     </thead>
                     <tbody className='divide-y divide-gray-100'>
@@ -308,7 +308,7 @@ export default function AffiliateDashboard() {
 
           {/* Adjustments KPIs */}
           <div>
-            <p className='text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3'>Adjustments</p>
+            <p className='text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3'>Adjustments</p>
             <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4'>
               <KpiCard label='Cashouts'        value={`€${fmt(s?.cashoutsSumCents ?? 0)}`} sub={`${s?.cashoutsCount ?? 0} txns`} />
               <KpiCard label='Chargebacks'     value={`€${fmt(s?.chargebacksSumCents ?? 0)}`} />
@@ -320,7 +320,7 @@ export default function AffiliateDashboard() {
 
           {/* Commission summary */}
           <div>
-            <p className='text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3'>My Commissions</p>
+            <p className='text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3'>My Commissions</p>
             <div className='grid grid-cols-2 sm:grid-cols-4 gap-4'>
               <KpiCard label='Total Earned'  value={`€${fmt(com?.totalEarned ?? 0)}`} />
               <KpiCard label='Approved'      value={`€${fmt(com?.totalApproved ?? 0)}`} />
@@ -360,7 +360,7 @@ export default function AffiliateDashboard() {
 
           {(data?.byDay?.length ?? 0) === 0 && (
             <div className='bg-white rounded-xl p-8 shadow-sm border border-gray-100 text-center'>
-              <p className='text-gray-400 text-sm'>No activity data for the selected period.</p>
+              <p className='text-gray-600 text-sm'>No activity data for the selected period.</p>
             </div>
           )}
         </>

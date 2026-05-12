@@ -70,7 +70,7 @@ interface AffiliatesResponse {
 function Th({ children, right }: { children: React.ReactNode; right?: boolean }) {
   return (
     <th
-      className={`px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap border-r border-gray-100 last:border-r-0 ${
+      className={`px-4 py-3 text-xs font-semibold text-gray-700 whitespace-nowrap border-r border-gray-100 last:border-r-0 ${
         right ? 'text-right' : 'text-left'
       }`}
     >
@@ -94,7 +94,7 @@ function Td({ children, right }: { children: React.ReactNode; right?: boolean })
 function KpiCard({ label, value }: { label: string; value: string }) {
   return (
     <div className='bg-white rounded-xl p-5 shadow-sm border border-gray-100'>
-      <p className='text-xs text-gray-500 mb-1'>{label}</p>
+      <p className='text-xs text-gray-700 mb-1'>{label}</p>
       <p className='text-xl font-semibold text-gray-800'>{value}</p>
     </div>
   );
@@ -200,7 +200,7 @@ export default function CampaignReports() {
             onChange={(e) => setDateRange((r) => ({ ...r, from: e.target.value }))}
             className='bg-white text-gray-700 text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
           />
-          <span className='text-gray-400 text-sm'>&rarr;</span>
+          <span className='text-gray-600 text-sm'>&rarr;</span>
           <input
             type='date'
             value={dateRange.to}
@@ -222,14 +222,14 @@ export default function CampaignReports() {
       )}
 
       {/* Data table */}
-      {isLoading && <p className='text-gray-400 text-sm'>Loading...</p>}
+      {isLoading && <p className='text-gray-600 text-sm'>Loading...</p>}
       {isError && <p className='text-red-500 text-sm'>Failed to load campaign data.</p>}
 
       {!isLoading && !isError && (
         <div className='bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100'>
           <div className='px-5 py-3 border-b border-gray-100 flex items-center justify-between'>
             <p className='text-sm font-medium text-gray-800'>Campaign Performance</p>
-            <p className='text-xs text-gray-400'>{rows.length} rows</p>
+            <p className='text-xs text-gray-600'>{rows.length} rows</p>
           </div>
           <div className='overflow-x-auto'>
             <table className='w-full'>
@@ -263,7 +263,7 @@ export default function CampaignReports() {
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={7} className='px-3 py-6 text-center text-xs text-gray-400'>
+                    <td colSpan={7} className='px-3 py-6 text-center text-xs text-gray-600'>
                       No campaign data for the selected period.
                     </td>
                   </tr>

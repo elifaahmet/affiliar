@@ -91,13 +91,13 @@ function OtpSection() {
   return (
     <div className="flex flex-col">
       <div className="mb-8">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-400 mb-3">
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-600 mb-3">
           Two-factor authentication
         </p>
         <h1 className="font-display text-4xl leading-tight tracking-tight text-gray-900">
           Verify it&apos;s <span className="italic text-primary">you</span>.
         </h1>
-        <p className="mt-3 text-sm text-gray-500">
+        <p className="mt-3 text-sm text-gray-700">
           {showQrCode
             ? 'Scan the QR code with your authenticator app, then enter the 6-digit code below.'
             : 'Open Google Authenticator on your phone and enter the 6-digit code.'}

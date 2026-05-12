@@ -37,7 +37,7 @@ const LanguageSelect = () => {
     <div ref={dropdownRef} className="relative inline-block text-left">
       <button
         type="button"
-        className="group inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500 transition-colors hover:bg-violet-50 hover:text-violet-700 focus:outline-none focus:ring-2 focus:ring-primary/30"
+        className="group inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-700 transition-colors hover:bg-violet-50 hover:text-violet-700 focus:outline-none focus:ring-2 focus:ring-primary/30"
         aria-expanded={isOpen}
         aria-haspopup="true"
         onClick={toggleDropdown}
@@ -52,7 +52,7 @@ const LanguageSelect = () => {
           role="menu"
           aria-orientation="vertical"
         >
-          <p className="px-3 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-400">
+          <p className="px-3 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-600">
             Language
           </p>
           <div className="p-1 pt-0">
@@ -71,7 +71,7 @@ const LanguageSelect = () => {
                   role="menuitem"
                 >
                   <span className="text-left flex-1">{opt.label}</span>
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-600">
                     {opt.code}
                   </span>
                   {active && <CheckIcon className="h-4 w-4 stroke-[2] text-primary" aria-hidden="true" />}

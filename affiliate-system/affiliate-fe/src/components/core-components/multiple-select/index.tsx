@@ -212,7 +212,7 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
               );
             })
           ) : (
-            <div className="px-4 py-2 text-sm text-gray-500">No results found</div>
+            <div className="px-4 py-2 text-sm text-gray-700">No results found</div>
           )}
         </div>
       )}

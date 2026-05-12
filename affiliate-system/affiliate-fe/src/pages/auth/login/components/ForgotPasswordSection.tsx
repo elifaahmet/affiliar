@@ -39,19 +39,19 @@ function ForgotPasswordSection(props: ForgotPasswordSectionProps) {
       <button
         type="button"
         onClick={() => setAuthStep('login')}
-        className="mb-8 inline-flex items-center gap-2 text-xs font-medium text-gray-500 transition-colors hover:text-gray-900"
+        className="mb-8 inline-flex items-center gap-2 text-xs font-medium text-gray-700 transition-colors hover:text-gray-900"
       >
         <span aria-hidden>←</span> Back to sign in
       </button>
 
       <div className="mb-8">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-400 mb-3">
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-600 mb-3">
           Account recovery
         </p>
         <h1 className="font-display text-4xl leading-tight tracking-tight text-gray-900">
           Forgot your <span className="italic text-primary">password</span>?
         </h1>
-        <p className="mt-3 text-sm text-gray-500">
+        <p className="mt-3 text-sm text-gray-700">
           Enter the email tied to your operator account and we&apos;ll send you a reset link.
         </p>
       </div>

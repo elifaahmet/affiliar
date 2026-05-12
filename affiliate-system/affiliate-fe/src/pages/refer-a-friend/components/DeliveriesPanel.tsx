@@ -75,10 +75,10 @@ export default function DeliveriesPanel({ brandId }: Props) {
         </button>
       </div>
 
-      {isLoading && <p className='text-xs text-gray-500'>Loading…</p>}
+      {isLoading && <p className='text-xs text-gray-700'>Loading…</p>}
 
       {!isLoading && deliveries.length === 0 && (
-        <p className='text-xs text-gray-500'>
+        <p className='text-xs text-gray-700'>
           No rewards yet. Rows show up here when a referral qualifies — the casino backend pulls them on the player&rsquo;s next visit.
         </p>
       )}
@@ -87,7 +87,7 @@ export default function DeliveriesPanel({ brandId }: Props) {
         <div className='overflow-hidden rounded-lg border border-violet-100 bg-white'>
           <table className='w-full text-xs'>
             <thead>
-              <tr className='bg-violet-50/60 text-left text-[10px] uppercase tracking-wider text-gray-500'>
+              <tr className='bg-violet-50/60 text-left text-[10px] uppercase tracking-wider text-gray-700'>
                 <th className='px-3 py-2 font-semibold'>Event</th>
                 <th className='px-3 py-2 font-semibold'>Status</th>
                 <th className='px-3 py-2 font-semibold text-right'>Amount</th>

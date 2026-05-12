@@ -62,14 +62,14 @@ const PIDropDown: React.FC<BSelectProps> = ({
         className={`relative min-w-6 min-h-6 h-full text-left cursor-pointer rounded-md border flex items-center justify-center
           ${
             disabled
-              ? 'bg-gray-200 cursor-not-allowed border-gray-300 text-gray-500'
+              ? 'bg-gray-200 cursor-not-allowed border-gray-300 text-gray-700'
               : 'bg-white border-gray-300 focus:ring-[#8B5CF6] focus:border-[#8B5CF6]'
           }
         `}
       >
         <Icon
           iconName="downArrow"
-          iconclass={`h-5 w-5 pointer-events-none ${disabled ? 'text-gray-400' : 'text-gray-500'}`}
+          iconclass={`h-5 w-5 pointer-events-none ${disabled ? 'text-gray-600' : 'text-gray-700'}`}
         />
       </button>
 

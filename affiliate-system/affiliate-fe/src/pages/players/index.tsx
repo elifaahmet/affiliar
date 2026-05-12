@@ -127,7 +127,7 @@ function PlayersTab() {
       {/* Filters */}
       <form onSubmit={handleSearch} className='flex flex-wrap gap-3 items-end'>
         <div className='flex flex-col gap-1'>
-          <label className='text-xs text-gray-500 font-medium'>Affiliate</label>
+          <label className='text-xs text-gray-700 font-medium'>Affiliate</label>
           <div className='w-72'>
             <BSelectWithSearch
               value={affiliateCode}
@@ -142,7 +142,7 @@ function PlayersTab() {
         </div>
 
         <div className='flex flex-col gap-1'>
-          <label className='text-xs text-gray-500 font-medium'>Player ID</label>
+          <label className='text-xs text-gray-700 font-medium'>Player ID</label>
           <input
             type='text'
             value={playerId}
@@ -153,7 +153,7 @@ function PlayersTab() {
         </div>
 
         <div className='flex flex-col gap-1'>
-          <label className='text-xs text-gray-500 font-medium'>Registered from</label>
+          <label className='text-xs text-gray-700 font-medium'>Registered from</label>
           <input
             type='date'
             value={from}
@@ -166,7 +166,7 @@ function PlayersTab() {
         </div>
 
         <div className='flex flex-col gap-1'>
-          <label className='text-xs text-gray-500 font-medium'>To</label>
+          <label className='text-xs text-gray-700 font-medium'>To</label>
           <input
             type='date'
             value={to}
@@ -189,11 +189,11 @@ function PlayersTab() {
       {/* Table */}
       <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
         {isLoading && (
-          <p className='text-sm text-gray-400 px-5 py-6 text-center'>Loading…</p>
+          <p className='text-sm text-gray-600 px-5 py-6 text-center'>Loading…</p>
         )}
 
         {!isLoading && players.length === 0 && (
-          <p className='text-sm text-gray-400 px-5 py-10 text-center'>
+          <p className='text-sm text-gray-600 px-5 py-10 text-center'>
             No players found. Import players using the &quot;Import Players&quot; tab.
           </p>
         )}
@@ -218,7 +218,7 @@ function PlayersTab() {
                     ].map((h) => (
                       <th
                         key={h}
-                        className='px-4 py-3 text-left text-xs font-semibold text-gray-500 border-r border-gray-100 last:border-r-0 whitespace-nowrap'
+                        className='px-4 py-3 text-left text-xs font-semibold text-gray-700 border-r border-gray-100 last:border-r-0 whitespace-nowrap'
                       >
                         {h}
                       </th>
@@ -252,7 +252,7 @@ function PlayersTab() {
                       <td className='px-4 py-2.5 text-xs text-gray-600 border-r border-gray-100'>
                         {p.currency ?? '—'}
                       </td>
-                      <td className='px-4 py-2.5 text-xs text-gray-500 border-r border-gray-100 whitespace-nowrap'>
+                      <td className='px-4 py-2.5 text-xs text-gray-700 border-r border-gray-100 whitespace-nowrap'>
                         {fmt(p.registeredAt)}
                       </td>
                       <td className='px-4 py-2.5'>
@@ -266,7 +266,7 @@ function PlayersTab() {
 
             {pages > 1 && (
               <div className='flex items-center justify-between px-5 py-3 border-t border-gray-100'>
-                <p className='text-xs text-gray-400'>
+                <p className='text-xs text-gray-600'>
                   {total} players · page {page} of {pages}
                 </p>
                 <div className='flex gap-2'>
@@ -388,7 +388,7 @@ function ImportPlayersTab() {
         <div className='flex items-center justify-between'>
           <div>
             <h3 className='text-sm font-semibold text-gray-800'>Bulk Import Players</h3>
-            <p className='text-xs text-gray-400 mt-0.5'>
+            <p className='text-xs text-gray-600 mt-0.5'>
               Upload a CSV to link existing players to affiliates. Duplicate player IDs are upserted.
             </p>
           </div>
@@ -415,12 +415,12 @@ function ImportPlayersTab() {
           className='border-2 border-dashed border-gray-200 rounded-xl p-10 text-center cursor-pointer hover:border-primary/40 transition-colors'
           onClick={() => fileRef.current?.click()}
         >
-          <p className='text-sm text-gray-500'>
+          <p className='text-sm text-gray-700'>
             {filename ? (
               <>
                 <span className='font-medium text-gray-800'>{filename}</span>
                 {rows.length > 0 && (
-                  <span className='text-gray-400'> — {rows.length} rows</span>
+                  <span className='text-gray-600'> — {rows.length} rows</span>
                 )}
               </>
             ) : (
@@ -447,7 +447,7 @@ function ImportPlayersTab() {
       <div className='space-y-4'>
         {previewRows.length > 0 && (
           <div className='bg-white rounded-xl border border-gray-100 overflow-hidden'>
-            <p className='text-xs text-gray-500 px-4 py-2 border-b border-gray-100'>
+            <p className='text-xs text-gray-700 px-4 py-2 border-b border-gray-100'>
               Preview (first {previewRows.length} of {rows.length} rows)
             </p>
             <div className='overflow-x-auto'>
@@ -457,7 +457,7 @@ function ImportPlayersTab() {
                     {headers.map((h) => (
                       <th
                         key={h}
-                        className='px-4 py-2 text-left text-xs font-semibold text-gray-500 border-r border-gray-100 last:border-r-0 whitespace-nowrap'
+                        className='px-4 py-2 text-left text-xs font-semibold text-gray-700 border-r border-gray-100 last:border-r-0 whitespace-nowrap'
                       >
                         {h}
                       </th>
@@ -532,7 +532,7 @@ export default function Players() {
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === tab ? 'bg-primary text-white' : 'text-gray-500 hover:text-gray-700'
+              activeTab === tab ? 'bg-primary text-white' : 'text-gray-700 hover:text-gray-700'
             }`}
           >
             {tab}

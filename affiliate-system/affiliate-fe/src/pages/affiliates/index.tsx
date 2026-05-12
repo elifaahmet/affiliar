@@ -101,7 +101,7 @@ function Field({
         placeholder={placeholder}
         className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
       />
-      {hint && <p className='text-xs text-gray-400 mt-1'>{hint}</p>}
+      {hint && <p className='text-xs text-gray-600 mt-1'>{hint}</p>}
     </div>
   );
 }
@@ -179,8 +179,8 @@ function PlanAssignModal({
       <div className='bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-5'>
         <div>
           <h2 className='text-base font-semibold text-gray-800'>Assign Commission Plans</h2>
-          <p className='text-xs text-gray-400 mt-0.5'>{affiliate.username} · {affiliate.email}</p>
-          <p className='text-xs text-gray-500 mt-2'>
+          <p className='text-xs text-gray-600 mt-0.5'>{affiliate.username} · {affiliate.email}</p>
+          <p className='text-xs text-gray-700 mt-2'>
             Each product can have its own plan. Leaving a slot empty falls
             back to the operator&rsquo;s default plan for that product, or
             skips the commission entirely if no default is set.
@@ -207,7 +207,7 @@ function PlanAssignModal({
                   ]}
                 />
                 {options.length === 0 && (
-                  <p className='text-[11px] text-gray-400 mt-1'>
+                  <p className='text-[11px] text-gray-600 mt-1'>
                     No {slot} plans yet. Create one in the Commission page first.
                   </p>
                 )}
@@ -294,7 +294,7 @@ function SetParentModal({
       <div className='bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-5'>
         <div>
           <h2 className='text-base font-semibold text-gray-800'>Set Parent Affiliate</h2>
-          <p className='text-xs text-gray-400 mt-0.5'>{affiliate.username} · {affiliate.email}</p>
+          <p className='text-xs text-gray-600 mt-0.5'>{affiliate.username} · {affiliate.email}</p>
         </div>
 
         {subAffiliatesBlocked ? (
@@ -322,7 +322,7 @@ function SetParentModal({
                   ]}
                 />
                 {candidates.length === 0 && (
-                  <p className='text-xs text-gray-400 mt-1'>No eligible parent affiliates (active affiliates without a parent).</p>
+                  <p className='text-xs text-gray-600 mt-1'>No eligible parent affiliates (active affiliates without a parent).</p>
                 )}
               </div>
 
@@ -339,7 +339,7 @@ function SetParentModal({
                     onChange={(e) => setOverrideRate(e.target.value)}
                     className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
                   />
-                  <p className='text-xs text-gray-400 mt-1'>
+                  <p className='text-xs text-gray-600 mt-1'>
                     e.g. 10 means the parent earns 10% of this affiliate&apos;s NGR on top of their own commission.
                   </p>
                 </div>
@@ -409,19 +409,19 @@ function AffiliatesTab() {
         <p className='text-sm font-medium text-gray-800'>Affiliates</p>
         <div className='flex items-center gap-3'>
           {planData && (
-            <span className='text-xs text-gray-500 flex items-center gap-1.5'>
+            <span className='text-xs text-gray-700 flex items-center gap-1.5'>
               {data?.total ?? 0} / {planData.limits.maxAffiliates} affiliates
               <PlanBadge plan={planData.plan} />
             </span>
           )}
-          {!planData && <p className='text-xs text-gray-400'>{data?.total ?? 0} total</p>}
+          {!planData && <p className='text-xs text-gray-600'>{data?.total ?? 0} total</p>}
         </div>
       </div>
 
-      {isLoading && <p className='text-sm text-gray-400 px-5 py-4'>Loading...</p>}
+      {isLoading && <p className='text-sm text-gray-600 px-5 py-4'>Loading...</p>}
 
       {!isLoading && affiliates.length === 0 && (
-        <p className='text-sm text-gray-400 px-5 py-6 text-center'>
+        <p className='text-sm text-gray-600 px-5 py-6 text-center'>
           No affiliates yet. Add affiliates using the tabs above.
         </p>
       )}
@@ -454,7 +454,7 @@ function AffiliatesTab() {
             <thead className='bg-gray-50'>
               <tr>
                 {['Name', 'Username', 'Email', 'Phone', 'Status', 'Commission Plan', 'Parent', 'Joined'].map((h) => (
-                  <th key={h} className='px-4 py-3 text-left text-xs font-semibold text-gray-500 border-r border-gray-100 last:border-r-0 whitespace-nowrap'>
+                  <th key={h} className='px-4 py-3 text-left text-xs font-semibold text-gray-700 border-r border-gray-100 last:border-r-0 whitespace-nowrap'>
                     {h}
                   </th>
                 ))}
@@ -466,7 +466,7 @@ function AffiliatesTab() {
                   <td className='px-4 py-3 text-xs text-gray-700 border-r border-gray-100'>
                     <div className='flex items-center' style={{ paddingLeft: `${depth * 20}px` }}>
                       {depth > 0 && (
-                        <span className='text-gray-400 mr-2 select-none' aria-hidden>↳</span>
+                        <span className='text-gray-600 mr-2 select-none' aria-hidden>↳</span>
                       )}
                       <span>{a.name || '—'}</span>
                     </div>
@@ -483,7 +483,7 @@ function AffiliatesTab() {
                       <span className={`w-fit px-2 py-0.5 rounded-full text-xs font-medium ${
                         a.status === 'active'  ? 'bg-green-100 text-green-700' :
                         a.status === 'pending' ? 'bg-warning-light text-warning' :
-                                                 'bg-gray-100 text-gray-500'
+                                                 'bg-gray-100 text-gray-700'
                       }`}>
                         {a.status}
                       </span>
@@ -513,10 +513,10 @@ function AffiliatesTab() {
                       }
                       return (
                         <div className='flex flex-col gap-1'>
-                          {populated.length === 0 && <span className='text-gray-400'>Default</span>}
+                          {populated.length === 0 && <span className='text-gray-600'>Default</span>}
                           {populated.map(({ slot, plan }) => (
                             <div key={slot} className='flex items-center gap-1'>
-                              <span className='text-[10px] text-gray-400 uppercase tracking-wide w-14'>{slot}</span>
+                              <span className='text-[10px] text-gray-600 uppercase tracking-wide w-14'>{slot}</span>
                               <span className={planTypeBadgeCls(plan.type)}>{plan.name}</span>
                             </div>
                           ))}
@@ -535,10 +535,10 @@ function AffiliatesTab() {
                       {a.parentAffiliate ? (
                         <span className='text-gray-700 font-medium'>{a.parentAffiliate.username}</span>
                       ) : (
-                        <span className='text-gray-400'>—</span>
+                        <span className='text-gray-600'>—</span>
                       )}
                       {a.parentAffiliate && a.overrideRate ? (
-                        <span className='text-gray-400'>{a.overrideRate}% override</span>
+                        <span className='text-gray-600'>{a.overrideRate}% override</span>
                       ) : null}
                       <button
                         onClick={() => setSettingParent(a)}
@@ -649,7 +649,7 @@ function AddAffiliateTab() {
     <div className='max-w-lg space-y-6'>
       <div className='bg-white rounded-xl p-6 shadow-sm border border-gray-100 space-y-4'>
         <h2 className='text-sm font-semibold text-gray-800'>Add Affiliate</h2>
-        <p className='text-xs text-gray-500'>
+        <p className='text-xs text-gray-700'>
           Creates an account with <span className='font-medium'>pending</span> status.
           Share the activate link so they can set their password.
         </p>
@@ -675,12 +675,12 @@ function AddAffiliateTab() {
                       className='rounded border-gray-300 text-primary focus:ring-primary'
                     />
                     <span className='font-medium'>{b.name}</span>
-                    {b.url && <span className='text-gray-400'>— {b.url}</span>}
+                    {b.url && <span className='text-gray-600'>— {b.url}</span>}
                   </label>
                 ))}
               </div>
             )}
-            <p className='text-xs text-gray-400 mt-1'>The affiliate gets one referral code per selected brand.</p>
+            <p className='text-xs text-gray-600 mt-1'>The affiliate gets one referral code per selected brand.</p>
           </div>
 
           {upgradeBanner && (
@@ -810,7 +810,7 @@ function BulkImportTab() {
         <div className='flex items-center justify-between'>
           <div>
             <h2 className='text-sm font-semibold text-gray-800'>Bulk Import</h2>
-            <p className='text-xs text-gray-500 mt-0.5'>Upload a CSV with multiple affiliates at once (max 500 rows).</p>
+            <p className='text-xs text-gray-700 mt-0.5'>Upload a CSV with multiple affiliates at once (max 500 rows).</p>
           </div>
           <button
             onClick={downloadTemplate}
@@ -824,8 +824,8 @@ function BulkImportTab() {
           className='border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-primary transition-colors'
           onClick={() => fileRef.current?.click()}
         >
-          <p className='text-sm text-gray-500'>Click to upload CSV</p>
-          <p className='text-xs text-gray-400 mt-1'>Columns: email, username, name, mobileNumber, referralCodes (semicolon-separated)</p>
+          <p className='text-sm text-gray-700'>Click to upload CSV</p>
+          <p className='text-xs text-gray-600 mt-1'>Columns: email, username, name, mobileNumber, referralCodes (semicolon-separated)</p>
           <input ref={fileRef} type='file' accept='.csv' onChange={handleFile} className='hidden' />
         </div>
 
@@ -837,7 +837,7 @@ function BulkImportTab() {
                 <thead className='bg-gray-50'>
                   <tr>
                     {['Email', 'Username', 'Name', 'Phone', 'Codes'].map(h => (
-                      <th key={h} className='px-3 py-2 text-left text-gray-500 font-medium border-r border-gray-100 last:border-r-0'>{h}</th>
+                      <th key={h} className='px-3 py-2 text-left text-gray-700 font-medium border-r border-gray-100 last:border-r-0'>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -854,7 +854,7 @@ function BulkImportTab() {
                 </tbody>
               </table>
             </div>
-            {preview.length > 5 && <p className='text-xs text-gray-400'>...and {preview.length - 5} more rows</p>}
+            {preview.length > 5 && <p className='text-xs text-gray-600'>...and {preview.length - 5} more rows</p>}
 
             {upgradeBanner && (
               <UpgradeBanner
@@ -931,11 +931,11 @@ function InviteTab() {
   return (
     <div className='bg-white rounded-xl p-6 shadow-sm border border-gray-100 max-w-xl'>
       <h2 className='text-sm font-medium text-gray-800 mb-1'>Invite Affiliates</h2>
-      <p className='text-xs text-gray-500 mb-4'>
+      <p className='text-xs text-gray-700 mb-4'>
         Share this link with affiliates to join your network.
       </p>
 
-      {isLoading && <p className='text-sm text-gray-400'>Loading invite link...</p>}
+      {isLoading && <p className='text-sm text-gray-600'>Loading invite link...</p>}
       {isError && <p className='text-sm text-red-500'>Failed to load invite link. Please try again.</p>}
 
       {data?.inviteLink && (
@@ -996,7 +996,7 @@ export default function Affiliates() {
             className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${
               activeTab === tab.key
                 ? 'bg-primary text-white'
-                : 'text-gray-500 hover:text-gray-700'
+                : 'text-gray-700 hover:text-gray-700'
             }`}
           >
             {tab.label}

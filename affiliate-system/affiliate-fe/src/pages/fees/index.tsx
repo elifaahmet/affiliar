@@ -107,11 +107,11 @@ function SettingsForm({ scope }: { scope: Scope }) {
     }
   };
 
-  if (isLoading) return <p className='text-sm text-gray-400'>Loading...</p>;
+  if (isLoading) return <p className='text-sm text-gray-600'>Loading...</p>;
 
   return (
     <form key={scope} onSubmit={onSubmit} className='space-y-4'>
-      <p className='text-xs text-gray-500'>
+      <p className='text-xs text-gray-700'>
         Flat percentages applied by the daily fees job
         {scope === 'default' ? ' (operator default)' : ' (brand override)'}.
         Leave at 0 if you're publishing pre-aggregated fees yourself.
@@ -128,7 +128,7 @@ function SettingsForm({ scope }: { scope: Scope }) {
         <div className='border-t pt-4 space-y-3'>
           <div>
             <p className='text-xs font-semibold text-gray-700'>Commission defaults</p>
-            <p className='text-xs text-gray-500 mt-0.5'>
+            <p className='text-xs text-gray-700 mt-0.5'>
               Applied to any commission plan that leaves the matching field
               on <em>Inherit from operator default</em>. Plans can still
               override per-plan.
@@ -172,7 +172,7 @@ function SettingsForm({ scope }: { scope: Scope }) {
 
           <div>
             <p className='text-xs font-semibold text-gray-700 mt-4'>CPA qualification gates</p>
-            <p className='text-xs text-gray-500 mt-0.5'>
+            <p className='text-xs text-gray-700 mt-0.5'>
               Operator-wide defaults. Blank = gate not enforced. Individual
               plans can override (or leave blank to inherit).
             </p>
@@ -242,7 +242,7 @@ function NumberInput({ label, name, defaultValue, hint }: {
         defaultValue={defaultValue}
         className='border border-gray-200 rounded px-3 py-2 text-sm'
       />
-      {hint && <span className='text-xs text-gray-400'>{hint}</span>}
+      {hint && <span className='text-xs text-gray-600'>{hint}</span>}
     </label>
   );
 }
@@ -295,7 +295,7 @@ function SelectInput({ label, name, defaultValue, options, hint }: {
           <option key={o.value} value={o.value}>{o.label}</option>
         ))}
       </select>
-      {hint && <span className='text-xs text-gray-400'>{hint}</span>}
+      {hint && <span className='text-xs text-gray-600'>{hint}</span>}
     </label>
   );
 }
@@ -344,7 +344,7 @@ function ProviderRatesTable({ scope }: { scope: Scope }) {
 
   return (
     <div className='space-y-4'>
-      <p className='text-xs text-gray-500'>
+      <p className='text-xs text-gray-700'>
         Per-provider revenue share (% of provider GGR). Providers not listed
         contribute 0% — i.e. no <code>game_provider_fees</code> deduction.
         {scope !== 'default' && (
@@ -354,17 +354,17 @@ function ProviderRatesTable({ scope }: { scope: Scope }) {
         )}
       </p>
 
-      {isLoading && <p className='text-sm text-gray-400'>Loading...</p>}
+      {isLoading && <p className='text-sm text-gray-600'>Loading...</p>}
 
       {!isLoading && (
         <div className='overflow-x-auto'>
           <table className='w-full'>
             <thead className='bg-gray-50'>
               <tr>
-                <th className='px-4 py-2 text-left text-xs font-semibold text-gray-500'>Provider ID</th>
-                <th className='px-4 py-2 text-left text-xs font-semibold text-gray-500'>Display Name</th>
-                <th className='px-4 py-2 text-right text-xs font-semibold text-gray-500'>Fee %</th>
-                <th className='px-4 py-2 text-right text-xs font-semibold text-gray-500'></th>
+                <th className='px-4 py-2 text-left text-xs font-semibold text-gray-700'>Provider ID</th>
+                <th className='px-4 py-2 text-left text-xs font-semibold text-gray-700'>Display Name</th>
+                <th className='px-4 py-2 text-right text-xs font-semibold text-gray-700'>Fee %</th>
+                <th className='px-4 py-2 text-right text-xs font-semibold text-gray-700'></th>
               </tr>
             </thead>
             <tbody className='divide-y divide-gray-100'>
@@ -391,7 +391,7 @@ function ProviderRatesTable({ scope }: { scope: Scope }) {
               ))}
               {rates.length === 0 && (
                 <tr>
-                  <td colSpan={4} className='px-4 py-6 text-center text-sm text-gray-400'>
+                  <td colSpan={4} className='px-4 py-6 text-center text-sm text-gray-600'>
                     No provider rates configured for this scope.
                   </td>
                 </tr>
@@ -579,7 +579,7 @@ export default function FeesPage() {
         <ProviderRatesTable scope={scope} />
       </Card>
       <Card title='Manual run'>
-        <p className='text-xs text-gray-500 mb-3'>
+        <p className='text-xs text-gray-700 mb-3'>
           Re-runs the fees job for yesterday (idempotent — SummingMergeTree
           merges duplicates by source_event_id).
         </p>

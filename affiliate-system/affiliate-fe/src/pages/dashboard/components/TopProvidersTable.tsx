@@ -51,7 +51,7 @@ function TopProvidersTable(props: TopProvidersTableProps) {
             })
           )
         ) : (
-          <div className="py-4 px-3 text-center text-sm text-gray-500">No data available</div>
+          <div className="py-4 px-3 text-center text-sm text-gray-700">No data available</div>
         )}
       </div>
     </>

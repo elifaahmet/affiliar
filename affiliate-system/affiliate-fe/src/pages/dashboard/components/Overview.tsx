@@ -140,7 +140,7 @@ const CasinoOverview: React.FC = () => {
         </div>
 
         {/* States */}
-        {isLoading && <div className="py-8 text-sm text-gray-500">Loading…</div>}
+        {isLoading && <div className="py-8 text-sm text-gray-700">Loading…</div>}
         {error && (
           <div className="py-8 text-sm text-red-600">
             Failed to load.{' '}

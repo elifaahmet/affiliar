@@ -55,7 +55,7 @@ const TabComponent: React.FC<TabComponentProps> = ({
             {tab.label} {tab.statusName && statusMapper[tab?.statusName || 'default']}
             {/* Optionally display statusName */}
             {/* {tab.statusName && (
-              <span className="ml-1 text-xs text-gray-400">({tab.statusName})</span>
+              <span className="ml-1 text-xs text-gray-600">({tab.statusName})</span>
             )} */}
           </button>
         );

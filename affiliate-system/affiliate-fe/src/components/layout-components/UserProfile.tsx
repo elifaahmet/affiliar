@@ -69,7 +69,7 @@ function UserProfile() {
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-gray-900">{name || userId}</p>
-              <p className="truncate text-xs text-gray-500">{email}</p>
+              <p className="truncate text-xs text-gray-700">{email}</p>
             </div>
           </div>
 
@@ -79,7 +79,7 @@ function UserProfile() {
               onClick={() => setProfileVisible(false)}
               className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-violet-50 hover:text-violet-900"
             >
-              <UserCircleIcon className="h-5 w-5 stroke-[1.6] text-gray-400" />
+              <UserCircleIcon className="h-5 w-5 stroke-[1.6] text-gray-600" />
               Profile Details
             </Link>
 
@@ -88,7 +88,7 @@ function UserProfile() {
               onClick={logout}
               className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-violet-50 hover:text-violet-900"
             >
-              <ArrowRightOnRectangleIcon className="h-5 w-5 stroke-[1.6] text-gray-400" />
+              <ArrowRightOnRectangleIcon className="h-5 w-5 stroke-[1.6] text-gray-600" />
               Logout
             </button>
           </div>

@@ -77,7 +77,7 @@ export default function Activate() {
         <Headline>
           You&apos;re ready to <span className="italic text-primary">sign in</span>.
         </Headline>
-        <p className="mt-3 text-sm text-gray-500">
+        <p className="mt-3 text-sm text-gray-700">
           Your password has been set. Use it next time you sign in to your workspace.
         </p>
         <Link
@@ -97,7 +97,7 @@ export default function Activate() {
       <Headline>
         Set your <span className="italic text-primary">password</span>.
       </Headline>
-      <p className="mt-3 text-sm text-gray-500">
+      <p className="mt-3 text-sm text-gray-700">
         Choose a password to activate your account. At least 8 characters.
       </p>
 
@@ -147,7 +147,7 @@ function MobileLogo() {
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
-    <p className="mb-3 text-xs font-medium uppercase tracking-[0.18em] text-gray-400">
+    <p className="mb-3 text-xs font-medium uppercase tracking-[0.18em] text-gray-600">
       {children}
     </p>
   );

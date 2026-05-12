@@ -8,10 +8,10 @@ interface Props {
 
 export default function ToggleSwitch({ isActive, onToggle, disabled }: Props) {
   const passiveText =
-    isActive === false ? 'text-red-500' : isActive === null ? 'text-gray-400' : 'text-gray-400';
+    isActive === false ? 'text-red-500' : isActive === null ? 'text-gray-600' : 'text-gray-600';
 
   const activeText =
-    isActive === true ? 'text-green-500' : isActive === null ? 'text-gray-400' : 'text-gray-400';
+    isActive === true ? 'text-green-500' : isActive === null ? 'text-gray-600' : 'text-gray-600';
 
   const getPosition = () => {
     if (isActive === true) return 'right-[3px] top-1/2 -translate-y-1/2';

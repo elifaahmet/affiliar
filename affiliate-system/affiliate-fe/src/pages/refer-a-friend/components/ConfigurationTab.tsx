@@ -19,7 +19,7 @@ export default function ConfigurationTab({ brands, configs, loading, onChange }:
 
   if (loading) {
     return (
-      <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-8 text-center text-sm text-gray-500'>
+      <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-8 text-center text-sm text-gray-700'>
         Loading…
       </div>
     );
@@ -28,7 +28,7 @@ export default function ConfigurationTab({ brands, configs, loading, onChange }:
   if (brands.length === 0) {
     return (
       <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-8 text-center'>
-        <p className='text-sm text-gray-500'>
+        <p className='text-sm text-gray-700'>
           No brands found. Create a brand first to configure Refer-a-Friend.
         </p>
       </div>

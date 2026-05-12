@@ -147,11 +147,11 @@ export default function Brands() {
       </div>
 
       <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
-        {isLoading && <p className='text-sm text-gray-400 px-5 py-4'>Loading...</p>}
+        {isLoading && <p className='text-sm text-gray-600 px-5 py-4'>Loading...</p>}
 
         {!isLoading && brands.length === 0 && (
           <div className='px-5 py-12 text-center space-y-3'>
-            <p className='text-sm text-gray-500'>No brands yet.</p>
+            <p className='text-sm text-gray-700'>No brands yet.</p>
             <button
               onClick={() => setCreating(true)}
               className='inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary-dark'
@@ -170,7 +170,7 @@ export default function Brands() {
                   {['ID', 'Name', 'URL', 'Enabled', ''].map((h) => (
                     <th
                       key={h}
-                      className='px-5 py-3 text-left text-xs font-semibold text-gray-500 border-r border-gray-100 last:border-r-0'
+                      className='px-5 py-3 text-left text-xs font-semibold text-gray-700 border-r border-gray-100 last:border-r-0'
                     >
                       {h}
                     </th>
@@ -180,7 +180,7 @@ export default function Brands() {
               <tbody>
                 {brands.map((b, i) => (
                   <tr key={b._id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className='px-5 py-3 text-xs text-gray-500 border-r border-gray-100 w-16'>{b.id}</td>
+                    <td className='px-5 py-3 text-xs text-gray-700 border-r border-gray-100 w-16'>{b.id}</td>
                     <td className='px-5 py-3 text-xs font-medium text-gray-800 border-r border-gray-100'>{b.name}</td>
                     <td className='px-5 py-3 text-xs text-gray-600 border-r border-gray-100'>
                       {b.url ? (

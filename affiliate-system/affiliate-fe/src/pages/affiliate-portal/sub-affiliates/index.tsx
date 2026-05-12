@@ -70,21 +70,21 @@ export default function AffiliateSubAffiliates() {
       {/* Summary cards */}
       <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
         <div className='bg-white rounded-xl p-5 shadow-sm border border-gray-100'>
-          <p className='text-xs text-gray-500 mb-1'>Total Sub-Affiliates</p>
+          <p className='text-xs text-gray-700 mb-1'>Total Sub-Affiliates</p>
           <p className='text-2xl font-semibold text-gray-800'>{data?.total ?? 0}</p>
         </div>
         <div className='bg-white rounded-xl p-5 shadow-sm border border-gray-100'>
-          <p className='text-xs text-gray-500 mb-1'>Active Sub-Affiliates</p>
+          <p className='text-xs text-gray-700 mb-1'>Active Sub-Affiliates</p>
           <p className='text-2xl font-semibold text-green-700'>
             {subs.filter(s => s.status === 'active').length}
           </p>
         </div>
         <div className='bg-white rounded-xl p-5 shadow-sm border border-gray-100'>
-          <p className='text-xs text-gray-500 mb-1'>Override Earned (Total)</p>
+          <p className='text-xs text-gray-700 mb-1'>Override Earned (Total)</p>
           <p className='text-2xl font-semibold text-gray-800'>
             €{fmt(subs.reduce((s, a) => s + (a.commission?.totalCents ?? 0), 0))}
           </p>
-          <p className='text-xs text-gray-400 mt-0.5'>from sub-affiliate activity</p>
+          <p className='text-xs text-gray-600 mt-0.5'>from sub-affiliate activity</p>
         </div>
       </div>
 
@@ -92,12 +92,12 @@ export default function AffiliateSubAffiliates() {
       <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
         <div className='px-5 py-3 border-b border-gray-100 flex items-center justify-between'>
           <p className='text-sm font-semibold text-gray-800'>Sub-Affiliates</p>
-          <p className='text-xs text-gray-400'>{data?.total ?? 0} total</p>
+          <p className='text-xs text-gray-600'>{data?.total ?? 0} total</p>
         </div>
 
         {isLoading && (
           <div className='p-8 text-center'>
-            <p className='text-sm text-gray-400'>Loading...</p>
+            <p className='text-sm text-gray-600'>Loading...</p>
           </div>
         )}
 
@@ -109,8 +109,8 @@ export default function AffiliateSubAffiliates() {
 
         {!isLoading && !isError && subs.length === 0 && (
           <div className='p-8 text-center'>
-            <p className='text-sm text-gray-400'>No sub-affiliates yet.</p>
-            <p className='text-xs text-gray-400 mt-1'>Share your recruit link from the Marketing Tools page to invite sub-affiliates.</p>
+            <p className='text-sm text-gray-600'>No sub-affiliates yet.</p>
+            <p className='text-xs text-gray-600 mt-1'>Share your recruit link from the Marketing Tools page to invite sub-affiliates.</p>
           </div>
         )}
 
@@ -120,7 +120,7 @@ export default function AffiliateSubAffiliates() {
               <thead className='bg-gray-50'>
                 <tr>
                   {['Name', 'Username', 'Email', 'Status', 'Override Rate', 'Commission Earned', 'Joined'].map((h) => (
-                    <th key={h} className='px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap'>
+                    <th key={h} className='px-4 py-3 text-left text-xs font-semibold text-gray-700 whitespace-nowrap'>
                       {h}
                     </th>
                   ))}
@@ -136,7 +136,7 @@ export default function AffiliateSubAffiliates() {
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
                         s.status === 'active'  ? 'bg-green-100 text-green-700' :
                         s.status === 'pending' ? 'bg-warning-light text-warning' :
-                                                 'bg-gray-100 text-gray-500'
+                                                 'bg-gray-100 text-gray-700'
                       }`}>
                         {s.status}
                       </span>
@@ -147,7 +147,7 @@ export default function AffiliateSubAffiliates() {
                     <td className='px-4 py-3 text-xs font-semibold text-gray-800'>
                       €{fmt(s.commission?.totalCents ?? 0)}
                     </td>
-                    <td className='px-4 py-3 text-xs text-gray-500'>
+                    <td className='px-4 py-3 text-xs text-gray-700'>
                       {s.createdAt ? new Date(s.createdAt).toLocaleDateString('en-GB') : '—'}
                     </td>
                   </tr>
@@ -161,14 +161,14 @@ export default function AffiliateSubAffiliates() {
       {/* Recruit link */}
       <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-6 space-y-3'>
         <h2 className='text-sm font-semibold text-gray-800'>Recruit Sub-Affiliates</h2>
-        <p className='text-xs text-gray-500'>
+        <p className='text-xs text-gray-700'>
           Share the link below to invite other affiliates under your account.
           You will earn an override commission on their NGR as configured by your operator.
         </p>
 
         {referralCodes.length === 0 ? (
           <div className='rounded-lg border border-dashed border-gray-200 p-4 text-center'>
-            <p className='text-xs text-gray-400'>Contact your account manager to get your recruit link enabled.</p>
+            <p className='text-xs text-gray-600'>Contact your account manager to get your recruit link enabled.</p>
           </div>
         ) : (
           <div className='space-y-2'>
@@ -188,7 +188,7 @@ export default function AffiliateSubAffiliates() {
                         Code: <span className='font-mono text-primary'>{rc.code}</span>
                       </p>
                     </div>
-                    <p className='text-xs text-gray-400 truncate font-mono'>{link}</p>
+                    <p className='text-xs text-gray-600 truncate font-mono'>{link}</p>
                   </div>
                   <button
                     onClick={() => copyLink(link)}
@@ -206,7 +206,7 @@ export default function AffiliateSubAffiliates() {
           </div>
         )}
 
-        <p className='text-xs text-gray-400'>
+        <p className='text-xs text-gray-600'>
           Note: Sub-affiliates are limited to 2 levels. Your sub-affiliates cannot recruit further sub-affiliates.
         </p>
       </div>

@@ -50,13 +50,13 @@ function MainSection(props: ForgotPasswordSectionProps) {
       </div>
 
       <div className="mb-8">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-400 mb-3">
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-600 mb-3">
           Welcome back
         </p>
         <h1 className="font-display text-4xl leading-tight tracking-tight text-gray-900">
           Sign in to your <span className="italic text-primary">workspace</span>.
         </h1>
-        <p className="mt-3 text-sm text-gray-500">
+        <p className="mt-3 text-sm text-gray-700">
           Use your operator credentials to access affiliate reports, commissions and payouts.
         </p>
       </div>
@@ -115,7 +115,7 @@ function MainSection(props: ForgotPasswordSectionProps) {
         </button>
       </form>
 
-      <p className="mt-8 text-xs text-gray-400">
+      <p className="mt-8 text-xs text-gray-600">
         Need an Affiliar account for your operation?{' '}
         <a href="mailto:hello@affiliar.co" className="font-medium text-gray-700 hover:text-gray-900">
           Get in touch

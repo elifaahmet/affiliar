@@ -81,7 +81,7 @@ export default function ResetPassword() {
         <Headline>
           You&apos;re all <span className="italic text-primary">set</span>.
         </Headline>
-        <p className="mt-3 text-sm text-gray-500">
+        <p className="mt-3 text-sm text-gray-700">
           Your password has been reset. You can now sign in with the new one.
         </p>
         <Link
@@ -101,7 +101,7 @@ export default function ResetPassword() {
       <Headline>
         Choose a new <span className="italic text-primary">password</span>.
       </Headline>
-      <p className="mt-3 text-sm text-gray-500">
+      <p className="mt-3 text-sm text-gray-700">
         Pick something you don&apos;t use anywhere else. At least 8 characters.
       </p>
 
@@ -151,7 +151,7 @@ function MobileLogo() {
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
-    <p className="mb-3 text-xs font-medium uppercase tracking-[0.18em] text-gray-400">
+    <p className="mb-3 text-xs font-medium uppercase tracking-[0.18em] text-gray-600">
       {children}
     </p>
   );

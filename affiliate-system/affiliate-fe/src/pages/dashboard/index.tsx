@@ -344,7 +344,7 @@ function QuickCharts({
               onChange={(e) => setCustom(c => ({ from: e.target.value, to: c?.to ?? period.to }))}
               className='bg-white text-gray-700 text-xs rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
             />
-            <span className='text-gray-400 text-xs'>→</span>
+            <span className='text-gray-600 text-xs'>→</span>
             <input
               type='date'
               value={custom?.to ?? period.to}
@@ -363,7 +363,7 @@ function QuickCharts({
               className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${
                 window === w.key && !custom
                   ? 'bg-primary text-white shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
+                  : 'text-gray-700 hover:text-gray-700'
               }`}
             >
               {w.label}
@@ -376,13 +376,13 @@ function QuickCharts({
       <div className='pt-4'>
         {isLoading && (
           <div className='h-52 flex items-center justify-center'>
-            <p className='text-sm text-gray-400'>Loading...</p>
+            <p className='text-sm text-gray-600'>Loading...</p>
           </div>
         )}
 
         {!isLoading && points.length === 0 && (
           <div className='h-52 flex items-center justify-center'>
-            <p className='text-sm text-gray-400'>No data to display.</p>
+            <p className='text-sm text-gray-600'>No data to display.</p>
           </div>
         )}
 
@@ -445,14 +445,14 @@ function KpiCard({ label, value, sub, accent }: {
           : 'bg-white/80 backdrop-blur-sm border-violet-100 hover:shadow-sm'
       }`}
     >
-      <p className={`text-[11px] font-medium uppercase tracking-[0.12em] mb-2 ${accent ? 'text-violet-100' : 'text-gray-400'}`}>
+      <p className={`text-[11px] font-medium uppercase tracking-[0.12em] mb-2 ${accent ? 'text-violet-100' : 'text-gray-600'}`}>
         {label}
       </p>
       <p className={`text-2xl font-semibold tracking-tight ${accent ? 'text-white' : 'text-gray-900'}`}>
         {value}
       </p>
       {sub && (
-        <p className={`text-xs mt-1.5 ${accent ? 'text-violet-100/80' : 'text-gray-500'}`}>
+        <p className={`text-xs mt-1.5 ${accent ? 'text-violet-100/80' : 'text-gray-700'}`}>
           {sub}
         </p>
       )}
@@ -464,7 +464,7 @@ function KpiCard({ label, value, sub, accent }: {
 
 function Th({ children, right }: { children: React.ReactNode; right?: boolean }) {
   return (
-    <th className={`px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap border-r border-gray-100 last:border-r-0 ${right ? 'text-right' : 'text-left'}`}>
+    <th className={`px-4 py-3 text-xs font-semibold text-gray-700 whitespace-nowrap border-r border-gray-100 last:border-r-0 ${right ? 'text-right' : 'text-left'}`}>
       {children}
     </th>
   );
@@ -551,7 +551,7 @@ export default function Dashboard() {
             onChange={(e) => setCustomRange((r) => ({ from: e.target.value, to: r?.to ?? period.to }))}
             className='bg-white text-gray-700 text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
           />
-          <span className='text-gray-400 text-sm'>→</span>
+          <span className='text-gray-600 text-sm'>→</span>
           <input
             type='date'
             value={customRange?.to ?? period.to}
@@ -583,7 +583,7 @@ export default function Dashboard() {
                 className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-colors capitalize ${
                   product === p
                     ? 'bg-primary text-white'
-                    : 'text-gray-500 hover:text-gray-700'
+                    : 'text-gray-700 hover:text-gray-700'
                 }`}
               >
                 {p === 'all' ? 'All products' : p}
@@ -642,7 +642,7 @@ export default function Dashboard() {
                 className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${
                   activeInnerTab === tab
                     ? 'bg-primary text-white'
-                    : 'text-gray-500 hover:text-gray-700'
+                    : 'text-gray-700 hover:text-gray-700'
                 }`}
               >
                 {tab === 'charts' ? 'Quick Charts' : 'Daily Breakdown'}
@@ -658,7 +658,7 @@ export default function Dashboard() {
                 <div className='bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100'>
                   <div className='px-5 py-3 border-b border-gray-100 flex items-center justify-between'>
                     <p className='text-sm font-medium text-gray-800'>Daily Breakdown</p>
-                    <p className='text-xs text-gray-400'>{data!.byDay.length} days</p>
+                    <p className='text-xs text-gray-600'>{data!.byDay.length} days</p>
                   </div>
                   <div className='overflow-x-auto'>
                     <table className='w-full'>
@@ -695,7 +695,7 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className='bg-white rounded-xl p-8 shadow-sm border border-gray-100 text-center'>
-                  <p className='text-gray-400 text-sm'>No activity data for the selected period.</p>
+                  <p className='text-gray-600 text-sm'>No activity data for the selected period.</p>
                 </div>
               )}
             </>

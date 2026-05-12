@@ -323,7 +323,7 @@ function FilterTags({
                 >
                   <span>{filterDisplay}</span>
                   <button
-                    className="text-gray-500 hover:text-gray-700 flex justify-center items-center"
+                    className="text-gray-700 hover:text-gray-700 flex justify-center items-center"
                     onClick={() => removeFilter(key)}
                   >
                     <Icon

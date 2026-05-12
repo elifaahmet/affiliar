@@ -19,8 +19,8 @@ function BreadCrumb({ pages }: BreadCrumbProps) {
           const finalClass = page.current
             ? `${baseClass} text-gray-900 font-semibold cursor-default`
             : isClickable
-              ? `${baseClass} text-gray-500 font-medium hover:text-violet-700 transition-colors`
-              : `${baseClass} text-gray-400 font-medium cursor-default`;
+              ? `${baseClass} text-gray-700 font-medium hover:text-violet-700 transition-colors`
+              : `${baseClass} text-gray-600 font-medium cursor-default`;
 
           return (
             <li key={page.name}>

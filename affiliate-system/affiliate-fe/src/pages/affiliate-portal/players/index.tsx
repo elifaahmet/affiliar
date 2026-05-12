@@ -90,12 +90,12 @@ export default function AffiliatePlayers() {
       <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
         <div className='px-5 py-3 border-b border-gray-100 flex items-center justify-between'>
           <p className='text-sm font-semibold text-gray-800'>My Players</p>
-          <p className='text-xs text-gray-400'>{total} total</p>
+          <p className='text-xs text-gray-600'>{total} total</p>
         </div>
 
         {isLoading && (
           <div className='p-8 text-center'>
-            <p className='text-sm text-gray-400'>Loading...</p>
+            <p className='text-sm text-gray-600'>Loading...</p>
           </div>
         )}
 
@@ -107,7 +107,7 @@ export default function AffiliatePlayers() {
 
         {!isLoading && !isError && players.length === 0 && (
           <div className='p-8 text-center'>
-            <p className='text-sm text-gray-400'>
+            <p className='text-sm text-gray-600'>
               No players yet. Players who register with your referral code will appear here.
             </p>
           </div>
@@ -118,17 +118,17 @@ export default function AffiliatePlayers() {
             <table className='w-full'>
               <thead className='bg-gray-50'>
                 <tr>
-                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-500'>Player ID</th>
-                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-500'>Status</th>
-                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-500'>Code</th>
-                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-500'>Campaign</th>
-                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-500'>Country</th>
-                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-500'>Currency</th>
-                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-500'>Registered</th>
-                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-500'>Deposits</th>
-                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-500'>FTD</th>
-                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-500'>NGR</th>
-                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-500'>Last Activity</th>
+                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Player ID</th>
+                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Status</th>
+                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Code</th>
+                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Campaign</th>
+                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Country</th>
+                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Currency</th>
+                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Registered</th>
+                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>Deposits</th>
+                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>FTD</th>
+                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>NGR</th>
+                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Last Activity</th>
                 </tr>
               </thead>
               <tbody className='divide-y divide-gray-100'>
@@ -168,7 +168,7 @@ export default function AffiliatePlayers() {
 
         {pages > 1 && (
           <div className='px-5 py-3 border-t border-gray-100 flex items-center justify-between'>
-            <p className='text-xs text-gray-500'>
+            <p className='text-xs text-gray-700'>
               Page {page} of {pages}
             </p>
             <div className='flex gap-2'>

@@ -111,16 +111,16 @@ export default function ActivityTab({ brands }: Props) {
 
       {/* Table */}
       <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
-        {isLoading && <p className='p-6 text-sm text-gray-500'>Loading…</p>}
+        {isLoading && <p className='p-6 text-sm text-gray-700'>Loading…</p>}
 
         {!isLoading && referrals.length === 0 && (
-          <p className='p-6 text-sm text-gray-500'>No referrals match these filters.</p>
+          <p className='p-6 text-sm text-gray-700'>No referrals match these filters.</p>
         )}
 
         {referrals.length > 0 && (
           <table className='w-full text-sm'>
             <thead>
-              <tr className='bg-violet-50/60 text-left text-[11px] uppercase tracking-wider text-gray-500'>
+              <tr className='bg-violet-50/60 text-left text-[11px] uppercase tracking-wider text-gray-700'>
                 <th className='px-4 py-2.5 font-semibold'>Brand</th>
                 <th className='px-4 py-2.5 font-semibold'>Referrer</th>
                 <th className='px-4 py-2.5 font-semibold'>Referee</th>
@@ -151,7 +151,7 @@ export default function ActivityTab({ brands }: Props) {
                   <td className='px-4 py-2.5 text-right tabular-nums font-semibold text-gray-900'>
                     {fmtCents(r.rewardCents, r.rewardCurrency)}
                   </td>
-                  <td className='px-4 py-2.5 text-gray-500 text-xs'>{fmtDate(r.ftdAt)}</td>
+                  <td className='px-4 py-2.5 text-gray-700 text-xs'>{fmtDate(r.ftdAt)}</td>
                 </tr>
               ))}
             </tbody>
@@ -186,13 +186,13 @@ function ReferralDetailModal({
       <div className='bg-white/95 backdrop-blur-md rounded-xl shadow-xl w-full max-w-2xl border border-violet-100 my-8'>
         <div className='p-5 border-b border-violet-100 flex items-start justify-between'>
           <div>
-            <p className='text-xs font-semibold uppercase tracking-wider text-gray-400'>Referral</p>
+            <p className='text-xs font-semibold uppercase tracking-wider text-gray-600'>Referral</p>
             <h3 className='text-base font-semibold text-gray-900 mt-0.5'>
               {detail.referrerPlayerId} → {detail.refereePlayerId}
             </h3>
-            <p className='text-xs text-gray-500 mt-0.5'>{brandName}</p>
+            <p className='text-xs text-gray-700 mt-0.5'>{brandName}</p>
           </div>
-          <button onClick={onClose} className='text-gray-400 hover:text-gray-700 text-2xl leading-none'>×</button>
+          <button onClick={onClose} className='text-gray-600 hover:text-gray-700 text-2xl leading-none'>×</button>
         </div>
 
         <div className='p-5 space-y-5'>
@@ -228,7 +228,7 @@ function ReferralDetailModal({
           <div>
             <h4 className='text-sm font-semibold text-gray-900 mb-2'>Delivery history</h4>
             {deliveries.length === 0 && (
-              <p className='text-xs text-gray-500'>No deliveries on record.</p>
+              <p className='text-xs text-gray-700'>No deliveries on record.</p>
             )}
             {deliveries.length > 0 && (
               <div className='space-y-2'>
@@ -249,10 +249,10 @@ function ReferralDetailModal({
                           {d.eventType.replace('referral.reward.', '')} · attempt {d.attempts}/6
                         </span>
                       </div>
-                      <span className='text-[11px] text-gray-400'>{fmtDate(d.createdAt)}</span>
+                      <span className='text-[11px] text-gray-600'>{fmtDate(d.createdAt)}</span>
                     </div>
                     {d.lastResponse && (
-                      <div className='mt-2 text-[11px] text-gray-500'>
+                      <div className='mt-2 text-[11px] text-gray-700'>
                         {d.lastResponse.statusCode != null && <span>HTTP {d.lastResponse.statusCode} · </span>}
                         {d.lastResponse.latencyMs != null && <span>{d.lastResponse.latencyMs}ms · </span>}
                         {d.lastResponse.errorMessage && <span className='text-red-600'>{d.lastResponse.errorMessage}</span>}
@@ -272,7 +272,7 @@ function ReferralDetailModal({
 function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className='text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1'>{label}</p>
+      <p className='text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1'>{label}</p>
       <div className='text-sm text-gray-900'>{children}</div>
     </div>
   );

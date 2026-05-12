@@ -158,7 +158,7 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
               role="tooltip"
             >
               <span className="font-bold text-sm">{title}</span>
-              {content && <span className="leading-relaxed text-gray-400">{content}</span>}
+              {content && <span className="leading-relaxed text-gray-600">{content}</span>}
               {side === 'top' && (
                 <span
                   className={cx(arrowBase, 'bottom-0 left-1/2 translate-y-1/2 -translate-x-1/2')}

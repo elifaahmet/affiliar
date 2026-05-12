@@ -44,7 +44,7 @@ export default function ReferAFriendPage() {
         <h1 className='text-2xl font-semibold tracking-tight text-gray-900'>
           Refer-a-Friend
         </h1>
-        <p className='text-sm text-gray-500 max-w-2xl'>
+        <p className='text-sm text-gray-700 max-w-2xl'>
           Player-to-player referral engine. Configure rewards and qualification gates per brand;
           Affiliar fires a signed webhook to your wallet system when a friend qualifies.
         </p>

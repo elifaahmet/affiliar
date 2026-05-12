@@ -116,7 +116,7 @@ function AffiliateRegister() {
         <Headline>
           Your invite link looks <span className="italic text-primary">incomplete</span>.
         </Headline>
-        <p className="mt-3 text-sm text-gray-500">
+        <p className="mt-3 text-sm text-gray-700">
           Operator and referrer information is missing. Please request a new link from your operator
           and try again.
         </p>
@@ -139,12 +139,12 @@ function AffiliateRegister() {
         <Headline>
           Welcome to <span className="italic text-primary">Affiliar</span>.
         </Headline>
-        <p className="mt-3 text-sm text-gray-500">
+        <p className="mt-3 text-sm text-gray-700">
           Your affiliate account is ready. Save the code below — it tracks every player you refer.
         </p>
 
         <div className="mt-8 rounded-xl border border-gray-200 bg-gray-50 p-5">
-          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-gray-400 mb-2">
+          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-gray-600 mb-2">
             Your affiliate code
           </p>
           <p className="font-mono text-3xl font-semibold tracking-[0.2em] text-gray-900">
@@ -170,7 +170,7 @@ function AffiliateRegister() {
       <Headline>
         Create your <span className="italic text-primary">workspace</span>.
       </Headline>
-      <p className="mt-3 text-sm text-gray-500">
+      <p className="mt-3 text-sm text-gray-700">
         You&apos;ve been invited to join as an affiliate. Set up your account to get your referral
         code and start tracking commissions.
       </p>
@@ -254,7 +254,7 @@ function AffiliateRegister() {
         </button>
       </form>
 
-      <p className="mt-6 text-xs text-gray-400">
+      <p className="mt-6 text-xs text-gray-600">
         Already have an account?{' '}
         <Link to="/" className="font-medium text-gray-700 hover:text-gray-900">
           Sign in
@@ -277,7 +277,7 @@ function MobileLogo() {
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
-    <p className="mb-3 text-xs font-medium uppercase tracking-[0.18em] text-gray-400">{children}</p>
+    <p className="mb-3 text-xs font-medium uppercase tracking-[0.18em] text-gray-600">{children}</p>
   );
 }
 

@@ -57,11 +57,11 @@ export default function StyledSelect<T extends string | number>({
           aria-label={ariaLabel}
           className={`group flex w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-900 transition-colors hover:border-violet-300 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary disabled:cursor-not-allowed disabled:opacity-50`}
         >
-          <span className={`truncate ${selected ? '' : 'text-gray-400'}`}>
+          <span className={`truncate ${selected ? '' : 'text-gray-600'}`}>
             {selected?.label ?? placeholder}
           </span>
           <ChevronDownIcon
-            className='ml-2 h-4 w-4 shrink-0 text-gray-400 transition-transform ui-open:rotate-180 group-hover:text-violet-700'
+            className='ml-2 h-4 w-4 shrink-0 text-gray-600 transition-transform ui-open:rotate-180 group-hover:text-violet-700'
             aria-hidden='true'
           />
         </ListboxButton>
@@ -77,7 +77,7 @@ export default function StyledSelect<T extends string | number>({
             className='z-[70] mt-1 w-[var(--button-width)] origin-top overflow-auto rounded-xl border border-violet-100 bg-white/95 py-1 text-sm shadow-xl shadow-violet-200/40 backdrop-blur-md focus:outline-none [--anchor-gap:0.25rem] [--anchor-max-height:18rem]'
           >
             {options.length === 0 && (
-              <p className='px-3 py-2 text-xs text-gray-400'>No options.</p>
+              <p className='px-3 py-2 text-xs text-gray-600'>No options.</p>
             )}
             {options.map((opt) => (
               <ListboxOption
@@ -89,7 +89,7 @@ export default function StyledSelect<T extends string | number>({
                 <div className='min-w-0 flex-1'>
                   <p className='truncate'>{opt.label}</p>
                   {opt.description && (
-                    <p className='truncate text-[11px] text-gray-400 group-data-[focus]:text-violet-700'>
+                    <p className='truncate text-[11px] text-gray-600 group-data-[focus]:text-violet-700'>
                       {opt.description}
                     </p>
                   )}

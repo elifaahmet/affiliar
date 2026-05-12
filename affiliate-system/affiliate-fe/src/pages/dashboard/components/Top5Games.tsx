@@ -110,7 +110,7 @@ const Top5Games: React.FC = () => {
           {/* Left: Profitable table */}
           <div className="flex-1 min-w-0">
             {isLoadingProfitable && (
-              <div className="py-8 text-sm text-gray-500">Loading profitable games…</div>
+              <div className="py-8 text-sm text-gray-700">Loading profitable games…</div>
             )}
 
             {profitableError && !isLoadingProfitable && (
@@ -130,7 +130,7 @@ const Top5Games: React.FC = () => {
           {/* Right: Unprofitable table */}
           <div className="flex-1 min-w-0">
             {isLoadingUnprofitable && (
-              <div className="py-8 text-sm text-gray-500">Loading unprofitable games…</div>
+              <div className="py-8 text-sm text-gray-700">Loading unprofitable games…</div>
             )}
 
             {unprofitableError && !isLoadingUnprofitable && (

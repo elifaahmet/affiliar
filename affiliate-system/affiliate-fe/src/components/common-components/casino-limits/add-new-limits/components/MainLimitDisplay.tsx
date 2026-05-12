@@ -50,7 +50,7 @@ const MainLimitDisplay = ({
             Global Referance Limit: {currencySymbolMap[selectedCurrency]}{' '}
             {generalLimit?.data.amount?.toString() ?? ''}
           </span>
-          <span className="text-xs  text-gray-500">
+          <span className="text-xs  text-gray-700">
             This limit is the base limit you will use for your percentage calculation.
           </span>
         </div>

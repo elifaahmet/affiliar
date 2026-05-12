@@ -109,7 +109,7 @@ const Top5Providers: React.FC = () => {
           {/* Left: Profitable providers */}
           <div className="min-w-0 flex-1">
             {isLoadingProfitable && (
-              <div className="py-8 text-sm text-gray-500">Loading profitable providers…</div>
+              <div className="py-8 text-sm text-gray-700">Loading profitable providers…</div>
             )}
 
             {profitableError && !isLoadingProfitable && (
@@ -134,7 +134,7 @@ const Top5Providers: React.FC = () => {
           {/* Right: Unprofitable providers */}
           <div className="min-w-0 flex-1">
             {isLoadingUnprofitable && (
-              <div className="py-8 text-sm text-gray-500">Loading unprofitable providers…</div>
+              <div className="py-8 text-sm text-gray-700">Loading unprofitable providers…</div>
             )}
 
             {unprofitableError && !isLoadingUnprofitable && (

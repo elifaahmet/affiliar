@@ -116,12 +116,12 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
           <span className={`inline-flex items-center justify-center w-2 h-2 rounded-full ${form.enabled ? 'bg-green-500' : 'bg-gray-300'}`} />
           <div className='text-left'>
             <p className='font-semibold text-gray-900'>{brand.name}</p>
-            <p className='text-xs text-gray-500'>
+            <p className='text-xs text-gray-700'>
               {form.enabled ? 'Active' : 'Disabled'}
             </p>
           </div>
         </div>
-        <ChevronDownIcon className={`h-4 w-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDownIcon className={`h-4 w-4 text-gray-600 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
@@ -130,7 +130,7 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
           <div className='flex items-center justify-between gap-4 p-3 rounded-lg bg-violet-50/40'>
             <div>
               <p className='text-sm font-medium text-gray-900'>Enable Refer-a-Friend for this brand</p>
-              <p className='text-xs text-gray-500'>New track-signup calls are accepted only when enabled. In-flight referrals continue regardless.</p>
+              <p className='text-xs text-gray-700'>New track-signup calls are accepted only when enabled. In-flight referrals continue regardless.</p>
             </div>
             <input
               type='checkbox'
@@ -179,7 +179,7 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
                   <input
                     type='number'
                     min={0}
-                    value={form.reward.amountCents}
+                    value={form.reward.amountCents || ''}
                     onChange={(e) => setReward('amountCents', Number(e.target.value) || 0)}
                     className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
                   />
@@ -193,7 +193,7 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
                     type='number'
                     min={0}
                     max={100}
-                    value={form.reward.percent}
+                    value={form.reward.percent || ''}
                     onChange={(e) => setReward('percent', Number(e.target.value) || 0)}
                     className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
                   />
@@ -218,7 +218,7 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
             <div className='flex items-center justify-between gap-4 p-3 rounded-lg bg-violet-50/40'>
               <div>
                 <p className='text-sm font-medium text-gray-900'>Pay the friend too</p>
-                <p className='text-xs text-gray-500'>
+                <p className='text-xs text-gray-700'>
                   Emits a <code className='text-[11px] font-mono'>referral.reward.referee.issued</code> ledger row on qualification.
                   Casino backend picks it up when the friend visits their rewards page.
                 </p>
@@ -261,7 +261,7 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
                     <Field label='Amount (cents)' hint='Flat welcome bonus per qualified referral'>
                       <input
                         type='number' min={0}
-                        value={form.refereeReward.amountCents}
+                        value={form.refereeReward.amountCents || ''}
                         onChange={(e) => setRefereeReward('amountCents', Number(e.target.value) || 0)}
                         className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
                       />
@@ -273,7 +273,7 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
                     <Field label='Percent' hint='0–100 of friend’s FTD'>
                       <input
                         type='number' min={0} max={100}
-                        value={form.refereeReward.percent}
+                        value={form.refereeReward.percent || ''}
                         onChange={(e) => setRefereeReward('percent', Number(e.target.value) || 0)}
                         className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
                       />
@@ -299,7 +299,7 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
             <div className='flex items-center justify-between gap-4 p-3 rounded-lg bg-violet-50/40'>
               <div>
                 <p className='text-sm font-medium text-gray-900'>Pay the referrer monthly</p>
-                <p className='text-xs text-gray-500'>
+                <p className='text-xs text-gray-700'>
                   Emits a <code className='text-[11px] font-mono'>referral.reward.recurring.issued</code> ledger row on day 5 of each month for the previous month. Stops automatically when the friend's FTD is reversed (past payments stay).
                 </p>
               </div>
@@ -317,7 +317,7 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
                   <Field label='Percent' hint='0–100 of friend’s monthly base'>
                     <input
                       type='number' min={0} max={100}
-                      value={form.recurringReward.percent}
+                      value={form.recurringReward.percent || ''}
                       onChange={(e) => setRecurring('percent', Number(e.target.value) || 0)}
                       className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
                     />
@@ -376,7 +376,7 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
               <Field label='Min deposit (cents)' hint='Below this → rejected'>
                 <input
                   type='number' min={0}
-                  value={form.qualification.minDepositCents}
+                  value={form.qualification.minDepositCents || ''}
                   onChange={(e) => setQual('minDepositCents', Number(e.target.value) || 0)}
                   className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
                 />
@@ -384,7 +384,7 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
               <Field label='Hold period (days)' hint='Wait N days after FTD before paying'>
                 <input
                   type='number' min={0}
-                  value={form.qualification.holdDays}
+                  value={form.qualification.holdDays || ''}
                   onChange={(e) => setQual('holdDays', Number(e.target.value) || 0)}
                   className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
                 />
@@ -394,7 +394,7 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
               <Field label='Min wager (cents)' hint='Flat wager floor; 0 = none'>
                 <input
                   type='number' min={0}
-                  value={form.qualification.minWagerCents}
+                  value={form.qualification.minWagerCents || ''}
                   onChange={(e) => setQual('minWagerCents', Number(e.target.value) || 0)}
                   className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
                 />
@@ -402,7 +402,7 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
               <Field label='Min wager × FTD' hint='e.g. 3 → wager 3× the FTD amount'>
                 <input
                   type='number' min={0}
-                  value={form.qualification.minWagerMultiple}
+                  value={form.qualification.minWagerMultiple || ''}
                   onChange={(e) => setQual('minWagerMultiple', Number(e.target.value) || 0)}
                   className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
                 />
@@ -416,7 +416,7 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
               <Field label='Per referrer (cents)'>
                 <input
                   type='number' min={0}
-                  value={form.caps.perReferrerMonthlyCents}
+                  value={form.caps.perReferrerMonthlyCents || ''}
                   onChange={(e) => setCap('perReferrerMonthlyCents', Number(e.target.value) || 0)}
                   className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
                 />
@@ -424,7 +424,7 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
               <Field label='Per brand (cents)'>
                 <input
                   type='number' min={0}
-                  value={form.caps.perBrandMonthlyCents}
+                  value={form.caps.perBrandMonthlyCents || ''}
                   onChange={(e) => setCap('perBrandMonthlyCents', Number(e.target.value) || 0)}
                   className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
                 />
@@ -460,7 +460,7 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
     <div className='space-y-3'>
       <div>
         <h3 className='text-sm font-semibold text-gray-900'>{title}</h3>
-        {hint && <p className='text-xs text-gray-500 mt-0.5'>{hint}</p>}
+        {hint && <p className='text-xs text-gray-700 mt-0.5'>{hint}</p>}
       </div>
       <div className='space-y-3'>{children}</div>
     </div>
@@ -486,7 +486,7 @@ function Field({
     <div className={wide ? 'sm:col-span-2 lg:col-span-3' : ''}>
       <label className='mb-1 block text-xs font-medium text-gray-700'>{label}</label>
       {children}
-      {hint && <p className='text-[11px] text-gray-400 mt-1'>{hint}</p>}
+      {hint && <p className='text-[11px] text-gray-600 mt-1'>{hint}</p>}
     </div>
   );
 }

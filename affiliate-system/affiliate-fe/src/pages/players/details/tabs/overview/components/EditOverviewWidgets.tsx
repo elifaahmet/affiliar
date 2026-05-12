@@ -112,7 +112,7 @@ export default function EditOverviewdWidgets() {
             className="w-full h-40 bg-gray-300 border border-gray-600 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gray-400 transition"
           >
             <span className="text-base font-semibold">+ Add Widget</span>
-            <span className="text-gray-500 text-sm">Select from the adjacent list</span>
+            <span className="text-gray-700 text-sm">Select from the adjacent list</span>
           </div>
         </div>
       )}

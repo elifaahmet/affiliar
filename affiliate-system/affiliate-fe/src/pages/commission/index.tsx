@@ -307,7 +307,7 @@ function PlanModal({
                       : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                   }`}>
                   <div className='font-semibold capitalize'>{p}</div>
-                  <div className='text-gray-400 font-normal mt-0.5 text-[11px]'>
+                  <div className='text-gray-600 font-normal mt-0.5 text-[11px]'>
                     {p === 'casino'     && 'Casino NGR only'}
                     {p === 'sportsbook' && 'Sportsbook NGR only'}
                     {p === 'combined'   && 'Casino + sportsbook'}
@@ -329,14 +329,14 @@ function PlanModal({
                     disabled={!isAllowed}
                     className={`py-2 px-3 rounded-lg text-xs font-medium border transition-colors text-left ${
                       !isAllowed
-                        ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed opacity-60'
+                        ? 'border-gray-100 bg-gray-50 text-gray-600 cursor-not-allowed opacity-60'
                         : form.type === t ? 'border-primary bg-primary/5 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                     }`}>
                     <div className='font-semibold'>
                       {planTypeLabel(t)}
-                      {!isAllowed && <span className='ml-1 text-gray-400 font-normal'>(Growth+)</span>}
+                      {!isAllowed && <span className='ml-1 text-gray-600 font-normal'>(Growth+)</span>}
                     </div>
-                    <div className='text-gray-400 font-normal mt-0.5'>
+                    <div className='text-gray-600 font-normal mt-0.5'>
                       {t === 'revshare' && '% of NGR or GGR'}
                       {t === 'cpa' && 'Fixed $ per FTD'}
                       {t === 'hybrid' && 'RevShare + CPA'}
@@ -392,7 +392,7 @@ function PlanModal({
                   <option value='true'>Yes — NGR is net of all fees (standard)</option>
                   <option value='false'>No — take share on gross NGR</option>
                 </select>
-                <p className='text-[11px] text-gray-500 mt-1'>
+                <p className='text-[11px] text-gray-700 mt-1'>
                   Only meaningful when Metric is NGR. Controls whether
                   deposit/withdrawal/payment-system fees are subtracted before
                   the % is applied.
@@ -444,7 +444,7 @@ function PlanModal({
               <div className='border-t border-green-200 pt-3 space-y-3'>
                 <div>
                   <p className='text-xs font-semibold text-green-800'>Qualification gates</p>
-                  <p className='text-[11px] text-gray-500 mt-0.5'>
+                  <p className='text-[11px] text-gray-700 mt-0.5'>
                     Leave a field blank to inherit the operator default (Fees
                     page). FTDs that fail any active gate stay pending and
                     can promote on the next recalc.
@@ -498,7 +498,7 @@ function PlanModal({
                   className='text-xs text-primary font-medium hover:underline'>+ Add tier</button>
               </div>
               {form.tiers.length === 0 && (
-                <p className='text-xs text-gray-400'>No tiers yet. Add at least one.</p>
+                <p className='text-xs text-gray-600'>No tiers yet. Add at least one.</p>
               )}
               {form.tiers.map((tier, i) => (
                 <div key={i} className='flex gap-2 items-end'>
@@ -635,10 +635,10 @@ function PlansTab() {
       </div>
 
       <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
-        {isLoading && <p className='text-sm text-gray-400 px-5 py-6 text-center'>Loading…</p>}
+        {isLoading && <p className='text-sm text-gray-600 px-5 py-6 text-center'>Loading…</p>}
 
         {!isLoading && plans.length === 0 && (
-          <p className='text-sm text-gray-400 px-5 py-10 text-center'>
+          <p className='text-sm text-gray-600 px-5 py-10 text-center'>
             No commission plans yet. Create one to get started.
           </p>
         )}
@@ -648,7 +648,7 @@ function PlansTab() {
             <thead className='bg-gray-50'>
               <tr>
                 {['Name', 'Product', 'Type', 'Summary', 'Default', 'Active', ''].map((h) => (
-                  <th key={h} className='px-5 py-3 text-left text-xs font-semibold text-gray-500 border-r border-gray-100 last:border-r-0'>
+                  <th key={h} className='px-5 py-3 text-left text-xs font-semibold text-gray-700 border-r border-gray-100 last:border-r-0'>
                     {h}
                   </th>
                 ))}
@@ -671,7 +671,7 @@ function PlansTab() {
                     {p.isDefault
                       ? <span className='text-xs font-semibold text-primary'>Default</span>
                       : <button onClick={() => handleSetDefault(p._id)}
-                          className='text-xs text-gray-400 hover:text-primary hover:underline'>Set default</button>}
+                          className='text-xs text-gray-600 hover:text-primary hover:underline'>Set default</button>}
                   </td>
                   <td className='px-5 py-3 border-r border-gray-100 w-16'>
                     {p.isActive
@@ -761,7 +761,7 @@ function ReportsTab() {
         <div className='flex gap-3 items-end flex-wrap'>
           {/* Year */}
           <div className='flex flex-col gap-1'>
-            <label className='text-xs text-gray-500 font-medium'>Year</label>
+            <label className='text-xs text-gray-700 font-medium'>Year</label>
             <select value={year} onChange={(e) => { setYear(Number(e.target.value)); setPage(1); setCalcResult(null); }}
               className='h-9 text-sm rounded-lg border border-gray-200 px-3 focus:outline-none focus:border-primary bg-white'>
               {years.map((y) => <option key={y} value={y}>{y}</option>)}
@@ -770,7 +770,7 @@ function ReportsTab() {
 
           {/* Month */}
           <div className='flex flex-col gap-1'>
-            <label className='text-xs text-gray-500 font-medium'>Month</label>
+            <label className='text-xs text-gray-700 font-medium'>Month</label>
             <select value={month} onChange={(e) => { setMonth(Number(e.target.value)); setPage(1); setCalcResult(null); }}
               className='h-9 text-sm rounded-lg border border-gray-200 px-3 focus:outline-none focus:border-primary bg-white'>
               {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
@@ -779,7 +779,7 @@ function ReportsTab() {
 
           {/* Status filter */}
           <div className='flex flex-col gap-1'>
-            <label className='text-xs text-gray-500 font-medium'>Status</label>
+            <label className='text-xs text-gray-700 font-medium'>Status</label>
             <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}
               className='h-9 text-sm rounded-lg border border-gray-200 px-3 focus:outline-none focus:border-primary bg-white'>
               <option value=''>All</option>
@@ -831,7 +831,7 @@ function ReportsTab() {
             { label: 'Period', value: `${MONTHS[month - 1]} ${year}` },
           ].map((c) => (
             <div key={c.label} className='bg-white rounded-xl border border-gray-100 px-5 py-4'>
-              <p className='text-xs text-gray-500'>{c.label}</p>
+              <p className='text-xs text-gray-700'>{c.label}</p>
               <p className='text-xl font-semibold text-gray-800 mt-1'>{c.value}</p>
             </div>
           ))}
@@ -840,10 +840,10 @@ function ReportsTab() {
 
       {/* Table */}
       <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
-        {isLoading && <p className='text-sm text-gray-400 px-5 py-6 text-center'>Loading…</p>}
+        {isLoading && <p className='text-sm text-gray-600 px-5 py-6 text-center'>Loading…</p>}
 
         {!isLoading && reports.length === 0 && (
-          <p className='text-sm text-gray-400 px-5 py-10 text-center'>
+          <p className='text-sm text-gray-600 px-5 py-10 text-center'>
             No reports for {MONTHS[month - 1]} {year}. Click &quot;Calculate&quot; to generate.
           </p>
         )}
@@ -855,7 +855,7 @@ function ReportsTab() {
                 <thead className='bg-gray-50'>
                   <tr>
                     {['Affiliate', 'Product', 'Plan', 'Players', 'FTDs', 'GGR', 'NGR', 'RevShare', 'CPA', 'Total', 'Status'].map((h) => (
-                      <th key={h} className='px-4 py-3 text-left text-xs font-semibold text-gray-500 border-r border-gray-100 last:border-r-0 whitespace-nowrap'>
+                      <th key={h} className='px-4 py-3 text-left text-xs font-semibold text-gray-700 border-r border-gray-100 last:border-r-0 whitespace-nowrap'>
                         {h}
                       </th>
                     ))}
@@ -868,7 +868,7 @@ function ReportsTab() {
                       <tr key={r._id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                         <td className='px-4 py-2.5 border-r border-gray-100'>
                           <div className='text-xs font-medium text-gray-800'>{r.affiliateId?.username ?? '—'}</div>
-                          <div className='text-xs text-gray-400'>{r.affiliateCode ?? ''}</div>
+                          <div className='text-xs text-gray-600'>{r.affiliateCode ?? ''}</div>
                         </td>
                         <td className='px-4 py-2.5 border-r border-gray-100'>
                           <span className='inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-700 capitalize'>
@@ -878,7 +878,7 @@ function ReportsTab() {
                         <td className='px-4 py-2.5 border-r border-gray-100'>
                           {r.planId
                             ? <span className={planTypeBadge(r.planId.type)}>{r.planId.name}</span>
-                            : <span className='text-xs text-gray-400'>No plan</span>}
+                            : <span className='text-xs text-gray-600'>No plan</span>}
                         </td>
                         <td className='px-4 py-2.5 text-xs text-gray-700 border-r border-gray-100 text-right'>{r.metrics.playerCount}</td>
                         <td className='px-4 py-2.5 text-xs text-gray-700 border-r border-gray-100 text-right'>
@@ -909,7 +909,7 @@ function ReportsTab() {
 
             {total > 50 && (
               <div className='flex items-center justify-between px-5 py-3 border-t border-gray-100'>
-                <p className='text-xs text-gray-400'>{total} affiliates · page {page} of {Math.ceil(total / 50)}</p>
+                <p className='text-xs text-gray-600'>{total} affiliates · page {page} of {Math.ceil(total / 50)}</p>
                 <div className='flex gap-2'>
                   <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
                     className='px-3 py-1.5 text-xs rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50'>Prev</button>
@@ -938,7 +938,7 @@ export default function Commission() {
         {TABS.map((tab) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === tab ? 'bg-primary text-white' : 'text-gray-500 hover:text-gray-700'
+              activeTab === tab ? 'bg-primary text-white' : 'text-gray-700 hover:text-gray-700'
             }`}>
             {tab}
           </button>

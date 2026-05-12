@@ -90,16 +90,16 @@ interface TrafficResponse {
 function KpiCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className='bg-white rounded-xl p-5 shadow-sm border border-gray-100'>
-      <p className='text-xs text-gray-500 mb-1'>{label}</p>
+      <p className='text-xs text-gray-700 mb-1'>{label}</p>
       <p className='text-xl font-semibold text-gray-800'>{value}</p>
-      {sub && <p className='text-xs text-gray-400 mt-1'>{sub}</p>}
+      {sub && <p className='text-xs text-gray-600 mt-1'>{sub}</p>}
     </div>
   );
 }
 
 function Th({ children, right }: { children: React.ReactNode; right?: boolean }) {
   return (
-    <th className={`px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap border-r border-gray-100 last:border-r-0 ${right ? 'text-right' : 'text-left'}`}>
+    <th className={`px-4 py-3 text-xs font-semibold text-gray-700 whitespace-nowrap border-r border-gray-100 last:border-r-0 ${right ? 'text-right' : 'text-left'}`}>
       {children}
     </th>
   );
@@ -132,7 +132,7 @@ function OverviewTab({ params }: { params: Record<string, string> }) {
     params,
   });
 
-  if (isLoading) return <p className='text-gray-400 text-sm'>Loading...</p>;
+  if (isLoading) return <p className='text-gray-600 text-sm'>Loading...</p>;
   if (isError)   return <p className='text-red-500 text-sm'>Failed to load overview data.</p>;
 
   const s = data?.summary;
@@ -187,7 +187,7 @@ function OverviewTab({ params }: { params: Record<string, string> }) {
       )}
 
       {data && data.byDay.length === 0 && (
-        <p className='text-gray-400 text-sm'>No data for the selected period.</p>
+        <p className='text-gray-600 text-sm'>No data for the selected period.</p>
       )}
     </div>
   );
@@ -202,14 +202,14 @@ function AffiliatesTab({ params }: { params: Record<string, string> }) {
     params: { ...params, limit: '100' },
   });
 
-  if (isLoading) return <p className='text-gray-400 text-sm'>Loading...</p>;
+  if (isLoading) return <p className='text-gray-600 text-sm'>Loading...</p>;
   if (isError)   return <p className='text-red-500 text-sm'>Failed to load affiliate data.</p>;
 
   return (
     <div className='bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100'>
       <div className='px-5 py-3 border-b border-gray-100 flex items-center justify-between'>
         <p className='text-sm font-medium text-gray-800'>Affiliate Performance</p>
-        <p className='text-xs text-gray-400'>{data?.total ?? 0} affiliates</p>
+        <p className='text-xs text-gray-600'>{data?.total ?? 0} affiliates</p>
       </div>
       <div className='overflow-x-auto'>
         <table className='w-full'>
@@ -244,7 +244,7 @@ function AffiliatesTab({ params }: { params: Record<string, string> }) {
             ))}
             {(data?.affiliates ?? []).length === 0 && (
               <tr>
-                <td colSpan={10} className='px-3 py-6 text-center text-xs text-gray-400'>
+                <td colSpan={10} className='px-3 py-6 text-center text-xs text-gray-600'>
                   No data for the selected period.
                 </td>
               </tr>
@@ -265,14 +265,14 @@ function TrafficTab({ params }: { params: Record<string, string> }) {
     params: { ...params, limit: '200' },
   });
 
-  if (isLoading) return <p className='text-gray-400 text-sm'>Loading...</p>;
+  if (isLoading) return <p className='text-gray-600 text-sm'>Loading...</p>;
   if (isError)   return <p className='text-red-500 text-sm'>Failed to load traffic data.</p>;
 
   return (
     <div className='bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100'>
       <div className='px-5 py-3 border-b border-gray-100 flex items-center justify-between'>
         <p className='text-sm font-medium text-gray-800'>Traffic Breakdown</p>
-        <p className='text-xs text-gray-400'>{data?.total ?? 0} rows</p>
+        <p className='text-xs text-gray-600'>{data?.total ?? 0} rows</p>
       </div>
       <div className='overflow-x-auto'>
         <table className='w-full'>
@@ -309,7 +309,7 @@ function TrafficTab({ params }: { params: Record<string, string> }) {
             ))}
             {(data?.rows ?? []).length === 0 && (
               <tr>
-                <td colSpan={11} className='px-3 py-6 text-center text-xs text-gray-400'>
+                <td colSpan={11} className='px-3 py-6 text-center text-xs text-gray-600'>
                   No data for the selected period.
                 </td>
               </tr>
@@ -370,7 +370,7 @@ export default function Reports() {
             onChange={(e) => setDateRange((r) => ({ ...r, from: e.target.value }))}
             className='bg-white text-gray-700 text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
           />
-          <span className='text-gray-400 text-sm'>→</span>
+          <span className='text-gray-600 text-sm'>→</span>
           <input
             type='date'
             value={dateRange.to}
@@ -389,7 +389,7 @@ export default function Reports() {
             className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-colors capitalize ${
               product === p
                 ? 'bg-primary text-white'
-                : 'text-gray-500 hover:text-gray-700'
+                : 'text-gray-700 hover:text-gray-700'
             }`}
           >
             {p === 'all' ? 'All products' : p}
@@ -406,7 +406,7 @@ export default function Reports() {
             className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${
               activeTab === tab.key
                 ? 'bg-primary text-white'
-                : 'text-gray-500 hover:text-gray-700'
+                : 'text-gray-700 hover:text-gray-700'
             }`}
           >
             {tab.label}
