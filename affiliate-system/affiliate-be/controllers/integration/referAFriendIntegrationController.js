@@ -303,6 +303,97 @@ exports.getStats = async (req, res) => {
   });
 };
 
+// GET /api/v1/refer/player/:playerId/referrals?limit=
+//
+// Per-friend view: every PlayerReferral where this player is the
+// referrer, with status, timestamps, computed reward (amount + kind),
+// and — when there is a pending RewardDelivery — the deliveryId the
+// FE can pass to /rewards/claim. Used by the casino "Refer a Friend"
+// page to render the friend list with an inline Claim button.
+exports.listPlayerReferrals = async (req, res) => {
+  const operatorId = operatorOnly(req, res);
+  if (!operatorId) return;
+
+  const { playerId } = req.params;
+  if (!playerId) {
+    return res.status(400).json({ error: "missing_player_id" });
+  }
+  const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+
+  const referrals = await PlayerReferral.find({
+    operatorId,
+    referrerPlayerId: playerId,
+  })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .select({
+      refereePlayerId: 1,
+      status: 1,
+      signedUpAt: 1,
+      ftdAt: 1,
+      qualifiedAt: 1,
+      rewardCents: 1,
+      rewardCurrency: 1,
+      rewardedAt: 1,
+      reversedAt: 1,
+      configSnapshot: 1,
+      createdAt: 1,
+    })
+    .lean();
+
+  // Resolve the matching pending delivery (if any) per referral so the
+  // FE can pass its id straight to /rewards/claim. One query, then map.
+  const referralIds = referrals.map((r) => String(r._id));
+  const pendingDeliveries = referralIds.length
+    ? await RewardDelivery.find({
+        operatorId,
+        referralId: { $in: referralIds },
+        eventType: {
+          $in: [
+            "referral.reward.issued",
+            "referral.reward.recurring.issued",
+          ],
+        },
+        status: "pending",
+      })
+        .select({ referralId: 1, eventType: 1, createdAt: 1 })
+        .lean()
+    : [];
+  const pendingByReferral = new Map();
+  for (const d of pendingDeliveries) {
+    // Keep the oldest pending — usually only one exists per referral.
+    const key = String(d.referralId);
+    if (!pendingByReferral.has(key)) {
+      pendingByReferral.set(key, d);
+    }
+  }
+
+  const rows = referrals.map((r) => {
+    const pending = pendingByReferral.get(String(r._id));
+    return {
+      referralId: String(r._id),
+      refereePlayerId: r.refereePlayerId,
+      status: r.status,
+      signedUpAt: r.signedUpAt,
+      ftdAt: r.ftdAt,
+      qualifiedAt: r.qualifiedAt,
+      rewardedAt: r.rewardedAt || null,
+      reversedAt: r.reversedAt || null,
+      rewardCents: r.rewardCents || 0,
+      rewardCurrency: r.rewardCurrency || null,
+      rewardKind:
+        (r.configSnapshot &&
+          r.configSnapshot.reward &&
+          r.configSnapshot.reward.rewardKind) ||
+        null,
+      pendingDeliveryId: pending ? String(pending._id) : null,
+      createdAt: r.createdAt,
+    };
+  });
+
+  return res.status(200).json({ referrals: rows, count: rows.length });
+};
+
 // GET /api/v1/refer/player/:playerId/rewards?limit=
 //
 // Pull-model ledger: returns every refer-a-friend reward owed to (or

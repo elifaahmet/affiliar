@@ -25,6 +25,7 @@ router.post("/track-ftd-reversal",  integration.trackFtdReversal);
 router.get ("/stats",               integration.getStats);
 
 // Pull-model reward ledger (replaces the old webhook push)
+router.get ("/player/:playerId/referrals",      integration.listPlayerReferrals);
 router.get ("/player/:playerId/rewards",        integration.listPlayerRewards);
 router.post("/player/:playerId/rewards/claim",  integration.claimPlayerRewards);
 
