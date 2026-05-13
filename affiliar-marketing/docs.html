@@ -156,6 +156,15 @@
         </div>
 
         <div>
+          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Refer-a-Friend</p>
+          <a href="#raf-overview"      class="nav-link">Overview</a>
+          <a href="#raf-config"        class="nav-link">Config &amp; Reward Types</a>
+          <a href="#raf-integration"   class="nav-link">Integration Endpoints</a>
+          <a href="#raf-pull"          class="nav-link">Pull &amp; Claim Flow</a>
+          <a href="#raf-events"        class="nav-link">Event Types</a>
+        </div>
+
+        <div>
           <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Affiliate Portal</p>
           <a href="#portal-overview" class="nav-link">Portal Overview</a>
           <a href="#portal-register" class="nav-link">Registration Flow</a>
@@ -784,6 +793,170 @@ NGR = GGR
           <pre><code><span class="tok-mth">GET</span> <span class="tok-url">/api/affiliate-portal/campaign-reports</span>
 <span class="tok-hdr">Authorization: Bearer &lt;token&gt;</span></code></pre>
           <p class="text-sm text-gray-500 mt-4">Same response shape, but scoped to the authenticated affiliate&apos;s data only. Accepts the same <code>from</code>, <code>to</code>, <code>brandId</code>, and <code>campaign</code> query parameters.</p>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── REFER-A-FRIEND OVERVIEW ────────────────────────────────────── -->
+        <section id="raf-overview">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Refer-a-Friend</h2>
+          <p class="text-gray-500 mb-4">A player-to-player referral engine sits next to the affiliate program. Where the affiliate program tracks marketers, Refer-a-Friend tracks players inviting other players — separate config, separate fraud gates, separate payout ledger.</p>
+          <p class="text-gray-500 mb-4">The delivery model is <strong>pull-on-demand</strong>: Affiliar holds qualified rewards in a per-player ledger, and your casino backend reads from <code>/api/refer/player/&lt;id&gt;/rewards</code> whenever a player opens their "My Rewards" page. No webhook endpoint to host, no retry queue to monitor — the casino is in control of when it credits the wallet, and idempotency is guaranteed by an explicit ack step.</p>
+          <ul class="list-disc list-inside text-sm text-gray-600 space-y-1 mb-4">
+            <li><strong>Per-brand config</strong> — every brand under your operator can have its own enable flag, reward formula, gates, and caps.</li>
+            <li><strong>Two-sided rewards</strong> — pay the inviter plus an optional welcome bonus to the friend at qualification.</li>
+            <li><strong>Recurring NGR share</strong> — keep paying the inviter a slice of the friend's NGR each month, capped by config.</li>
+            <li><strong>Fraud gates</strong> — hold period, wager threshold, monthly spend caps, stale-referral expiry.</li>
+            <li><strong>Chargeback reversal</strong> — if the friend's FTD reverses, Affiliar emits a paired <code>.reversed</code> event so the casino can debit the wallet back.</li>
+          </ul>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── REFER-A-FRIEND CONFIG ──────────────────────────────────────── -->
+        <section id="raf-config">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Config &amp; Reward Types</h2>
+          <p class="text-gray-500 mb-4">Each brand has its own <code>ReferAFriendConfig</code> document. Manage it via the operator dashboard or directly via <code>PUT /api/refer/config/:brandId</code>.</p>
+
+          <h3 class="font-semibold text-gray-900 mt-4 mb-2">Reward formula</h3>
+          <p class="text-sm text-gray-500 mb-2">Three reward subdocuments — referrer (always required), referee (optional welcome bonus), and recurring (optional monthly NGR share). All three accept the same shape:</p>
+          <pre><code>{
+  <span class="tok-key">"enabled"</span>:    <span class="tok-num">true</span>,
+  <span class="tok-key">"rewardType"</span>: <span class="tok-str">"flat"</span> | <span class="tok-str">"percent_of_ftd"</span> | <span class="tok-str">"percent_of_ngr"</span>,
+  <span class="tok-key">"amountCents"</span>: <span class="tok-num">500</span>,         <span class="tok-com">// for "flat"</span>
+  <span class="tok-key">"percent"</span>:     <span class="tok-num">10</span>,          <span class="tok-com">// for percent_* types (0–100)</span>
+  <span class="tok-key">"currency"</span>:    <span class="tok-str">"EUR"</span>,
+  <span class="tok-key">"rewardKind"</span>:  <span class="tok-str">"cash"</span> | <span class="tok-str">"bonus"</span>  <span class="tok-com">// FE label only — wallet routing is operator-side</span>
+}</code></pre>
+
+          <h3 class="font-semibold text-gray-900 mt-6 mb-2">Qualification gates</h3>
+          <pre><code>{
+  <span class="tok-key">"holdDays"</span>:           <span class="tok-num">7</span>,    <span class="tok-com">// wait this many days after FTD before paying</span>
+  <span class="tok-key">"minWagerCents"</span>:      <span class="tok-num">2500</span>, <span class="tok-com">// friend must wager this much before qualification</span>
+  <span class="tok-key">"staleAfterDays"</span>:     <span class="tok-num">30</span>,   <span class="tok-com">// pending referrals auto-expire after N days</span>
+  <span class="tok-key">"refereeIsAffiliate"</span>: <span class="tok-str">"reject"</span> <span class="tok-com">// reject if friend is also signed up as an affiliate</span>
+}</code></pre>
+
+          <h3 class="font-semibold text-gray-900 mt-6 mb-2">Monthly caps</h3>
+          <pre><code>{
+  <span class="tok-key">"caps"</span>: {
+    <span class="tok-key">"perReferrerCentsMonthly"</span>: <span class="tok-num">10000</span>, <span class="tok-com">// max paid to one referrer per month</span>
+    <span class="tok-key">"perBrandCentsMonthly"</span>:    <span class="tok-num">500000</span> <span class="tok-com">// hard ceiling for the brand</span>
+  }
+}</code></pre>
+          <p class="text-sm text-gray-500 mt-3">A referral that would push past either cap is rejected wholesale — no partial payouts. Cleaner audit story than picking a winner.</p>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── REFER-A-FRIEND INTEGRATION ─────────────────────────────────── -->
+        <section id="raf-integration">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Integration Endpoints</h2>
+          <p class="text-gray-500 mb-4">Three write endpoints (your casino calls these) plus two read endpoints (your casino polls these). All require an operator JWT; scope is resolved from the token.</p>
+
+          <h3 class="font-semibold text-gray-900 mt-4 mb-2">1. track-signup</h3>
+          <p class="text-sm text-gray-500 mb-2">Call when a new player registers with another player's referral code.</p>
+          <pre><code><span class="tok-mth">POST</span> <span class="tok-url">/api/refer/track-signup</span>
+<span class="tok-hdr">Authorization: Bearer &lt;operator-jwt&gt;</span>
+
+{
+  <span class="tok-key">"brandId"</span>:          <span class="tok-str">"b_…"</span>,
+  <span class="tok-key">"referrerPlayerId"</span>: <span class="tok-str">"p_…"</span>,
+  <span class="tok-key">"refereePlayerId"</span>:  <span class="tok-str">"p_…"</span>,
+  <span class="tok-key">"refCode"</span>:          <span class="tok-str">"FRIEND2025"</span>
+}</code></pre>
+
+          <h3 class="font-semibold text-gray-900 mt-6 mb-2">2. track-ftd</h3>
+          <p class="text-sm text-gray-500 mb-2">Call when the referred friend makes their first deposit. Affiliar runs the qualification gates here.</p>
+          <pre><code><span class="tok-mth">POST</span> <span class="tok-url">/api/refer/track-ftd</span>
+{
+  <span class="tok-key">"brandId"</span>:         <span class="tok-str">"b_…"</span>,
+  <span class="tok-key">"refereePlayerId"</span>: <span class="tok-str">"p_…"</span>,
+  <span class="tok-key">"depositCents"</span>:    <span class="tok-num">5000</span>,
+  <span class="tok-key">"currency"</span>:        <span class="tok-str">"EUR"</span>,
+  <span class="tok-key">"depositedAt"</span>:     <span class="tok-str">"2026-05-12T14:31:00Z"</span>
+}</code></pre>
+
+          <h3 class="font-semibold text-gray-900 mt-6 mb-2">3. track-ftd-reversal</h3>
+          <p class="text-sm text-gray-500 mb-2">Call when the friend's FTD reverses (chargeback, refund). Affiliar emits paired <code>.reversed</code> events so the operator can debit any already-paid rewards.</p>
+          <pre><code><span class="tok-mth">POST</span> <span class="tok-url">/api/refer/track-ftd-reversal</span>
+{
+  <span class="tok-key">"brandId"</span>:         <span class="tok-str">"b_…"</span>,
+  <span class="tok-key">"refereePlayerId"</span>: <span class="tok-str">"p_…"</span>,
+  <span class="tok-key">"reversedCents"</span>:   <span class="tok-num">5000</span>,
+  <span class="tok-key">"reason"</span>:          <span class="tok-str">"chargeback"</span>
+}</code></pre>
+
+          <h3 class="font-semibold text-gray-900 mt-6 mb-2">4. stats (read)</h3>
+          <pre><code><span class="tok-mth">GET</span> <span class="tok-url">/api/refer/stats?playerId=&lt;p_…&gt;&amp;brandId=&lt;optional&gt;</span></code></pre>
+          <p class="text-sm text-gray-500 mt-2">Returns a per-player summary: how many friends they've invited, status breakdown, total earned, plus an <code>asReferee</code> block if this player was themselves invited by someone else.</p>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── REFER-A-FRIEND PULL ────────────────────────────────────────── -->
+        <section id="raf-pull">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Pull &amp; Claim Flow</h2>
+          <p class="text-gray-500 mb-4">When a player opens their "My Rewards" page on the casino, your backend polls Affiliar for any owed rewards, credits the wallet for each, then acks. The ack flips the row from <code>pending</code> to <code>delivered</code> on Affiliar's side so the same reward isn't returned twice.</p>
+
+          <h3 class="font-semibold text-gray-900 mt-4 mb-2">1. Read the ledger</h3>
+          <pre><code><span class="tok-mth">GET</span> <span class="tok-url">/api/refer/player/&lt;playerId&gt;/rewards</span>
+<span class="tok-hdr">Authorization: Bearer &lt;operator-jwt&gt;</span>
+
+<span class="tok-com">// response</span>
+{
+  <span class="tok-key">"pending"</span>: [
+    {
+      <span class="tok-key">"id"</span>:             <span class="tok-str">"d_8a3f…"</span>,
+      <span class="tok-key">"eventType"</span>:      <span class="tok-str">"referral.reward.issued"</span>,
+      <span class="tok-key">"referralId"</span>:     <span class="tok-str">"r_492a…"</span>,
+      <span class="tok-key">"rewardCents"</span>:    <span class="tok-num">500</span>,
+      <span class="tok-key">"rewardCurrency"</span>: <span class="tok-str">"EUR"</span>,
+      <span class="tok-key">"rewardKind"</span>:     <span class="tok-str">"bonus"</span>
+    }
+  ],
+  <span class="tok-key">"history"</span>: [ <span class="tok-com">/* last 20 delivered rows */</span> ]
+}</code></pre>
+
+          <h3 class="font-semibold text-gray-900 mt-6 mb-2">2. Credit + ack</h3>
+          <p class="text-sm text-gray-500 mb-2">For each <code>pending</code> row, the casino picks a wallet matching <code>rewardCurrency</code>, credits (or debits for <code>.reversed</code> events) the amount, then posts the ids back:</p>
+          <pre><code><span class="tok-mth">POST</span> <span class="tok-url">/api/refer/player/&lt;playerId&gt;/rewards/claim</span>
+{
+  <span class="tok-key">"ids"</span>: [<span class="tok-str">"d_8a3f…"</span>, <span class="tok-str">"d_c01d…"</span>]
+}
+
+<span class="tok-com">// response</span>
+{
+  <span class="tok-key">"claimed"</span>: [<span class="tok-str">"d_8a3f…"</span>, <span class="tok-str">"d_c01d…"</span>],
+  <span class="tok-key">"skipped"</span>: []  <span class="tok-com">// rows already delivered or not owned by this operator</span>
+}</code></pre>
+          <p class="text-sm text-gray-500 mt-3">If the ack fails (network blip), the row simply reappears as <code>pending</code> next call. Your wallet idempotency should make the credit retry safe — Affiliar guarantees no row will be marked <code>delivered</code> without an explicit ack.</p>
+
+          <h3 class="font-semibold text-gray-900 mt-6 mb-2">Per-friend listing</h3>
+          <p class="text-sm text-gray-500 mb-2">If you want to render a table of "people I invited and what I earned from each," call:</p>
+          <pre><code><span class="tok-mth">GET</span> <span class="tok-url">/api/refer/player/&lt;playerId&gt;/referrals</span></code></pre>
+          <p class="text-sm text-gray-500 mt-2">Returns one row per <code>PlayerReferral</code> where this player is the referrer, with <code>status</code>, the matching <code>pendingDeliveryId</code> (so an inline Claim button can pass it straight to <code>/rewards/claim</code>), and reward amount / kind.</p>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── REFER-A-FRIEND EVENTS ──────────────────────────────────────── -->
+        <section id="raf-events">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Event Types</h2>
+          <p class="text-gray-500 mb-4">Each row in <code>RewardDelivery</code> carries an <code>eventType</code> that tells your backend how to route it. The <code>.reversed</code> variants exist as paired clawbacks — same <code>referralId</code>, opposite sign.</p>
+          <div class="overflow-x-auto rounded-xl border border-gray-100">
+            <table>
+              <thead><tr><th>Event Type</th><th>Recipient</th><th>Action</th><th>Trigger</th></tr></thead>
+              <tbody>
+                <tr><td><code>referral.reward.issued</code></td><td>Referrer</td><td>Credit</td><td>Friend qualifies (gates pass)</td></tr>
+                <tr><td><code>referral.reward.reversed</code></td><td>Referrer</td><td>Debit</td><td>Friend's FTD reverses</td></tr>
+                <tr><td><code>referral.reward.referee.issued</code></td><td>Referee (friend)</td><td>Credit</td><td>Welcome bonus on qualification</td></tr>
+                <tr><td><code>referral.reward.referee.reversed</code></td><td>Referee</td><td>Debit</td><td>Friend's FTD reverses</td></tr>
+                <tr><td><code>referral.reward.recurring.issued</code></td><td>Referrer</td><td>Credit</td><td>Monthly NGR-share rollup</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-sm text-gray-500 mt-4">When you call <code>/rewards/claim</code>, Affiliar runs the matching state cascade on the underlying <code>PlayerReferral</code> — e.g. <code>referral.reward.issued</code> moves it to <code>rewarded</code>, <code>referral.reward.reversed</code> moves it to <code>reversed</code>. No extra bookkeeping required on your side.</p>
         </section>
 
         <hr class="border-gray-100" />

@@ -175,6 +175,16 @@
         </div>
 
         <div>
+          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Refer-a-Friend</p>
+          <a href="#raf-what"              class="nav-link">What it is</a>
+          <a href="#raf-enable"            class="nav-link">Enable for a brand</a>
+          <a href="#raf-rewards"           class="nav-link">Configure rewards</a>
+          <a href="#raf-gates"             class="nav-link">Set fraud gates</a>
+          <a href="#raf-monitor"           class="nav-link">Monitor referrals</a>
+          <a href="#raf-reversals"         class="nav-link">Handling chargebacks</a>
+        </div>
+
+        <div>
           <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Affiliate Portal</p>
           <a href="#portal-dashboard"      class="nav-link">Dashboard</a>
           <a href="#portal-marketing"      class="nav-link">Marketing tools</a>
@@ -1504,6 +1514,113 @@ maria_g,maria@example.com,Maria Garcia,CPA $50</code></pre>
 
           <div class="callout-info">
             <strong>Remember:</strong> Campaigns are just strings &mdash; there is no need to &ldquo;create&rdquo; them in advance. Any value passed in the URL is automatically tracked and appears in reports.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             REFER-A-FRIEND
+             ═══════════════════════════════════════════════════════════════ -->
+
+        <section id="raf-what">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-light text-primary text-xs font-semibold mb-4">Refer-a-Friend</div>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">34. What Refer-a-Friend is</h2>
+          <p class="text-gray-500 mb-4">Refer-a-Friend is a player-to-player referral program that lives next to your affiliate program. When one of your existing players invites a friend, the friend signs up and deposits, and the inviter (and optionally the friend too) earns a reward.</p>
+          <p class="text-gray-500 mb-4">Affiliar handles all the attribution and qualification work &mdash; you only need to configure the reward and the gates, and tell your casino to read from the rewards endpoint when a player visits their &ldquo;My Rewards&rdquo; page.</p>
+          <div class="callout-info">
+            <strong>Affiliate vs Refer-a-Friend:</strong> Affiliates are marketers (influencers, comparison sites) with commission plans. Refer-a-Friend is for ordinary players inviting friends &mdash; a different reward shape, different fraud profile, and a separate ledger. The two systems do not overlap.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <section id="raf-enable">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">35. Enable Refer-a-Friend for a brand</h2>
+          <p class="text-gray-500 mb-4">Open <strong>Refer-a-Friend &rarr; Brand Configs</strong> in the operator dashboard. Pick a brand from the list and flip the <strong>Enable</strong> toggle. Until that is on, every <code>track-signup</code> and <code>track-ftd</code> call from your casino for that brand is rejected with <code>feature_disabled</code>.</p>
+          <p class="text-gray-500 mb-4">Each brand has its own config &mdash; you can run different reward formulas, gates, and caps per brand under the same operator account.</p>
+          <div class="callout-tip">
+            <strong>Tip:</strong> Test on a staging brand first. Once enabled, every new signup with a referral code starts a real <code>PlayerReferral</code> row, and qualified friends start owing real rewards.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <section id="raf-rewards">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">36. Configure the reward</h2>
+          <p class="text-gray-500 mb-4">The brand config carries three independent reward subdocuments. Only the <strong>Referrer reward</strong> is required &mdash; the other two are optional opt-ins.</p>
+          <div class="overflow-x-auto rounded-xl border border-gray-100 mb-6">
+            <table>
+              <thead><tr><th>Reward</th><th>Paid to</th><th>When</th><th>Typical use</th></tr></thead>
+              <tbody>
+                <tr><td><strong>Referrer</strong></td><td>Inviter</td><td>On qualification</td><td>Thanking the player for the lead</td></tr>
+                <tr><td><strong>Referee</strong></td><td>Friend (invitee)</td><td>On qualification (same moment)</td><td>Welcome bonus to encourage signup</td></tr>
+                <tr><td><strong>Recurring</strong></td><td>Inviter</td><td>Monthly, until <code>staleAfterDays</code></td><td>Share of the friend&apos;s ongoing NGR</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-gray-500 mb-2">For each, pick a <strong>reward type</strong> and an <strong>amount</strong>:</p>
+          <ul class="list-disc list-inside text-sm text-gray-600 space-y-1 mb-4">
+            <li><code>flat</code> &mdash; fixed amount in cents, regardless of friend&apos;s deposit size.</li>
+            <li><code>percent_of_ftd</code> &mdash; percentage of the friend&apos;s first deposit.</li>
+            <li><code>percent_of_ngr</code> &mdash; percentage of the friend&apos;s NGR over the period (recurring only).</li>
+          </ul>
+          <p class="text-gray-500 mb-4">Also set the <strong>currency</strong> (rewards are denominated in the operator&apos;s base currency by default) and <strong>reward kind</strong> (<code>cash</code> or <code>bonus</code> &mdash; this is a label that flows through to your casino; how you route a &ldquo;bonus&rdquo; reward to a bonus wallet is operator-side).</p>
+          <div class="callout-warn">
+            <strong>Watch out:</strong> The <code>rewardKind</code> field is informational at the data layer. If you want a <code>bonus</code> reward to actually land in a bonus wallet on the player side, your casino backend has to honour the kind when picking which wallet to credit.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <section id="raf-gates">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">37. Set the fraud gates &amp; caps</h2>
+          <p class="text-gray-500 mb-4">Refer-a-Friend ships with the same shape of gates as the CPA flow. Before paying out, Affiliar checks that the referral has cleared each gate.</p>
+          <div class="overflow-x-auto rounded-xl border border-gray-100 mb-6">
+            <table>
+              <thead><tr><th>Gate</th><th>What it does</th></tr></thead>
+              <tbody>
+                <tr><td><strong>Hold period</strong></td><td>Wait <em>N</em> days after the friend&apos;s FTD before paying. Catches early chargebacks.</td></tr>
+                <tr><td><strong>Minimum wager</strong></td><td>Friend must wager at least this much (cumulative since FTD) before qualification.</td></tr>
+                <tr><td><strong>Stale expiry</strong></td><td>Pending referrals auto-reject after <em>N</em> days &mdash; keeps the ledger clean.</td></tr>
+                <tr><td><strong>Referee is affiliate</strong></td><td>Reject if the friend is also signed up as an affiliate on your platform &mdash; affiliate attribution wins.</td></tr>
+                <tr><td><strong>Monthly caps</strong></td><td>Per-referrer and per-brand spend ceilings. A referral that would bust either cap is rejected wholesale &mdash; no partial payouts.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout-tip">
+            <strong>Tip:</strong> Start with conservative gates (e.g. 7-day hold, &euro;25 minimum wager) and loosen them once you have a feel for the chargeback rate on your traffic.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <section id="raf-monitor">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">38. Monitor referrals &amp; deliveries</h2>
+          <p class="text-gray-500 mb-4">Two activity tables in the operator dashboard track everything:</p>
+          <div class="overflow-x-auto rounded-xl border border-gray-100 mb-6">
+            <table>
+              <thead><tr><th>View</th><th>Shows</th><th>Status values</th></tr></thead>
+              <tbody>
+                <tr><td><strong>Referrals</strong></td><td>One row per <code>PlayerReferral</code> &mdash; the funnel from signup to reward.</td><td><code>pending_ftd</code>, <code>pending_qualification</code>, <code>qualified</code>, <code>rewarded</code>, <code>reversed</code>, <code>rejected</code></td></tr>
+                <tr><td><strong>Reward Ledger</strong></td><td>One row per <code>RewardDelivery</code> &mdash; what&apos;s owed and what the casino has acked.</td><td><code>pending</code>, <code>delivered</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-gray-500 mb-4">Each row drills into a detail view with the full timeline (signup, FTD, qualified, paid) and the configuration snapshot at the moment of qualification, so you can audit exactly which gates and reward formula applied even if the brand config was changed afterwards.</p>
+          <div class="callout-info">
+            <strong>Pending forever?</strong> If a reward stays <code>pending</code> in the ledger, it usually means your casino backend hasn&apos;t pulled the row yet &mdash; the player may not have opened &ldquo;My Rewards&rdquo; since qualification. The row will be delivered the next time the casino calls <code>/rewards/claim</code>.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <section id="raf-reversals">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">39. Handling chargebacks &amp; reversals</h2>
+          <p class="text-gray-500 mb-4">If the friend&apos;s FTD is reversed (chargeback, refund, fraud claim), your casino calls <code>POST /api/refer/track-ftd-reversal</code>. Affiliar emits a paired <code>.reversed</code> event for each previously-paid reward &mdash; same <code>referralId</code>, opposite sign &mdash; and the next pull from <code>/rewards</code> returns them as <code>pending</code> rows. Your casino debits the wallet and acks, same as a credit.</p>
+          <p class="text-gray-500 mb-4">The original <code>PlayerReferral</code> row moves to status <code>reversed</code> and the clawback shows up in the operator dashboard&apos;s reward ledger.</p>
+          <div class="callout-warn">
+            <strong>Note:</strong> If a referral has both referrer and referee bonuses, a reversal claws back <em>both</em> &mdash; one debit event for each side.
           </div>
         </section>
 
