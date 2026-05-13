@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useBaseMutation } from 'api/core/useBaseMutation';
 import { useQueryClient } from '@tanstack/react-query';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
@@ -52,10 +52,8 @@ const DEFAULT_CONFIG: Omit<ReferConfig, 'brandId'> = {
   },
 };
 
-export default function BrandConfigCard({ brand, existingConfig, onSaved }: Props) {
-  const queryClient = useQueryClient();
-  const [open, setOpen]   = useState(!!existingConfig?.enabled);
-  const [form, setForm]   = useState<Omit<ReferConfig, 'brandId'>>(() => ({
+function buildInitialForm(existingConfig: ReferConfig | null): Omit<ReferConfig, 'brandId'> {
+  return {
     ...DEFAULT_CONFIG,
     ...(existingConfig ?? {}),
     reward:          { ...DEFAULT_CONFIG.reward,          ...(existingConfig?.reward ?? {}) },
@@ -63,8 +61,20 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
     recurringReward: { ...DEFAULT_CONFIG.recurringReward, ...(existingConfig?.recurringReward ?? {}) },
     qualification:   { ...DEFAULT_CONFIG.qualification,   ...(existingConfig?.qualification ?? {}) },
     caps:            { ...DEFAULT_CONFIG.caps,            ...(existingConfig?.caps ?? {}) },
-  }));
+  };
+}
+
+export default function BrandConfigCard({ brand, existingConfig, onSaved }: Props) {
+  const queryClient = useQueryClient();
+  const [open, setOpen]   = useState(!!existingConfig?.enabled);
+  const [form, setForm]   = useState<Omit<ReferConfig, 'brandId'>>(() => buildInitialForm(existingConfig));
+  const [baseline, setBaseline] = useState<Omit<ReferConfig, 'brandId'>>(() => buildInitialForm(existingConfig));
   const [savedNotice, setSavedNotice] = useState<string | null>(null);
+
+  const isDirty = useMemo(
+    () => JSON.stringify(form) !== JSON.stringify(baseline),
+    [form, baseline],
+  );
 
   const upsert = useBaseMutation({
     endpoint: REFER_API_URLS.CONFIG(brand._id),
@@ -72,12 +82,14 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
     onSuccess: () => {
       setSavedNotice('Saved.');
       setTimeout(() => setSavedNotice(null), 2200);
+      setBaseline(form);
       queryClient.invalidateQueries({ queryKey: ['refer-configs'] });
       onSaved();
     },
   });
 
   function handleSave() {
+    if (!isDirty || upsert.isPending) return;
     upsert.mutate({
       enabled: form.enabled,
       reward: form.reward,
@@ -440,11 +452,14 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
             <button
               type='button'
               onClick={handleSave}
-              disabled={upsert.isPending}
-              className='h-9 px-5 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-dark disabled:opacity-60'
+              disabled={upsert.isPending || !isDirty}
+              className='h-9 px-5 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-dark disabled:opacity-60 disabled:cursor-not-allowed'
             >
               {upsert.isPending ? 'Saving…' : 'Save changes'}
             </button>
+            {!isDirty && !savedNotice && (
+              <span className='text-xs text-gray-700'>No pending changes</span>
+            )}
             {savedNotice && <span className='text-xs text-green-700'>{savedNotice}</span>}
           </div>
         </div>
