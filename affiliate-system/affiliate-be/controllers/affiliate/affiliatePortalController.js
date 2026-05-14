@@ -410,6 +410,85 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
+// ── Fee details (read-only operator policy) ───────────────────────────────────
+
+const OperatorFinancialSettings = require("../../models/OperatorFinancialSettings");
+
+// GET /api/affiliate-portal/fee-details
+// Returns the operator's currently configured fee percentages + the provider
+// fee rate list (default + any per-brand overrides) so the affiliate can see
+// exactly what's being deducted from GGR on their behalf. Read-only.
+exports.feeDetails = async (req, res) => {
+  try {
+    const affiliate = req.affiliateUser;
+    if (affiliate.role !== "affiliate") {
+      return res.status(403).json({ error: "Affiliates only" });
+    }
+
+    const profile = await AffiliateProfile.findOne({ user: affiliate._id })
+      .select("operatorUser")
+      .lean();
+    if (!profile?.operatorUser) {
+      return res.status(404).json({ error: "Affiliate profile not found" });
+    }
+
+    // Look up the User to resolve their tenant operator id (Operator._id),
+    // since financial settings + provider rates are keyed by it.
+    const operatorUser = await User.findById(profile.operatorUser)
+      .select("operatorId")
+      .lean();
+    const operatorId = operatorUser?.operatorId;
+    if (!operatorId) {
+      return res.status(404).json({ error: "Operator not linked" });
+    }
+
+    const [allFinancials, providerRates, brands] = await Promise.all([
+      OperatorFinancialSettings.find({ operatorId }).lean(),
+      ProviderFeeRate.find({ operatorId, isDeleted: false }).lean(),
+      Brand.find({ operatorId: profile.operatorUser, enabled: true })
+        .select("_id name")
+        .lean(),
+    ]);
+
+    const brandMap = new Map(brands.map((b) => [String(b._id), b.name]));
+    const defaultSettings =
+      allFinancials.find((f) => !f.brandId) || null;
+    const brandSettings = allFinancials
+      .filter((f) => f.brandId)
+      .map((f) => ({
+        brandId: String(f.brandId),
+        brandName: brandMap.get(String(f.brandId)) || null,
+        depositFeePercent:      f.depositFeePercent ?? f.paymentSystemFeePercent ?? null,
+        withdrawalFeePercent:   f.withdrawalFeePercent ?? null,
+        jackpotFeePercent:      f.jackpotFeePercent ?? null,
+        casinoTaxPercent:       f.casinoTaxPercent ?? null,
+        sbThirdPartyFeePercent: f.sbThirdPartyFeePercent ?? null,
+      }));
+
+    const providers = providerRates.map((r) => ({
+      providerId: r.providerId,
+      providerName: r.providerName,
+      brandId: r.brandId ? String(r.brandId) : null,
+      brandName: r.brandId ? brandMap.get(String(r.brandId)) || null : null,
+      feePercent: Number(r.feePercent) || 0,
+    }));
+
+    return res.json({
+      operatorDefaults: defaultSettings && {
+        depositFeePercent:      defaultSettings.depositFeePercent ?? defaultSettings.paymentSystemFeePercent ?? null,
+        withdrawalFeePercent:   defaultSettings.withdrawalFeePercent ?? null,
+        jackpotFeePercent:      defaultSettings.jackpotFeePercent ?? null,
+        casinoTaxPercent:       defaultSettings.casinoTaxPercent ?? null,
+        sbThirdPartyFeePercent: defaultSettings.sbThirdPartyFeePercent ?? null,
+      },
+      brandOverrides: brandSettings,
+      providerRates: providers,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // ── Self-service referral code generation ─────────────────────────────────────
 
 // Same character set the operator-side createAffiliate flow uses — drops

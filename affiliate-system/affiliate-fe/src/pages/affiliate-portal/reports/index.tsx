@@ -113,6 +113,90 @@ interface OverviewResponse {
   referralCodes: { code: string; brandId: string | null; brandName: string | null; brandUrl: string | null }[];
 }
 
+// ── Multi-metric chart configuration ─────────────────────────────────────────
+
+interface ChartMetricDef {
+  key: string;
+  label: string;
+  scope: 'shared' | 'casino' | 'sportsbook';
+  isCents?: boolean;
+  isRate?: boolean;
+  computed?: (r: DayRow) => number;
+}
+
+const CHART_METRICS: ChartMetricDef[] = [
+  { key: 'registrations',          label: 'Registrations',    scope: 'shared' },
+  { key: 'playerCount',            label: 'Players',          scope: 'shared' },
+  { key: 'ftdCount',               label: 'FTD Count',        scope: 'shared' },
+  { key: 'ftdSumCents',            label: 'FTD Sum',          scope: 'shared', isCents: true },
+  { key: 'ftdConversionRate',      label: 'FTD Conversion %', scope: 'shared', isRate: true,
+    computed: (r) => r.registrations > 0 ? (r.ftdCount / r.registrations) * 100 : 0 },
+  { key: 'depositsCount',          label: 'Deposits Count',   scope: 'shared' },
+  { key: 'depositsSumCents',       label: 'Deposits Sum',     scope: 'shared', isCents: true },
+  { key: 'cashoutsCount',          label: 'Cashouts Count',   scope: 'shared' },
+  { key: 'cashoutsSumCents',       label: 'Cashouts Sum',     scope: 'shared', isCents: true },
+  { key: 'chargebacksSumCents',    label: 'Chargebacks',      scope: 'shared', isCents: true },
+  { key: 'combinedNgrCents',       label: 'Combined NGR',     scope: 'shared', isCents: true },
+  { key: 'roundsCount',            label: 'Rounds',           scope: 'casino' },
+  { key: 'ggrCents',               label: 'Casino GGR',       scope: 'casino', isCents: true },
+  { key: 'ngrCents',               label: 'Casino NGR',       scope: 'casino', isCents: true },
+  { key: 'bonusIssuesSumCents',    label: 'Bonus Issued',     scope: 'casino', isCents: true },
+  { key: 'sbBetsSumCents',         label: 'SB Bets',          scope: 'sportsbook', isCents: true },
+  { key: 'sbWinsSumCents',         label: 'SB Wins',          scope: 'sportsbook', isCents: true },
+  { key: 'sbGgrCents',             label: 'SB GGR',           scope: 'sportsbook', isCents: true },
+  { key: 'sbNgrCents',             label: 'SB NGR',           scope: 'sportsbook', isCents: true },
+];
+
+function buildMetricPoints(rows: DayRow[], def: ChartMetricDef) {
+  return rows.map((r) => ({
+    date: r.date,
+    value: def.computed
+      ? def.computed(r)
+      : def.isCents
+        ? ((r as any)[def.key] ?? 0) / 100
+        : ((r as any)[def.key] ?? 0),
+  }));
+}
+
+function formatChartTick(v: number, def: ChartMetricDef) {
+  if (def.isRate) return `${v.toFixed(1)}%`;
+  if (def.isCents) return `€${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0)}`;
+  return v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v);
+}
+
+function formatChartTooltip(v: number, def: ChartMetricDef) {
+  if (def.isRate) return `${v.toFixed(2)}%`;
+  if (def.isCents) return `€${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return v.toLocaleString();
+}
+
+// ── Fee details payload ──────────────────────────────────────────────────────
+
+interface FeeBlock {
+  depositFeePercent: number | null;
+  withdrawalFeePercent: number | null;
+  jackpotFeePercent: number | null;
+  casinoTaxPercent: number | null;
+  sbThirdPartyFeePercent: number | null;
+}
+
+interface FeeDetailsResponse {
+  operatorDefaults: FeeBlock | null;
+  brandOverrides: Array<FeeBlock & { brandId: string; brandName: string | null }>;
+  providerRates: Array<{
+    providerId: string;
+    providerName: string;
+    brandId: string | null;
+    brandName: string | null;
+    feePercent: number;
+  }>;
+}
+
+function pct(value: number | null | undefined) {
+  if (value === null || value === undefined) return '—';
+  return `${value}%`;
+}
+
 // ── KPI card ──────────────────────────────────────────────────────────────────
 
 function KpiCard({ label, value, sub, accent }: {
@@ -329,42 +413,223 @@ export default function AffiliateReports() {
             </div>
           </div>
 
-          {/* Activity chart */}
-          {(data?.byDay?.length ?? 0) > 0 && (
-            <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-5 space-y-4'>
-              <h2 className='text-sm font-semibold text-gray-800'>Registrations Over Time</h2>
-              <ResponsiveContainer width='100%' height={220}>
-                <AreaChart
-                  data={data!.byDay.map(r => ({ date: r.date, registrations: r.registrations }))}
-                  margin={{ top: 4, right: 16, left: 0, bottom: 0 }}
-                >
-                  <defs>
-                    <linearGradient id='affiliateGrad' x1='0' y1='0' x2='0' y2='1'>
-                      <stop offset='5%'  stopColor='#2563EB' stopOpacity={0.15} />
-                      <stop offset='95%' stopColor='#2563EB' stopOpacity={0}    />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray='3 3' stroke='#f1f5f9' />
-                  <XAxis dataKey='date' tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} axisLine={false} interval='preserveStartEnd' />
-                  <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} axisLine={false} width={40} />
-                  <Tooltip
-                    formatter={(v: number | undefined) => [v ?? 0, 'Registrations']}
-                    contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
-                    labelStyle={{ color: '#475569', fontWeight: 600 }}
-                  />
-                  <Area type='monotone' dataKey='registrations' stroke='#2563EB' strokeWidth={2} fill='url(#affiliateGrad)' dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
-                </AreaChart>
-              </ResponsiveContainer>
+          {/* Quick Charts — same metric set the operator dashboard offers,
+              just scoped to this affiliate's own data via the portal /overview
+              endpoint we already query above. */}
+          <QuickCharts product={product} byDay={data?.byDay ?? []} />
+
+          {/* Fee details — operator-set policy the affiliate's NGR is
+              calculated against. Read-only. */}
+          <FeeDetails />
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Quick Charts (multi-metric picker) ───────────────────────────────────────
+
+function QuickCharts({ product, byDay }: { product: ProductScope; byDay: DayRow[] }) {
+  const [metricKey, setMetricKey] = useState('registrations');
+
+  const visibleMetrics = useMemo(
+    () =>
+      CHART_METRICS.filter(
+        (m) => m.scope === 'shared' || product === 'all' || m.scope === product,
+      ),
+    [product],
+  );
+
+  const def = useMemo(
+    () => visibleMetrics.find((m) => m.key === metricKey) ?? visibleMetrics[0],
+    [visibleMetrics, metricKey],
+  );
+
+  const points = useMemo(() => (def ? buildMetricPoints(byDay, def) : []), [byDay, def]);
+
+  if (!def) return null;
+
+  return (
+    <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-5 space-y-4'>
+      <div className='flex items-center justify-between gap-3 flex-wrap'>
+        <h2 className='text-sm font-semibold text-gray-800'>Charts</h2>
+        <select
+          value={def.key}
+          onChange={(e) => setMetricKey(e.target.value)}
+          className='bg-white text-gray-700 text-xs rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
+        >
+          {visibleMetrics.map((m) => (
+            <option key={m.key} value={m.key}>{m.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {points.length === 0 ? (
+        <div className='h-52 flex items-center justify-center'>
+          <p className='text-sm text-gray-600'>No data for the selected range.</p>
+        </div>
+      ) : (
+        <ResponsiveContainer width='100%' height={240}>
+          <AreaChart data={points} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id='reportsGrad' x1='0' y1='0' x2='0' y2='1'>
+                <stop offset='5%'  stopColor='#8B5CF6' stopOpacity={0.18} />
+                <stop offset='95%' stopColor='#8B5CF6' stopOpacity={0}    />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray='3 3' stroke='#f1f5f9' />
+            <XAxis
+              dataKey='date'
+              tick={{ fontSize: 11, fill: '#94a3b8' }}
+              tickLine={false}
+              axisLine={false}
+              interval='preserveStartEnd'
+            />
+            <YAxis
+              tickFormatter={(v) => formatChartTick(v, def)}
+              tick={{ fontSize: 11, fill: '#94a3b8' }}
+              tickLine={false}
+              axisLine={false}
+              width={60}
+            />
+            <Tooltip
+              formatter={(v: number | undefined) => [formatChartTooltip(v ?? 0, def), def.label]}
+              contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
+              labelStyle={{ color: '#475569', fontWeight: 600 }}
+            />
+            <Area
+              type='monotone'
+              dataKey='value'
+              stroke='#8B5CF6'
+              strokeWidth={2}
+              fill='url(#reportsGrad)'
+              dot={false}
+              activeDot={{ r: 4, strokeWidth: 0 }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      )}
+    </div>
+  );
+}
+
+// ── Fee Details (read-only operator policy) ──────────────────────────────────
+
+function FeeDetails() {
+  const { data, isLoading } = useBaseQuery<FeeDetailsResponse>({
+    endpoint: AFFILIATE_PORTAL_API_URLS.FEE_DETAILS(),
+    queryKey: ['affiliate-fee-details'],
+  });
+
+  return (
+    <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-6 space-y-5'>
+      <div>
+        <h2 className='text-sm font-semibold text-gray-800'>Fee Details</h2>
+        <p className='text-xs text-gray-600 mt-0.5'>
+          The fee percentages your operator applies before NGR is computed for your commission.
+        </p>
+      </div>
+
+      {isLoading && (
+        <div className='h-24 bg-gray-50 rounded-lg animate-pulse' />
+      )}
+
+      {!isLoading && data && (
+        <>
+          {/* Operator defaults */}
+          {data.operatorDefaults && (
+            <div>
+              <p className='text-[11px] font-medium uppercase tracking-[0.12em] text-gray-600 mb-2'>
+                Operator defaults
+              </p>
+              <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3'>
+                <FeeChip label='Deposit'        value={pct(data.operatorDefaults.depositFeePercent)} />
+                <FeeChip label='Withdrawal'     value={pct(data.operatorDefaults.withdrawalFeePercent)} />
+                <FeeChip label='Jackpot'        value={pct(data.operatorDefaults.jackpotFeePercent)} />
+                <FeeChip label='Casino Tax'     value={pct(data.operatorDefaults.casinoTaxPercent)} />
+                <FeeChip label='SB 3rd-party'   value={pct(data.operatorDefaults.sbThirdPartyFeePercent)} />
+              </div>
             </div>
           )}
 
-          {(data?.byDay?.length ?? 0) === 0 && (
-            <div className='bg-white rounded-xl p-8 shadow-sm border border-gray-100 text-center'>
-              <p className='text-gray-600 text-sm'>No activity data for the selected period.</p>
+          {/* Per-brand overrides */}
+          {data.brandOverrides.length > 0 && (
+            <div>
+              <p className='text-[11px] font-medium uppercase tracking-[0.12em] text-gray-600 mb-2'>
+                Per-brand overrides
+              </p>
+              <div className='overflow-x-auto rounded-lg border border-gray-100'>
+                <table className='w-full text-xs'>
+                  <thead className='bg-gray-50'>
+                    <tr>
+                      <th className='px-3 py-2 text-left font-semibold text-gray-700'>Brand</th>
+                      <th className='px-3 py-2 text-right font-semibold text-gray-700'>Deposit</th>
+                      <th className='px-3 py-2 text-right font-semibold text-gray-700'>Withdrawal</th>
+                      <th className='px-3 py-2 text-right font-semibold text-gray-700'>Jackpot</th>
+                      <th className='px-3 py-2 text-right font-semibold text-gray-700'>Casino Tax</th>
+                      <th className='px-3 py-2 text-right font-semibold text-gray-700'>SB 3rd-party</th>
+                    </tr>
+                  </thead>
+                  <tbody className='divide-y divide-gray-100'>
+                    {data.brandOverrides.map((b) => (
+                      <tr key={b.brandId}>
+                        <td className='px-3 py-2 text-gray-800 font-medium'>{b.brandName || b.brandId}</td>
+                        <td className='px-3 py-2 text-right text-gray-700'>{pct(b.depositFeePercent)}</td>
+                        <td className='px-3 py-2 text-right text-gray-700'>{pct(b.withdrawalFeePercent)}</td>
+                        <td className='px-3 py-2 text-right text-gray-700'>{pct(b.jackpotFeePercent)}</td>
+                        <td className='px-3 py-2 text-right text-gray-700'>{pct(b.casinoTaxPercent)}</td>
+                        <td className='px-3 py-2 text-right text-gray-700'>{pct(b.sbThirdPartyFeePercent)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
+          )}
+
+          {/* Provider rates */}
+          {data.providerRates.length > 0 && (
+            <div>
+              <p className='text-[11px] font-medium uppercase tracking-[0.12em] text-gray-600 mb-2'>
+                Game provider fees
+              </p>
+              <div className='overflow-x-auto rounded-lg border border-gray-100'>
+                <table className='w-full text-xs'>
+                  <thead className='bg-gray-50'>
+                    <tr>
+                      <th className='px-3 py-2 text-left font-semibold text-gray-700'>Provider</th>
+                      <th className='px-3 py-2 text-left font-semibold text-gray-700'>Brand</th>
+                      <th className='px-3 py-2 text-right font-semibold text-gray-700'>Fee</th>
+                    </tr>
+                  </thead>
+                  <tbody className='divide-y divide-gray-100'>
+                    {data.providerRates.map((p, i) => (
+                      <tr key={`${p.providerId}-${p.brandId ?? 'default'}-${i}`}>
+                        <td className='px-3 py-2 text-gray-800 font-medium'>{p.providerName || p.providerId}</td>
+                        <td className='px-3 py-2 text-gray-700'>{p.brandId ? (p.brandName || p.brandId) : 'All brands (default)'}</td>
+                        <td className='px-3 py-2 text-right text-gray-700'>{pct(p.feePercent)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {!data.operatorDefaults && data.brandOverrides.length === 0 && data.providerRates.length === 0 && (
+            <p className='text-xs text-gray-600'>Your operator hasn't configured any fee rates yet.</p>
           )}
         </>
       )}
+    </div>
+  );
+}
+
+function FeeChip({ label, value }: { label: string; value: string }) {
+  return (
+    <div className='rounded-lg border border-gray-100 bg-gray-50 px-3 py-2'>
+      <p className='text-[10px] font-medium uppercase tracking-[0.1em] text-gray-600 mb-0.5'>{label}</p>
+      <p className='text-sm font-semibold text-gray-900'>{value}</p>
     </div>
   );
 }

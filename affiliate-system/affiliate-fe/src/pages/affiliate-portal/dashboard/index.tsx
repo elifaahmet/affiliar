@@ -37,6 +37,12 @@ interface DayRow {
   ftdSumCents: number;
   depositsCount: number;
   depositsSumCents: number;
+  cashoutsCount: number;
+  cashoutsSumCents: number;
+  chargebacksSumCents: number;
+  bonusIssuesSumCents: number;
+  correctionsUpSumCents: number;
+  correctionsDownSumCents: number;
   ggrCents: number;
   ngrCents: number;
   sbNgrCents?: number;
@@ -149,44 +155,88 @@ export default function AffiliateDashboard() {
 
       {!isLoading && !isError && (
         <>
-          {/* Headline widgets */}
-          <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4'>
-            <KpiCard
-              label='Combined NGR'
-              value={`€${fmt(s?.combinedNgrCents ?? s?.ngrCents ?? 0)}`}
-              accent
-            />
-            <KpiCard
-              label='Registrations'
-              value={String(s?.registrations ?? 0)}
-              sub={`${s?.playerCount ?? 0} active players`}
-            />
-            <KpiCard
-              label='FTDs'
-              value={String(s?.ftdCount ?? 0)}
-              sub={`€${fmt(s?.ftdSumCents ?? 0)}`}
-            />
-            <KpiCard
-              label='Deposits'
-              value={`€${fmt(s?.depositsSumCents ?? 0)}`}
-              sub={`${s?.depositsCount ?? 0} txns`}
-            />
+          {/* My Commissions */}
+          <div>
+            <p className='text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3'>My Commissions</p>
+            <div className='grid grid-cols-2 sm:grid-cols-4 gap-4'>
+              <KpiCard label='Total Earned' value={`€${fmt(com?.totalEarned ?? 0)}`} accent />
+              <KpiCard label='Approved' value={`€${fmt(com?.totalApproved ?? 0)}`} />
+              <KpiCard label='Paid' value={`€${fmt(com?.totalPaid ?? 0)}`} />
+              <KpiCard label='Pending' value={`€${fmt(com?.totalPending ?? 0)}`} />
+            </div>
           </div>
 
-          <div className='grid grid-cols-2 sm:grid-cols-4 gap-4'>
-            <KpiCard
-              label='Commission earned'
-              value={`€${fmt(com?.totalEarned ?? 0)}`}
-            />
-            <KpiCard
-              label='Approved'
-              value={`€${fmt(com?.totalApproved ?? 0)}`}
-            />
-            <KpiCard label='Paid' value={`€${fmt(com?.totalPaid ?? 0)}`} />
-            <KpiCard
-              label='Pending'
-              value={`€${fmt(com?.totalPending ?? 0)}`}
-            />
+          {/* Traffic */}
+          <div>
+            <p className='text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3'>Traffic</p>
+            <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4'>
+              <KpiCard
+                label='Registrations'
+                value={String(s?.registrations ?? 0)}
+                sub={`${s?.playerCount ?? 0} active players`}
+              />
+              <KpiCard
+                label='FTDs'
+                value={String(s?.ftdCount ?? 0)}
+                sub={`€${fmt(s?.ftdSumCents ?? 0)}`}
+              />
+              <KpiCard
+                label='Deposits'
+                value={`€${fmt(s?.depositsSumCents ?? 0)}`}
+                sub={`${s?.depositsCount ?? 0} txns`}
+              />
+              <KpiCard
+                label='Cashouts'
+                value={`€${fmt(s?.cashoutsSumCents ?? 0)}`}
+                sub={`${s?.cashoutsCount ?? 0} txns`}
+              />
+            </div>
+          </div>
+
+          {/* Revenue */}
+          <div>
+            <p className='text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3'>Revenue</p>
+            <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4'>
+              <KpiCard
+                label='Combined NGR'
+                value={`€${fmt(s?.combinedNgrCents ?? s?.ngrCents ?? 0)}`}
+                accent
+              />
+              <KpiCard
+                label='Casino NGR'
+                value={`€${fmt(s?.ngrCents ?? 0)}`}
+                sub={`GGR €${fmt(s?.ggrCents ?? 0)}`}
+              />
+              <KpiCard
+                label='SB NGR'
+                value={`€${fmt(s?.sbNgrCents ?? 0)}`}
+              />
+            </div>
+          </div>
+
+          {/* Adjustments */}
+          <div>
+            <p className='text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3'>Adjustments</p>
+            <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4'>
+              <KpiCard
+                label='Chargebacks'
+                value={`€${fmt(s?.chargebacksSumCents ?? 0)}`}
+              />
+              <KpiCard
+                label='Bonus Issued'
+                value={`€${fmt(s?.bonusIssuesSumCents ?? 0)}`}
+              />
+              <KpiCard
+                label='Corrections Up'
+                value={`€${fmt(s?.correctionsUpSumCents ?? 0)}`}
+                sub='casino recovered'
+              />
+              <KpiCard
+                label='Corrections Down'
+                value={`€${fmt(s?.correctionsDownSumCents ?? 0)}`}
+                sub='casino gifted'
+              />
+            </div>
           </div>
 
           {/* Registrations sparkline — the only chart on the home page */}
