@@ -34,15 +34,6 @@ async function processMessage(rawValue) {
     `[consumer] ${event.eventType} | player=${event.playerId} tenant=${event.tenantId} affiliate=${affiliateId || '-'}`
   );
 
-  // Affiliar dashboard is affiliate-attributed only — organic activity
-  // (player without an affiliateReferralCode) is dropped here so the
-  // ClickHouse activity tables stay focused on the affiliate program.
-  // Bet/win publishers in the Go services emit unconditionally; this
-  // is the single point of filtering.
-  if (!affiliateId) {
-    return;
-  }
-
   addEvent(event, data, affiliateId);
 
   if (event.eventType === 'player.registered') {
