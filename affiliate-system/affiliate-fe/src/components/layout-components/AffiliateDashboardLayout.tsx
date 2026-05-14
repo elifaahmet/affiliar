@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   BanknotesIcon,
+  ChartBarIcon,
   MegaphoneIcon,
   Squares2X2Icon,
   UserCircleIcon,
@@ -27,6 +28,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { key: 'dashboard',     label: 'Dashboard',       href: '/affiliate/dashboard',      Icon: Squares2X2Icon },
+  { key: 'reports',       label: 'Reports',         href: '/affiliate/reports',        Icon: ChartBarIcon },
   { key: 'players',       label: 'Players',         href: '/affiliate/players',        Icon: UsersIcon },
   { key: 'marketing',     label: 'Marketing Tools', href: '/affiliate/marketing',      Icon: MegaphoneIcon },
   { key: 'commission',    label: 'Commission',      href: '/affiliate/commission',     Icon: BanknotesIcon },
