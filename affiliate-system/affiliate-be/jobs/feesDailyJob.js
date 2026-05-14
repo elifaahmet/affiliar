@@ -40,6 +40,24 @@ async function insertDelta(rows) {
   });
 }
 
+// Wipe every fee row this job has previously written for (tenant, day) so the
+// fresh write below is the single source of truth. SummingMergeTree only adds;
+// without an explicit clear, re-running the job (or the operator changing a
+// fee rate mid-day) double-counts. mutations_sync=2 waits for the ALTER ...
+// DELETE to land across replicas before we insert the new rows.
+async function clearExistingFees(tenantId, hourBucket) {
+  await clickhouse.command({
+    query: `
+      ALTER TABLE activity_hourly_delta
+      DELETE WHERE tenant_id   = {tenantId:String}
+              AND hour_bucket = {hourBucket:DateTime}
+              AND player_id   = '__fees__'
+    `,
+    query_params: { tenantId, hourBucket },
+    clickhouse_settings: { mutations_sync: 2 },
+  });
+}
+
 function boundsFor(dayOffset = -1) {
   // dayOffset = -1 → yesterday (default); 0 → today (for manual test).
   const now = new Date();
@@ -212,6 +230,7 @@ async function runForOperator(operator, operatorFinancials, bounds) {
     });
   }
 
+  await clearExistingFees(tenantId, bounds.hourBucket);
   await insertDelta(deltaRows);
   logger.info("fees.job.operator.ok", {
     operatorId: tenantId,
