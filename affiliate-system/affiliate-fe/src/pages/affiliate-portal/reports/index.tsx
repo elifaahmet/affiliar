@@ -197,24 +197,6 @@ function pct(value: number | null | undefined) {
   return `${value}%`;
 }
 
-// ── KPI card ──────────────────────────────────────────────────────────────────
-
-function KpiCard({ label, value, sub, accent }: {
-  label: string; value: string; sub?: string; accent?: boolean;
-}) {
-  return (
-    <div className={`rounded-xl p-5 border transition-shadow ${
-      accent
-        ? 'bg-gradient-to-br from-primary to-primary-dark border-primary/30 shadow-lg shadow-primary/20'
-        : 'bg-white/80 backdrop-blur-sm border-violet-100 hover:shadow-sm'
-    }`}>
-      <p className={`text-[11px] font-medium uppercase tracking-[0.12em] mb-2 ${accent ? 'text-violet-100' : 'text-gray-600'}`}>{label}</p>
-      <p className={`text-2xl font-semibold tracking-tight ${accent ? 'text-white' : 'text-gray-900'}`}>{value}</p>
-      {sub && <p className={`text-xs mt-1 ${accent ? 'text-violet-200' : 'text-gray-600'}`}>{sub}</p>}
-    </div>
-  );
-}
-
 // ── main page ─────────────────────────────────────────────────────────────────
 
 export default function AffiliateReports() {
@@ -244,9 +226,6 @@ export default function AffiliateReports() {
     params,
   });
   const providers = providersData?.providers ?? [];
-
-  const s   = data?.summary;
-  const com = data?.commission;
 
   return (
     <div className='h-full overflow-auto p-6 pb-24 space-y-6'>
@@ -312,45 +291,6 @@ export default function AffiliateReports() {
             ))}
           </div>
 
-          {/* Traffic KPIs */}
-          <div>
-            <p className='text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3'>Traffic</p>
-            <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4'>
-              <KpiCard label='Registrations' value={String(s?.registrations ?? 0)} sub={`${s?.playerCount ?? 0} active players`} />
-              <KpiCard label='FTDs'          value={String(s?.ftdCount ?? 0)} sub={`€${fmt(s?.ftdSumCents ?? 0)}`} />
-              <KpiCard label='Deposits'      value={`€${fmt(s?.depositsSumCents ?? 0)}`} sub={`${s?.depositsCount ?? 0} txns`} />
-              {product !== 'sportsbook' && <KpiCard label='Rounds' value={(s?.roundsCount ?? 0).toLocaleString()} />}
-              {product === 'sportsbook' && <KpiCard label='SB Settled' value={`€${fmt(s?.sbSettledBetsSumCents ?? 0)}`} sub='bets' />}
-            </div>
-          </div>
-
-          {/* Revenue KPIs — swap per product */}
-          <div>
-            <p className='text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3'>Revenue</p>
-            {product === 'casino' && (
-              <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4'>
-                <KpiCard label='Casino GGR' value={`€${fmt(s?.ggrCents ?? 0)}`} />
-                <KpiCard label='Casino NGR' value={`€${fmt(s?.ngrCents ?? 0)}`} accent />
-              </div>
-            )}
-            {product === 'sportsbook' && (
-              <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4'>
-                <KpiCard label='SB Bets'        value={`€${fmt(s?.sbBetsSumCents ?? 0)}`} sub={`Wins €${fmt(s?.sbWinsSumCents ?? 0)}`} />
-                <KpiCard label='SB Cancelled'   value={`€${fmt(s?.sbCancelledBetsSumCents ?? 0)}`} sub='operator-voided' />
-                <KpiCard label='SB Rejected'    value={`€${fmt(s?.sbRejectedBetsSumCents ?? 0)}`} sub='not accepted' />
-                <KpiCard label='SB GGR'         value={`€${fmt(s?.sbGgrCents ?? 0)}`} />
-                <KpiCard label='SB NGR'         value={`€${fmt(s?.sbNgrCents ?? 0)}`} accent />
-              </div>
-            )}
-            {product === 'all' && (
-              <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4'>
-                <KpiCard label='Combined NGR' value={`€${fmt(s?.combinedNgrCents ?? 0)}`} accent />
-                <KpiCard label='Casino NGR'   value={`€${fmt(s?.ngrCents ?? 0)}`} sub={`GGR €${fmt(s?.ggrCents ?? 0)}`} />
-                <KpiCard label='SB NGR'       value={`€${fmt(s?.sbNgrCents ?? 0)}`} sub={`GGR €${fmt(s?.sbGgrCents ?? 0)}`} />
-              </div>
-            )}
-          </div>
-
           {/* Providers breakdown */}
           {providers.length > 0 && (
             <div>
@@ -390,28 +330,6 @@ export default function AffiliateReports() {
             </div>
           )}
 
-          {/* Adjustments KPIs */}
-          <div>
-            <p className='text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3'>Adjustments</p>
-            <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4'>
-              <KpiCard label='Cashouts'        value={`€${fmt(s?.cashoutsSumCents ?? 0)}`} sub={`${s?.cashoutsCount ?? 0} txns`} />
-              <KpiCard label='Chargebacks'     value={`€${fmt(s?.chargebacksSumCents ?? 0)}`} />
-              <KpiCard label='Bonus Issued'    value={`€${fmt(s?.bonusIssuesSumCents ?? 0)}`} />
-              <KpiCard label='Correction Up'   value={`€${fmt(s?.correctionsUpSumCents ?? 0)}`} sub='casino recovered' />
-              <KpiCard label='Correction Down' value={`€${fmt(s?.correctionsDownSumCents ?? 0)}`} sub='casino gifted' />
-            </div>
-          </div>
-
-          {/* Commission summary */}
-          <div>
-            <p className='text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3'>My Commissions</p>
-            <div className='grid grid-cols-2 sm:grid-cols-4 gap-4'>
-              <KpiCard label='Total Earned'  value={`€${fmt(com?.totalEarned ?? 0)}`} />
-              <KpiCard label='Approved'      value={`€${fmt(com?.totalApproved ?? 0)}`} />
-              <KpiCard label='Paid'          value={`€${fmt(com?.totalPaid ?? 0)}`} />
-              <KpiCard label='Pending'       value={`€${fmt(com?.totalPending ?? 0)}`} />
-            </div>
-          </div>
 
           {/* Quick Charts — same metric set the operator dashboard offers,
               just scoped to this affiliate's own data via the portal /overview

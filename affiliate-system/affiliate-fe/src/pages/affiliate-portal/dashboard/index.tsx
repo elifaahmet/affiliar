@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -6,8 +6,8 @@ import {
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { AFFILIATE_PORTAL_API_URLS } from 'config/apiUrls';
 
-// Slim affiliate landing page: at-a-glance widgets only. Deep date-filtered
-// traffic / providers / breakdowns live on /affiliate/reports.
+// Affiliate landing page: at-a-glance widgets with a date filter. Deep
+// charts / providers / fee details live on /affiliate/reports.
 
 function fmt(cents: number) {
   return (cents / 100).toLocaleString('en-US', {
@@ -23,12 +23,36 @@ function ymd(d: Date) {
   return `${y}-${m}-${day}`;
 }
 
-function thisMonth() {
-  const now = new Date();
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  return { from: ymd(first), to: ymd(last) };
+type PeriodKey = 'today' | 'yesterday' | 'week' | 'last_week' | 'month' | 'last_month' | 'year';
+interface Period { from: string; to: string }
+
+function buildPeriod(key: PeriodKey): Period {
+  const now   = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const monday = (d: Date) => {
+    const day = d.getDay() || 7;
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate() - day + 1);
+  };
+  switch (key) {
+    case 'yesterday': { const y = new Date(today); y.setDate(y.getDate() - 1); return { from: ymd(y), to: ymd(y) }; }
+    case 'today':     return { from: ymd(today), to: ymd(today) };
+    case 'week':      { const mon = monday(today); const sun = new Date(mon); sun.setDate(mon.getDate() + 6); return { from: ymd(mon), to: ymd(sun) }; }
+    case 'last_week': { const lm = monday(today); lm.setDate(lm.getDate() - 7); const le = new Date(lm); le.setDate(le.getDate() + 6); return { from: ymd(lm), to: ymd(le) }; }
+    case 'month':     { const first = new Date(today.getFullYear(), today.getMonth(), 1); const last = new Date(today.getFullYear(), today.getMonth() + 1, 0); return { from: ymd(first), to: ymd(last) }; }
+    case 'last_month':{ const first = new Date(today.getFullYear(), today.getMonth() - 1, 1); const last = new Date(today.getFullYear(), today.getMonth(), 0); return { from: ymd(first), to: ymd(last) }; }
+    case 'year':      { const first = new Date(today.getFullYear(), 0, 1); const last = new Date(today.getFullYear(), 11, 31); return { from: ymd(first), to: ymd(last) }; }
+  }
 }
+
+const PERIOD_BUTTONS: { key: PeriodKey; label: string }[] = [
+  { key: 'today',      label: 'Today'      },
+  { key: 'yesterday',  label: 'Yesterday'  },
+  { key: 'week',       label: 'This Week'  },
+  { key: 'last_week',  label: 'Last Week'  },
+  { key: 'month',      label: 'This Month' },
+  { key: 'last_month', label: 'Last Month' },
+  { key: 'year',       label: 'This Year'  },
+];
 
 interface DayRow {
   date: string;
@@ -107,7 +131,14 @@ function KpiCard({
 }
 
 export default function AffiliateDashboard() {
-  const period = useMemo(thisMonth, []);
+  const [activePeriod, setActivePeriod] = useState<PeriodKey>('month');
+  const [customRange, setCustomRange]   = useState<Period | null>(null);
+
+  const period: Period = useMemo(
+    () => customRange ?? buildPeriod(activePeriod),
+    [activePeriod, customRange],
+  );
+
   const params = useMemo(() => ({ from: period.from, to: period.to }), [period]);
 
   const { data, isLoading, isError } = useBaseQuery<OverviewResponse>({
@@ -121,21 +152,48 @@ export default function AffiliateDashboard() {
 
   return (
     <div className='h-full overflow-auto p-6 pb-24 space-y-6'>
-      <div className='flex items-center justify-between'>
-        <div>
-          <p className='text-xs font-medium uppercase tracking-[0.12em] text-gray-600 mb-1'>
-            This month
-          </p>
-          <h1 className='text-lg font-semibold text-gray-900'>
-            At-a-glance
-          </h1>
-        </div>
+      <div className='flex items-center justify-between gap-3'>
+        <h1 className='text-lg font-semibold text-gray-900'>At-a-glance</h1>
         <Link
           to='/affiliate/reports'
           className='text-xs font-medium text-primary hover:text-primary-dark'
         >
           View full reports →
         </Link>
+      </div>
+
+      {/* Date filter */}
+      <div className='space-y-3'>
+        <div className='flex flex-wrap gap-2'>
+          {PERIOD_BUTTONS.map((btn) => (
+            <button
+              key={btn.key}
+              onClick={() => { setActivePeriod(btn.key); setCustomRange(null); }}
+              className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                activePeriod === btn.key && !customRange
+                  ? 'bg-primary text-white border-primary'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary'
+              }`}
+            >
+              {btn.label}
+            </button>
+          ))}
+        </div>
+        <div className='flex flex-wrap items-center gap-2'>
+          <input
+            type='date'
+            value={customRange?.from ?? period.from}
+            onChange={(e) => setCustomRange((r) => ({ from: e.target.value, to: r?.to ?? period.to }))}
+            className='bg-white text-gray-700 text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
+          />
+          <span className='text-gray-600 text-sm'>→</span>
+          <input
+            type='date'
+            value={customRange?.to ?? period.to}
+            onChange={(e) => setCustomRange((r) => ({ from: r?.from ?? period.from, to: e.target.value }))}
+            className='bg-white text-gray-700 text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
+          />
+        </div>
       </div>
 
       {isLoading && (
@@ -243,7 +301,7 @@ export default function AffiliateDashboard() {
           {(data?.byDay?.length ?? 0) > 0 && (
             <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-5 space-y-4'>
               <h2 className='text-sm font-semibold text-gray-800'>
-                Registrations this month
+                Registrations
               </h2>
               <ResponsiveContainer width='100%' height={180}>
                 <AreaChart
@@ -299,7 +357,7 @@ export default function AffiliateDashboard() {
           {(data?.byDay?.length ?? 0) === 0 && (
             <div className='bg-white rounded-xl p-8 shadow-sm border border-gray-100 text-center'>
               <p className='text-gray-600 text-sm'>
-                No activity yet this month. Share your referral links to start
+                No activity in the selected range. Share your referral links to start
                 tracking.
               </p>
             </div>
