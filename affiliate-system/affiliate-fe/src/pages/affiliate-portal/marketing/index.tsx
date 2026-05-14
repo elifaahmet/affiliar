@@ -92,6 +92,13 @@ export default function AffiliateMarketing() {
 
   const referralCodes = data?.referralCodes ?? [];
 
+  // Link builder state — selected base code + tracking params.
+  const [builderCode, setBuilderCode] = useState<string>('');
+  const [campaign, setCampaign] = useState<string>('');
+  const [sub, setSub] = useState<string>('');
+  const [customParams, setCustomParams] = useState<Array<{ key: string; value: string }>>([]);
+  const [builderCopied, setBuilderCopied] = useState(false);
+
   // Brands the affiliate can generate codes for = distinct brands they're
   // already assigned. If the dropdown is empty we hide the generate UI.
   const availableBrands = useMemo(() => {
@@ -104,6 +111,38 @@ export default function AffiliateMarketing() {
     }
     return out;
   }, [referralCodes]);
+
+  // Live preview of the builder link. Returns the full URL with the
+  // selected code + any campaign / sub / custom params appended.
+  const builderLink = useMemo(() => {
+    const rc =
+      referralCodes.find((r) => r.code === builderCode) ?? referralCodes[0];
+    if (!rc) return '';
+    const params: Array<[string, string]> = [];
+    if (campaign.trim()) params.push(['campaign', campaign.trim()]);
+    if (sub.trim()) params.push(['sub', sub.trim()]);
+    for (const p of customParams) {
+      const k = p.key.trim();
+      const v = p.value.trim();
+      if (k && v && k.toLowerCase() !== 'affiliate') {
+        params.push([k, v]);
+      }
+    }
+    const base = buildLink(rc); // already has ?affiliate=<code>
+    if (params.length === 0) return base;
+    const tail = params
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+      .join('&');
+    return `${base}&${tail}`;
+  }, [referralCodes, builderCode, campaign, sub, customParams]);
+
+  const copyBuilder = () => {
+    if (!builderLink) return;
+    navigator.clipboard.writeText(builderLink).then(() => {
+      setBuilderCopied(true);
+      setTimeout(() => setBuilderCopied(false), 2000);
+    });
+  };
 
   const copy = (text: string) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -313,44 +352,129 @@ export default function AffiliateMarketing() {
         </div>
       </div>
 
-      {/* Tracking parameters */}
+      {/* Link Builder */}
       <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-6'>
-        <h2 className='text-sm font-semibold text-gray-800 mb-2'>Advanced Tracking</h2>
+        <h2 className='text-sm font-semibold text-gray-800 mb-1'>Link Builder</h2>
         <p className='text-xs text-gray-700 mb-4'>
-          Add optional query parameters to your referral link for campaign tracking.
+          Customize your referral link with <span className='font-mono'>campaign</span>,{' '}
+          <span className='font-mono'>sub</span> or any extra parameter you want to track.
+          Custom keys are echoed in campaign reports.
         </p>
-        <div className='overflow-x-auto'>
-          <table className='w-full text-xs'>
-            <thead>
-              <tr className='bg-gray-50'>
-                <th className='px-4 py-2 text-left font-semibold text-gray-700'>Parameter</th>
-                <th className='px-4 py-2 text-left font-semibold text-gray-700'>Example</th>
-                <th className='px-4 py-2 text-left font-semibold text-gray-700'>Description</th>
-              </tr>
-            </thead>
-            <tbody className='divide-y divide-gray-100'>
-              <tr>
-                <td className='px-4 py-2 font-mono text-primary'>affiliate</td>
-                <td className='px-4 py-2 font-mono text-gray-600'>ABC123</td>
-                <td className='px-4 py-2 text-gray-700'>Your referral code (required)</td>
-              </tr>
-              <tr>
-                <td className='px-4 py-2 font-mono text-primary'>campaign</td>
-                <td className='px-4 py-2 font-mono text-gray-600'>summer_promo</td>
-                <td className='px-4 py-2 text-gray-700'>Campaign identifier</td>
-              </tr>
-              <tr>
-                <td className='px-4 py-2 font-mono text-primary'>sub</td>
-                <td className='px-4 py-2 font-mono text-gray-600'>banner_1</td>
-                <td className='px-4 py-2 text-gray-700'>Sub-source / placement</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        {referralCodes.length > 0 && (
-          <p className='text-xs text-gray-600 mt-3'>
-            Example: <span className='font-mono text-primary'>{buildLink(referralCodes[0])}&campaign=summer_promo&sub=banner_1</span>
+
+        {referralCodes.length === 0 && (
+          <p className='text-xs text-gray-600'>
+            Generate a referral code first to build a tracking link.
           </p>
+        )}
+
+        {referralCodes.length > 0 && (
+          <div className='space-y-4'>
+            <div className='grid grid-cols-1 sm:grid-cols-3 gap-3'>
+              <label className='flex flex-col gap-1'>
+                <span className='text-xs text-gray-600'>Base code</span>
+                <select
+                  value={builderCode || referralCodes[0].code}
+                  onChange={(e) => setBuilderCode(e.target.value)}
+                  className='bg-white text-gray-700 text-xs rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
+                >
+                  {referralCodes.map((rc) => (
+                    <option key={rc.code} value={rc.code}>
+                      {rc.code}
+                      {rc.brandName ? ` — ${rc.brandName}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className='flex flex-col gap-1'>
+                <span className='text-xs text-gray-600'>Campaign</span>
+                <input
+                  type='text'
+                  value={campaign}
+                  onChange={(e) => setCampaign(e.target.value)}
+                  placeholder='summer_promo'
+                  className='bg-white text-gray-700 text-xs rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
+                />
+              </label>
+              <label className='flex flex-col gap-1'>
+                <span className='text-xs text-gray-600'>Sub</span>
+                <input
+                  type='text'
+                  value={sub}
+                  onChange={(e) => setSub(e.target.value)}
+                  placeholder='banner_1'
+                  className='bg-white text-gray-700 text-xs rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
+                />
+              </label>
+            </div>
+
+            {/* Custom params */}
+            <div>
+              <div className='flex items-center justify-between mb-2'>
+                <span className='text-xs font-semibold text-gray-700'>Custom parameters</span>
+                <button
+                  type='button'
+                  onClick={() => setCustomParams((rows) => [...rows, { key: '', value: '' }])}
+                  className='text-xs font-medium text-primary hover:text-primary-dark'
+                >
+                  + Add parameter
+                </button>
+              </div>
+              {customParams.length === 0 && (
+                <p className='text-xs text-gray-600'>None — add any key/value pair to track.</p>
+              )}
+              {customParams.map((row, i) => (
+                <div key={i} className='flex items-center gap-2 mb-2'>
+                  <input
+                    type='text'
+                    value={row.key}
+                    onChange={(e) => setCustomParams((rows) =>
+                      rows.map((r, idx) => (idx === i ? { ...r, key: e.target.value } : r)),
+                    )}
+                    placeholder='key (e.g. utm_source)'
+                    className='flex-1 bg-white text-gray-700 text-xs rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
+                  />
+                  <input
+                    type='text'
+                    value={row.value}
+                    onChange={(e) => setCustomParams((rows) =>
+                      rows.map((r, idx) => (idx === i ? { ...r, value: e.target.value } : r)),
+                    )}
+                    placeholder='value'
+                    className='flex-1 bg-white text-gray-700 text-xs rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
+                  />
+                  <button
+                    type='button'
+                    onClick={() => setCustomParams((rows) => rows.filter((_, idx) => idx !== i))}
+                    className='shrink-0 px-2 py-1.5 rounded-md text-xs text-gray-600 hover:bg-gray-100'
+                    aria-label='Remove parameter'
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Preview + copy */}
+            <div className='border-t border-gray-100 pt-4'>
+              <div className='flex items-center justify-between mb-2'>
+                <span className='text-xs font-semibold text-gray-700'>Generated link</span>
+                <button
+                  type='button'
+                  onClick={copyBuilder}
+                  className={`shrink-0 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    builderCopied
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-primary text-white hover:bg-primary-dark'
+                  }`}
+                >
+                  {builderCopied ? 'Copied!' : 'Copy Link'}
+                </button>
+              </div>
+              <p className='text-xs text-gray-700 break-all font-mono bg-gray-50 rounded-md border border-gray-100 p-3'>
+                {builderLink}
+              </p>
+            </div>
+          </div>
         )}
       </div>
     </div>
