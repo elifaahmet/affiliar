@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useBaseQuery } from 'api/core/useBaseQuery';
+import { useBaseMutation } from 'api/core/useBaseMutation';
+import { useQueryClient } from '@tanstack/react-query';
 import { AFFILIATE_PORTAL_API_URLS } from 'config/apiUrls';
 
 interface BrandReferralCode {
@@ -47,11 +49,32 @@ function defaultRange() {
 export default function AffiliateMarketing() {
   const [copied, setCopied] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState(defaultRange);
+  const [selectedBrandId, setSelectedBrandId] = useState<string>('');
+  const [generateError, setGenerateError] = useState<string | null>(null);
+  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const { data, isLoading } = useBaseQuery<OverviewResponse>({
     endpoint: AFFILIATE_PORTAL_API_URLS.OVERVIEW(),
     queryKey: ['affiliate-overview-marketing'],
     params: {},
+  });
+
+  const generateMutation = useBaseMutation<{ generated: { code: string } }, { brandId: string }>({
+    endpoint: AFFILIATE_PORTAL_API_URLS.REFERRAL_CODES(),
+    method: 'post',
+    onSuccess: (res) => {
+      setGeneratedCode(res?.generated?.code ?? null);
+      setGenerateError(null);
+      queryClient.invalidateQueries({ queryKey: ['affiliate-overview-marketing'] });
+      setTimeout(() => setGeneratedCode(null), 4000);
+    },
+    onError: (err: any) => {
+      setGenerateError(
+        err?.response?.data?.error || err?.message || 'Failed to generate code',
+      );
+      setTimeout(() => setGenerateError(null), 4000);
+    },
   });
 
   const campaignParams = useMemo(
@@ -68,6 +91,19 @@ export default function AffiliateMarketing() {
   const campaignRows: CampaignReportRow[] = (campaignData as any)?.rows ?? [];
 
   const referralCodes = data?.referralCodes ?? [];
+
+  // Brands the affiliate can generate codes for = distinct brands they're
+  // already assigned. If the dropdown is empty we hide the generate UI.
+  const availableBrands = useMemo(() => {
+    const seen = new Set<string>();
+    const out: Array<{ id: string; name: string }> = [];
+    for (const rc of referralCodes) {
+      if (!rc.brandId || seen.has(rc.brandId)) continue;
+      seen.add(rc.brandId);
+      out.push({ id: rc.brandId, name: rc.brandName || rc.brandId });
+    }
+    return out;
+  }, [referralCodes]);
 
   const copy = (text: string) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -156,8 +192,47 @@ export default function AffiliateMarketing() {
 
       {/* Referral Links */}
       <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-6'>
-        <h2 className='text-sm font-semibold text-gray-800 mb-1'>Your Referral Links</h2>
-        <p className='text-xs text-gray-600 mb-4'>Share these links to refer new players. Each player registered through your link will be tracked to your account.</p>
+        <div className='flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-4'>
+          <div>
+            <h2 className='text-sm font-semibold text-gray-800 mb-1'>Your Referral Links</h2>
+            <p className='text-xs text-gray-600'>Share these links to refer new players. Each player registered through your link will be tracked to your account.</p>
+          </div>
+
+          {availableBrands.length > 0 && (
+            <div className='flex items-center gap-2'>
+              <select
+                value={selectedBrandId || availableBrands[0]?.id || ''}
+                onChange={(e) => setSelectedBrandId(e.target.value)}
+                className='bg-white text-gray-700 text-xs rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
+              >
+                {availableBrands.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+              <button
+                type='button'
+                disabled={generateMutation.isPending}
+                onClick={() => {
+                  const brandId = selectedBrandId || availableBrands[0]?.id;
+                  if (!brandId) return;
+                  generateMutation.mutate({ brandId });
+                }}
+                className='shrink-0 px-3 py-1.5 rounded-md text-xs font-medium bg-primary text-white hover:bg-primary-dark disabled:opacity-60 disabled:cursor-not-allowed'
+              >
+                {generateMutation.isPending ? 'Generating…' : 'Generate new code'}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {generatedCode && (
+          <p className='text-xs text-green-700 mb-3'>
+            New code generated: <span className='font-mono'>{generatedCode}</span>
+          </p>
+        )}
+        {generateError && (
+          <p className='text-xs text-red-600 mb-3'>{generateError}</p>
+        )}
 
         {isLoading && (
           <div className='space-y-3'>

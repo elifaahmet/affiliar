@@ -409,3 +409,81 @@ exports.updateProfile = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// ── Self-service referral code generation ─────────────────────────────────────
+
+// Same character set the operator-side createAffiliate flow uses — drops
+// look-alike chars (0/O, 1/I) so codes are easy to read off a screen.
+function generateAffiliateCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+async function uniqueAffiliateCode() {
+  let code;
+  for (let i = 0; i < 10; i++) {
+    code = generateAffiliateCode();
+    const collision = await AffiliateProfile.findOne({ referralCodes: code }).select("_id").lean();
+    if (!collision) return code;
+  }
+  throw new Error("Failed to generate a unique code after 10 attempts");
+}
+
+// POST /affiliate-portal/referral-codes — body: { brandId }
+// Lets the affiliate generate an extra brand-scoped code from the marketing
+// tools page. The new code is pushed onto both `brandCodes` (per-brand
+// pairing the FE renders) and the legacy flat `referralCodes` array (kept
+// in sync so consumer-side lookups by code still resolve).
+exports.generateReferralCode = async (req, res) => {
+  try {
+    const affiliate = req.affiliateUser;
+    if (affiliate.role !== "affiliate") {
+      return res.status(403).json({ error: "Affiliates only" });
+    }
+
+    const { brandId } = req.body || {};
+    if (!brandId) {
+      return res.status(400).json({ error: "brandId is required" });
+    }
+
+    const profile = await AffiliateProfile.findOne({ user: affiliate._id });
+    if (!profile) {
+      return res.status(404).json({ error: "Affiliate profile not found" });
+    }
+
+    // Only allow generating for brands the operator owns; defends against
+    // an affiliate POSTing a foreign brand id.
+    const brand = await Brand.findOne({
+      _id: brandId,
+      operatorId: profile.operatorUser,
+      enabled: true,
+    })
+      .select("_id name url")
+      .lean();
+    if (!brand) {
+      return res.status(403).json({ error: "Brand not available for this affiliate" });
+    }
+
+    const code = await uniqueAffiliateCode();
+
+    profile.brandCodes = profile.brandCodes || [];
+    profile.brandCodes.push({ code, brandId: brand._id });
+    profile.referralCodes = profile.referralCodes || [];
+    profile.referralCodes.push(code);
+    await profile.save();
+
+    return res.status(201).json({
+      referralCodes: await buildBrandCodes(profile),
+      generated: {
+        code,
+        brandId: String(brand._id),
+        brandName: brand.name,
+        brandUrl: brand.url,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

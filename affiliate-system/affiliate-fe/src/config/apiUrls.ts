@@ -305,6 +305,7 @@ export const AFFILIATE_PORTAL_API_URLS = {
   CAMPAIGN_REPORTS: () => `${API_BASE_URL}api/affiliate-portal/campaign-reports`,
   PLAYERS:          () => `${API_BASE_URL}api/players`,
   PLAYER_DETAIL:    (playerId: string) => `${API_BASE_URL}api/players/detail/${playerId}`,
+  REFERRAL_CODES:   () => `${API_BASE_URL}api/affiliate-portal/referral-codes`,
 };
 
 export const COMMISSION_API_URLS = {
