@@ -83,6 +83,17 @@ function affiliateWhere(affiliateUserId, query) {
     conditions.push("campaign = {campaign:String}");
     params.campaign = query.campaign;
   }
+  // Drill-down filters surfaced on the affiliate-side Reports chart: the
+  // marketer's own referral code (when they have several) and the optional
+  // sub-source/placement tracking string baked into their tracking links.
+  if (query.affiliateCode) {
+    conditions.push("affiliate_code = {affiliateCode:String}");
+    params.affiliateCode = String(query.affiliateCode).toUpperCase();
+  }
+  if (query.subId) {
+    conditions.push("sub_id = {subId:String}");
+    params.subId = query.subId;
+  }
 
   return { conditions, params };
 }

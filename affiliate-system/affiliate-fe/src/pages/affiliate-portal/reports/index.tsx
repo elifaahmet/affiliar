@@ -332,9 +332,13 @@ export default function AffiliateReports() {
 
 
           {/* Quick Charts — same metric set the operator dashboard offers,
-              just scoped to this affiliate's own data via the portal /overview
-              endpoint we already query above. */}
-          <QuickCharts product={product} byDay={data?.byDay ?? []} />
+              scoped to this affiliate plus optional code / campaign / sub
+              drill-down filters on top of the page-level period + product. */}
+          <QuickCharts
+            period={period}
+            product={product}
+            referralCodes={(data?.referralCodes ?? []).map((rc) => rc.code)}
+          />
 
           {/* Fee details — operator-set policy the affiliate's NGR is
               calculated against. Read-only. */}
@@ -347,8 +351,19 @@ export default function AffiliateReports() {
 
 // ── Quick Charts (multi-metric picker) ───────────────────────────────────────
 
-function QuickCharts({ product, byDay }: { product: ProductScope; byDay: DayRow[] }) {
+function QuickCharts({
+  period,
+  product,
+  referralCodes,
+}: {
+  period: Period;
+  product: ProductScope;
+  referralCodes: string[];
+}) {
   const [metricKey, setMetricKey] = useState('registrations');
+  const [filterCode, setFilterCode]     = useState('');
+  const [filterCampaign, setFilterCampaign] = useState('');
+  const [filterSub, setFilterSub]       = useState('');
 
   const visibleMetrics = useMemo(
     () =>
@@ -363,9 +378,31 @@ function QuickCharts({ product, byDay }: { product: ProductScope; byDay: DayRow[
     [visibleMetrics, metricKey],
   );
 
-  const points = useMemo(() => (def ? buildMetricPoints(byDay, def) : []), [byDay, def]);
+  // Self-fetched, filter-aware byDay. The page-level overview is unfiltered
+  // (used by providers + fee details); QuickCharts re-queries with code /
+  // campaign / sub merged in when the affiliate narrows.
+  const chartParams = useMemo(() => {
+    const p: Record<string, string> = { from: period.from, to: period.to };
+    if (filterCode)     p.affiliateCode = filterCode;
+    if (filterCampaign) p.campaign      = filterCampaign;
+    if (filterSub)      p.subId         = filterSub;
+    return p;
+  }, [period.from, period.to, filterCode, filterCampaign, filterSub]);
+
+  const { data: chartData, isLoading } = useBaseQuery<OverviewResponse>({
+    endpoint: AFFILIATE_PORTAL_API_URLS.OVERVIEW(),
+    queryKey: ['affiliate-chart-overview', chartParams],
+    params: chartParams,
+  });
+
+  const points = useMemo(
+    () => (def ? buildMetricPoints(chartData?.byDay ?? [], def) : []),
+    [chartData, def],
+  );
 
   if (!def) return null;
+
+  const hasActiveFilter = Boolean(filterCode || filterCampaign || filterSub);
 
   return (
     <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-5 space-y-4'>
@@ -382,7 +419,55 @@ function QuickCharts({ product, byDay }: { product: ProductScope; byDay: DayRow[
         </select>
       </div>
 
-      {points.length === 0 ? (
+      {/* Filter row */}
+      <div className='grid grid-cols-1 sm:grid-cols-3 gap-3'>
+        <label className='flex flex-col gap-1'>
+          <span className='text-[10px] font-medium uppercase tracking-[0.1em] text-gray-600'>Referral code</span>
+          <select
+            value={filterCode}
+            onChange={(e) => setFilterCode(e.target.value)}
+            className='bg-white text-gray-700 text-xs rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
+          >
+            <option value=''>All codes</option>
+            {referralCodes.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </label>
+        <label className='flex flex-col gap-1'>
+          <span className='text-[10px] font-medium uppercase tracking-[0.1em] text-gray-600'>Campaign</span>
+          <input
+            type='text'
+            value={filterCampaign}
+            onChange={(e) => setFilterCampaign(e.target.value)}
+            placeholder='e.g. summer_promo'
+            className='bg-white text-gray-700 text-xs rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
+          />
+        </label>
+        <label className='flex flex-col gap-1'>
+          <span className='text-[10px] font-medium uppercase tracking-[0.1em] text-gray-600'>Sub</span>
+          <input
+            type='text'
+            value={filterSub}
+            onChange={(e) => setFilterSub(e.target.value)}
+            placeholder='e.g. banner_1'
+            className='bg-white text-gray-700 text-xs rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
+          />
+        </label>
+      </div>
+      {hasActiveFilter && (
+        <button
+          type='button'
+          onClick={() => { setFilterCode(''); setFilterCampaign(''); setFilterSub(''); }}
+          className='text-xs font-medium text-primary hover:text-primary-dark'
+        >
+          Clear filters
+        </button>
+      )}
+
+      {isLoading ? (
+        <div className='h-52 bg-gray-50 rounded-lg animate-pulse' />
+      ) : points.length === 0 ? (
         <div className='h-52 flex items-center justify-center'>
           <p className='text-sm text-gray-600'>No data for the selected range.</p>
         </div>
