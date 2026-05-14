@@ -55,6 +55,7 @@ function SettingsForm({ scope }: { scope: Scope }) {
   });
   const s = data?.settings;
   const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -100,6 +101,7 @@ function SettingsForm({ scope }: { scope: Scope }) {
         },
       });
       qc.invalidateQueries({ queryKey: ['fees-settings', scope] });
+      setDirty(false);
     } catch (e2: any) {
       setErr(e2?.message ?? 'Failed to save');
     } finally {
@@ -110,7 +112,12 @@ function SettingsForm({ scope }: { scope: Scope }) {
   if (isLoading) return <p className='text-sm text-gray-600'>Loading...</p>;
 
   return (
-    <form key={scope} onSubmit={onSubmit} className='space-y-4'>
+    <form
+      key={scope}
+      onSubmit={onSubmit}
+      onChange={() => { if (!dirty) setDirty(true); }}
+      className='space-y-4'
+    >
       <p className='text-xs text-gray-700'>
         Flat percentages applied by the daily fees job
         {scope === 'default' ? ' (operator default)' : ' (brand override)'}.
@@ -216,13 +223,18 @@ function SettingsForm({ scope }: { scope: Scope }) {
         </div>
       )}
       {err && <p className='text-sm text-red-500'>{err}</p>}
-      <button
-        type='submit'
-        disabled={saving}
-        className='bg-primary text-white px-4 py-2 rounded text-sm font-semibold hover:bg-primary-dark disabled:opacity-50'
-      >
-        {saving ? 'Saving...' : 'Save'}
-      </button>
+      <div className='flex items-center gap-3'>
+        <button
+          type='submit'
+          disabled={saving || !dirty}
+          className='bg-primary text-white px-4 py-2 rounded text-sm font-semibold hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed'
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </button>
+        {!dirty && !saving && (
+          <span className='text-xs text-gray-700'>No pending changes</span>
+        )}
+      </div>
     </form>
   );
 }
