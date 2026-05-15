@@ -76,6 +76,7 @@ const AFFILIATE_METRIC_COLS = `
   SUM(sb_settled_bets_sum_cents)      AS sbSettledBetsSumCents,
   SUM(sb_ggr_cents)                   AS sbGgrCents,
   SUM(sb_ngr_cents)                   AS sbNgrCents,
+  SUM(casino_ggr_cents + sb_ggr_cents) AS combinedGgrCents,
   SUM(combined_ngr_cents)             AS combinedNgrCents,
   uniqExactIf(player_id, player_id != '__fees__')                AS playerCount
 `.trim();
@@ -187,19 +188,28 @@ exports.overview = async (req, res) => {
       params.subId = String(req.query.subId);
     }
 
-    // Product scope. Combined NGR is the only "shared" metric that mixes
-    // both products in its formula, so scoping rewrites it to just one
-    // half. Casino-only / SB-only metric charts already pull from their
-    // own columns and aren't affected here.
+    // Product scope. Combined GGR/NGR are the only "shared" metrics that
+    // mix both products in their formula, so scoping rewrites them to
+    // just one half. Casino-only / SB-only metric charts already pull
+    // from their own columns and aren't affected here.
     const product = String(req.query.product || "all").toLowerCase();
+    const combinedGgrExpr =
+      product === "casino"     ? "SUM(casino_ggr_cents)"
+    : product === "sportsbook" ? "SUM(sb_ggr_cents)"
+    :                            "SUM(casino_ggr_cents + sb_ggr_cents)";
     const combinedNgrExpr =
       product === "casino"     ? "SUM(casino_ngr_cents)"
     : product === "sportsbook" ? "SUM(sb_ngr_cents)"
     :                            "SUM(combined_ngr_cents)";
-    const metricCols = AFFILIATE_METRIC_COLS.replace(
-      "SUM(combined_ngr_cents)             AS combinedNgrCents",
-      `${combinedNgrExpr.padEnd(36)} AS combinedNgrCents`,
-    );
+    const metricCols = AFFILIATE_METRIC_COLS
+      .replace(
+        "SUM(casino_ggr_cents + sb_ggr_cents) AS combinedGgrCents",
+        `${combinedGgrExpr.padEnd(36)} AS combinedGgrCents`,
+      )
+      .replace(
+        "SUM(combined_ngr_cents)             AS combinedNgrCents",
+        `${combinedNgrExpr.padEnd(36)} AS combinedNgrCents`,
+      );
 
     const where = conditions.join(" AND ");
 

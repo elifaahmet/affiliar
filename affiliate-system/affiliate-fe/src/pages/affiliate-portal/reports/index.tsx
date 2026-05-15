@@ -72,6 +72,7 @@ interface DayRow {
   sbSettledBetsSumCents?: number;
   sbGgrCents?: number;
   sbNgrCents?: number;
+  combinedGgrCents?: number;
   combinedNgrCents?: number;
 }
 
@@ -115,6 +116,7 @@ const CHART_METRICS: ChartMetricDef[] = [
   { key: 'cashoutsCount',          label: 'Cashouts Count',   scope: 'shared' },
   { key: 'cashoutsSumCents',       label: 'Cashouts Sum',     scope: 'shared', isCents: true },
   { key: 'chargebacksSumCents',    label: 'Chargebacks',      scope: 'shared', isCents: true },
+  { key: 'combinedGgrCents',       label: 'Combined GGR',     scope: 'shared', isCents: true },
   { key: 'combinedNgrCents',       label: 'Combined NGR',     scope: 'shared', isCents: true },
   { key: 'roundsCount',            label: 'Rounds',           scope: 'casino' },
   { key: 'ggrCents',               label: 'Casino GGR',       scope: 'casino', isCents: true },
