@@ -9,6 +9,7 @@ router.get("/commission",          ctrl.commissionReports);
 router.get("/profile",             ctrl.getProfile);
 router.patch("/profile",           ctrl.updateProfile);
 router.get("/sub-affiliates",      ctrl.subAffiliates);
+router.patch("/sub-affiliates/:subId/share-rate", ctrl.updateSubShareRate);
 router.get("/campaign-reports",    reportCtrl.portalCampaignReport);
 router.post("/referral-codes",     ctrl.generateReferralCode);
 router.get ("/fee-details",        ctrl.feeDetails);

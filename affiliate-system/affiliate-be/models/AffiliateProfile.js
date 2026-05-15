@@ -36,8 +36,18 @@ const affiliateProfileSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
-    // % of sub-affiliate's NGR that flows to their parent as override commission
-    // Set by operator per sub. 0 = no override.
+    // % of this profile's own earnings that the PARENT gives to this profile.
+    // Set by the parent on their direct child. Operator never touches this.
+    // Cascades level by level — each parent decides their own subs' share.
+    // 0 = parent keeps everything, sub gets nothing.
+    subShareRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+    // DEPRECATED: legacy operator-set override flow. Read-only — will be
+    // removed once the MLM engine ships in Phase 2.
     overrideRate: {
       type: Number,
       default: 0,

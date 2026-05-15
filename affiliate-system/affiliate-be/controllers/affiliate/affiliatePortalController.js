@@ -5,6 +5,7 @@ const AffiliateProfile = require("../../models/AffiliateProfile");
 const CommissionReport = require("../../models/CommissionReport");
 const User             = require("../../models/User");
 const Brand            = require("../../models/Brand");
+const { getDescendantIds } = require("../../utils/affiliateHierarchy");
 
 async function buildBrandCodes(profile) {
   const brandCodes = profile?.brandCodes ?? [];
@@ -339,18 +340,24 @@ exports.subAffiliates = async (req, res) => {
       return res.status(403).json({ error: "Affiliates only" });
     }
 
+    // Full subtree (descendants at any depth). The caller's own row is
+    // omitted; each row carries `parentAffiliate` so the client can rebuild
+    // the tree.
+    const descendantIds = await getDescendantIds(affiliate._id);
+    if (descendantIds.length === 0) {
+      return res.json({ subAffiliates: [], total: 0 });
+    }
+
     const subProfiles = await AffiliateProfile.find({
-      parentAffiliate: affiliate._id,
+      user: { $in: descendantIds },
     }).lean();
 
     const userIds = subProfiles.map((p) => p.user);
     const users   = await User.find({ _id: { $in: userIds } })
       .select("username email name status createdAt")
       .lean();
-
     const userMap = new Map(users.map((u) => [String(u._id), u]));
 
-    // Aggregate commission totals per sub-affiliate
     const commAgg = await CommissionReport.aggregate([
       { $match: { affiliateId: { $in: userIds } } },
       { $group: {
@@ -366,15 +373,16 @@ exports.subAffiliates = async (req, res) => {
       const user = userMap.get(String(p.user)) ?? {};
       const comm = commMap.get(String(p.user))  ?? { totalCents: 0, paidCents: 0, reportCount: 0 };
       return {
-        _id:           String(p.user),
-        username:      user.username,
-        email:         user.email,
-        name:          user.name,
-        status:        user.status,
-        createdAt:     user.createdAt,
-        overrideRate:  p.overrideRate,
-        referralCodes: p.referralCodes,
-        commission:    {
+        _id:             String(p.user),
+        username:        user.username,
+        email:           user.email,
+        name:            user.name,
+        status:          user.status,
+        createdAt:       user.createdAt,
+        parentAffiliate: p.parentAffiliate ? String(p.parentAffiliate) : null,
+        subShareRate:    p.subShareRate ?? 0,
+        referralCodes:   p.referralCodes,
+        commission:      {
           totalCents:  comm.totalCents,
           paidCents:   comm.paidCents,
           reportCount: comm.reportCount,
@@ -383,6 +391,39 @@ exports.subAffiliates = async (req, res) => {
     });
 
     res.json({ subAffiliates: result, total: result.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// PATCH /affiliate-portal/sub-affiliates/:subId/share-rate
+// The caller sets the % of their own earnings that flows to one of their
+// DIRECT children. Each level edits only its own immediate subs — grandchildren
+// have a different parent who edits them.
+exports.updateSubShareRate = async (req, res) => {
+  try {
+    const affiliate = req.affiliateUser;
+    if (affiliate.role !== "affiliate") {
+      return res.status(403).json({ error: "Affiliates only" });
+    }
+
+    const rate = Number(req.body?.subShareRate);
+    if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
+      return res.status(400).json({ error: "subShareRate must be a number between 0 and 100" });
+    }
+
+    const profile = await AffiliateProfile.findOne({
+      user: req.params.subId,
+      parentAffiliate: affiliate._id,
+    });
+    if (!profile) {
+      return res.status(404).json({ error: "Sub-affiliate not found among your direct children" });
+    }
+
+    profile.subShareRate = rate;
+    await profile.save();
+
+    res.json({ ok: true, subShareRate: profile.subShareRate });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

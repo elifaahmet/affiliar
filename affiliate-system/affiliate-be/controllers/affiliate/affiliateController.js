@@ -4,6 +4,7 @@ const CommissionPlan = require("../../models/CommissionPlan");
 const Brand = require("../../models/Brand");
 const Operator = require("../../models/Operator");
 const { sendAffiliateInvite } = require("../../utils/mailer");
+const { wouldCreateCycle } = require("../../utils/affiliateHierarchy");
 
 function generateAffiliateCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -344,11 +345,8 @@ const affiliateController = {
         if (!parentProfile) {
           return res.status(404).json({ error: "Parent affiliate not found in this operator" });
         }
-        if (parentProfile.parentAffiliate) {
-          return res.status(400).json({ error: "Max 2 levels: parent already has a parent" });
-        }
-        if (String(parentAffiliateId) === String(req.params.id)) {
-          return res.status(400).json({ error: "Affiliate cannot be its own parent" });
+        if (await wouldCreateCycle(req.params.id, parentAffiliateId)) {
+          return res.status(400).json({ error: "Cannot set parent: would create a cycle in the hierarchy" });
         }
       }
 

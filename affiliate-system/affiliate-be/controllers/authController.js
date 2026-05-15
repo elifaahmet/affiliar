@@ -467,9 +467,6 @@ exports.affiliateRegister = async (req, res) => {
       if (!parentProfile) {
         return res.status(400).json({ error: "Invalid parentCode — referral code not found" });
       }
-      if (parentProfile.parentAffiliate) {
-        return res.status(400).json({ error: "Max 2 levels: this affiliate cannot recruit sub-affiliates" });
-      }
       parentAffiliateId  = parentProfile.user;
       parentOperatorUser = parentProfile.operatorUser;
 
