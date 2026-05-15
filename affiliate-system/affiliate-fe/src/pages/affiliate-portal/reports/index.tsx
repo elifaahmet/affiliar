@@ -76,8 +76,6 @@ interface DayRow {
   combinedNgrCents?: number;
 }
 
-type ProductScope = 'all' | 'casino' | 'sportsbook';
-
 interface CommissionSummary {
   totalEarned: number;
   totalPaid: number;
@@ -98,34 +96,33 @@ interface OverviewResponse {
 interface ChartMetricDef {
   key: string;
   label: string;
-  scope: 'shared' | 'casino' | 'sportsbook';
   isCents?: boolean;
   isRate?: boolean;
   computed?: (r: DayRow) => number;
 }
 
 const CHART_METRICS: ChartMetricDef[] = [
-  { key: 'registrations',          label: 'Registrations',    scope: 'shared' },
-  { key: 'playerCount',            label: 'Players',          scope: 'shared' },
-  { key: 'ftdCount',               label: 'FTD Count',        scope: 'shared' },
-  { key: 'ftdSumCents',            label: 'FTD Sum',          scope: 'shared', isCents: true },
-  { key: 'ftdConversionRate',      label: 'FTD Conversion %', scope: 'shared', isRate: true,
+  { key: 'registrations',          label: 'Registrations'    },
+  { key: 'playerCount',            label: 'Players'          },
+  { key: 'ftdCount',               label: 'FTD Count'        },
+  { key: 'ftdSumCents',            label: 'FTD Sum',          isCents: true },
+  { key: 'ftdConversionRate',      label: 'FTD Conversion %', isRate: true,
     computed: (r) => r.registrations > 0 ? (r.ftdCount / r.registrations) * 100 : 0 },
-  { key: 'depositsCount',          label: 'Deposits Count',   scope: 'shared' },
-  { key: 'depositsSumCents',       label: 'Deposits Sum',     scope: 'shared', isCents: true },
-  { key: 'cashoutsCount',          label: 'Cashouts Count',   scope: 'shared' },
-  { key: 'cashoutsSumCents',       label: 'Cashouts Sum',     scope: 'shared', isCents: true },
-  { key: 'chargebacksSumCents',    label: 'Chargebacks',      scope: 'shared', isCents: true },
-  { key: 'combinedGgrCents',       label: 'Combined GGR',     scope: 'shared', isCents: true },
-  { key: 'combinedNgrCents',       label: 'Combined NGR',     scope: 'shared', isCents: true },
-  { key: 'roundsCount',            label: 'Rounds',           scope: 'casino' },
-  { key: 'ggrCents',               label: 'Casino GGR',       scope: 'casino', isCents: true },
-  { key: 'ngrCents',               label: 'Casino NGR',       scope: 'casino', isCents: true },
-  { key: 'bonusIssuesSumCents',    label: 'Bonus Issued',     scope: 'casino', isCents: true },
-  { key: 'sbBetsSumCents',         label: 'SB Bets',          scope: 'sportsbook', isCents: true },
-  { key: 'sbWinsSumCents',         label: 'SB Wins',          scope: 'sportsbook', isCents: true },
-  { key: 'sbGgrCents',             label: 'SB GGR',           scope: 'sportsbook', isCents: true },
-  { key: 'sbNgrCents',             label: 'SB NGR',           scope: 'sportsbook', isCents: true },
+  { key: 'depositsCount',          label: 'Deposits Count'   },
+  { key: 'depositsSumCents',       label: 'Deposits Sum',     isCents: true },
+  { key: 'cashoutsCount',          label: 'Cashouts Count'   },
+  { key: 'cashoutsSumCents',       label: 'Cashouts Sum',     isCents: true },
+  { key: 'chargebacksSumCents',    label: 'Chargebacks',      isCents: true },
+  { key: 'combinedGgrCents',       label: 'Combined GGR',     isCents: true },
+  { key: 'combinedNgrCents',       label: 'Combined NGR',     isCents: true },
+  { key: 'roundsCount',            label: 'Rounds'           },
+  { key: 'ggrCents',               label: 'Casino GGR',       isCents: true },
+  { key: 'ngrCents',               label: 'Casino NGR',       isCents: true },
+  { key: 'bonusIssuesSumCents',    label: 'Bonus Issued',     isCents: true },
+  { key: 'sbBetsSumCents',         label: 'SB Bets',          isCents: true },
+  { key: 'sbWinsSumCents',         label: 'SB Wins',          isCents: true },
+  { key: 'sbGgrCents',             label: 'SB GGR',           isCents: true },
+  { key: 'sbNgrCents',             label: 'SB NGR',           isCents: true },
 ];
 
 function buildMetricPoints(rows: DayRow[], def: ChartMetricDef) {
@@ -183,7 +180,6 @@ function pct(value: number | null | undefined) {
 export default function AffiliateReports() {
   const [activePeriod, setActivePeriod] = useState<PeriodKey>('month');
   const [customRange, setCustomRange]   = useState<Period | null>(null);
-  const [product, setProduct]           = useState<ProductScope>('all');
 
   const period: Period = useMemo(
     () => customRange ?? buildPeriod(activePeriod),
@@ -248,29 +244,11 @@ export default function AffiliateReports() {
 
       {!isLoading && !isError && (
         <>
-          {/* Product scope */}
-          <div className='flex gap-1 bg-white p-1 rounded-lg border border-gray-200 shadow-sm w-fit'>
-            {(['all', 'casino', 'sportsbook'] as ProductScope[]).map((p) => (
-              <button
-                key={p}
-                onClick={() => setProduct(p)}
-                className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-colors capitalize ${
-                  product === p
-                    ? 'bg-primary text-white'
-                    : 'text-gray-700 hover:text-gray-700'
-                }`}
-              >
-                {p === 'all' ? 'All products' : p}
-              </button>
-            ))}
-          </div>
-
           {/* Quick Charts — same metric set the operator dashboard offers,
               scoped to this affiliate plus optional code / campaign / sub
-              drill-down filters on top of the page-level period + product. */}
+              drill-down filters on top of the page-level period. */}
           <QuickCharts
             period={period}
-            product={product}
             referralCodes={(data?.referralCodes ?? []).map((rc) => rc.code)}
           />
 
@@ -287,11 +265,9 @@ export default function AffiliateReports() {
 
 function QuickCharts({
   period,
-  product,
   referralCodes,
 }: {
   period: Period;
-  product: ProductScope;
   referralCodes: string[];
 }) {
   const [metricKey, setMetricKey] = useState('registrations');
@@ -299,29 +275,20 @@ function QuickCharts({
   const [filterCampaign, setFilterCampaign] = useState('');
   const [filterSub, setFilterSub]       = useState('');
 
-  const visibleMetrics = useMemo(
-    () =>
-      CHART_METRICS.filter(
-        (m) => m.scope === 'shared' || product === 'all' || m.scope === product,
-      ),
-    [product],
-  );
-
   const def = useMemo(
-    () => visibleMetrics.find((m) => m.key === metricKey) ?? visibleMetrics[0],
-    [visibleMetrics, metricKey],
+    () => CHART_METRICS.find((m) => m.key === metricKey) ?? CHART_METRICS[0],
+    [metricKey],
   );
 
-  // Self-fetched, filter-aware byDay. QuickCharts re-queries with product
-  // / code / campaign / sub merged in when the affiliate narrows.
+  // Self-fetched, filter-aware byDay. QuickCharts re-queries with code /
+  // campaign / sub merged in when the affiliate narrows.
   const chartParams = useMemo(() => {
     const p: Record<string, string> = { from: period.from, to: period.to };
-    if (product !== 'all') p.product = product;
     if (filterCode)     p.affiliateCode = filterCode;
     if (filterCampaign) p.campaign      = filterCampaign;
     if (filterSub)      p.subId         = filterSub;
     return p;
-  }, [period.from, period.to, product, filterCode, filterCampaign, filterSub]);
+  }, [period.from, period.to, filterCode, filterCampaign, filterSub]);
 
   const { data: chartData, isLoading } = useBaseQuery<OverviewResponse>({
     endpoint: AFFILIATE_PORTAL_API_URLS.OVERVIEW(),
@@ -347,7 +314,7 @@ function QuickCharts({
           onChange={(e) => setMetricKey(e.target.value)}
           className='bg-white text-gray-700 text-xs rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
         >
-          {visibleMetrics.map((m) => (
+          {CHART_METRICS.map((m) => (
             <option key={m.key} value={m.key}>{m.label}</option>
           ))}
         </select>

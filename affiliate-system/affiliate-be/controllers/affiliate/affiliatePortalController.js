@@ -188,34 +188,11 @@ exports.overview = async (req, res) => {
       params.subId = String(req.query.subId);
     }
 
-    // Product scope. Combined GGR/NGR are the only "shared" metrics that
-    // mix both products in their formula, so scoping rewrites them to
-    // just one half. Casino-only / SB-only metric charts already pull
-    // from their own columns and aren't affected here.
-    const product = String(req.query.product || "all").toLowerCase();
-    const combinedGgrExpr =
-      product === "casino"     ? "SUM(casino_ggr_cents)"
-    : product === "sportsbook" ? "SUM(sb_ggr_cents)"
-    :                            "SUM(casino_ggr_cents + sb_ggr_cents)";
-    const combinedNgrExpr =
-      product === "casino"     ? "SUM(casino_ngr_cents)"
-    : product === "sportsbook" ? "SUM(sb_ngr_cents)"
-    :                            "SUM(combined_ngr_cents)";
-    const metricCols = AFFILIATE_METRIC_COLS
-      .replace(
-        "SUM(casino_ggr_cents + sb_ggr_cents) AS combinedGgrCents",
-        `${combinedGgrExpr.padEnd(36)} AS combinedGgrCents`,
-      )
-      .replace(
-        "SUM(combined_ngr_cents)             AS combinedNgrCents",
-        `${combinedNgrExpr.padEnd(36)} AS combinedNgrCents`,
-      );
-
     const where = conditions.join(" AND ");
 
     const [summaryRows, byDayRows] = await Promise.all([
       queryRows(
-        `SELECT ${metricCols}
+        `SELECT ${AFFILIATE_METRIC_COLS}
          FROM affiliate.activity
          WHERE ${where}`,
         params,
@@ -223,7 +200,7 @@ exports.overview = async (req, res) => {
       queryRows(
         `SELECT
            formatDateTime(from_ts, '%Y-%m-%d', 'UTC') AS date,
-           ${metricCols}
+           ${AFFILIATE_METRIC_COLS}
          FROM affiliate.activity
          WHERE ${where}
          GROUP BY date
