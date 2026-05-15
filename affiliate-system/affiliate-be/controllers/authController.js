@@ -460,6 +460,7 @@ exports.affiliateRegister = async (req, res) => {
     // Resolve parent affiliate from parentCode — must happen before User.create
     let parentAffiliateId = null;
     let parentOperatorUser = null;
+    let inheritedBrandId = null;
     if (parentCode) {
       const parentProfile = await AffiliateProfile.findOne({
         referralCodes: parentCode,
@@ -469,6 +470,16 @@ exports.affiliateRegister = async (req, res) => {
       }
       parentAffiliateId  = parentProfile.user;
       parentOperatorUser = parentProfile.operatorUser;
+
+      // The recruit link the parent shared is brand-scoped iff that code
+      // appears in their brandCodes entries — pull the brand context off
+      // the specific code so the new sub starts with a real brand mapping
+      // instead of the legacy null-brand fallback.
+      const matchedBrand = (parentProfile.brandCodes || [])
+        .find((bc) => bc.code === parentCode);
+      if (matchedBrand?.brandId) {
+        inheritedBrandId = matchedBrand.brandId;
+      }
 
       // Derive operator from parent's operatorUser
       if (!operator && parentOperatorUser) {
@@ -521,6 +532,9 @@ exports.affiliateRegister = async (req, res) => {
     await AffiliateProfile.create({
       user: user._id,
       referralCodes: [affiliateCode],
+      brandCodes: inheritedBrandId
+        ? [{ code: affiliateCode, brandId: inheritedBrandId }]
+        : [],
       operatorUser: parentOperatorUser ?? null,
       parentAffiliate: parentAffiliateId,
     });
