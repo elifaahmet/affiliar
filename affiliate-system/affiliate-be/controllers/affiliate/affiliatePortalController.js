@@ -389,12 +389,14 @@ exports.subAffiliates = async (req, res) => {
       .lean();
     const userMap = new Map(users.map((u) => [String(u._id), u]));
 
-    const commAgg = await CommissionReport.aggregate([
-      { $match: { affiliateId: { $in: userIds } } },
+    // After Phase 2 sub-affiliates have no CommissionReport — their earnings
+    // are SubAffiliatePayouts received from their parent. Aggregate those.
+    const commAgg = await SubAffiliatePayout.aggregate([
+      { $match: { subId: { $in: userIds } } },
       { $group: {
-        _id:          "$affiliateId",
-        totalCents:   { $sum: "$breakdown.totalCents" },
-        paidCents:    { $sum: { $cond: [{ $eq: ["$status", "paid"] }, "$breakdown.totalCents", 0] } },
+        _id:          "$subId",
+        totalCents:   { $sum: "$payableCents" },
+        paidCents:    { $sum: { $cond: [{ $eq: ["$status", "paid"] }, "$payableCents", 0] } },
         reportCount:  { $sum: 1 },
       }},
     ]);

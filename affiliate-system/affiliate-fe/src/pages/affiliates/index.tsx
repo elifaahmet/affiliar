@@ -54,7 +54,6 @@ interface Affiliate {
     combined:   CommissionPlan | null;
   };
   parentAffiliate?: { _id: string; username: string; email: string; name: string } | null;
-  overrideRate?: number;
 }
 
 interface AffiliatesResponse {
@@ -240,7 +239,6 @@ function SetParentModal({
   affiliate, affiliates, onClose, onSaved,
 }: { affiliate: Affiliate; affiliates: Affiliate[]; onClose: () => void; onSaved: () => void }) {
   const [parentId, setParentId]       = useState<string>(affiliate.parentAffiliate?._id ?? '');
-  const [overrideRate, setOverrideRate] = useState<string>(String(affiliate.overrideRate ?? 0));
   const [saving, setSaving]           = useState(false);
   const [error, setError]             = useState('');
   const [upgradeBanner, setUpgradeBanner] = useState<{ message: string; currentPlan: string; requiredPlan: string } | null>(null);
@@ -252,24 +250,19 @@ function SetParentModal({
 
   const subAffiliatesBlocked = planData && !planData.limits.subAffiliates;
 
-  // Candidates: active affiliates that are not the affiliate itself
+  // Candidates: active affiliates that are not the affiliate itself.
+  // Cycles are rejected server-side; we don't pre-filter ancestors here.
   const candidates = affiliates.filter(
     (a) => a._id !== affiliate._id && a.status === 'active',
   );
 
   async function handleSave() {
-    const rate = Number(overrideRate);
-    if (isNaN(rate) || rate < 0 || rate > 100) {
-      setError('Override rate must be 0–100');
-      return;
-    }
     setSaving(true);
     setError('');
     setUpgradeBanner(null);
     try {
       await axiosInstance.patch(AFFILIATES_API_URLS.SET_PARENT(affiliate._id), {
         parentAffiliateId: parentId || null,
-        overrideRate: rate,
       });
       onSaved();
       onClose();
@@ -324,26 +317,12 @@ function SetParentModal({
                 {candidates.length === 0 && (
                   <p className='text-xs text-gray-600 mt-1'>No eligible parent affiliates (active affiliates without a parent).</p>
                 )}
+                <p className='text-xs text-gray-600 mt-2'>
+                  You only set the hierarchy here. The parent decides how to compensate
+                  this affiliate from their own commission — revshare %, flat CPA per
+                  FTD, or a hybrid — on their Sub-Affiliates page.
+                </p>
               </div>
-
-              {parentId && (
-                <div>
-                  <label className='block text-xs font-medium text-gray-600 mb-1'>
-                    Override Rate (%) — % of sub&apos;s NGR paid to parent
-                  </label>
-                  <input
-                    type='number'
-                    min={0}
-                    max={100}
-                    value={overrideRate}
-                    onChange={(e) => setOverrideRate(e.target.value)}
-                    className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
-                  />
-                  <p className='text-xs text-gray-600 mt-1'>
-                    e.g. 10 means the parent earns 10% of this affiliate&apos;s NGR on top of their own commission.
-                  </p>
-                </div>
-              )}
             </div>
 
             {upgradeBanner && (
@@ -537,9 +516,6 @@ function AffiliatesTab() {
                       ) : (
                         <span className='text-gray-600'>—</span>
                       )}
-                      {a.parentAffiliate && a.overrideRate ? (
-                        <span className='text-gray-600'>{a.overrideRate}% override</span>
-                      ) : null}
                       <button
                         onClick={() => setSettingParent(a)}
                         className='text-primary hover:underline text-left'
