@@ -1,5 +1,6 @@
 const CommissionPlan           = require("../../models/CommissionPlan");
 const CommissionReport         = require("../../models/CommissionReport");
+const SubAffiliatePayout       = require("../../models/SubAffiliatePayout");
 const AffiliateProfile         = require("../../models/AffiliateProfile");
 const User                     = require("../../models/User");
 const OperatorFinancialSettings = require("../../models/OperatorFinancialSettings");
@@ -7,6 +8,66 @@ const clickhouse               = require("../../config/clickhouse");
 const { calculate }             = require("../../engine/commissionEngine");
 const { checkCpaQualification } = require("../../engine/cpaQualification");
 const { resolveCommissionSettings } = require("../../engine/commissionSettings");
+
+/** Zero row with every metric the engine and roll-up needs. */
+function zeroRow() {
+  return {
+    affiliateCode: "",
+    ggrCents: 0, ngrCents: 0,
+    casinoGgrCents: 0, casinoNgrCents: 0,
+    sbGgrCents: 0, sbNgrCents: 0,
+    combinedNgrCents: 0,
+    ftdCount: 0,
+    depositsCount: 0, depositsCents: 0,
+    depositFeesCents: 0, withdrawalFeesCents: 0, paymentSystemFeesCents: 0,
+    registrations: 0,
+    playerCount: 0,
+  };
+}
+
+/**
+ * Sum per-affiliate rows into one rolled-up subtree row. Used so the top-
+ * level affiliate's commission is calculated on their entire downline's
+ * activity, not just their direct players. playerCount is summed even
+ * though it's a distinct count — players reassigning across affiliates is
+ * a rare edge case we accept the small double-count for.
+ */
+function aggregateSubtreeRow(subtreeUserIds, rowByUserId) {
+  const acc = zeroRow();
+  for (const uid of subtreeUserIds) {
+    const r = rowByUserId.get(uid);
+    if (!r) continue;
+    acc.ggrCents               += r.ggrCents;
+    acc.ngrCents               += r.ngrCents;
+    acc.casinoGgrCents         += r.casinoGgrCents;
+    acc.casinoNgrCents         += r.casinoNgrCents;
+    acc.sbGgrCents             += r.sbGgrCents;
+    acc.sbNgrCents             += r.sbNgrCents;
+    acc.combinedNgrCents       += r.combinedNgrCents;
+    acc.ftdCount               += r.ftdCount;
+    acc.depositsCount          += r.depositsCount;
+    acc.depositsCents          += r.depositsCents;
+    acc.depositFeesCents       += r.depositFeesCents;
+    acc.withdrawalFeesCents    += r.withdrawalFeesCents;
+    acc.paymentSystemFeesCents += r.paymentSystemFeesCents;
+    acc.registrations          += r.registrations;
+    acc.playerCount            += r.playerCount;
+  }
+  return acc;
+}
+
+/** Helper: pick the product-scoped NGR/GGR for downstream display. */
+function pickProductPair(row, product) {
+  const ngr =
+    product === "sportsbook" ? row.sbNgrCents
+  : product === "combined"   ? row.combinedNgrCents
+  :                            row.casinoNgrCents;
+  const ggr =
+    product === "sportsbook" ? row.sbGgrCents
+  : product === "combined"   ? (row.casinoGgrCents + row.sbGgrCents)
+  :                            row.casinoGgrCents;
+  return { ngr, ggr };
+}
 
 // ── ClickHouse helpers ────────────────────────────────────────────────────────
 
@@ -478,42 +539,90 @@ const reportController = {
         }
       }
 
-      const results = { created: 0, updated: 0, skipped: 0, failed: [] };
+      const results = {
+        created: 0, updated: 0, skipped: 0,
+        payoutsCreated: 0, payoutsUpdated: 0,
+        failed: [],
+      };
 
+      // Build hierarchy maps once. childrenOf is keyed by parent user-id
+      // string; topLevelUserIds is the set of affiliates that get paid
+      // directly by the operator.
+      const profileByUserId = new Map();
+      const childrenOf = new Map();
+      const topLevelUserIds = [];
+      for (const profile of affiliateProfiles) {
+        profileByUserId.set(String(profile.user), profile);
+        if (profile.parentAffiliate) {
+          const parentKey = String(profile.parentAffiliate);
+          if (!childrenOf.has(parentKey)) childrenOf.set(parentKey, []);
+          childrenOf.get(parentKey).push(String(profile.user));
+        } else {
+          topLevelUserIds.push(String(profile.user));
+        }
+      }
+
+      // Index ClickHouse rows by User._id string for fast subtree lookup.
+      const rowByUserId = new Map();
       for (const row of rows) {
+        const userId =
+          idMap.get(row.affiliateId) ?? idMap.get(`code:${row.affiliateCode}`);
+        if (userId) rowByUserId.set(String(userId), row);
+      }
+      // Same for FTD context rows — rebucket by User._id so subtree pooling
+      // is a straight Map lookup.
+      const ftdRowsByUserId = new Map();
+      for (const f of ftdContextRows) {
+        const userId = idMap.get(f.affiliateId);
+        if (!userId) continue;
+        const key = String(userId);
+        if (!ftdRowsByUserId.has(key)) ftdRowsByUserId.set(key, []);
+        ftdRowsByUserId.get(key).push(f);
+      }
+
+      function getSubtreeIds(rootId) {
+        const out = [rootId];
+        const queue = [rootId];
+        while (queue.length) {
+          const cur = queue.shift();
+          const kids = childrenOf.get(cur) || [];
+          for (const k of kids) { out.push(k); queue.push(k); }
+        }
+        return out;
+      }
+
+      // ── Pass 1: top-level CommissionReports ─────────────────────────────
+      // Operator pays each direct affiliate based on their plan applied to
+      // the FULL subtree's activity. Sub payouts are settled internally
+      // (Pass 2) and don't affect what the operator owes.
+      for (const topUserId of topLevelUserIds) {
         try {
-          // Resolve affiliate User _id
-          const affiliateUserId =
-            idMap.get(row.affiliateId) ?? idMap.get(`code:${row.affiliateCode}`);
+          const profile    = profileByUserId.get(topUserId);
+          const subtreeIds = getSubtreeIds(topUserId);
+          const subtreeRow = aggregateSubtreeRow(subtreeIds, rowByUserId);
 
-          if (!affiliateUserId) {
-            results.failed.push({
-              affiliateId: row.affiliateId,
-              error: "Affiliate not found in this operator",
-            });
-            continue;
-          }
+          const hasActivity =
+            subtreeRow.ngrCents !== 0 ||
+            subtreeRow.combinedNgrCents !== 0 ||
+            subtreeRow.ftdCount > 0 ||
+            subtreeRow.depositsCount > 0;
+          if (!hasActivity) continue;
 
-          // Resolve per-product plan slots once per affiliate.
           const planSlots = await resolveAffiliatePlansByProduct(
-            affiliateUserId,
-            operator.operatorId,
+            topUserId, operator.operatorId,
           );
+          const subtreeFtdRows = subtreeIds.flatMap(
+            (uid) => ftdRowsByUserId.get(uid) || [],
+          );
+          const topCode = profile?.referralCodes?.[0] ?? "";
 
-          // CPA qualification runs on FTDs once per affiliate — the gates
-          // only care about wallet-level FTDs, not the commission product.
-          const ftdRows = ftdContextByAffiliate.get(row.affiliateId) || [];
-
-          // Per-product: choose the plan, compute breakdown, upsert one
-          // CommissionReport row. A slot with no plan is skipped (no
-          // commission for that product this period).
           for (const product of ["casino", "sportsbook", "combined"]) {
             const plan = planSlots[product];
             if (!plan) continue;
 
             const existing = await CommissionReport.findOne({
               operatorId: operator.operatorId,
-              affiliateId: affiliateUserId,
+              affiliateId: topUserId,
               "period.year": y,
               "period.month": m,
               product,
@@ -524,15 +633,12 @@ const reportController = {
               continue;
             }
 
-            // Qualification depends on the resolved settings which can be
-            // plan-specific (each product's plan may have different CPA
-            // gates). Recompute per product.
             const resolvedSettings = resolveCommissionSettings(plan, operatorDefaults);
-            const qualification = checkCpaQualification(ftdRows, resolvedSettings);
+            const qualification = checkCpaQualification(subtreeFtdRows, resolvedSettings);
 
             const breakdown = calculate(
               plan,
-              { ...row, qualifiedFtdCount: qualification.qualified },
+              { ...subtreeRow, qualifiedFtdCount: qualification.qualified },
               operatorDefaults,
             );
             const planSnap = {
@@ -545,38 +651,25 @@ const reportController = {
               tiers:    plan.tiers,
               resolvedSettings: breakdown.resolvedSettings,
             };
-
             const directCents = breakdown.revshareAmountCents + breakdown.cpaAmountCents;
-
-            // Pick the product-scoped NGR/GGR pair that actually drove
-            // this report so the UI can show the right base alongside
-            // the commission number.
-            const productNgr =
-              product === "sportsbook" ? row.sbNgrCents
-              : product === "combined" ? row.combinedNgrCents
-              : row.casinoNgrCents;
-            const productGgr =
-              product === "sportsbook" ? row.sbGgrCents
-              : product === "combined" ? (row.casinoGgrCents + row.sbGgrCents)
-              : row.casinoGgrCents;
+            const { ngr: productNgr, ggr: productGgr } = pickProductPair(subtreeRow, product);
 
             const metrics = {
               ggrCents:          productGgr,
               ngrCents:          productNgr,
-              ftdCount:          row.ftdCount,
+              ftdCount:          subtreeRow.ftdCount,
               qualifiedFtdCount: qualification.qualified,
               pendingFtdCount:   qualification.pending,
               rejectedFtdCount:  qualification.rejected,
-              depositsCount:     row.depositsCount,
-              depositsCents:     row.depositsCents,
-              playerCount:       row.playerCount,
-              registrations:     row.registrations,
+              depositsCount:     subtreeRow.depositsCount,
+              depositsCents:     subtreeRow.depositsCents,
+              playerCount:       subtreeRow.playerCount,
+              registrations:     subtreeRow.registrations,
             };
-
             const ftdQualification = [
               ...qualification.qualifiedFtds.map((f) => ({ ...f, status: "qualified" })),
-              ...qualification.pendingFtds.map((f) => ({ ...f, status: "pending" })),
-              ...qualification.rejectedFtds.map((f) => ({ ...f, status: "rejected" })),
+              ...qualification.pendingFtds.map((f)   => ({ ...f, status: "pending" })),
+              ...qualification.rejectedFtds.map((f)  => ({ ...f, status: "rejected" })),
             ].map((f) => ({
               playerId:     f.playerId,
               ftdDate:      f.ftdDate,
@@ -588,8 +681,8 @@ const reportController = {
             const fullBreakdown = {
               ...breakdown,
               directCents,
-              overrideCents: existing?.breakdown?.overrideCents ?? 0,
-              totalCents:    directCents + (existing?.breakdown?.overrideCents ?? 0),
+              overrideCents: 0,
+              totalCents:    directCents,
             };
 
             if (existing) {
@@ -597,12 +690,13 @@ const reportController = {
                 { _id: existing._id },
                 {
                   $set: {
-                    affiliateCode: row.affiliateCode,
+                    affiliateCode: topCode,
                     planId:        plan._id,
                     planSnapshot:  planSnap,
                     metrics,
                     ftdQualification,
-                    breakdown: fullBreakdown,
+                    breakdown:        fullBreakdown,
+                    overrideFromSubs: [],
                     status:        "draft",
                     calculatedAt:  new Date(),
                     approvedAt:    null,
@@ -615,15 +709,15 @@ const reportController = {
             } else {
               await CommissionReport.create({
                 operatorId:    operator.operatorId,
-                affiliateId:   affiliateUserId,
-                affiliateCode: row.affiliateCode,
+                affiliateId:   topUserId,
+                affiliateCode: topCode,
                 planId:        plan._id,
                 planSnapshot:  planSnap,
                 period:        { year: y, month: m },
                 product,
                 metrics,
                 ftdQualification,
-                breakdown:     fullBreakdown,
+                breakdown:        fullBreakdown,
                 overrideFromSubs: [],
                 status:        "draft",
                 calculatedAt:  new Date(),
@@ -632,116 +726,133 @@ const reportController = {
             }
           }
         } catch (err) {
-          results.failed.push({ affiliateId: row.affiliateId, error: err.message });
+          results.failed.push({ affiliateId: topUserId, error: err.message });
         }
       }
 
-      // ── Override pass: credit parent affiliates ──────────────────────────────
-      // Find all sub-affiliates (have a parent) for this operator
-      const subProfiles = await AffiliateProfile.find({
-        operatorUser: operator._id,
-        parentAffiliate: { $ne: null },
-        overrideRate: { $gt: 0 },
-      }).lean();
+      // ── Pass 2: SubAffiliatePayouts ────────────────────────────────────
+      // One row per parent → direct-child edge per period per product. The
+      // subPlan on the child's profile (set by the parent) drives the math
+      // applied to the child's whole subtree. No cascading earnings math —
+      // each edge is independent; each parent decides how to compensate
+      // their own subs.
+      for (const profile of affiliateProfiles) {
+        if (!profile.parentAffiliate) continue;
 
-      for (const subProfile of subProfiles) {
         try {
-          // Override applies off the sub's casino report for v1. Combined-
-          // and sportsbook-only reports are ignored here; a follow-up PR
-          // can expand the override semantic per-product if operators ask.
-          const subReport = await CommissionReport.findOne({
-            operatorId: operator.operatorId,
-            affiliateId: subProfile.user,
-            "period.year": y,
-            "period.month": m,
-            product: "casino",
-          }).lean();
+          const subUserId    = String(profile.user);
+          const parentUserId = String(profile.parentAffiliate);
+          const subtreeIds   = getSubtreeIds(subUserId);
+          const subtreeRow   = aggregateSubtreeRow(subtreeIds, rowByUserId);
 
-          if (!subReport || subReport.metrics.ngrCents <= 0) continue;
+          const hasActivity =
+            subtreeRow.ngrCents !== 0 ||
+            subtreeRow.combinedNgrCents !== 0 ||
+            subtreeRow.ftdCount > 0;
+          if (!hasActivity) continue;
 
-          const overrideCents = Math.floor(
-            (Math.max(0, subReport.metrics.ngrCents) * subProfile.overrideRate) / 100
-          );
-          if (overrideCents === 0) continue;
-
-          const subEntry = {
-            subAffiliateId:   subProfile.user,
-            subAffiliateCode: subReport.affiliateCode,
-            ngrCents:         subReport.metrics.ngrCents,
-            overrideRate:     subProfile.overrideRate,
-            overrideCents,
+          const subPlan = profile.subPlan || {
+            type: "revshare", revshareRate: 0, cpaPerFtdCents: 0,
           };
 
-          // Parent's casino report carries the override. Other product
-          // reports aren't affected.
-          const parentReport = await CommissionReport.findOne({
-            operatorId: operator.operatorId,
-            affiliateId: subProfile.parentAffiliate,
-            "period.year": y,
-            "period.month": m,
-            product: "casino",
-          });
+          // CPA qualification gates come from the top-level plan (operator
+          // sets these; subs don't override). Walk up to the root to find
+          // the plan owner.
+          let topAncestorId = parentUserId;
+          while (true) {
+            const p = profileByUserId.get(topAncestorId);
+            if (!p?.parentAffiliate) break;
+            topAncestorId = String(p.parentAffiliate);
+          }
+          const planSlots = await resolveAffiliatePlansByProduct(
+            topAncestorId, operator.operatorId,
+          );
+          const subtreeFtdRows = subtreeIds.flatMap(
+            (uid) => ftdRowsByUserId.get(uid) || [],
+          );
 
-          if (parentReport) {
-            // Remove stale entry for this sub then re-add
-            const otherSubs = (parentReport.overrideFromSubs || []).filter(
-              (e) => e.subAffiliateId?.toString() !== subProfile.user.toString()
-            );
-            const newOverrideFromSubs  = [...otherSubs, subEntry];
-            const newOverrideCents     = newOverrideFromSubs.reduce((s, e) => s + e.overrideCents, 0);
-            const newTotalCents        = parentReport.breakdown.directCents + newOverrideCents;
+          for (const product of ["casino", "sportsbook", "combined"]) {
+            const plan = planSlots[product];
+            const resolvedSettings = resolveCommissionSettings(plan, operatorDefaults);
+            const qualification = checkCpaQualification(subtreeFtdRows, resolvedSettings);
+            const { ngr: productNgr, ggr: productGgr } = pickProductPair(subtreeRow, product);
 
-            await CommissionReport.updateOne(
-              { _id: parentReport._id },
-              {
-                $set: {
-                  overrideFromSubs: newOverrideFromSubs,
-                  "breakdown.overrideCents": newOverrideCents,
-                  "breakdown.totalCents":    newTotalCents,
-                },
-              }
-            );
-          } else {
-            // Parent had no direct activity this month — create a zero-direct report
-            const parentProfile = await AffiliateProfile.findOne({
-              user: subProfile.parentAffiliate,
-              operatorUser: operator._id,
-            }).lean();
-            const parentUser = await User.findById(subProfile.parentAffiliate)
-              .select("username").lean();
+            const revshareAmountCents =
+              (subPlan.type === "revshare" || subPlan.type === "hybrid")
+                ? Math.floor((Math.max(0, productNgr) * (subPlan.revshareRate || 0)) / 100)
+                : 0;
+            const cpaAmountCents =
+              (subPlan.type === "cpa" || subPlan.type === "hybrid")
+                ? Math.max(0, qualification.qualified) * (subPlan.cpaPerFtdCents || 0)
+                : 0;
+            const payableCents = revshareAmountCents + cpaAmountCents;
 
-            if (!parentProfile || !parentUser) continue;
-
-            const parentCode = parentProfile.referralCodes?.[0] ?? "";
-
-            await CommissionReport.create({
-              operatorId:      operator.operatorId,
-              affiliateId:     subProfile.parentAffiliate,
-              affiliateCode:   parentCode,
-              planId:          null,
-              planSnapshot:    null,
-              period:          { year: y, month: m },
-              product:         "casino",
-              metrics:         { ggrCents: 0, ngrCents: 0, ftdCount: 0,
-                                 depositsCount: 0, depositsCents: 0,
-                                 playerCount: 0, registrations: 0 },
-              breakdown: {
-                revshareAmountCents: 0,
-                cpaAmountCents:      0,
-                directCents:         0,
-                overrideCents,
-                totalCents:          overrideCents,
-              },
-              overrideFromSubs: [subEntry],
-              status:          "draft",
-              calculatedAt:    new Date(),
+            const existing = await SubAffiliatePayout.findOne({
+              operatorId: operator.operatorId,
+              parentId: parentUserId,
+              subId:    subUserId,
+              "period.year":  y,
+              "period.month": m,
+              product,
             });
-            results.created++;
+
+            // Skip empty edges to keep the collection lean, but still
+            // overwrite an existing row to 0 if the math went to 0 after
+            // a recalc.
+            if (!existing && payableCents === 0) continue;
+            if (existing && existing.status === "paid" && !force) {
+              results.skipped++;
+              continue;
+            }
+
+            const snapshot = {
+              type:           subPlan.type,
+              revshareRate:   subPlan.revshareRate   || 0,
+              cpaPerFtdCents: subPlan.cpaPerFtdCents || 0,
+            };
+            const subtreeMetrics = {
+              ngrCents:          productNgr,
+              ggrCents:          productGgr,
+              ftdCount:          subtreeRow.ftdCount,
+              qualifiedFtdCount: qualification.qualified,
+              registrations:     subtreeRow.registrations,
+              depositsCents:     subtreeRow.depositsCents,
+              playerCount:       subtreeRow.playerCount,
+            };
+
+            if (existing) {
+              existing.subtreeMetrics      = subtreeMetrics;
+              existing.subPlanSnapshot     = snapshot;
+              existing.revshareAmountCents = revshareAmountCents;
+              existing.cpaAmountCents      = cpaAmountCents;
+              existing.payableCents        = payableCents;
+              existing.status              = "draft";
+              existing.calculatedAt        = new Date();
+              existing.paidAt              = null;
+              await existing.save();
+              results.payoutsUpdated++;
+            } else {
+              await SubAffiliatePayout.create({
+                operatorId: operator.operatorId,
+                parentId:   parentUserId,
+                subId:      subUserId,
+                period:     { year: y, month: m },
+                product,
+                subtreeMetrics,
+                subPlanSnapshot: snapshot,
+                revshareAmountCents,
+                cpaAmountCents,
+                payableCents,
+                status: "draft",
+                calculatedAt: new Date(),
+              });
+              results.payoutsCreated++;
+            }
           }
         } catch (err) {
           results.failed.push({
-            affiliateId: subProfile.parentAffiliate?.toString(),
-            error: `Override calc failed: ${err.message}`,
+            affiliateId: String(profile.user),
+            error: `Sub payout calc failed: ${err.message}`,
           });
         }
       }

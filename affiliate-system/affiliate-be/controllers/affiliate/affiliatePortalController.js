@@ -1,10 +1,11 @@
 "use strict";
 
-const clickhouse       = require("../../config/clickhouse");
-const AffiliateProfile = require("../../models/AffiliateProfile");
-const CommissionReport = require("../../models/CommissionReport");
-const User             = require("../../models/User");
-const Brand            = require("../../models/Brand");
+const clickhouse         = require("../../config/clickhouse");
+const AffiliateProfile   = require("../../models/AffiliateProfile");
+const CommissionReport   = require("../../models/CommissionReport");
+const SubAffiliatePayout = require("../../models/SubAffiliatePayout");
+const User               = require("../../models/User");
+const Brand              = require("../../models/Brand");
 const { getDescendantIds } = require("../../utils/affiliateHierarchy");
 
 async function buildBrandCodes(profile) {
@@ -253,8 +254,38 @@ exports.overview = async (req, res) => {
         totalApproved:{ $sum: { $cond: [{ $eq: ["$status", "approved"] },"$breakdown.totalCents", 0] } },
       }},
     ]);
-    const commission = commissionAgg[0] ?? {
+    const reportCommission = commissionAgg[0] ?? {
       totalEarned: 0, totalPaid: 0, totalPending: 0, totalApproved: 0,
+    };
+
+    // Sub-affiliates have no CommissionReport — their income is the sum of
+    // SubAffiliatePayouts they're the SUB of. Top-level affiliates can also
+    // be subs of someone (in unbounded depth, only true root is the operator
+    // edge), but our model has the operator as the only payer of top-level —
+    // so SubAffiliatePayout.subId would only ever match a non-top-level
+    // affiliate. Same date-window match as reports.
+    const subPayoutMatch = { subId: affiliate._id };
+    if (from || to) {
+      subPayoutMatch.$expr = commissionMatch.$expr;
+    }
+    const subPayoutAgg = await SubAffiliatePayout.aggregate([
+      { $match: subPayoutMatch },
+      { $group: {
+        _id: null,
+        totalEarned:  { $sum: "$payableCents" },
+        totalPaid:    { $sum: { $cond: [{ $eq: ["$status", "paid"] },  "$payableCents", 0] } },
+        totalPending: { $sum: { $cond: [{ $eq: ["$status", "draft"] }, "$payableCents", 0] } },
+      }},
+    ]);
+    const subIncome = subPayoutAgg[0] ?? {
+      totalEarned: 0, totalPaid: 0, totalPending: 0,
+    };
+
+    const commission = {
+      totalEarned:   reportCommission.totalEarned   + subIncome.totalEarned,
+      totalPaid:     reportCommission.totalPaid     + subIncome.totalPaid,
+      totalPending:  reportCommission.totalPending  + subIncome.totalPending,
+      totalApproved: reportCommission.totalApproved, // sub payouts have no approved state
     };
 
     // Referral codes (per brand)
@@ -380,7 +411,7 @@ exports.subAffiliates = async (req, res) => {
         status:          user.status,
         createdAt:       user.createdAt,
         parentAffiliate: p.parentAffiliate ? String(p.parentAffiliate) : null,
-        subShareRate:    p.subShareRate ?? 0,
+        subPlan:         normalizeSubPlan(p.subPlan),
         referralCodes:   p.referralCodes,
         commission:      {
           totalCents:  comm.totalCents,
@@ -396,20 +427,38 @@ exports.subAffiliates = async (req, res) => {
   }
 };
 
-// PATCH /affiliate-portal/sub-affiliates/:subId/share-rate
-// The caller sets the % of their own earnings that flows to one of their
-// DIRECT children. Each level edits only its own immediate subs — grandchildren
-// have a different parent who edits them.
-exports.updateSubShareRate = async (req, res) => {
+function normalizeSubPlan(raw) {
+  return {
+    type:           raw?.type           ?? "revshare",
+    revshareRate:   Number(raw?.revshareRate)   || 0,
+    cpaPerFtdCents: Number(raw?.cpaPerFtdCents) || 0,
+  };
+}
+
+// PATCH /affiliate-portal/sub-affiliates/:subId/sub-plan
+// The caller sets how they compensate a DIRECT child. Each level edits only
+// their own immediate subs — grandchildren are managed by their own parent
+// one level down. Accepts { type, revshareRate, cpaPerFtdCents }; missing
+// numeric fields default to 0.
+exports.updateSubPlan = async (req, res) => {
   try {
     const affiliate = req.affiliateUser;
     if (affiliate.role !== "affiliate") {
       return res.status(403).json({ error: "Affiliates only" });
     }
 
-    const rate = Number(req.body?.subShareRate);
-    if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
-      return res.status(400).json({ error: "subShareRate must be a number between 0 and 100" });
+    const body = req.body || {};
+    const type = body.type;
+    if (!["revshare", "cpa", "hybrid"].includes(type)) {
+      return res.status(400).json({ error: "subPlan.type must be revshare, cpa, or hybrid" });
+    }
+    const revshareRate   = Number(body.revshareRate)   || 0;
+    const cpaPerFtdCents = Number(body.cpaPerFtdCents) || 0;
+    if (revshareRate < 0 || revshareRate > 100) {
+      return res.status(400).json({ error: "revshareRate must be 0–100" });
+    }
+    if (cpaPerFtdCents < 0) {
+      return res.status(400).json({ error: "cpaPerFtdCents must be ≥ 0" });
     }
 
     const profile = await AffiliateProfile.findOne({
@@ -420,10 +469,10 @@ exports.updateSubShareRate = async (req, res) => {
       return res.status(404).json({ error: "Sub-affiliate not found among your direct children" });
     }
 
-    profile.subShareRate = rate;
+    profile.subPlan = { type, revshareRate, cpaPerFtdCents };
     await profile.save();
 
-    res.json({ ok: true, subShareRate: profile.subShareRate });
+    res.json({ ok: true, subPlan: normalizeSubPlan(profile.subPlan) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

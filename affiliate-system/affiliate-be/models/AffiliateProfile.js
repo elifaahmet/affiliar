@@ -36,18 +36,24 @@ const affiliateProfileSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
-    // % of this profile's own earnings that the PARENT gives to this profile.
-    // Set by the parent on their direct child. Operator never touches this.
-    // Cascades level by level — each parent decides their own subs' share.
-    // 0 = parent keeps everything, sub gets nothing.
-    subShareRate: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 100,
+    // How the parent compensates THIS profile. Set by the parent on their
+    // direct child; the operator never touches it. Each parent → child edge
+    // has its own subPlan — independent at every level.
+    subPlan: {
+      type: {
+        type: String,
+        enum: ["revshare", "cpa", "hybrid"],
+        default: "revshare",
+      },
+      // % of NGR on this profile's full subtree (sub + all descendants).
+      revshareRate:   { type: Number, default: 0, min: 0, max: 100 },
+      // Flat per-qualified-FTD payout (cents) on this profile's subtree.
+      cpaPerFtdCents: { type: Number, default: 0, min: 0 },
+      _id: false,
     },
-    // DEPRECATED: legacy operator-set override flow. Read-only — will be
-    // removed once the MLM engine ships in Phase 2.
+    // DEPRECATED: legacy operator-set override flow, no longer written by
+    // the engine. Kept temporarily so old reports' overrideFromSubs entries
+    // can still surface in the UI; remove once production is migrated.
     overrideRate: {
       type: Number,
       default: 0,
