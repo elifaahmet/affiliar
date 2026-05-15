@@ -253,9 +253,32 @@ exports.overview = async (req, res) => {
       sbGgrCents: 0, sbNgrCents: 0, combinedNgrCents: 0,
     });
 
-    // Commission totals from MongoDB
+    // Commission totals from MongoDB — filtered to reports whose
+    // monthly period overlaps the requested date range. Without this
+    // the KPI cards never change as the user moves the date filter.
+    const commissionMatch = { affiliateId: affiliate._id };
+    if (from || to) {
+      const fromDate = from ? new Date(`${from}T00:00:00Z`) : null;
+      const toDate   = to   ? new Date(`${to}T23:59:59.999Z`) : null;
+      commissionMatch.$expr = {
+        $and: [
+          ...(toDate ? [{
+            $lte: [
+              { $dateFromParts: { year: "$period.year", month: "$period.month", day: 1, timezone: "UTC" } },
+              toDate,
+            ],
+          }] : []),
+          ...(fromDate ? [{
+            $gt: [
+              { $dateFromParts: { year: "$period.year", month: { $add: ["$period.month", 1] }, day: 1, timezone: "UTC" } },
+              fromDate,
+            ],
+          }] : []),
+        ],
+      };
+    }
     const commissionAgg = await CommissionReport.aggregate([
-      { $match: { affiliateId: affiliate._id } },
+      { $match: commissionMatch },
       { $group: {
         _id: null,
         totalEarned:  { $sum: "$breakdown.totalCents" },

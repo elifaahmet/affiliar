@@ -7,10 +7,6 @@ import { AFFILIATE_PORTAL_API_URLS } from 'config/apiUrls';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-function fmt(cents: number) {
-  return (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
 function ymd(d: Date) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -86,23 +82,6 @@ interface CommissionSummary {
   totalPaid: number;
   totalPending: number;
   totalApproved: number;
-}
-
-interface ProviderRow {
-  providerId: string;
-  providerName: string;
-  feePercent: number;
-  betsSumCents: number;
-  winsSumCents: number;
-  ggrCents: number;
-  ngrCents: number;
-  roundsCount: number;
-  playerCount: number;
-  providerFeesSumCents: number;
-}
-
-interface ProvidersResponse {
-  providers: ProviderRow[];
 }
 
 interface OverviewResponse {
@@ -220,13 +199,6 @@ export default function AffiliateReports() {
     params,
   });
 
-  const { data: providersData } = useBaseQuery<ProvidersResponse>({
-    endpoint: AFFILIATE_PORTAL_API_URLS.PROVIDERS(),
-    queryKey: ['affiliate-providers', params],
-    params,
-  });
-  const providers = providersData?.providers ?? [];
-
   return (
     <div className='h-full overflow-auto p-6 pb-24 space-y-6'>
 
@@ -291,46 +263,6 @@ export default function AffiliateReports() {
             ))}
           </div>
 
-          {/* Providers breakdown */}
-          {providers.length > 0 && (
-            <div>
-              <p className='text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3'>Providers</p>
-              <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
-                <div className='overflow-x-auto'>
-                  <table className='w-full'>
-                    <thead className='bg-gray-50'>
-                      <tr>
-                        <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Provider</th>
-                        <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>Fee %</th>
-                        <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>Rounds</th>
-                        <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>Bets</th>
-                        <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>Wins</th>
-                        <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>GGR</th>
-                        <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>Provider Fees</th>
-                        <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>NGR</th>
-                      </tr>
-                    </thead>
-                    <tbody className='divide-y divide-gray-100'>
-                      {providers.map((p, i) => (
-                        <tr key={p.providerId} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className='px-4 py-3 text-xs font-medium text-gray-800'>{p.providerName || p.providerId}</td>
-                          <td className='px-4 py-3 text-xs text-right text-gray-700'>{p.feePercent}%</td>
-                          <td className='px-4 py-3 text-xs text-right text-gray-700'>{(p.roundsCount ?? 0).toLocaleString()}</td>
-                          <td className='px-4 py-3 text-xs text-right text-gray-700'>€{fmt(p.betsSumCents ?? 0)}</td>
-                          <td className='px-4 py-3 text-xs text-right text-gray-700'>€{fmt(p.winsSumCents ?? 0)}</td>
-                          <td className='px-4 py-3 text-xs text-right text-gray-700'>€{fmt(p.ggrCents ?? 0)}</td>
-                          <td className='px-4 py-3 text-xs text-right text-gray-700'>€{fmt(p.providerFeesSumCents ?? 0)}</td>
-                          <td className='px-4 py-3 text-xs text-right text-gray-800 font-medium'>€{fmt(p.ngrCents ?? 0)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-
           {/* Quick Charts — same metric set the operator dashboard offers,
               scoped to this affiliate plus optional code / campaign / sub
               drill-down filters on top of the page-level period + product. */}
@@ -378,8 +310,7 @@ function QuickCharts({
     [visibleMetrics, metricKey],
   );
 
-  // Self-fetched, filter-aware byDay. The page-level overview is unfiltered
-  // (used by providers + fee details); QuickCharts re-queries with code /
+  // Self-fetched, filter-aware byDay. QuickCharts re-queries with code /
   // campaign / sub merged in when the affiliate narrows.
   const chartParams = useMemo(() => {
     const p: Record<string, string> = { from: period.from, to: period.to };
