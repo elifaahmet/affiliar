@@ -310,15 +310,16 @@ function QuickCharts({
     [visibleMetrics, metricKey],
   );
 
-  // Self-fetched, filter-aware byDay. QuickCharts re-queries with code /
-  // campaign / sub merged in when the affiliate narrows.
+  // Self-fetched, filter-aware byDay. QuickCharts re-queries with product
+  // / code / campaign / sub merged in when the affiliate narrows.
   const chartParams = useMemo(() => {
     const p: Record<string, string> = { from: period.from, to: period.to };
+    if (product !== 'all') p.product = product;
     if (filterCode)     p.affiliateCode = filterCode;
     if (filterCampaign) p.campaign      = filterCampaign;
     if (filterSub)      p.subId         = filterSub;
     return p;
-  }, [period.from, period.to, filterCode, filterCampaign, filterSub]);
+  }, [period.from, period.to, product, filterCode, filterCampaign, filterSub]);
 
   const { data: chartData, isLoading } = useBaseQuery<OverviewResponse>({
     endpoint: AFFILIATE_PORTAL_API_URLS.OVERVIEW(),

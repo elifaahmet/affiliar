@@ -54,50 +54,6 @@ async function queryRows(sql, params) {
   return result.json();
 }
 
-function affiliateWhere(affiliateUserId, query) {
-  const conditions = [
-    "tenant_id = {tenantId:String}",
-    "affiliate_id = {affiliateId:String}",
-  ];
-  const params = {
-    tenantId:    affiliateUserId.toString(), // tenantId = operatorId stored in User.operatorId
-    affiliateId: affiliateUserId.toString(),
-  };
-
-  // Overwrite tenantId with the operator's id from the affiliate's profile
-  // (set after we resolve operatorId below)
-
-  if (query.from) {
-    conditions.push("from_ts >= {fromTs:DateTime}");
-    params.fromTs = chDate(query.from);
-  }
-  if (query.to) {
-    conditions.push("from_ts <= {toTs:DateTime}");
-    params.toTs = chDate(query.to, true);
-  }
-  if (query.brandId) {
-    conditions.push("brand_id = {brandId:String}");
-    params.brandId = query.brandId;
-  }
-  if (query.campaign) {
-    conditions.push("campaign = {campaign:String}");
-    params.campaign = query.campaign;
-  }
-  // Drill-down filters surfaced on the affiliate-side Reports chart: the
-  // marketer's own referral code (when they have several) and the optional
-  // sub-source/placement tracking string baked into their tracking links.
-  if (query.affiliateCode) {
-    conditions.push("affiliate_code = {affiliateCode:String}");
-    params.affiliateCode = String(query.affiliateCode).toUpperCase();
-  }
-  if (query.subId) {
-    conditions.push("sub_id = {subId:String}");
-    params.subId = query.subId;
-  }
-
-  return { conditions, params };
-}
-
 const AFFILIATE_METRIC_COLS = `
   SUM(registrations)                  AS registrations,
   SUM(ftd_count)                      AS ftdCount,
@@ -222,12 +178,34 @@ exports.overview = async (req, res) => {
     if (to)   { conditions.push("from_ts <= {toTs:DateTime}");   params.toTs   = chDate(to, true); }
     if (req.query.brandId)  { conditions.push("brand_id = {brandId:String}"); params.brandId = req.query.brandId; }
     if (req.query.campaign) { conditions.push("campaign = {campaign:String}"); params.campaign = req.query.campaign; }
+    if (req.query.affiliateCode) {
+      conditions.push("affiliate_code = {affiliateCode:String}");
+      params.affiliateCode = String(req.query.affiliateCode).toUpperCase();
+    }
+    if (req.query.subId) {
+      conditions.push("sub_id = {subId:String}");
+      params.subId = String(req.query.subId);
+    }
+
+    // Product scope. Combined NGR is the only "shared" metric that mixes
+    // both products in its formula, so scoping rewrites it to just one
+    // half. Casino-only / SB-only metric charts already pull from their
+    // own columns and aren't affected here.
+    const product = String(req.query.product || "all").toLowerCase();
+    const combinedNgrExpr =
+      product === "casino"     ? "SUM(casino_ngr_cents)"
+    : product === "sportsbook" ? "SUM(sb_ngr_cents)"
+    :                            "SUM(combined_ngr_cents)";
+    const metricCols = AFFILIATE_METRIC_COLS.replace(
+      "SUM(combined_ngr_cents)             AS combinedNgrCents",
+      `${combinedNgrExpr.padEnd(36)} AS combinedNgrCents`,
+    );
 
     const where = conditions.join(" AND ");
 
     const [summaryRows, byDayRows] = await Promise.all([
       queryRows(
-        `SELECT ${AFFILIATE_METRIC_COLS}
+        `SELECT ${metricCols}
          FROM affiliate.activity
          WHERE ${where}`,
         params,
@@ -235,7 +213,7 @@ exports.overview = async (req, res) => {
       queryRows(
         `SELECT
            formatDateTime(from_ts, '%Y-%m-%d', 'UTC') AS date,
-           ${AFFILIATE_METRIC_COLS}
+           ${metricCols}
          FROM affiliate.activity
          WHERE ${where}
          GROUP BY date
