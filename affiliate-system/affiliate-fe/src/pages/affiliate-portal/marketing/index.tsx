@@ -99,6 +99,13 @@ export default function AffiliateMarketing() {
   const [customParams, setCustomParams] = useState<Array<{ key: string; value: string }>>([]);
   const [builderCopied, setBuilderCopied] = useState(false);
 
+  const fallbackBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+
+  function buildLink(rc: BrandReferralCode) {
+    const base = (rc.brandUrl || fallbackBaseUrl).replace(/\/+$/, '');
+    return `${base}/?affiliate=${rc.code}`;
+  }
+
   // Brands the affiliate can generate codes for = distinct brands they're
   // already assigned. If the dropdown is empty we hide the generate UI.
   const availableBrands = useMemo(() => {
@@ -150,13 +157,6 @@ export default function AffiliateMarketing() {
       setTimeout(() => setCopied(null), 2000);
     });
   };
-
-  const fallbackBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-
-  function buildLink(rc: BrandReferralCode) {
-    const base = (rc.brandUrl || fallbackBaseUrl).replace(/\/+$/, '');
-    return `${base}/?affiliate=${rc.code}`;
-  }
 
   return (
     <div className='h-full overflow-auto p-6 pb-24 space-y-6'>
