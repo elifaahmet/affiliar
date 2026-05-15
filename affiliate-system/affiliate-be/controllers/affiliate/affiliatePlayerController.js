@@ -67,6 +67,7 @@ const affiliatePlayerController = {
         affiliateCode,
         affiliateId,
         playerId,
+        campaign,
         from,
         to,
         page = 1,
@@ -83,6 +84,7 @@ const affiliatePlayerController = {
       }
 
       if (affiliateCode) filter.affiliateCode = affiliateCode.toUpperCase();
+      if (campaign)      filter.campaign = campaign;
       if (playerId)      filter.playerId = { $regex: playerId, $options: "i" };
 
       if (from || to) {

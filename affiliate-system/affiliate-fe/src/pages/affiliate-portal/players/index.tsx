@@ -1,6 +1,10 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { AFFILIATE_PORTAL_API_URLS } from 'config/apiUrls';
+
+interface ProfileResponse {
+  referralCodes: { code: string; brandId: string | null; brandName: string | null }[];
+}
 
 function fmt(cents: number) {
   return (cents / 100).toLocaleString('en-US', {
@@ -73,20 +77,125 @@ interface PlayersResponse {
 
 export default function AffiliatePlayers() {
   const [page, setPage] = useState(1);
+  const [searchPlayerId,  setSearchPlayerId]  = useState('');
+  const [filterCode,      setFilterCode]      = useState('');
+  const [filterCampaign,  setFilterCampaign]  = useState('');
+  const [filterFrom,      setFilterFrom]      = useState('');
+  const [filterTo,        setFilterTo]        = useState('');
   const limit = 50;
+
+  const { data: profile } = useBaseQuery<ProfileResponse>({
+    endpoint: AFFILIATE_PORTAL_API_URLS.PROFILE(),
+    queryKey: ['affiliate-profile'],
+  });
+  const referralCodes = profile?.referralCodes ?? [];
+
+  const params = useMemo(() => {
+    const p: Record<string, string | number> = { page, limit };
+    if (searchPlayerId) p.playerId      = searchPlayerId;
+    if (filterCode)     p.affiliateCode = filterCode;
+    if (filterCampaign) p.campaign      = filterCampaign;
+    if (filterFrom)     p.from          = filterFrom;
+    if (filterTo)       p.to            = filterTo;
+    return p;
+  }, [page, searchPlayerId, filterCode, filterCampaign, filterFrom, filterTo]);
 
   const { data, isLoading, isError } = useBaseQuery<PlayersResponse>({
     endpoint: AFFILIATE_PORTAL_API_URLS.PLAYERS(),
-    queryKey: ['affiliate-players', page],
-    params: { page, limit },
+    queryKey: ['affiliate-players', params],
+    params,
   });
 
   const players = data?.players ?? [];
   const total = data?.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / limit));
 
+  const hasActiveFilter = Boolean(
+    searchPlayerId || filterCode || filterCampaign || filterFrom || filterTo,
+  );
+
+  // Any filter change resets pagination back to page 1.
+  function withReset<T>(setter: (v: T) => void) {
+    return (v: T) => { setPage(1); setter(v); };
+  }
+
   return (
     <div className='h-full overflow-auto p-6 pb-24 space-y-6'>
+      {/* Filters */}
+      <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-4 space-y-3'>
+        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3'>
+          <label className='flex flex-col gap-1'>
+            <span className='text-[10px] font-medium uppercase tracking-[0.1em] text-gray-600'>Player ID</span>
+            <input
+              type='text'
+              value={searchPlayerId}
+              onChange={(e) => withReset(setSearchPlayerId)(e.target.value)}
+              placeholder='Search…'
+              className='bg-white text-gray-700 text-xs rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
+            />
+          </label>
+          <label className='flex flex-col gap-1'>
+            <span className='text-[10px] font-medium uppercase tracking-[0.1em] text-gray-600'>Referral code</span>
+            <select
+              value={filterCode}
+              onChange={(e) => withReset(setFilterCode)(e.target.value)}
+              className='bg-white text-gray-700 text-xs rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
+            >
+              <option value=''>All codes</option>
+              {referralCodes.map((rc) => (
+                <option key={rc.code} value={rc.code}>
+                  {rc.code}{rc.brandName ? ` · ${rc.brandName}` : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className='flex flex-col gap-1'>
+            <span className='text-[10px] font-medium uppercase tracking-[0.1em] text-gray-600'>Campaign</span>
+            <input
+              type='text'
+              value={filterCampaign}
+              onChange={(e) => withReset(setFilterCampaign)(e.target.value)}
+              placeholder='e.g. summer_promo'
+              className='bg-white text-gray-700 text-xs rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
+            />
+          </label>
+          <label className='flex flex-col gap-1'>
+            <span className='text-[10px] font-medium uppercase tracking-[0.1em] text-gray-600'>Registered from</span>
+            <input
+              type='date'
+              value={filterFrom}
+              onChange={(e) => withReset(setFilterFrom)(e.target.value)}
+              className='bg-white text-gray-700 text-xs rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
+            />
+          </label>
+          <label className='flex flex-col gap-1'>
+            <span className='text-[10px] font-medium uppercase tracking-[0.1em] text-gray-600'>Registered to</span>
+            <input
+              type='date'
+              value={filterTo}
+              onChange={(e) => withReset(setFilterTo)(e.target.value)}
+              className='bg-white text-gray-700 text-xs rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
+            />
+          </label>
+        </div>
+        {hasActiveFilter && (
+          <button
+            type='button'
+            onClick={() => {
+              setPage(1);
+              setSearchPlayerId('');
+              setFilterCode('');
+              setFilterCampaign('');
+              setFilterFrom('');
+              setFilterTo('');
+            }}
+            className='text-xs font-medium text-primary hover:text-primary-dark'
+          >
+            Clear filters
+          </button>
+        )}
+      </div>
+
       <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
         <div className='px-5 py-3 border-b border-gray-100 flex items-center justify-between'>
           <p className='text-sm font-semibold text-gray-800'>My Players</p>
