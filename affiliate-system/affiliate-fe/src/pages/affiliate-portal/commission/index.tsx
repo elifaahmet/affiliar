@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { useBaseQuery } from 'api/core/useBaseQuery';
+import { useBaseMutation } from 'api/core/useBaseMutation';
 import { AFFILIATE_PORTAL_API_URLS } from 'config/apiUrls';
 
 function fmt(cents: number) {
@@ -80,6 +82,9 @@ export default function AffiliateCommission() {
           <p className='text-xl font-semibold text-warning'>€{fmt(totalPending)}</p>
         </div>
       </div>
+
+      {/* Sub-affiliate payouts (incoming + outgoing) */}
+      <SubAffiliatePayouts />
 
       {/* Reports table */}
       <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
@@ -169,4 +174,177 @@ export default function AffiliateCommission() {
       </div>
     </div>
   );
+}
+
+// ── Sub-affiliate payouts section ──────────────────────────────────────────────
+
+type Direction = 'incoming' | 'outgoing';
+
+interface SubPayout {
+  _id: string;
+  direction: Direction;
+  period: { year: number; month: number };
+  product: 'casino' | 'sportsbook' | 'combined';
+  parent: { _id: string; username: string; email: string; name: string } | null;
+  sub:    { _id: string; username: string; email: string; name: string } | null;
+  subtreeMetrics: {
+    ngrCents: number;
+    ggrCents: number;
+    ftdCount: number;
+    qualifiedFtdCount: number;
+  };
+  subPlanSnapshot: { type: string; revshareRate: number; cpaPerFtdCents: number };
+  revshareAmountCents: number;
+  cpaAmountCents: number;
+  payableCents: number;
+  status: 'draft' | 'paid';
+  calculatedAt: string | null;
+  paidAt: string | null;
+}
+
+interface SubPayoutsResponse {
+  payouts: SubPayout[];
+  total: number;
+}
+
+function SubAffiliatePayouts() {
+  const [tab, setTab] = useState<Direction>('incoming');
+
+  const { data, isLoading, refetch } = useBaseQuery<SubPayoutsResponse>({
+    endpoint: AFFILIATE_PORTAL_API_URLS.SUB_PAYOUTS(),
+    queryKey: ['affiliate-sub-payouts', tab],
+    params: { direction: tab, limit: 50 },
+  });
+
+  const rows = data?.payouts ?? [];
+
+  return (
+    <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
+      <div className='px-5 py-3 border-b border-gray-100 flex items-center justify-between'>
+        <p className='text-sm font-semibold text-gray-800'>Sub-Affiliate Payouts</p>
+        <div className='flex gap-1 bg-gray-100 p-0.5 rounded-md'>
+          {(['incoming', 'outgoing'] as Direction[]).map((d) => (
+            <button
+              key={d}
+              onClick={() => setTab(d)}
+              className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                tab === d ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              {d === 'incoming' ? 'From parent' : 'To my subs'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {isLoading && (
+        <div className='p-8 text-center'>
+          <p className='text-sm text-gray-600'>Loading…</p>
+        </div>
+      )}
+
+      {!isLoading && rows.length === 0 && (
+        <div className='p-8 text-center'>
+          <p className='text-sm text-gray-600'>
+            {tab === 'incoming'
+              ? 'No incoming payouts yet. If you signed up under another affiliate, the next commission calc will populate this.'
+              : 'No outgoing payouts. Invite affiliates under your account and set their plan on the Sub-Affiliates page.'}
+          </p>
+        </div>
+      )}
+
+      {!isLoading && rows.length > 0 && (
+        <div className='overflow-x-auto'>
+          <table className='w-full'>
+            <thead className='bg-gray-50'>
+              <tr>
+                <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Period</th>
+                <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>
+                  {tab === 'incoming' ? 'From' : 'To'}
+                </th>
+                <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Product</th>
+                <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Plan</th>
+                <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>NGR (€)</th>
+                <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>FTDs</th>
+                <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>Revshare (€)</th>
+                <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>CPA (€)</th>
+                <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>Payable (€)</th>
+                <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Status</th>
+                {tab === 'outgoing' && (
+                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'></th>
+                )}
+              </tr>
+            </thead>
+            <tbody className='divide-y divide-gray-100'>
+              {rows.map((p, i) => {
+                const counterparty = tab === 'incoming' ? p.parent : p.sub;
+                return (
+                  <tr key={p._id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className='px-4 py-3 text-xs font-medium text-gray-800 whitespace-nowrap'>
+                      {monthAbbr(p.period.month)} {p.period.year}
+                    </td>
+                    <td className='px-4 py-3 text-xs text-gray-800'>
+                      <p className='font-medium'>{counterparty?.name || counterparty?.username || '—'}</p>
+                      <p className='text-[11px] text-gray-600'>{counterparty?.email}</p>
+                    </td>
+                    <td className='px-4 py-3 text-xs text-gray-700 capitalize'>{p.product}</td>
+                    <td className='px-4 py-3 text-xs text-gray-700 whitespace-nowrap'>
+                      {planLabel(p.subPlanSnapshot)}
+                    </td>
+                    <td className='px-4 py-3 text-xs text-gray-700 text-right'>{fmt(p.subtreeMetrics?.ngrCents ?? 0)}</td>
+                    <td className='px-4 py-3 text-xs text-gray-700 text-right'>{p.subtreeMetrics?.qualifiedFtdCount ?? 0}</td>
+                    <td className='px-4 py-3 text-xs text-gray-700 text-right'>{fmt(p.revshareAmountCents ?? 0)}</td>
+                    <td className='px-4 py-3 text-xs text-gray-700 text-right'>{fmt(p.cpaAmountCents ?? 0)}</td>
+                    <td className='px-4 py-3 text-xs font-semibold text-gray-800 text-right'>{fmt(p.payableCents ?? 0)}</td>
+                    <td className='px-4 py-3'>
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                        p.status === 'paid' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {p.status}
+                      </span>
+                    </td>
+                    {tab === 'outgoing' && (
+                      <td className='px-4 py-3 text-right'>
+                        {p.status === 'draft' ? (
+                          <MarkPaidButton payoutId={p._id} onPaid={refetch} />
+                        ) : null}
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MarkPaidButton({ payoutId, onPaid }: { payoutId: string; onPaid: () => void }) {
+  const mutation = useBaseMutation({
+    endpoint: AFFILIATE_PORTAL_API_URLS.MARK_SUB_PAYOUT_PAID(payoutId),
+    method: 'post',
+    onSuccess: () => onPaid(),
+  });
+  return (
+    <button
+      type='button'
+      onClick={() => mutation.mutate({})}
+      disabled={mutation.isPending}
+      className='text-xs font-medium text-primary hover:text-primary-dark disabled:opacity-50'
+    >
+      {mutation.isPending ? 'Marking…' : 'Mark paid'}
+    </button>
+  );
+}
+
+function planLabel(plan: { type: string; revshareRate: number; cpaPerFtdCents: number }) {
+  if (plan.type === 'revshare') return `${plan.revshareRate}% revshare`;
+  if (plan.type === 'cpa')      return `€${fmt(plan.cpaPerFtdCents)} / FTD`;
+  return `${plan.revshareRate}% + €${fmt(plan.cpaPerFtdCents)} / FTD`;
+}
+
+function monthAbbr(m: number) {
+  return MONTHS[(m ?? 1) - 1];
 }

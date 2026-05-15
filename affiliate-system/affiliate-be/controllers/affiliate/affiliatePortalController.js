@@ -437,6 +437,113 @@ function normalizeSubPlan(raw) {
   };
 }
 
+// GET /affiliate-portal/sub-payouts
+// SubAffiliatePayout rows the caller is involved in. ?direction=incoming
+// returns payouts the caller receives from their parent; ?direction=outgoing
+// returns what the caller owes their direct subs. Default returns both.
+// Optional ?year, ?month, ?status, ?product narrow the result.
+exports.listSubPayouts = async (req, res) => {
+  try {
+    const affiliate = req.affiliateUser;
+    if (affiliate.role !== "affiliate") {
+      return res.status(403).json({ error: "Affiliates only" });
+    }
+
+    const direction = String(req.query.direction || "both").toLowerCase();
+    const filter = {};
+    if (direction === "incoming") {
+      filter.subId = affiliate._id;
+    } else if (direction === "outgoing") {
+      filter.parentId = affiliate._id;
+    } else {
+      filter.$or = [{ subId: affiliate._id }, { parentId: affiliate._id }];
+    }
+    if (req.query.year)    filter["period.year"]  = Number(req.query.year);
+    if (req.query.month)   filter["period.month"] = Number(req.query.month);
+    if (req.query.status)  filter.status          = String(req.query.status);
+    if (req.query.product) filter.product         = String(req.query.product);
+
+    const limit = Math.min(Number(req.query.limit) || 50, 200);
+    const page  = Math.max(Number(req.query.page)  || 1, 1);
+    const skip  = (page - 1) * limit;
+
+    const [rows, total] = await Promise.all([
+      SubAffiliatePayout.find(filter)
+        .populate("parentId", "username email name")
+        .populate("subId",    "username email name")
+        .sort({ "period.year": -1, "period.month": -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      SubAffiliatePayout.countDocuments(filter),
+    ]);
+
+    const payouts = rows.map((r) => ({
+      _id:        String(r._id),
+      direction:  String(r.subId?._id ?? r.subId) === String(affiliate._id)
+        ? "incoming"
+        : "outgoing",
+      period:     r.period,
+      product:    r.product,
+      parent: r.parentId ? {
+        _id:      String(r.parentId._id),
+        username: r.parentId.username,
+        email:    r.parentId.email,
+        name:     r.parentId.name,
+      } : null,
+      sub: r.subId ? {
+        _id:      String(r.subId._id),
+        username: r.subId.username,
+        email:    r.subId.email,
+        name:     r.subId.name,
+      } : null,
+      subtreeMetrics:      r.subtreeMetrics,
+      subPlanSnapshot:     r.subPlanSnapshot,
+      revshareAmountCents: r.revshareAmountCents,
+      cpaAmountCents:      r.cpaAmountCents,
+      payableCents:        r.payableCents,
+      status:              r.status,
+      calculatedAt:        r.calculatedAt,
+      paidAt:              r.paidAt,
+    }));
+
+    res.json({ payouts, total, page, limit });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /affiliate-portal/sub-payouts/:payoutId/mark-paid
+// The parent affiliate flips an outgoing payout to paid. Only the parent on
+// that edge can do this — even an operator can't (sub-payouts are internal
+// to the affiliate hierarchy).
+exports.markSubPayoutPaid = async (req, res) => {
+  try {
+    const affiliate = req.affiliateUser;
+    if (affiliate.role !== "affiliate") {
+      return res.status(403).json({ error: "Affiliates only" });
+    }
+
+    const payout = await SubAffiliatePayout.findOne({
+      _id: req.params.payoutId,
+      parentId: affiliate._id,
+    });
+    if (!payout) {
+      return res.status(404).json({ error: "Payout not found among the ones you owe" });
+    }
+    if (payout.status === "paid") {
+      return res.json({ ok: true, payout });
+    }
+    payout.status = "paid";
+    payout.paidAt = new Date();
+    await payout.save();
+
+    res.json({ ok: true, payout });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // PATCH /affiliate-portal/sub-affiliates/:subId/sub-plan
 // The caller sets how they compensate a DIRECT child. Each level edits only
 // their own immediate subs — grandchildren are managed by their own parent
