@@ -5,6 +5,17 @@ import {
 } from 'recharts';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { AFFILIATE_PORTAL_API_URLS } from 'config/apiUrls';
+import { storageHelper } from 'utils/storage/StorageHelper';
+import { STORAGE_KEYS } from 'utils/common/constants';
+
+interface SubAffiliateRow {
+  _id: string;
+  username: string;
+  email: string;
+  name: string;
+  parentAffiliate: string | null;
+}
+interface SubAffiliatesResponse { subAffiliates: SubAffiliateRow[]; total: number }
 
 // Affiliate landing page: at-a-glance widgets with a date filter. Deep
 // charts / providers / fee details live on /affiliate/reports.
@@ -133,13 +144,29 @@ function KpiCard({
 export default function AffiliateDashboard() {
   const [activePeriod, setActivePeriod] = useState<PeriodKey>('month');
   const [customRange, setCustomRange]   = useState<Period | null>(null);
+  const [forAffiliateId, setForAffiliateId] = useState<string>('');
+
+  const callerId = useMemo(
+    () => storageHelper.getStoreWithDecryption(STORAGE_KEYS.USER_ID) || '',
+    [],
+  );
+
+  const { data: subAffiliates } = useBaseQuery<SubAffiliatesResponse>({
+    endpoint: AFFILIATE_PORTAL_API_URLS.SUB_AFFILIATES(),
+    queryKey: ['affiliate-sub-affiliates-dashboard'],
+  });
+  const subs = subAffiliates?.subAffiliates ?? [];
 
   const period: Period = useMemo(
     () => customRange ?? buildPeriod(activePeriod),
     [activePeriod, customRange],
   );
 
-  const params = useMemo(() => ({ from: period.from, to: period.to }), [period]);
+  const params = useMemo(() => {
+    const p: Record<string, string> = { from: period.from, to: period.to };
+    if (forAffiliateId) p.forAffiliateId = forAffiliateId;
+    return p;
+  }, [period, forAffiliateId]);
 
   const { data, isLoading, isError } = useBaseQuery<OverviewResponse>({
     endpoint: AFFILIATE_PORTAL_API_URLS.OVERVIEW(),
@@ -193,6 +220,24 @@ export default function AffiliateDashboard() {
             onChange={(e) => setCustomRange((r) => ({ from: r?.from ?? period.from, to: e.target.value }))}
             className='bg-white text-gray-700 text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
           />
+          <select
+            value={forAffiliateId}
+            onChange={(e) => setForAffiliateId(e.target.value)}
+            className='bg-white text-gray-700 text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
+            aria-label='Affiliate scope'
+          >
+            <option value=''>My network (subtree)</option>
+            <option value={callerId}>Just my players</option>
+            {subs.length > 0 && (
+              <optgroup label='Sub-affiliates'>
+                {subs.map((s) => (
+                  <option key={s._id} value={s._id}>
+                    {s.name || s.username || s.email}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </select>
         </div>
       </div>
 

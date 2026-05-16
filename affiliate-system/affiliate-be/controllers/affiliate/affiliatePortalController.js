@@ -170,11 +170,24 @@ exports.overview = async (req, res) => {
     const tenantId    = affiliate.operatorId.toString();
     const affiliateId = affiliate._id.toString();
 
+    // Subtree by default: own players plus every descendant's. Drill-down
+    // via ?forAffiliateId narrows to a single affiliate in the subtree —
+    // ownership-checked so callers can't peek outside their tree.
+    const subtreeIds = [affiliateId, ...await getDescendantIds(affiliate._id)];
+    let affiliateIds = subtreeIds;
+    if (req.query.forAffiliateId) {
+      const requested = String(req.query.forAffiliateId);
+      if (!subtreeIds.includes(requested)) {
+        return res.status(403).json({ error: "Affiliate is not in your subtree" });
+      }
+      affiliateIds = [requested];
+    }
+
     const conditions = [
-      "tenant_id   = {tenantId:String}",
-      "affiliate_id = {affiliateId:String}",
+      "tenant_id    = {tenantId:String}",
+      "affiliate_id IN {affiliateIds:Array(String)}",
     ];
-    const params = { tenantId, affiliateId };
+    const params = { tenantId, affiliateIds };
 
     const { from, to } = req.query;
     if (from) { conditions.push("from_ts >= {fromTs:DateTime}"); params.fromTs = chDate(from); }
