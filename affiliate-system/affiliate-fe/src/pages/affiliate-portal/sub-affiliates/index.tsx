@@ -350,8 +350,15 @@ function SubPlanEditor({
   onSaved: () => void;
 }) {
   const [type, setType] = useState<SubPlanType>(sub.subPlan.type);
-  const [revshareRate, setRevshareRate] = useState<number>(sub.subPlan.revshareRate);
-  const [cpaCents, setCpaCents] = useState<number>(sub.subPlan.cpaPerFtdCents);
+  // Stored as strings so an empty input stays empty — using Number state
+  // collapses '' → 0, which then re-renders as a leading "0" the user has
+  // to delete every time. Parsed back on submit.
+  const [revshareRate, setRevshareRate] = useState<string>(
+    sub.subPlan.revshareRate ? String(sub.subPlan.revshareRate) : '',
+  );
+  const [cpaEuros, setCpaEuros] = useState<string>(
+    sub.subPlan.cpaPerFtdCents ? (sub.subPlan.cpaPerFtdCents / 100).toString() : '',
+  );
   const [error, setError] = useState<string | null>(null);
 
   const mutation = useBaseMutation({
@@ -389,7 +396,7 @@ function SubPlanEditor({
               max={100}
               step='0.01'
               value={revshareRate}
-              onChange={(e) => setRevshareRate(Number(e.target.value))}
+              onChange={(e) => setRevshareRate(e.target.value)}
               className='w-28 bg-white text-gray-700 text-xs rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary'
             />
           </label>
@@ -401,8 +408,8 @@ function SubPlanEditor({
               type='number'
               min={0}
               step='0.01'
-              value={(cpaCents / 100).toString()}
-              onChange={(e) => setCpaCents(Math.max(0, Math.round(Number(e.target.value) * 100)))}
+              value={cpaEuros}
+              onChange={(e) => setCpaEuros(e.target.value)}
               className='w-28 bg-white text-gray-700 text-xs rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary'
             />
           </label>
@@ -420,7 +427,9 @@ function SubPlanEditor({
             disabled={mutation.isPending}
             onClick={() => {
               setError(null);
-              mutation.mutate({ type, revshareRate, cpaPerFtdCents: cpaCents });
+              const rate = Number(revshareRate) || 0;
+              const cpaCents = Math.max(0, Math.round((Number(cpaEuros) || 0) * 100));
+              mutation.mutate({ type, revshareRate: rate, cpaPerFtdCents: cpaCents });
             }}
             className='px-3 py-1.5 rounded-md text-xs font-medium bg-primary text-white hover:bg-primary-dark disabled:opacity-50'
           >
