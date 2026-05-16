@@ -773,6 +773,12 @@ const reportController = {
 
           for (const product of ["casino", "sportsbook", "combined"]) {
             const plan = planSlots[product];
+            // No top-level plan for this product → operator isn't paying
+            // the chain for it, so the parent has no earnings on it to
+            // share. Without this gate, a legacy plan that lands in the
+            // casino slot still spawns a duplicate combined-product row
+            // because combined NGR == casino NGR + sb NGR.
+            if (!plan) continue;
             const resolvedSettings = resolveCommissionSettings(plan, operatorDefaults);
             const qualification = checkCpaQualification(subtreeFtdRows, resolvedSettings);
             const { ngr: productNgr, ggr: productGgr } = pickProductPair(subtreeRow, product);
@@ -1167,6 +1173,7 @@ async function recalculateSubtreePayouts(req, res) {
 
         for (const product of ["casino", "sportsbook", "combined"]) {
           const plan = planSlots[product];
+          if (!plan) continue;
           const resolvedSettings = resolveCommissionSettings(plan, operatorDefaults);
           const qualification = checkCpaQualification(subtreeFtdRows, resolvedSettings);
           const { ngr: productNgr, ggr: productGgr } = pickProductPair(subtreeRow, product);
