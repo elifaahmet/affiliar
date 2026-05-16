@@ -1,4 +1,5 @@
 const Brand = require("../../models/Brand");
+const { cloneOperatorDefaultsForBrand } = require("../../utils/brandDefaults");
 
 /**
  * GET /api/brands
@@ -50,6 +51,11 @@ exports.create = async (req, res) => {
       enabled: enabled !== undefined ? Boolean(enabled) : true,
       operatorId: operator._id,
     });
+
+    // Seed the new brand with the operator-default financial settings +
+    // provider fee rates so the fees admin shows real values from day one
+    // (and an "untouched" Save can't wipe them with zeros).
+    await cloneOperatorDefaultsForBrand(operator._id, brand._id);
 
     return res.status(201).json({ brand });
   } catch (err) {

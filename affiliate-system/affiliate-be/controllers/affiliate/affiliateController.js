@@ -5,6 +5,7 @@ const Brand = require("../../models/Brand");
 const Operator = require("../../models/Operator");
 const { sendAffiliateInvite } = require("../../utils/mailer");
 const { wouldCreateCycle } = require("../../utils/affiliateHierarchy");
+const { cloneOperatorDefaultsForBrand } = require("../../utils/brandDefaults");
 
 function generateAffiliateCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -317,6 +318,7 @@ const affiliateController = {
       const nextId = (last?.id ?? 0) + 1;
 
       const brand = await Brand.create({ id: nextId, name, operatorId: operator._id });
+      await cloneOperatorDefaultsForBrand(operator._id, brand._id);
       res.status(201).json(brand);
     } catch (err) {
       res.status(500).json({ error: err.message });
