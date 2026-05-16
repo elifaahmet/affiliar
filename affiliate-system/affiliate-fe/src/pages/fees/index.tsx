@@ -64,21 +64,6 @@ function SettingsForm({ scope }: { scope: Scope }) {
     setErr(null);
     const form = new FormData(e.currentTarget);
     try {
-      // Blank gate inputs stay null (inherit disabled). Dollar fields
-      // convert to cents before submit.
-      const gateFromCents = (name: string) => {
-        const v = form.get(name);
-        if (v == null || v === '') return null;
-        const n = Number(v);
-        return Number.isFinite(n) ? Math.round(n * 100) : null;
-      };
-      const gateNumber = (name: string) => {
-        const v = form.get(name);
-        if (v == null || v === '') return null;
-        const n = Number(v);
-        return Number.isFinite(n) ? n : null;
-      };
-
       await baseService.update(FEES_API_URLS.SETTINGS(), {
         brandId: scope,
         depositFeePercent:      Number(form.get('deposit') ?? 0),
@@ -86,19 +71,6 @@ function SettingsForm({ scope }: { scope: Scope }) {
         jackpotFeePercent:      Number(form.get('jackpot') ?? 0),
         casinoTaxPercent:       Number(form.get('tax') ?? 0),
         sbThirdPartyFeePercent: Number(form.get('sbThirdParty') ?? 0),
-        // Defaults only make sense at operator-wide scope; the payload is
-        // still safe to send for brand scopes (server stores it but no
-        // consumer reads brand-scoped defaults today).
-        defaults: {
-          revshareMetric: String(form.get('revshareMetric') ?? 'ngr'),
-          ngrIncludesPaymentFees: form.get('ngrIncludesPaymentFees') === 'true',
-          depositBasis: String(form.get('depositBasis') ?? 'gross'),
-          minDepositCents:       gateFromCents('minDeposit'),
-          minWagerCents:         gateFromCents('minWager'),
-          minWagerMultiple:      gateNumber('minWagerMultiple'),
-          holdDays:              gateNumber('holdDays'),
-          minCashRetentionCents: gateFromCents('minCashRetention'),
-        },
       });
       qc.invalidateQueries({ queryKey: ['fees-settings', scope] });
       setDirty(false);
@@ -130,98 +102,136 @@ function SettingsForm({ scope }: { scope: Scope }) {
         <NumberInput label='Casino Tax %'     name='tax'          defaultValue={s?.casinoTaxPercent ?? 0}       hint='% of casino GGR' />
         <NumberInput label='SB 3rd-party %'   name='sbThirdParty' defaultValue={s?.sbThirdPartyFeePercent ?? 0} hint='% of sportsbook GGR (bookmaker/data-feed)' />
       </div>
+      {err && <p className='text-sm text-red-500'>{err}</p>}
+      <div className='flex items-center gap-3'>
+        <button
+          type='submit'
+          disabled={saving || !dirty}
+          className='bg-primary text-white px-4 py-2 rounded text-sm font-semibold hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed'
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </button>
+        {!dirty && !saving && (
+          <span className='text-xs text-gray-700'>No pending changes</span>
+        )}
+      </div>
+    </form>
+  );
+}
 
-      {scope === 'default' && (
-        <div className='border-t pt-4 space-y-3'>
-          <div>
-            <p className='text-xs font-semibold text-gray-700'>Commission defaults</p>
-            <p className='text-xs text-gray-700 mt-0.5'>
-              Applied to any commission plan that leaves the matching field
-              on <em>Inherit from operator default</em>. Plans can still
-              override per-plan.
-            </p>
-          </div>
-          <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
-            <SelectInput
-              key={`rm-${scope}`}
-              label='Revshare metric'
-              name='revshareMetric'
-              defaultValue={s?.defaults?.revshareMetric ?? 'ngr'}
-              options={[
-                { value: 'ngr', label: 'NGR (standard)' },
-                { value: 'ggr', label: 'GGR (pre-deduction)' },
-              ]}
-              hint='Base for % revshare plans'
-            />
-            <SelectInput
-              key={`ip-${scope}`}
-              label='NGR includes payment fees'
-              name='ngrIncludesPaymentFees'
-              defaultValue={String(s?.defaults?.ngrIncludesPaymentFees ?? true)}
-              options={[
-                { value: 'true',  label: 'Yes — subtract (standard)' },
-                { value: 'false', label: 'No — gross NGR (operator carries fees)' },
-              ]}
-              hint='Affects NGR-based commission base'
-            />
-            <SelectInput
-              key={`db-${scope}`}
-              label='Deposit basis (CPA)'
-              name='depositBasis'
-              defaultValue={s?.defaults?.depositBasis ?? 'gross'}
-              options={[
-                { value: 'gross', label: 'Gross (face value)' },
-                { value: 'net',   label: 'Net (after processor fee)' },
-              ]}
-              hint='Used by CPA qualification gates'
-            />
-          </div>
+function CommissionDefaultsForm() {
+  const qc = useQueryClient();
+  const { data, isLoading } = useBaseQuery<{ settings: Settings }>({
+    endpoint: FEES_API_URLS.SETTINGS(),
+    queryKey: ['fees-settings', 'default'],
+    params: { brandId: 'default' },
+  });
+  const s = data?.settings;
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
-          <div>
-            <p className='text-xs font-semibold text-gray-700 mt-4'>CPA qualification gates</p>
-            <p className='text-xs text-gray-700 mt-0.5'>
-              Operator-wide defaults. Blank = gate not enforced. Individual
-              plans can override (or leave blank to inherit).
-            </p>
-          </div>
-          <div className='grid grid-cols-2 sm:grid-cols-3 gap-4'>
-            <GateInput
-              key={`md-${scope}`}
-              label='Min deposit ($)'
-              name='minDeposit'
-              defaultValue={s?.defaults?.minDepositCents}
-              fromCents
-            />
-            <GateInput
-              key={`mw-${scope}`}
-              label='Min wager ($)'
-              name='minWager'
-              defaultValue={s?.defaults?.minWagerCents}
-              fromCents
-            />
-            <GateInput
-              key={`mwm-${scope}`}
-              label='Min wager × deposit'
-              name='minWagerMultiple'
-              defaultValue={s?.defaults?.minWagerMultiple}
-              step={0.1}
-            />
-            <GateInput
-              key={`hd-${scope}`}
-              label='Hold period (days)'
-              name='holdDays'
-              defaultValue={s?.defaults?.holdDays}
-            />
-            <GateInput
-              key={`cr-${scope}`}
-              label='Min net cash retained ($)'
-              name='minCashRetention'
-              defaultValue={s?.defaults?.minCashRetentionCents}
-              fromCents
-            />
-          </div>
-        </div>
-      )}
+  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setSaving(true);
+    setErr(null);
+    const form = new FormData(e.currentTarget);
+    try {
+      const gateFromCents = (name: string) => {
+        const v = form.get(name);
+        if (v == null || v === '') return null;
+        const n = Number(v);
+        return Number.isFinite(n) ? Math.round(n * 100) : null;
+      };
+      const gateNumber = (name: string) => {
+        const v = form.get(name);
+        if (v == null || v === '') return null;
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+      };
+
+      await baseService.update(FEES_API_URLS.SETTINGS(), {
+        brandId: 'default',
+        defaults: {
+          revshareMetric: String(form.get('revshareMetric') ?? 'ngr'),
+          ngrIncludesPaymentFees: form.get('ngrIncludesPaymentFees') === 'true',
+          depositBasis: String(form.get('depositBasis') ?? 'gross'),
+          minDepositCents:       gateFromCents('minDeposit'),
+          minWagerCents:         gateFromCents('minWager'),
+          minWagerMultiple:      gateNumber('minWagerMultiple'),
+          holdDays:              gateNumber('holdDays'),
+          minCashRetentionCents: gateFromCents('minCashRetention'),
+        },
+      });
+      qc.invalidateQueries({ queryKey: ['fees-settings', 'default'] });
+      setDirty(false);
+    } catch (e2: any) {
+      setErr(e2?.message ?? 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (isLoading) return <p className='text-sm text-gray-600'>Loading...</p>;
+
+  return (
+    <form
+      onSubmit={onSubmit}
+      onChange={() => { if (!dirty) setDirty(true); }}
+      className='space-y-4'
+    >
+      <p className='text-xs text-gray-700'>
+        Applied to any commission plan that leaves the matching field on{' '}
+        <em>Inherit from operator default</em>. Plans can still override per-plan.
+      </p>
+      <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
+        <SelectInput
+          label='Revshare metric'
+          name='revshareMetric'
+          defaultValue={s?.defaults?.revshareMetric ?? 'ngr'}
+          options={[
+            { value: 'ngr', label: 'NGR (standard)' },
+            { value: 'ggr', label: 'GGR (pre-deduction)' },
+          ]}
+          hint='Base for % revshare plans'
+        />
+        <SelectInput
+          label='NGR includes payment fees'
+          name='ngrIncludesPaymentFees'
+          defaultValue={String(s?.defaults?.ngrIncludesPaymentFees ?? true)}
+          options={[
+            { value: 'true',  label: 'Yes — subtract (standard)' },
+            { value: 'false', label: 'No — gross NGR (operator carries fees)' },
+          ]}
+          hint='Affects NGR-based commission base'
+        />
+        <SelectInput
+          label='Deposit basis (CPA)'
+          name='depositBasis'
+          defaultValue={s?.defaults?.depositBasis ?? 'gross'}
+          options={[
+            { value: 'gross', label: 'Gross (face value)' },
+            { value: 'net',   label: 'Net (after processor fee)' },
+          ]}
+          hint='Used by CPA qualification gates'
+        />
+      </div>
+
+      <div className='border-t pt-4'>
+        <p className='text-xs font-semibold text-gray-700'>CPA qualification gates</p>
+        <p className='text-xs text-gray-700 mt-0.5'>
+          Operator-wide defaults. Blank = gate not enforced. Individual plans
+          can override (or leave blank to inherit).
+        </p>
+      </div>
+      <div className='grid grid-cols-2 sm:grid-cols-3 gap-4'>
+        <GateInput label='Min deposit ($)'             name='minDeposit'       defaultValue={s?.defaults?.minDepositCents}        fromCents />
+        <GateInput label='Min wager ($)'               name='minWager'         defaultValue={s?.defaults?.minWagerCents}          fromCents />
+        <GateInput label='Min wager × deposit'         name='minWagerMultiple' defaultValue={s?.defaults?.minWagerMultiple}       step={0.1} />
+        <GateInput label='Hold period (days)'          name='holdDays'         defaultValue={s?.defaults?.holdDays} />
+        <GateInput label='Min net cash retained ($)'   name='minCashRetention' defaultValue={s?.defaults?.minCashRetentionCents}  fromCents />
+      </div>
+
       {err && <p className='text-sm text-red-500'>{err}</p>}
       <div className='flex items-center gap-3'>
         <button
@@ -587,6 +597,11 @@ export default function FeesPage() {
       <Card title='Operator-wide fees'>
         <SettingsForm scope={scope} />
       </Card>
+      {scope === 'default' && (
+        <Card title='Commission defaults'>
+          <CommissionDefaultsForm />
+        </Card>
+      )}
       <Card title='Provider fees'>
         <ProviderRatesTable scope={scope} />
       </Card>
