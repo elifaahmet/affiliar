@@ -99,6 +99,66 @@ exports.upsertProviderRate = async (req, res) => {
   }
 };
 
+// POST /api/fees/provider-rates/bulk
+// Body: { brandId, rates: [{ providerId, providerName, feePercent }, ...] }
+// Upserts every row in a single request. Same validation rules as the single
+// upsert; the first invalid row aborts the whole batch so the operator
+// doesn't end up with a half-applied import.
+exports.bulkUpsertProviderRates = async (req, res) => {
+  const operatorId = operatorOnly(req, res);
+  if (!operatorId) return;
+  try {
+    const brandId = normalizeBrandId(req.body?.brandId);
+    const raw = Array.isArray(req.body?.rates) ? req.body.rates : null;
+    if (!raw || raw.length === 0) {
+      return res.status(400).json({ error: "rates array is required" });
+    }
+
+    // Validate up front. Reject the whole payload on the first error so
+    // the caller can fix and retry rather than chase partial writes.
+    const cleaned = [];
+    for (let i = 0; i < raw.length; i++) {
+      const r = raw[i] || {};
+      const providerId = String(r.providerId || "").trim();
+      const providerName = String(r.providerName || "").trim();
+      const pct = Number(r.feePercent);
+      if (!providerId) {
+        return res.status(400).json({ error: `row ${i + 1}: providerId is required` });
+      }
+      if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+        return res.status(400).json({ error: `row ${i + 1}: feePercent must be 0–100` });
+      }
+      cleaned.push({ providerId, providerName, feePercent: pct });
+    }
+
+    const ops = cleaned.map((r) => ({
+      updateOne: {
+        filter: { operatorId, brandId, providerId: r.providerId },
+        update: {
+          $set: {
+            operatorId,
+            brandId,
+            providerId: r.providerId,
+            providerName: r.providerName,
+            feePercent: r.feePercent,
+            isDeleted: false,
+          },
+        },
+        upsert: true,
+      },
+    }));
+
+    const result = await ProviderFeeRate.bulkWrite(ops, { ordered: false });
+    res.json({
+      imported: cleaned.length,
+      inserted: result.upsertedCount ?? 0,
+      updated:  result.modifiedCount ?? 0,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // DELETE /api/fees/provider-rates/:providerId?brandId=<id|default>
 exports.deleteProviderRate = async (req, res) => {
   const operatorId = operatorOnly(req, res);

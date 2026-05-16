@@ -290,6 +290,7 @@ export const BRANDS_API_URLS = {
 export const FEES_API_URLS = {
   BRANDS: () => `${API_BASE_URL}api/fees/brands`,
   PROVIDER_RATES: () => `${API_BASE_URL}api/fees/provider-rates`,
+  PROVIDER_RATES_BULK: () => `${API_BASE_URL}api/fees/provider-rates/bulk`,
   PROVIDER_RATE: (providerId: string) =>
     `${API_BASE_URL}api/fees/provider-rates/${providerId}`,
   SETTINGS: () => `${API_BASE_URL}api/fees/settings`,

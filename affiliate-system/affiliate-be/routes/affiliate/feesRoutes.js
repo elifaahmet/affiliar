@@ -6,6 +6,7 @@ router.get("/brands", feesController.listBrands);
 
 router.get("/provider-rates", feesController.listProviderRates);
 router.put("/provider-rates", feesController.upsertProviderRate);
+router.post("/provider-rates/bulk", feesController.bulkUpsertProviderRates);
 router.delete("/provider-rates/:providerId", feesController.deleteProviderRate);
 
 router.get("/settings", feesController.getFinancialSettings);

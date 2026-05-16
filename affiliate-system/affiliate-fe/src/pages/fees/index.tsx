@@ -484,6 +484,159 @@ function ProviderRatesTable({ scope }: { scope: Scope }) {
   );
 }
 
+function ProviderRatesBulkImport({ scope }: { scope: Scope }) {
+  const qc = useQueryClient();
+  const [text, setText] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
+  // Format per line: providerId<sep>[providerName<sep>]feePercent.
+  // <sep> is comma or tab so an Excel/Sheets paste works as-is. Empty lines
+  // and lines starting with '#' are ignored. Returns rows + a list of
+  // human-readable errors so we can bail before the network call.
+  const parseRows = () => {
+    const lines = text
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith('#'));
+    const rows: { providerId: string; providerName: string; feePercent: number }[] = [];
+    const errors: string[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      const parts = lines[i].split(/[\t,]/).map((p) => p.trim());
+      if (parts.length < 2) {
+        errors.push(`Row ${i + 1}: needs at least providerId and feePercent`);
+        continue;
+      }
+      const providerId = parts[0];
+      let providerName = '';
+      let feePercentRaw: string;
+      if (parts.length === 2) {
+        feePercentRaw = parts[1];
+      } else {
+        providerName = parts[1];
+        feePercentRaw = parts[2];
+      }
+      const feePercent = Number(feePercentRaw);
+      if (!providerId) {
+        errors.push(`Row ${i + 1}: providerId is empty`);
+        continue;
+      }
+      if (!Number.isFinite(feePercent) || feePercent < 0 || feePercent > 100) {
+        errors.push(`Row ${i + 1}: feePercent must be 0–100`);
+        continue;
+      }
+      rows.push({ providerId, providerName, feePercent });
+    }
+    return { rows, errors };
+  };
+
+  const onImport = async () => {
+    const { rows, errors } = parseRows();
+    if (errors.length) {
+      setMsg({ type: 'err', text: errors.slice(0, 5).join('  •  ') });
+      return;
+    }
+    if (rows.length === 0) {
+      setMsg({ type: 'err', text: 'Nothing to import' });
+      return;
+    }
+    setImporting(true);
+    setMsg(null);
+    try {
+      const result = await baseService.add<{ imported: number; inserted: number; updated: number }>(
+        FEES_API_URLS.PROVIDER_RATES_BULK(),
+        { brandId: scope, rates: rows },
+      );
+      setMsg({
+        type: 'ok',
+        text: `Imported ${result.imported} (${result.inserted} new, ${result.updated} updated).`,
+      });
+      qc.invalidateQueries({ queryKey: ['fees-provider-rates', scope] });
+      setText('');
+    } catch (e: any) {
+      setMsg({ type: 'err', text: e?.response?.data?.error ?? e?.message ?? 'Failed to import' });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const { rows: previewRows, errors: previewErrors } = parseRows();
+
+  return (
+    <div className='space-y-3'>
+      <p className='text-xs text-gray-700'>
+        Paste one provider per line. Format:{' '}
+        <code className='bg-gray-100 px-1 rounded'>providerId,providerName,feePercent</code>{' '}
+        — commas or tabs (so an Excel/Sheets paste works). Lines starting with{' '}
+        <code className='bg-gray-100 px-1 rounded'>#</code> are ignored. Existing
+        providers are updated by ID; new providers are added.
+      </p>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={10}
+        placeholder={`# providerId, displayName, feePercent
+coco-gamings, Coco Gamings, 5
+pragmatic, Pragmatic Play, 3
+evolution, Evolution, 4.5`}
+        className='w-full font-mono text-xs border border-gray-200 rounded p-3 focus:outline-none focus:border-primary'
+        spellCheck={false}
+      />
+      <div className='flex items-center gap-3 flex-wrap'>
+        <button
+          type='button'
+          onClick={onImport}
+          disabled={importing || !text.trim() || previewErrors.length > 0}
+          className='bg-primary text-white px-4 py-2 rounded text-sm font-semibold hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed'
+        >
+          {importing ? 'Importing…' : `Import ${previewRows.length || ''}`.trim()}
+        </button>
+        {previewErrors.length > 0 && (
+          <span className='text-xs text-red-600'>
+            {previewErrors.length} parse error{previewErrors.length === 1 ? '' : 's'} —{' '}
+            {previewErrors.slice(0, 2).join('; ')}
+            {previewErrors.length > 2 && '…'}
+          </span>
+        )}
+        {msg && (
+          <span className={`text-xs ${msg.type === 'ok' ? 'text-green-700' : 'text-red-600'}`}>
+            {msg.text}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ProviderFeesSection({ scope }: { scope: Scope }) {
+  const [tab, setTab] = useState<'rates' | 'bulk'>('rates');
+  return (
+    <div className='space-y-4'>
+      <div className='flex gap-1 bg-gray-100 p-0.5 rounded-md w-fit'>
+        <button
+          type='button'
+          onClick={() => setTab('rates')}
+          className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+            tab === 'rates' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-600 hover:text-gray-800'
+          }`}
+        >
+          Rates
+        </button>
+        <button
+          type='button'
+          onClick={() => setTab('bulk')}
+          className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+            tab === 'bulk' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-600 hover:text-gray-800'
+          }`}
+        >
+          Bulk import
+        </button>
+      </div>
+      {tab === 'rates' ? <ProviderRatesTable scope={scope} /> : <ProviderRatesBulkImport scope={scope} />}
+    </div>
+  );
+}
+
 function RunFeesButton() {
   const [running, setRunning] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -603,7 +756,7 @@ export default function FeesPage() {
         <SettingsForm scope={scope} />
       </Card>
       <Card title='Provider fees'>
-        <ProviderRatesTable scope={scope} />
+        <ProviderFeesSection scope={scope} />
       </Card>
       <Card title='Manual run'>
         <p className='text-xs text-gray-700 mb-3'>
