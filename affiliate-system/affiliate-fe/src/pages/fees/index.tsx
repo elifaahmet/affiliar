@@ -1,8 +1,9 @@
-import { useState, FormEvent } from 'react';
+import { useRef, useState, FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { baseService } from 'api/core/baseService';
 import { FEES_API_URLS } from 'config/apiUrls';
+import { parseCsv, buildCsv, downloadCsv, readFileAsText } from 'utils/csv';
 
 interface ProviderRate {
   _id?: string;
@@ -484,54 +485,54 @@ function ProviderRatesTable({ scope }: { scope: Scope }) {
   );
 }
 
+const PROVIDER_RATES_CSV_HEADERS = ['providerId', 'providerName', 'feePercent'];
+
 function ProviderRatesBulkImport({ scope }: { scope: Scope }) {
   const qc = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [text, setText] = useState('');
   const [importing, setImporting] = useState(false);
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
-  // Format per line: providerId<sep>[providerName<sep>]feePercent.
-  // <sep> is comma or tab so an Excel/Sheets paste works as-is. Empty lines
-  // and lines starting with '#' are ignored. Returns rows + a list of
-  // human-readable errors so we can bail before the network call.
-  const parseRows = () => {
-    const lines = text
-      .split('\n')
-      .map((l) => l.trim())
-      .filter((l) => l && !l.startsWith('#'));
-    const rows: { providerId: string; providerName: string; feePercent: number }[] = [];
+  // Validate the parsed CSV against the expected shape. Returns rows ready to
+  // POST plus any human-readable errors so we can refuse the click before
+  // hitting the network.
+  const validateRows = (raw: Record<string, string>[]) => {
+    const out: { providerId: string; providerName: string; feePercent: number }[] = [];
     const errors: string[] = [];
-    for (let i = 0; i < lines.length; i++) {
-      const parts = lines[i].split(/[\t,]/).map((p) => p.trim());
-      if (parts.length < 2) {
-        errors.push(`Row ${i + 1}: needs at least providerId and feePercent`);
-        continue;
-      }
-      const providerId = parts[0];
-      let providerName = '';
-      let feePercentRaw: string;
-      if (parts.length === 2) {
-        feePercentRaw = parts[1];
-      } else {
-        providerName = parts[1];
-        feePercentRaw = parts[2];
-      }
-      const feePercent = Number(feePercentRaw);
+    raw.forEach((r, idx) => {
+      const rowNum = idx + 2; // +1 for header, +1 for 1-based row numbers
+      const providerId = (r.providerId ?? '').trim();
+      const providerName = (r.providerName ?? '').trim();
+      const feePercent = Number((r.feePercent ?? '').trim());
       if (!providerId) {
-        errors.push(`Row ${i + 1}: providerId is empty`);
-        continue;
+        errors.push(`Row ${rowNum}: providerId is empty`);
+        return;
       }
       if (!Number.isFinite(feePercent) || feePercent < 0 || feePercent > 100) {
-        errors.push(`Row ${i + 1}: feePercent must be 0–100`);
-        continue;
+        errors.push(`Row ${rowNum}: feePercent must be 0–100`);
+        return;
       }
-      rows.push({ providerId, providerName, feePercent });
+      out.push({ providerId, providerName, feePercent });
+    });
+    return { rows: out, errors };
+  };
+
+  const parseCurrent = () => {
+    if (!text.trim()) return { rows: [], errors: [] as string[] };
+    const { headers, rows: parsedRows } = parseCsv(text);
+    if (!headers.length) {
+      return { rows: [], errors: ['Missing header row'] };
     }
-    return { rows, errors };
+    const missing = PROVIDER_RATES_CSV_HEADERS.filter((h) => !headers.includes(h));
+    if (missing.length) {
+      return { rows: [], errors: [`Missing required column(s): ${missing.join(', ')}`] };
+    }
+    return validateRows(parsedRows);
   };
 
   const onImport = async () => {
-    const { rows, errors } = parseRows();
+    const { rows, errors } = parseCurrent();
     if (errors.length) {
       setMsg({ type: 'err', text: errors.slice(0, 5).join('  •  ') });
       return;
@@ -553,6 +554,7 @@ function ProviderRatesBulkImport({ scope }: { scope: Scope }) {
       });
       qc.invalidateQueries({ queryKey: ['fees-provider-rates', scope] });
       setText('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (e: any) {
       setMsg({ type: 'err', text: e?.response?.data?.error ?? e?.message ?? 'Failed to import' });
     } finally {
@@ -560,42 +562,90 @@ function ProviderRatesBulkImport({ scope }: { scope: Scope }) {
     }
   };
 
-  const { rows: previewRows, errors: previewErrors } = parseRows();
+  const onDownloadTemplate = () => {
+    const csv = buildCsv(PROVIDER_RATES_CSV_HEADERS, [
+      { providerId: 'coco-gamings',  providerName: 'Coco Gamings',    feePercent: 5 },
+      { providerId: 'pragmatic-play', providerName: 'Pragmatic Play', feePercent: 3 },
+      { providerId: 'evolution',     providerName: 'Evolution',       feePercent: 4.5 },
+    ]);
+    downloadCsv('provider-fees-template.csv', csv);
+  };
+
+  const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setMsg(null);
+    try {
+      const content = await readFileAsText(file);
+      setText(content);
+    } catch (err: any) {
+      setMsg({ type: 'err', text: err?.message ?? 'Failed to read file' });
+    }
+  };
+
+  const { rows: previewRows, errors: previewErrors } = parseCurrent();
 
   return (
     <div className='space-y-3'>
       <p className='text-xs text-gray-700'>
-        Paste one provider per line. Format:{' '}
-        <code className='bg-gray-100 px-1 rounded'>providerId,providerName,feePercent</code>{' '}
-        — commas or tabs (so an Excel/Sheets paste works). Lines starting with{' '}
-        <code className='bg-gray-100 px-1 rounded'>#</code> are ignored. Existing
-        providers are updated by ID; new providers are added.
+        Import provider rates from a CSV with the columns{' '}
+        <code className='bg-gray-100 px-1 rounded'>providerId, providerName, feePercent</code>{' '}
+        (header row required). Existing providers are updated by ID; new
+        providers are added. Lines starting with{' '}
+        <code className='bg-gray-100 px-1 rounded'>#</code> are ignored.
       </p>
+
+      <div className='flex flex-wrap items-center gap-2'>
+        <button
+          type='button'
+          onClick={onDownloadTemplate}
+          className='border border-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs font-medium hover:bg-gray-50'
+        >
+          Download CSV template
+        </button>
+        <button
+          type='button'
+          onClick={() => fileInputRef.current?.click()}
+          className='border border-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs font-medium hover:bg-gray-50'
+        >
+          Upload CSV
+        </button>
+        <input
+          ref={fileInputRef}
+          type='file'
+          accept='.csv,text/csv'
+          onChange={onUpload}
+          className='hidden'
+        />
+        <span className='text-xs text-gray-600'>…or paste below</span>
+      </div>
+
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={10}
-        placeholder={`# providerId, displayName, feePercent
-coco-gamings, Coco Gamings, 5
-pragmatic, Pragmatic Play, 3
-evolution, Evolution, 4.5`}
+        placeholder={`providerId,providerName,feePercent
+coco-gamings,Coco Gamings,5
+pragmatic-play,Pragmatic Play,3
+evolution,Evolution,4.5`}
         className='w-full font-mono text-xs border border-gray-200 rounded p-3 focus:outline-none focus:border-primary'
         spellCheck={false}
       />
+
       <div className='flex items-center gap-3 flex-wrap'>
         <button
           type='button'
           onClick={onImport}
-          disabled={importing || !text.trim() || previewErrors.length > 0}
+          disabled={importing || !text.trim() || previewErrors.length > 0 || previewRows.length === 0}
           className='bg-primary text-white px-4 py-2 rounded text-sm font-semibold hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed'
         >
-          {importing ? 'Importing…' : `Import ${previewRows.length || ''}`.trim()}
+          {importing ? 'Importing…' : previewRows.length ? `Import ${previewRows.length}` : 'Import'}
         </button>
         {previewErrors.length > 0 && (
           <span className='text-xs text-red-600'>
-            {previewErrors.length} parse error{previewErrors.length === 1 ? '' : 's'} —{' '}
-            {previewErrors.slice(0, 2).join('; ')}
-            {previewErrors.length > 2 && '…'}
+            {previewErrors.length === 1
+              ? previewErrors[0]
+              : `${previewErrors.length} errors — ${previewErrors.slice(0, 2).join('; ')}${previewErrors.length > 2 ? '…' : ''}`}
           </span>
         )}
         {msg && (
