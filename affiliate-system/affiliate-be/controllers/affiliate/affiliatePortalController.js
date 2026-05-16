@@ -664,6 +664,15 @@ exports.feeDetails = async (req, res) => {
     const brandMap = new Map(brands.map((b) => [String(b._id), b.name]));
     const defaultSettings =
       allFinancials.find((f) => !f.brandId) || null;
+    const normalizeCustomFees = (arr) =>
+      Array.isArray(arr)
+        ? arr.map((f) => ({
+            key: f.key,
+            label: f.label,
+            feePercent: Number(f.feePercent) || 0,
+          }))
+        : [];
+
     const brandSettings = allFinancials
       .filter((f) => f.brandId)
       .map((f) => ({
@@ -674,6 +683,7 @@ exports.feeDetails = async (req, res) => {
         jackpotFeePercent:      f.jackpotFeePercent ?? null,
         casinoTaxPercent:       f.casinoTaxPercent ?? null,
         sbThirdPartyFeePercent: f.sbThirdPartyFeePercent ?? null,
+        customFees:             normalizeCustomFees(f.customFees),
       }));
 
     const providers = providerRates.map((r) => ({
@@ -691,6 +701,7 @@ exports.feeDetails = async (req, res) => {
         jackpotFeePercent:      defaultSettings.jackpotFeePercent ?? null,
         casinoTaxPercent:       defaultSettings.casinoTaxPercent ?? null,
         sbThirdPartyFeePercent: defaultSettings.sbThirdPartyFeePercent ?? null,
+        customFees:             normalizeCustomFees(defaultSettings.customFees),
       },
       brandOverrides: brandSettings,
       providerRates: providers,

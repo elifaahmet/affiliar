@@ -37,6 +37,22 @@ const operatorFinancialSettingsSchema = new mongoose.Schema(
     // but new writes go to depositFeePercent.
     paymentSystemFeePercent: { type: Number, default: null, min: 0, max: 100 },
 
+    // Operator-defined extra deductions (licensing levies, platform fees,
+    // jurisdiction-specific charges, etc). Each entry is a % of combined GGR
+    // (casinoGgr + sbGgr) and gets folded into additional_deductions_sum_cents
+    // by the daily fees job, so it reduces NGR like any other fee.
+    customFees: {
+      type: [
+        {
+          _id: false,
+          key:        { type: String, required: true, trim: true },
+          label:      { type: String, required: true, trim: true },
+          feePercent: { type: Number, required: true, min: 0, max: 100 },
+        },
+      ],
+      default: [],
+    },
+
     // Defaults consumed by the commission engine when a plan leaves the
     // matching field null ("inherit"). Operators can tune these once and
     // have every plan follow — per-plan overrides still work.

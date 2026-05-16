@@ -3,7 +3,7 @@ const Operator = require("../models/Operator");
 const OperatorFinancialSettings = require("../models/OperatorFinancialSettings");
 const ProviderFeeRate = require("../models/ProviderFeeRate");
 const { logger } = require("../middlewares/logger");
-const { computeFeesForBucket } = require("./computeFees");
+const { computeFeesForBucket, computeCustomFeesForBucket } = require("./computeFees");
 
 // Runs at 00:10 UTC daily and computes yesterday's fees per
 // (operator, brand, affiliate, provider) from ClickHouse. Each row's
@@ -194,13 +194,23 @@ async function runForOperator(operator, operatorFinancials, bounds) {
     const sbThirdPartyPct = Number(brandFinancials.sbThirdPartyFeePercent) || 0;
     const sbThirdPartyFees = Math.round((sbGgr * sbThirdPartyPct) / 100);
 
+    // Operator-defined custom deductions (license levies, platform fees, …).
+    // Applied to combined GGR and rolled into additional_deductions_sum_cents
+    // so they flow through the existing NGR formula.
+    const casinoGgr = Math.max(0, Number(r.bets || 0) - Number(r.wins || 0));
+    const customFeesCents = computeCustomFeesForBucket(
+      casinoGgr + sbGgr,
+      brandFinancials.customFees,
+    );
+
     if (
       !gameProviderFees &&
       !depositFees &&
       !withdrawalFees &&
       !jackpotFees &&
       !casinoTaxes &&
-      !sbThirdPartyFees
+      !sbThirdPartyFees &&
+      !customFeesCents
     ) {
       continue;
     }
@@ -227,6 +237,7 @@ async function runForOperator(operator, operatorFinancials, bounds) {
       game_provider_fees_sum_cents: gameProviderFees,
       casino_taxes_sum_cents: casinoTaxes,
       sb_third_party_fees_sum_cents: sbThirdPartyFees,
+      additional_deductions_sum_cents: customFeesCents,
     });
   }
 
