@@ -594,14 +594,14 @@ export default function FeesPage() {
 
       <ScopeSelector scope={scope} setScope={setScope} />
 
-      <Card title='Operator-wide fees'>
-        <SettingsForm scope={scope} />
-      </Card>
       {scope === 'default' && (
         <Card title='Commission defaults'>
           <CommissionDefaultsForm />
         </Card>
       )}
+      <Card title='Operator-wide fees'>
+        <SettingsForm scope={scope} />
+      </Card>
       <Card title='Provider fees'>
         <ProviderRatesTable scope={scope} />
       </Card>
