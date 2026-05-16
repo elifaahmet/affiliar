@@ -209,6 +209,7 @@ interface SubPayoutsResponse {
 
 function SubAffiliatePayouts() {
   const [tab, setTab] = useState<Direction>('incoming');
+  const [calcMessage, setCalcMessage] = useState<string | null>(null);
 
   const { data, isLoading, refetch } = useBaseQuery<SubPayoutsResponse>({
     endpoint: AFFILIATE_PORTAL_API_URLS.SUB_PAYOUTS(),
@@ -216,24 +217,54 @@ function SubAffiliatePayouts() {
     params: { direction: tab, limit: 50 },
   });
 
+  const calcMutation = useBaseMutation<
+    { payoutsCreated: number; payoutsUpdated: number; skipped: number },
+    Record<string, never>
+  >({
+    endpoint: AFFILIATE_PORTAL_API_URLS.CALC_SUB_PAYOUTS(),
+    method: 'post',
+    onSuccess: (res) => {
+      setCalcMessage(
+        `Recalculated — ${res.payoutsCreated} new, ${res.payoutsUpdated} updated, ${res.skipped} skipped.`,
+      );
+      refetch();
+      setTimeout(() => setCalcMessage(null), 5000);
+    },
+    onError: (err: any) => {
+      setCalcMessage(err?.response?.data?.error ?? 'Recalculation failed');
+      setTimeout(() => setCalcMessage(null), 5000);
+    },
+  });
+
   const rows = data?.payouts ?? [];
 
   return (
     <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
-      <div className='px-5 py-3 border-b border-gray-100 flex items-center justify-between'>
+      <div className='px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap'>
         <p className='text-sm font-semibold text-gray-800'>Sub-Affiliate Payouts</p>
-        <div className='flex gap-1 bg-gray-100 p-0.5 rounded-md'>
-          {(['incoming', 'outgoing'] as Direction[]).map((d) => (
-            <button
-              key={d}
-              onClick={() => setTab(d)}
-              className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                tab === d ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
-              {d === 'incoming' ? 'From parent' : 'To my subs'}
-            </button>
-          ))}
+        <div className='flex items-center gap-3'>
+          {calcMessage && <p className='text-xs text-gray-700'>{calcMessage}</p>}
+          <button
+            type='button'
+            disabled={calcMutation.isPending}
+            onClick={() => calcMutation.mutate({})}
+            className='px-3 py-1.5 rounded-md text-xs font-medium bg-primary text-white hover:bg-primary-dark disabled:opacity-50'
+          >
+            {calcMutation.isPending ? 'Recalculating…' : 'Recalculate this month'}
+          </button>
+          <div className='flex gap-1 bg-gray-100 p-0.5 rounded-md'>
+            {(['incoming', 'outgoing'] as Direction[]).map((d) => (
+              <button
+                key={d}
+                onClick={() => setTab(d)}
+                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                  tab === d ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                {d === 'incoming' ? 'From parent' : 'To my subs'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

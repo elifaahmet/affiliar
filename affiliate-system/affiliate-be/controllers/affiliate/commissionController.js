@@ -1050,4 +1050,208 @@ const affiliatePlanController = {
   },
 };
 
-module.exports = { planController, reportController, affiliatePlanController };
+// ── Portal-side recompute: a parent affiliate refreshes the SubAffiliatePayout
+// rows that they own (caller + descendants are the allowed parent IDs). Skips
+// the CommissionReport pass entirely — that ledger stays the operator's.
+async function recalculateSubtreePayouts(req, res) {
+  try {
+    const affiliate = req.affiliateUser;
+    if (affiliate.role !== "affiliate") {
+      return res.status(403).json({ error: "Affiliates only" });
+    }
+    if (!affiliate.operatorId) {
+      return res.status(400).json({ error: "Affiliate not linked to an operator" });
+    }
+
+    const now = new Date();
+    const y = Number(req.body?.year)  || now.getUTCFullYear();
+    const m = Number(req.body?.month) || (now.getUTCMonth() + 1);
+    if (m < 1 || m > 12) return res.status(400).json({ error: "month must be 1-12" });
+    const force = !!req.body?.force;
+
+    const { getDescendantIds } = require("../../utils/affiliateHierarchy");
+
+    const callerProfile = await AffiliateProfile.findOne({ user: affiliate._id })
+      .select("operatorUser").lean();
+    if (!callerProfile?.operatorUser) {
+      return res.status(400).json({ error: "Affiliate profile missing operatorUser" });
+    }
+
+    const callerSubtree = new Set([
+      String(affiliate._id),
+      ...await getDescendantIds(affiliate._id),
+    ]);
+
+    const affiliateProfiles = await AffiliateProfile.find({
+      operatorUser: callerProfile.operatorUser,
+    }).lean();
+
+    const operatorFinancials = await OperatorFinancialSettings.findOne({
+      operatorId: affiliate.operatorId,
+      brandId: null,
+    }).lean();
+    const operatorDefaults = operatorFinancials?.defaults || {};
+
+    const rows = await fetchAffiliateMetrics(affiliate.operatorId.toString(), y, m);
+    const ftdContextRows = await fetchFtdContextRows(affiliate.operatorId.toString(), y, m);
+
+    const profileByUserId = new Map();
+    const childrenOf = new Map();
+    const idMap = new Map();
+    for (const profile of affiliateProfiles) {
+      profileByUserId.set(String(profile.user), profile);
+      if (profile.user) idMap.set(String(profile.user), profile.user);
+      for (const code of profile.referralCodes ?? []) {
+        idMap.set(`code:${code}`, profile.user);
+      }
+      if (profile.parentAffiliate) {
+        const parentKey = String(profile.parentAffiliate);
+        if (!childrenOf.has(parentKey)) childrenOf.set(parentKey, []);
+        childrenOf.get(parentKey).push(String(profile.user));
+      }
+    }
+
+    const rowByUserId = new Map();
+    for (const row of rows) {
+      const userId = idMap.get(row.affiliateId) ?? idMap.get(`code:${row.affiliateCode}`);
+      if (userId) rowByUserId.set(String(userId), row);
+    }
+    const ftdRowsByUserId = new Map();
+    for (const f of ftdContextRows) {
+      const userId = idMap.get(f.affiliateId);
+      if (!userId) continue;
+      const key = String(userId);
+      if (!ftdRowsByUserId.has(key)) ftdRowsByUserId.set(key, []);
+      ftdRowsByUserId.get(key).push(f);
+    }
+
+    function getSubtreeIdsLocal(rootId) {
+      const out = [rootId];
+      const queue = [rootId];
+      while (queue.length) {
+        const cur = queue.shift();
+        const kids = childrenOf.get(cur) || [];
+        for (const k of kids) { out.push(k); queue.push(k); }
+      }
+      return out;
+    }
+
+    const results = { payoutsCreated: 0, payoutsUpdated: 0, skipped: 0, failed: [] };
+
+    for (const profile of affiliateProfiles) {
+      if (!profile.parentAffiliate) continue;
+      const parentUserId = String(profile.parentAffiliate);
+      if (!callerSubtree.has(parentUserId)) continue;
+
+      try {
+        const subUserId  = String(profile.user);
+        const subtreeIds = getSubtreeIdsLocal(subUserId);
+        const subtreeRow = aggregateSubtreeRow(subtreeIds, rowByUserId);
+
+        const hasActivity =
+          subtreeRow.ngrCents !== 0 ||
+          subtreeRow.combinedNgrCents !== 0 ||
+          subtreeRow.ftdCount > 0;
+        if (!hasActivity) continue;
+
+        const subPlan = profile.subPlan || { type: "revshare", revshareRate: 0, cpaPerFtdCents: 0 };
+
+        let topAncestorId = parentUserId;
+        while (true) {
+          const p = profileByUserId.get(topAncestorId);
+          if (!p?.parentAffiliate) break;
+          topAncestorId = String(p.parentAffiliate);
+        }
+        const planSlots = await resolveAffiliatePlansByProduct(topAncestorId, affiliate.operatorId);
+        const subtreeFtdRows = subtreeIds.flatMap((uid) => ftdRowsByUserId.get(uid) || []);
+
+        for (const product of ["casino", "sportsbook", "combined"]) {
+          const plan = planSlots[product];
+          const resolvedSettings = resolveCommissionSettings(plan, operatorDefaults);
+          const qualification = checkCpaQualification(subtreeFtdRows, resolvedSettings);
+          const { ngr: productNgr, ggr: productGgr } = pickProductPair(subtreeRow, product);
+
+          const revshareAmountCents =
+            (subPlan.type === "revshare" || subPlan.type === "hybrid")
+              ? Math.floor((Math.max(0, productNgr) * (subPlan.revshareRate || 0)) / 100)
+              : 0;
+          const cpaAmountCents =
+            (subPlan.type === "cpa" || subPlan.type === "hybrid")
+              ? Math.max(0, qualification.qualified) * (subPlan.cpaPerFtdCents || 0)
+              : 0;
+          const payableCents = revshareAmountCents + cpaAmountCents;
+
+          const existing = await SubAffiliatePayout.findOne({
+            operatorId: affiliate.operatorId,
+            parentId:   parentUserId,
+            subId:      subUserId,
+            "period.year":  y,
+            "period.month": m,
+            product,
+          });
+
+          if (!existing && payableCents === 0) continue;
+          if (existing && existing.status === "paid" && !force) {
+            results.skipped++;
+            continue;
+          }
+
+          const snapshot = {
+            type:           subPlan.type,
+            revshareRate:   subPlan.revshareRate   || 0,
+            cpaPerFtdCents: subPlan.cpaPerFtdCents || 0,
+          };
+          const subtreeMetrics = {
+            ngrCents:          productNgr,
+            ggrCents:          productGgr,
+            ftdCount:          subtreeRow.ftdCount,
+            qualifiedFtdCount: qualification.qualified,
+            registrations:     subtreeRow.registrations,
+            depositsCents:     subtreeRow.depositsCents,
+            playerCount:       subtreeRow.playerCount,
+          };
+
+          if (existing) {
+            existing.subtreeMetrics      = subtreeMetrics;
+            existing.subPlanSnapshot     = snapshot;
+            existing.revshareAmountCents = revshareAmountCents;
+            existing.cpaAmountCents      = cpaAmountCents;
+            existing.payableCents        = payableCents;
+            existing.status              = "draft";
+            existing.calculatedAt        = new Date();
+            existing.paidAt              = null;
+            await existing.save();
+            results.payoutsUpdated++;
+          } else {
+            await SubAffiliatePayout.create({
+              operatorId: affiliate.operatorId,
+              parentId:   parentUserId,
+              subId:      subUserId,
+              period:     { year: y, month: m },
+              product,
+              subtreeMetrics,
+              subPlanSnapshot: snapshot,
+              revshareAmountCents,
+              cpaAmountCents,
+              payableCents,
+              status: "draft",
+              calculatedAt: new Date(),
+            });
+            results.payoutsCreated++;
+          }
+        }
+      } catch (err) {
+        results.failed.push({
+          affiliateId: String(profile.user),
+          error: err.message,
+        });
+      }
+    }
+
+    res.json({ period: { year: y, month: m }, ...results });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+module.exports = { planController, reportController, affiliatePlanController, recalculateSubtreePayouts };

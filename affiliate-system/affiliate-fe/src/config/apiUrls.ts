@@ -303,6 +303,7 @@ export const AFFILIATE_PORTAL_API_URLS = {
   SUB_AFFILIATES:   () => `${API_BASE_URL}api/affiliate-portal/sub-affiliates`,
   SUB_PLAN:         (subId: string) => `${API_BASE_URL}api/affiliate-portal/sub-affiliates/${subId}/sub-plan`,
   SUB_PAYOUTS:      () => `${API_BASE_URL}api/affiliate-portal/sub-payouts`,
+  CALC_SUB_PAYOUTS: () => `${API_BASE_URL}api/affiliate-portal/sub-payouts/calculate`,
   MARK_SUB_PAYOUT_PAID: (payoutId: string) => `${API_BASE_URL}api/affiliate-portal/sub-payouts/${payoutId}/mark-paid`,
   CAMPAIGN_REPORTS: () => `${API_BASE_URL}api/affiliate-portal/campaign-reports`,
   PLAYERS:          () => `${API_BASE_URL}api/players`,
