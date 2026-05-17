@@ -664,26 +664,18 @@ exports.feeDetails = async (req, res) => {
     const brandMap = new Map(brands.map((b) => [String(b._id), b.name]));
     const defaultSettings =
       allFinancials.find((f) => !f.brandId) || null;
-    const normalizeCustomFees = (arr) =>
-      Array.isArray(arr)
-        ? arr.map((f) => ({
-            key: f.key,
-            label: f.label,
-            feePercent: Number(f.feePercent) || 0,
-          }))
-        : [];
-
     const brandSettings = allFinancials
       .filter((f) => f.brandId)
       .map((f) => ({
         brandId: String(f.brandId),
         brandName: brandMap.get(String(f.brandId)) || null,
-        depositFeePercent:      f.depositFeePercent ?? f.paymentSystemFeePercent ?? null,
-        withdrawalFeePercent:   f.withdrawalFeePercent ?? null,
-        jackpotFeePercent:      f.jackpotFeePercent ?? null,
-        casinoTaxPercent:       f.casinoTaxPercent ?? null,
-        sbThirdPartyFeePercent: f.sbThirdPartyFeePercent ?? null,
-        customFees:             normalizeCustomFees(f.customFees),
+        depositFeePercent:       f.depositFeePercent ?? f.paymentSystemFeePercent ?? null,
+        withdrawalFeePercent:    f.withdrawalFeePercent ?? null,
+        jackpotFeePercent:       f.jackpotFeePercent ?? null,
+        casinoTaxPercent:        f.casinoTaxPercent ?? null,
+        sbThirdPartyFeePercent:  f.sbThirdPartyFeePercent ?? null,
+        customNgrFeePercent:     f.customNgrFeePercent ?? null,
+        customDepositFeePercent: f.customDepositFeePercent ?? null,
       }));
 
     const providers = providerRates.map((r) => ({
@@ -696,12 +688,13 @@ exports.feeDetails = async (req, res) => {
 
     return res.json({
       operatorDefaults: defaultSettings && {
-        depositFeePercent:      defaultSettings.depositFeePercent ?? defaultSettings.paymentSystemFeePercent ?? null,
-        withdrawalFeePercent:   defaultSettings.withdrawalFeePercent ?? null,
-        jackpotFeePercent:      defaultSettings.jackpotFeePercent ?? null,
-        casinoTaxPercent:       defaultSettings.casinoTaxPercent ?? null,
-        sbThirdPartyFeePercent: defaultSettings.sbThirdPartyFeePercent ?? null,
-        customFees:             normalizeCustomFees(defaultSettings.customFees),
+        depositFeePercent:       defaultSettings.depositFeePercent ?? defaultSettings.paymentSystemFeePercent ?? null,
+        withdrawalFeePercent:    defaultSettings.withdrawalFeePercent ?? null,
+        jackpotFeePercent:       defaultSettings.jackpotFeePercent ?? null,
+        casinoTaxPercent:        defaultSettings.casinoTaxPercent ?? null,
+        sbThirdPartyFeePercent:  defaultSettings.sbThirdPartyFeePercent ?? null,
+        customNgrFeePercent:     defaultSettings.customNgrFeePercent ?? null,
+        customDepositFeePercent: defaultSettings.customDepositFeePercent ?? null,
       },
       brandOverrides: brandSettings,
       providerRates: providers,

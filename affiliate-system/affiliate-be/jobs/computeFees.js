@@ -38,23 +38,4 @@ function computeFeesForBucket(bucket, rates) {
   };
 }
 
-/**
- * Sum of operator-defined custom-fee percentages, applied to a combined-GGR
- * base. Each row is computed independently and integer-rounded so the rolled-up
- * total matches what the affiliate UI shows per row.
- */
-function computeCustomFeesForBucket(combinedGgr, customFees) {
-  const base = Math.max(0, Number(combinedGgr) || 0);
-  if (!Array.isArray(customFees) || customFees.length === 0 || base === 0) {
-    return 0;
-  }
-  let total = 0;
-  for (const row of customFees) {
-    const pct = Number(row?.feePercent) || 0;
-    if (pct <= 0) continue;
-    total += Math.round((base * pct) / 100);
-  }
-  return total;
-}
-
-module.exports = { computeFeesForBucket, computeCustomFeesForBucket };
+module.exports = { computeFeesForBucket };

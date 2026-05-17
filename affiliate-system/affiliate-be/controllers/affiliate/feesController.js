@@ -192,14 +192,9 @@ exports.getFinancialSettings = async (req, res) => {
       withdrawalFeePercent:   raw.withdrawalFeePercent ?? 0,
       jackpotFeePercent:      raw.jackpotFeePercent ?? 0,
       casinoTaxPercent:       raw.casinoTaxPercent ?? 0,
-      sbThirdPartyFeePercent: raw.sbThirdPartyFeePercent ?? 0,
-      customFees: Array.isArray(raw.customFees)
-        ? raw.customFees.map((f) => ({
-            key:        f.key,
-            label:      f.label,
-            feePercent: Number(f.feePercent) || 0,
-          }))
-        : [],
+      sbThirdPartyFeePercent:  raw.sbThirdPartyFeePercent ?? 0,
+      customNgrFeePercent:     raw.customNgrFeePercent ?? 0,
+      customDepositFeePercent: raw.customDepositFeePercent ?? 0,
       // Commission-engine defaults. Consumed when a plan leaves the
       // matching field null. Only meaningful for the operator-default
       // scope (brandId = null) today, but stored per-document so brand
@@ -243,12 +238,16 @@ exports.updateFinancialSettings = async (req, res) => {
     const jackpot = pick(req.body?.jackpotFeePercent);
     const tax = pick(req.body?.casinoTaxPercent);
     const sbThirdParty = pick(req.body?.sbThirdPartyFeePercent);
+    const customNgr = pick(req.body?.customNgrFeePercent);
+    const customDeposit = pick(req.body?.customDepositFeePercent);
     if (
       deposit === null ||
       withdrawal === null ||
       jackpot === null ||
       tax === null ||
-      sbThirdParty === null
+      sbThirdParty === null ||
+      customNgr === null ||
+      customDeposit === null
     ) {
       return res
         .status(400)
@@ -264,44 +263,8 @@ exports.updateFinancialSettings = async (req, res) => {
     if (jackpot !== undefined) update.jackpotFeePercent = jackpot;
     if (tax !== undefined) update.casinoTaxPercent = tax;
     if (sbThirdParty !== undefined) update.sbThirdPartyFeePercent = sbThirdParty;
-
-    // Operator-defined custom deductions. Each row: { key, label, feePercent }.
-    // Missing field = leave existing array unchanged; explicit [] clears.
-    if (req.body?.customFees !== undefined) {
-      if (!Array.isArray(req.body.customFees)) {
-        return res.status(400).json({ error: "customFees must be an array" });
-      }
-      const seenKeys = new Set();
-      const cleaned = [];
-      for (let i = 0; i < req.body.customFees.length; i++) {
-        const row = req.body.customFees[i] || {};
-        const key = String(row.key || "").trim().toLowerCase().replace(/\s+/g, "-");
-        const label = String(row.label || "").trim();
-        const pct = Number(row.feePercent);
-        if (!key) {
-          return res.status(400).json({ error: `customFees[${i}]: key is required` });
-        }
-        if (!/^[a-z0-9][a-z0-9-]*$/.test(key)) {
-          return res.status(400).json({
-            error: `customFees[${i}]: key must be lowercase letters, digits and dashes`,
-          });
-        }
-        if (seenKeys.has(key)) {
-          return res.status(400).json({ error: `customFees[${i}]: duplicate key '${key}'` });
-        }
-        seenKeys.add(key);
-        if (!label) {
-          return res.status(400).json({ error: `customFees[${i}]: label is required` });
-        }
-        if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
-          return res.status(400).json({
-            error: `customFees[${i}]: feePercent must be between 0 and 100`,
-          });
-        }
-        cleaned.push({ key, label, feePercent: pct });
-      }
-      update.customFees = cleaned;
-    }
+    if (customNgr !== undefined) update.customNgrFeePercent = customNgr;
+    if (customDeposit !== undefined) update.customDepositFeePercent = customDeposit;
 
     // Commission-engine defaults. Use dotted paths so the nested subdoc's
     // other fields aren't wiped when only one is being updated.

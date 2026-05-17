@@ -3,7 +3,7 @@ const Operator = require("../models/Operator");
 const OperatorFinancialSettings = require("../models/OperatorFinancialSettings");
 const ProviderFeeRate = require("../models/ProviderFeeRate");
 const { logger } = require("../middlewares/logger");
-const { computeFeesForBucket, computeCustomFeesForBucket } = require("./computeFees");
+const { computeFeesForBucket } = require("./computeFees");
 
 // Runs at 00:10 UTC daily and computes yesterday's fees per
 // (operator, brand, affiliate, provider) from ClickHouse. Each row's
@@ -194,14 +194,23 @@ async function runForOperator(operator, operatorFinancials, bounds) {
     const sbThirdPartyPct = Number(brandFinancials.sbThirdPartyFeePercent) || 0;
     const sbThirdPartyFees = Math.round((sbGgr * sbThirdPartyPct) / 100);
 
-    // Operator-defined custom deductions (license levies, platform fees, …).
-    // Applied to combined GGR and rolled into additional_deductions_sum_cents
-    // so they flow through the existing NGR formula.
+    // Operator-defined custom deductions, mirrors the operator-wide pattern
+    // but rolled into additional_deductions_sum_cents so they reduce NGR
+    // through the existing formula instead of inflating a specific bucket.
+    //   custom NGR fee     — % of combined GGR (casino + sb)
+    //   custom deposit fee — % of deposits, respecting fee-attribution carve-
+    //                        out so events with their own feeCents aren't
+    //                        double-charged
     const casinoGgr = Math.max(0, Number(r.bets || 0) - Number(r.wins || 0));
-    const customFeesCents = computeCustomFeesForBucket(
-      casinoGgr + sbGgr,
-      brandFinancials.customFees,
+    const customNgrPct = Number(brandFinancials.customNgrFeePercent) || 0;
+    const customDepPct = Number(brandFinancials.customDepositFeePercent) || 0;
+    const depositRateBase = Math.max(
+      0,
+      Number(r.deposits || 0) - Number(r.depositsFeeAttributed || 0),
     );
+    const customNgrFeesCents = Math.round(((casinoGgr + sbGgr) * customNgrPct) / 100);
+    const customDepositFeesCents = Math.round((depositRateBase * customDepPct) / 100);
+    const customFeesCents = customNgrFeesCents + customDepositFeesCents;
 
     if (
       !gameProviderFees &&

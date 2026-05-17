@@ -12,19 +12,14 @@ interface ProviderRate {
   feePercent: number;
 }
 
-interface CustomFee {
-  key: string;
-  label: string;
-  feePercent: number;
-}
-
 interface Settings {
   depositFeePercent: number;
   withdrawalFeePercent: number;
   jackpotFeePercent: number;
   casinoTaxPercent: number;
   sbThirdPartyFeePercent: number;
-  customFees?: CustomFee[];
+  customNgrFeePercent: number;
+  customDepositFeePercent: number;
   defaults?: {
     revshareMetric: 'ngr' | 'ggr';
     ngrIncludesPaymentFees: boolean;
@@ -74,11 +69,13 @@ function SettingsForm({ scope }: { scope: Scope }) {
     try {
       await baseService.update(FEES_API_URLS.SETTINGS(), {
         brandId: scope,
-        depositFeePercent:      Number(form.get('deposit') ?? 0),
-        withdrawalFeePercent:   Number(form.get('withdrawal') ?? 0),
-        jackpotFeePercent:      Number(form.get('jackpot') ?? 0),
-        casinoTaxPercent:       Number(form.get('tax') ?? 0),
-        sbThirdPartyFeePercent: Number(form.get('sbThirdParty') ?? 0),
+        depositFeePercent:       Number(form.get('deposit') ?? 0),
+        withdrawalFeePercent:    Number(form.get('withdrawal') ?? 0),
+        jackpotFeePercent:       Number(form.get('jackpot') ?? 0),
+        casinoTaxPercent:        Number(form.get('tax') ?? 0),
+        sbThirdPartyFeePercent:  Number(form.get('sbThirdParty') ?? 0),
+        customNgrFeePercent:     Number(form.get('customNgr') ?? 0),
+        customDepositFeePercent: Number(form.get('customDeposit') ?? 0),
       });
       qc.invalidateQueries({ queryKey: ['fees-settings', scope] });
       setDirty(false);
@@ -103,12 +100,14 @@ function SettingsForm({ scope }: { scope: Scope }) {
         {scope === 'default' ? ' (operator default)' : ' (brand override)'}.
         Leave at 0 if you're publishing pre-aggregated fees yourself.
       </p>
-      <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4'>
-        <NumberInput label='Deposit Fee %'    name='deposit'      defaultValue={s?.depositFeePercent ?? 0}      hint='% of deposits (processor cost)' />
-        <NumberInput label='Withdrawal Fee %' name='withdrawal'   defaultValue={s?.withdrawalFeePercent ?? 0}   hint='% of cashouts (processor cost)' />
-        <NumberInput label='Jackpot %'        name='jackpot'      defaultValue={s?.jackpotFeePercent ?? 0}      hint='% of casino bets' />
-        <NumberInput label='Casino Tax %'     name='tax'          defaultValue={s?.casinoTaxPercent ?? 0}       hint='% of casino GGR' />
-        <NumberInput label='SB 3rd-party %'   name='sbThirdParty' defaultValue={s?.sbThirdPartyFeePercent ?? 0} hint='% of sportsbook GGR (bookmaker/data-feed)' />
+      <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4'>
+        <NumberInput label='Deposit Fee %'    name='deposit'       defaultValue={s?.depositFeePercent ?? 0}       hint='% of deposits (processor cost)' />
+        <NumberInput label='Withdrawal Fee %' name='withdrawal'    defaultValue={s?.withdrawalFeePercent ?? 0}    hint='% of cashouts (processor cost)' />
+        <NumberInput label='Jackpot %'        name='jackpot'       defaultValue={s?.jackpotFeePercent ?? 0}       hint='% of casino bets' />
+        <NumberInput label='Casino Tax %'     name='tax'           defaultValue={s?.casinoTaxPercent ?? 0}        hint='% of casino GGR' />
+        <NumberInput label='SB 3rd-party %'   name='sbThirdParty'  defaultValue={s?.sbThirdPartyFeePercent ?? 0}  hint='% of sportsbook GGR (bookmaker/data-feed)' />
+        <NumberInput label='Custom NGR %'     name='customNgr'     defaultValue={s?.customNgrFeePercent ?? 0}     hint='% of combined GGR — extra deduction from NGR' />
+        <NumberInput label='Custom Deposit %' name='customDeposit' defaultValue={s?.customDepositFeePercent ?? 0} hint='% of deposits — extra deduction from NGR' />
       </div>
       {err && <p className='text-sm text-red-500'>{err}</p>}
       <div className='flex items-center gap-3'>
@@ -124,176 +123,6 @@ function SettingsForm({ scope }: { scope: Scope }) {
         )}
       </div>
     </form>
-  );
-}
-
-function slugifyKey(s: string) {
-  return s
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48);
-}
-
-function CustomFeesForm({ scope }: { scope: Scope }) {
-  const qc = useQueryClient();
-  const { data, isLoading } = useBaseQuery<{ settings: Settings }>({
-    endpoint: FEES_API_URLS.SETTINGS(),
-    queryKey: ['fees-settings', scope],
-    params: { brandId: scope },
-  });
-  const initial = data?.settings?.customFees ?? [];
-
-  const [rows, setRows] = useState<CustomFee[]>(initial);
-  const [hydratedFor, setHydratedFor] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
-
-  // Hydrate local state once per scope load. Without this, switching scope
-  // would keep the previous brand's edits visible.
-  if (!isLoading && hydratedFor !== scope) {
-    setRows(initial);
-    setHydratedFor(scope);
-    setErr(null);
-    setMsg(null);
-  }
-
-  const setRow = (idx: number, patch: Partial<CustomFee>) => {
-    setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
-    setMsg(null);
-  };
-
-  const addRow = () => {
-    setRows((prev) => [...prev, { key: '', label: '', feePercent: 0 }]);
-    setMsg(null);
-  };
-
-  const removeRow = (idx: number) => {
-    setRows((prev) => prev.filter((_, i) => i !== idx));
-    setMsg(null);
-  };
-
-  const save = async () => {
-    setSaving(true);
-    setErr(null);
-    setMsg(null);
-    try {
-      const cleaned = rows.map((r) => ({
-        key: slugifyKey(r.key || r.label),
-        label: (r.label || '').trim(),
-        feePercent: Number(r.feePercent) || 0,
-      }));
-      await baseService.update(FEES_API_URLS.SETTINGS(), {
-        brandId: scope,
-        customFees: cleaned,
-      });
-      qc.invalidateQueries({ queryKey: ['fees-settings', scope] });
-      setMsg('Saved.');
-    } catch (e: any) {
-      setErr(e?.response?.data?.error ?? e?.message ?? 'Failed to save');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (isLoading) return <p className='text-sm text-gray-600'>Loading...</p>;
-
-  return (
-    <div className='space-y-3'>
-      <p className='text-xs text-gray-700'>
-        Operator-defined extra deductions (license levies, platform fees, jurisdiction charges, …).
-        Each row is a percentage of <b>combined GGR</b> (casino + sportsbook) and is subtracted from{' '}
-        <b>NGR</b> via the daily fees job. Affiliates see these rows in their portal fee details.
-      </p>
-
-      {rows.length === 0 && (
-        <p className='text-xs text-gray-600 italic'>No custom fees configured for this scope.</p>
-      )}
-
-      {rows.length > 0 && (
-        <div className='overflow-x-auto'>
-          <table className='w-full'>
-            <thead className='bg-gray-50'>
-              <tr>
-                <th className='px-3 py-2 text-left text-xs font-semibold text-gray-700 w-1/3'>Label</th>
-                <th className='px-3 py-2 text-left text-xs font-semibold text-gray-700 w-1/3'>Key</th>
-                <th className='px-3 py-2 text-right text-xs font-semibold text-gray-700'>Fee %</th>
-                <th className='px-3 py-2 text-right text-xs font-semibold text-gray-700'></th>
-              </tr>
-            </thead>
-            <tbody className='divide-y divide-gray-100'>
-              {rows.map((r, idx) => (
-                <tr key={idx}>
-                  <td className='px-3 py-2'>
-                    <input
-                      type='text'
-                      value={r.label}
-                      onChange={(e) => setRow(idx, { label: e.target.value })}
-                      placeholder='License levy'
-                      className='w-full border border-gray-200 rounded px-2 py-1 text-xs'
-                    />
-                  </td>
-                  <td className='px-3 py-2'>
-                    <input
-                      type='text'
-                      value={r.key}
-                      onChange={(e) => setRow(idx, { key: e.target.value })}
-                      onBlur={(e) =>
-                        setRow(idx, { key: slugifyKey(e.target.value || r.label) })
-                      }
-                      placeholder='auto from label'
-                      className='w-full border border-gray-200 rounded px-2 py-1 text-xs font-mono'
-                    />
-                  </td>
-                  <td className='px-3 py-2 text-right'>
-                    <input
-                      type='number'
-                      value={r.feePercent}
-                      onChange={(e) => setRow(idx, { feePercent: Number(e.target.value) })}
-                      min={0}
-                      max={100}
-                      step={0.01}
-                      className='w-24 border border-gray-200 rounded px-2 py-1 text-xs text-right'
-                    />
-                  </td>
-                  <td className='px-3 py-2 text-right'>
-                    <button
-                      type='button'
-                      onClick={() => removeRow(idx)}
-                      className='text-red-600 text-xs hover:underline'
-                    >
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      <div className='flex items-center gap-3'>
-        <button
-          type='button'
-          onClick={addRow}
-          className='border border-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs font-medium hover:bg-gray-50'
-        >
-          + Add row
-        </button>
-        <button
-          type='button'
-          onClick={save}
-          disabled={saving}
-          className='bg-primary text-white px-4 py-2 rounded text-sm font-semibold hover:bg-primary-dark disabled:opacity-50'
-        >
-          {saving ? 'Saving...' : 'Save custom fees'}
-        </button>
-        {err && <span className='text-xs text-red-500'>{err}</span>}
-        {msg && !err && <span className='text-xs text-green-700'>{msg}</span>}
-      </div>
-    </div>
   );
 }
 
@@ -981,9 +810,6 @@ export default function FeesPage() {
       )}
       <Card title='Operator-wide fees'>
         <SettingsForm scope={scope} />
-      </Card>
-      <Card title='Custom fees'>
-        <CustomFeesForm scope={scope} />
       </Card>
       <Card title='Provider fees'>
         <ProviderFeesSection scope={scope} />

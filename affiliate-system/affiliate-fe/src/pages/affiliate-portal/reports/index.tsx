@@ -150,19 +150,14 @@ function formatChartTooltip(v: number, def: ChartMetricDef) {
 
 // ── Fee details payload ──────────────────────────────────────────────────────
 
-interface CustomFeeRow {
-  key: string;
-  label: string;
-  feePercent: number;
-}
-
 interface FeeBlock {
   depositFeePercent: number | null;
   withdrawalFeePercent: number | null;
   jackpotFeePercent: number | null;
   casinoTaxPercent: number | null;
   sbThirdPartyFeePercent: number | null;
-  customFees?: CustomFeeRow[];
+  customNgrFeePercent: number | null;
+  customDepositFeePercent: number | null;
 }
 
 interface FeeDetailsResponse {
@@ -453,25 +448,15 @@ function FeeDetails() {
               <p className='text-[11px] font-medium uppercase tracking-[0.12em] text-gray-600 mb-2'>
                 Operator defaults
               </p>
-              <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3'>
+              <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3'>
                 <FeeChip label='Deposit'        value={pct(data.operatorDefaults.depositFeePercent)} />
                 <FeeChip label='Withdrawal'     value={pct(data.operatorDefaults.withdrawalFeePercent)} />
                 <FeeChip label='Jackpot'        value={pct(data.operatorDefaults.jackpotFeePercent)} />
                 <FeeChip label='Casino Tax'     value={pct(data.operatorDefaults.casinoTaxPercent)} />
                 <FeeChip label='SB 3rd-party'   value={pct(data.operatorDefaults.sbThirdPartyFeePercent)} />
+                <FeeChip label='Custom NGR'     value={pct(data.operatorDefaults.customNgrFeePercent)} />
+                <FeeChip label='Custom Deposit' value={pct(data.operatorDefaults.customDepositFeePercent)} />
               </div>
-              {data.operatorDefaults.customFees && data.operatorDefaults.customFees.length > 0 && (
-                <div className='mt-3'>
-                  <p className='text-[11px] font-medium uppercase tracking-[0.1em] text-gray-500 mb-1.5'>
-                    Custom deductions (applied to combined GGR, reduce NGR)
-                  </p>
-                  <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3'>
-                    {data.operatorDefaults.customFees.map((cf) => (
-                      <FeeChip key={cf.key} label={cf.label} value={pct(cf.feePercent)} />
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
@@ -491,34 +476,23 @@ function FeeDetails() {
                       <th className='px-3 py-2 text-right font-semibold text-gray-700'>Jackpot</th>
                       <th className='px-3 py-2 text-right font-semibold text-gray-700'>Casino Tax</th>
                       <th className='px-3 py-2 text-right font-semibold text-gray-700'>SB 3rd-party</th>
-                      <th className='px-3 py-2 text-right font-semibold text-gray-700'>Custom</th>
+                      <th className='px-3 py-2 text-right font-semibold text-gray-700'>Custom NGR</th>
+                      <th className='px-3 py-2 text-right font-semibold text-gray-700'>Custom Dep.</th>
                     </tr>
                   </thead>
                   <tbody className='divide-y divide-gray-100'>
-                    {data.brandOverrides.map((b) => {
-                      const customSummary =
-                        b.customFees && b.customFees.length > 0
-                          ? b.customFees
-                              .map((cf) => `${cf.label}: ${cf.feePercent}%`)
-                              .join('  ·  ')
-                          : null;
-                      return (
-                        <tr key={b.brandId}>
-                          <td className='px-3 py-2 text-gray-800 font-medium'>{b.brandName || b.brandId}</td>
-                          <td className='px-3 py-2 text-right text-gray-700'>{pct(b.depositFeePercent)}</td>
-                          <td className='px-3 py-2 text-right text-gray-700'>{pct(b.withdrawalFeePercent)}</td>
-                          <td className='px-3 py-2 text-right text-gray-700'>{pct(b.jackpotFeePercent)}</td>
-                          <td className='px-3 py-2 text-right text-gray-700'>{pct(b.casinoTaxPercent)}</td>
-                          <td className='px-3 py-2 text-right text-gray-700'>{pct(b.sbThirdPartyFeePercent)}</td>
-                          <td
-                            className='px-3 py-2 text-right text-gray-700'
-                            title={customSummary ?? ''}
-                          >
-                            {customSummary ? `${b.customFees!.length} row${b.customFees!.length === 1 ? '' : 's'}` : '—'}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {data.brandOverrides.map((b) => (
+                      <tr key={b.brandId}>
+                        <td className='px-3 py-2 text-gray-800 font-medium'>{b.brandName || b.brandId}</td>
+                        <td className='px-3 py-2 text-right text-gray-700'>{pct(b.depositFeePercent)}</td>
+                        <td className='px-3 py-2 text-right text-gray-700'>{pct(b.withdrawalFeePercent)}</td>
+                        <td className='px-3 py-2 text-right text-gray-700'>{pct(b.jackpotFeePercent)}</td>
+                        <td className='px-3 py-2 text-right text-gray-700'>{pct(b.casinoTaxPercent)}</td>
+                        <td className='px-3 py-2 text-right text-gray-700'>{pct(b.sbThirdPartyFeePercent)}</td>
+                        <td className='px-3 py-2 text-right text-gray-700'>{pct(b.customNgrFeePercent)}</td>
+                        <td className='px-3 py-2 text-right text-gray-700'>{pct(b.customDepositFeePercent)}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
