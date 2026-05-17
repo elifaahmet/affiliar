@@ -26,8 +26,9 @@
  * Priority order of checks (first failure short-circuits):
  *   1. minDepositCents       → rejected (permanent)
  *   2. holdDays              → pending (time-based)
- *   3. minWager*             → pending (activity-based)
- *   4. minCashRetention      → pending (can recover if player deposits more)
+ *   3. minKycLevel           → pending (player can level up later)
+ *   4. minWager*             → pending (activity-based)
+ *   5. minCashRetention      → pending (can recover if player deposits more)
  */
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -78,7 +79,17 @@ function evaluate(ftd, gates, nowMs) {
     }
   }
 
-  // 3. Wager gates — flat floor + multiple-of-deposit. Both can be active
+  // 3. KYC tier — pending; player may level up between recalcs.
+  // minKycLevel can legitimately be 0 (meaning "any registered player passes"),
+  // so `isActive` (which rejects 0) is the wrong check here — use null-aware.
+  if (gates.minKycLevel !== null && gates.minKycLevel !== undefined) {
+    const playerKyc = Number(ftd.kycLevel) || 0;
+    if (playerKyc < gates.minKycLevel) {
+      return { bucket: "pending", reason: "kyc_below_min" };
+    }
+  }
+
+  // 4. Wager gates — flat floor + multiple-of-deposit. Both can be active
   // independently; the effective requirement is the larger of the two.
   const wagerRequired = Math.max(
     isActive(gates.minWagerCents) ? gates.minWagerCents : 0,
@@ -88,7 +99,7 @@ function evaluate(ftd, gates, nowMs) {
     return { bucket: "pending", reason: "wager_below_min" };
   }
 
-  // 4. Cash-retention — net cash kept on the platform must exceed floor.
+  // 5. Cash-retention — net cash kept on the platform must exceed floor.
   // Catches deposit-then-withdraw patterns. Measured at calc time, so can
   // recover if player deposits more later.
   if (isActive(gates.minCashRetentionCents)) {

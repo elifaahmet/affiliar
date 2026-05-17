@@ -48,6 +48,20 @@ const affiliatePlayerSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Latest known KYC level for this player. 0 = unverified, 1 = basic,
+    // 2 = intermediate, 3 = full. Updated by the player.kyc.updated event
+    // (last-write-wins keyed on kycLevelUpdatedAt). Read by the CPA
+    // qualification engine to evaluate the minKycLevel gate.
+    kycLevel: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 3,
+    },
+    kycLevelUpdatedAt: {
+      type: Date,
+      default: null,
+    },
     source: {
       type: String,
       enum: ["realtime", "bulk", "csv"],

@@ -24,6 +24,7 @@ const GATES_OFF = {
   minWagerCents: null,
   holdDays: null,
   minCashRetentionCents: null,
+  minKycLevel: null,
 };
 
 describe("checkCpaQualification", () => {
@@ -180,6 +181,46 @@ describe("checkCpaQualification", () => {
     const result = checkCpaQualification(
       [ftd({ depositCents: 0 })],
       { ...GATES_OFF, minDepositCents: 0 },
+    );
+    expect(result.qualified).toBe(1);
+  });
+
+  // ── Min KYC level — pending (player can level up later) ──────────────────
+
+  test("minKycLevel: player below threshold → pending with kyc_below_min", () => {
+    const result = checkCpaQualification(
+      [ftd({ kycLevel: 1 })],
+      { ...GATES_OFF, minKycLevel: 2 },
+    );
+    expect(result.pending).toBe(1);
+    expect(result.pendingFtds[0].reason).toBe("kyc_below_min");
+  });
+
+  test("minKycLevel: player at threshold → qualifies", () => {
+    const result = checkCpaQualification(
+      [ftd({ kycLevel: 2 })],
+      { ...GATES_OFF, minKycLevel: 2 },
+    );
+    expect(result.qualified).toBe(1);
+  });
+
+  test("minKycLevel: missing kycLevel on FTD defaults to 0 → pending", () => {
+    const result = checkCpaQualification([ftd()], { ...GATES_OFF, minKycLevel: 1 });
+    expect(result.pending).toBe(1);
+    expect(result.pendingFtds[0].reason).toBe("kyc_below_min");
+  });
+
+  test("minKycLevel: 0 is an active gate (requires registered player) and still passes default-0 FTD", () => {
+    // Unlike numeric thresholds where 0 ≡ disabled, minKycLevel=0 means
+    // "any registered player passes" — the gate is explicitly active.
+    const result = checkCpaQualification([ftd()], { ...GATES_OFF, minKycLevel: 0 });
+    expect(result.qualified).toBe(1);
+  });
+
+  test("minKycLevel: null = gate disabled", () => {
+    const result = checkCpaQualification(
+      [ftd({ kycLevel: 0 })],
+      { ...GATES_OFF, minKycLevel: null },
     );
     expect(result.qualified).toBe(1);
   });

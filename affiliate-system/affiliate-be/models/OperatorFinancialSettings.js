@@ -90,6 +90,10 @@ const operatorFinancialSettingsSchema = new mongoose.Schema(
       minWagerCents:         { type: Number, default: null, min: 0 },
       holdDays:              { type: Number, default: null, min: 0 },
       minCashRetentionCents: { type: Number, default: null, min: 0 },
+      // CPA gate on the player's KYC tier. 0=unverified … 3=full. null
+      // means the gate is disabled by default (plans can still set their
+      // own level explicitly).
+      minKycLevel:           { type: Number, default: null, min: 0, max: 3 },
     },
   },
   { timestamps: true },

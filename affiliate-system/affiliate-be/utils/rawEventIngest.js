@@ -1,6 +1,7 @@
 const clickhouse = require("../config/clickhouse");
 const { logger } = require("../middlewares/logger");
 const AffiliateProfile = require("../models/AffiliateProfile");
+const AffiliatePlayer = require("../models/AffiliatePlayer");
 
 async function resolveAffiliateId(code) {
   if (!code) return "";
@@ -176,6 +177,12 @@ function buildDeltaRow(event, data, affiliateId = "") {
       // Flagged events don't produce metric deltas — handled separately if needed
       return null;
 
+    case "player.kyc.updated":
+      // KYC level is tracked on AffiliatePlayer (Mongo), not in ClickHouse
+      // delta aggregates — the CPA qualification engine reads the latest
+      // value at calc time. Side-effect is handled in ingestRawEvent().
+      return null;
+
     default:
       return null;
   }
@@ -212,12 +219,45 @@ async function insertDelta(event, data, affiliateId) {
 // ── Main ingest function ─────────────────────────────────────────────────────
 // Used by both REST endpoint and Kafka consumer
 
+// Last-write-wins update of the AffiliatePlayer's KYC level. Skipped if the
+// document doesn't exist yet (player not yet registered through an affiliate
+// link, or the bulk import hasn't run) — the operator can re-send the event
+// later, or it'll be picked up on next signup.
+async function updateAffiliatePlayerKyc(event, data) {
+  const newLevel = Number(data.kycLevel);
+  if (!Number.isFinite(newLevel) || newLevel < 0 || newLevel > 3) return;
+  const newAt = new Date(event.occurredAt);
+  try {
+    await AffiliatePlayer.updateOne(
+      {
+        operatorId: event.tenantId,
+        playerId: event.playerId,
+        $or: [
+          { kycLevelUpdatedAt: null },
+          { kycLevelUpdatedAt: { $lte: newAt } },
+        ],
+      },
+      { $set: { kycLevel: newLevel, kycLevelUpdatedAt: newAt } },
+    );
+  } catch (err) {
+    logger.error("rawEvent.kycUpdateFailed", {
+      eventId: event.eventId,
+      playerId: event.playerId,
+      error: err.message,
+    });
+  }
+}
+
 async function ingestRawEvent(event, data) {
   const affiliateId = await resolveAffiliateId(data.affiliateCode);
-  await Promise.all([
+  const work = [
     logRawEvent(event),
     insertDelta(event, data, affiliateId),
-  ]);
+  ];
+  if (event.eventType === "player.kyc.updated") {
+    work.push(updateAffiliatePlayerKyc(event, data));
+  }
+  await Promise.all(work);
 }
 
 module.exports = { ingestRawEvent, buildDeltaRow };

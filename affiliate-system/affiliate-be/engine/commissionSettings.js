@@ -26,6 +26,7 @@ const HARD_DEFAULTS = Object.freeze({
   minWagerCents:         null,
   holdDays:              null,
   minCashRetentionCents: null,
+  minKycLevel:           null,
 });
 
 function pick(...values) {
@@ -86,6 +87,11 @@ function resolveCommissionSettings(plan, operatorDefaults) {
       cpaQual.minCashRetentionCents,
       opDefaults.minCashRetentionCents,
       HARD_DEFAULTS.minCashRetentionCents,
+    ),
+    minKycLevel: pick(
+      cpaQual.minKycLevel,
+      opDefaults.minKycLevel,
+      HARD_DEFAULTS.minKycLevel,
     ),
   };
 }

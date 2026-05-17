@@ -30,6 +30,7 @@ interface Settings {
     minWagerCents: number | null;
     holdDays: number | null;
     minCashRetentionCents: number | null;
+    minKycLevel: number | null;
   };
 }
 
@@ -178,6 +179,11 @@ function CommissionDefaultsForm() {
         const n = Number(v);
         return Number.isFinite(n) ? n : null;
       };
+      const kycVal = form.get('minKycLevel');
+      const minKycLevel =
+        kycVal == null || kycVal === '' || kycVal === 'null'
+          ? null
+          : Number(kycVal);
 
       await baseService.update(FEES_API_URLS.SETTINGS(), {
         brandId: 'default',
@@ -190,6 +196,7 @@ function CommissionDefaultsForm() {
           minWagerMultiple:      gateNumber('minWagerMultiple'),
           holdDays:              gateNumber('holdDays'),
           minCashRetentionCents: gateFromCents('minCashRetention'),
+          minKycLevel,
         },
       });
       qc.invalidateQueries({ queryKey: ['fees-settings', 'default'] });
@@ -259,6 +266,11 @@ function CommissionDefaultsForm() {
         <GateInput label='Min wager × deposit'         name='minWagerMultiple' defaultValue={s?.defaults?.minWagerMultiple}       step={0.1} />
         <GateInput label='Hold period (days)'          name='holdDays'         defaultValue={s?.defaults?.holdDays} />
         <GateInput label='Min net cash retained ($)'   name='minCashRetention' defaultValue={s?.defaults?.minCashRetentionCents}  fromCents />
+        <KycLevelSelect
+          label='Min KYC level'
+          name='minKycLevel'
+          defaultValue={s?.defaults?.minKycLevel}
+        />
       </div>
 
       {err && <p className='text-sm text-red-500'>{err}</p>}
@@ -294,6 +306,32 @@ function NumberInput({ label, name, defaultValue, hint }: {
         className='border border-gray-200 rounded px-3 py-2 text-sm'
       />
       {hint && <span className='text-xs text-gray-600'>{hint}</span>}
+    </label>
+  );
+}
+
+function KycLevelSelect({ label, name, defaultValue }: {
+  label: string;
+  name: string;
+  defaultValue: number | null | undefined;
+}) {
+  const display =
+    defaultValue === null || defaultValue === undefined ? 'null' : String(defaultValue);
+  return (
+    <label className='flex flex-col gap-1'>
+      <span className='text-xs font-medium text-gray-700'>{label}</span>
+      <select
+        key={display}
+        name={name}
+        defaultValue={display}
+        className='border border-gray-200 rounded px-3 py-2 text-sm bg-white'
+      >
+        <option value='null'>Disabled</option>
+        <option value='0'>0 — unverified</option>
+        <option value='1'>1 — basic</option>
+        <option value='2'>2 — intermediate</option>
+        <option value='3'>3 — full</option>
+      </select>
     </label>
   );
 }

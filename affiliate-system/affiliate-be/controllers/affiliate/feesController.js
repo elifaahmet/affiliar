@@ -210,6 +210,7 @@ exports.getFinancialSettings = async (req, res) => {
         minWagerCents:          raw.defaults?.minWagerCents ?? null,
         holdDays:               raw.defaults?.holdDays ?? null,
         minCashRetentionCents:  raw.defaults?.minCashRetentionCents ?? null,
+        minKycLevel:            raw.defaults?.minKycLevel ?? null,
       },
     };
     res.json({ settings });
@@ -310,6 +311,22 @@ exports.updateFinancialSettings = async (req, res) => {
           return res.status(400).json({ error: `${k} must be a non-negative number or null` });
         }
         update[`defaults.${k}`] = n;
+      }
+
+      // minKycLevel is bounded 0..3 (integer) — separate from the open-ended
+      // numeric gates above. null = gate disabled.
+      if (defaults.minKycLevel !== undefined) {
+        if (defaults.minKycLevel === null) {
+          update["defaults.minKycLevel"] = null;
+        } else {
+          const k = Number(defaults.minKycLevel);
+          if (!Number.isInteger(k) || k < 0 || k > 3) {
+            return res
+              .status(400)
+              .json({ error: "minKycLevel must be an integer 0–3 or null" });
+          }
+          update["defaults.minKycLevel"] = k;
+        }
       }
     }
 

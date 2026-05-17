@@ -51,6 +51,7 @@ interface CommissionPlan {
       minWagerCents: number | null;
       holdDays: number | null;
       minCashRetentionCents: number | null;
+      minKycLevel: number | null;
     };
   };
   tiers: Tier[];
@@ -161,6 +162,7 @@ const EMPTY_PLAN = {
       minWagerCents: null as number | null,
       holdDays: null as number | null,
       minCashRetentionCents: null as number | null,
+      minKycLevel: null as number | null,
     },
   },
   tiers: [] as Tier[],
@@ -195,6 +197,7 @@ function PlanModal({
               minWagerCents:         plan.cpa?.qualification?.minWagerCents ?? null,
               holdDays:              plan.cpa?.qualification?.holdDays ?? null,
               minCashRetentionCents: plan.cpa?.qualification?.minCashRetentionCents ?? null,
+              minKycLevel:           plan.cpa?.qualification?.minKycLevel ?? null,
             },
           },
           tiers: plan.tiers.map((t) => ({ ...t })),
@@ -484,6 +487,30 @@ function PlanModal({
                     step={1}
                     fromCents
                   />
+                  <div>
+                    <label className='block text-xs text-gray-600 mb-1'>Min KYC level</label>
+                    <select
+                      value={
+                        form.cpa.qualification?.minKycLevel === null ||
+                        form.cpa.qualification?.minKycLevel === undefined
+                          ? ''
+                          : String(form.cpa.qualification.minKycLevel)
+                      }
+                      onChange={(e) =>
+                        updateQual(
+                          'minKycLevel',
+                          e.target.value === '' ? null : Number(e.target.value),
+                        )
+                      }
+                      className='w-full border border-gray-200 rounded px-3 py-2 text-sm bg-white'
+                    >
+                      <option value=''>Inherit operator default</option>
+                      <option value='0'>0 — unverified</option>
+                      <option value='1'>1 — basic</option>
+                      <option value='2'>2 — intermediate</option>
+                      <option value='3'>3 — full</option>
+                    </select>
+                  </div>
                 </div>
               </div>
             </div>

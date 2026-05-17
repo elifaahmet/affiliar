@@ -2,6 +2,7 @@ const CommissionPlan           = require("../../models/CommissionPlan");
 const CommissionReport         = require("../../models/CommissionReport");
 const SubAffiliatePayout       = require("../../models/SubAffiliatePayout");
 const AffiliateProfile         = require("../../models/AffiliateProfile");
+const AffiliatePlayer          = require("../../models/AffiliatePlayer");
 const User                     = require("../../models/User");
 const OperatorFinancialSettings = require("../../models/OperatorFinancialSettings");
 const clickhouse               = require("../../config/clickhouse");
@@ -205,6 +206,21 @@ async function fetchFtdContextRows(tenantId, year, month) {
   });
   const rows = await result.json();
 
+  // Pull each player's latest KYC level from AffiliatePlayer (Mongo) so the
+  // minKycLevel CPA gate has data to compare against. Missing rows fall back
+  // to 0 (unverified). Operators ship KYC updates via player.kyc.updated.
+  const playerIds = Array.from(new Set(rows.map((r) => r.playerId).filter(Boolean)));
+  const kycMap = new Map();
+  if (playerIds.length) {
+    const kycRows = await AffiliatePlayer.find({
+      operatorId: tenantId,
+      playerId: { $in: playerIds },
+    })
+      .select({ playerId: 1, kycLevel: 1 })
+      .lean();
+    for (const k of kycRows) kycMap.set(k.playerId, Number(k.kycLevel) || 0);
+  }
+
   return rows.map((r) => ({
     affiliateId:           r.affiliateId,
     playerId:              r.playerId,
@@ -215,6 +231,7 @@ async function fetchFtdContextRows(tenantId, year, month) {
     cashoutsSinceFtdCents: Math.max(0, Number(r.cashoutsSinceFtdCents) || 0),
     depositsTotalCents:    Math.max(0, Number(r.depositsTotalCents) || 0),
     cashoutsTotalCents:    Math.max(0, Number(r.cashoutsTotalCents) || 0),
+    kycLevel:              kycMap.get(r.playerId) ?? 0,
   }));
 }
 

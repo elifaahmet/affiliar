@@ -102,6 +102,13 @@ const bonusRevokedData = z.object({
   reason:          z.string().optional(),
 });
 
+const playerKycUpdatedData = z.object({
+  // 0 = unverified, 1 = basic, 2 = intermediate, 3 = full. Drives the
+  // minKycLevel CPA qualification gate; we store the latest value on
+  // AffiliatePlayer.
+  kycLevel: z.number().int().min(0).max(3),
+});
+
 const feesDailyData = z.object({
   date:                       z.string(),
   paymentSystemFeesCents:     z.number().int().min(0).default(0),
@@ -116,6 +123,7 @@ const feesDailyData = z.object({
 const EVENT_DATA_SCHEMAS = {
   "player.registered":            playerRegisteredData,
   "player.flagged":               playerFlaggedData,
+  "player.kyc.updated":           playerKycUpdatedData,
   "wallet.deposit.confirmed":     depositConfirmedData,
   "wallet.deposit.chargeback":    depositChargebackData,
   "wallet.correction.up":         correctionUpData,

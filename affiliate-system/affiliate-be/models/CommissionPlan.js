@@ -136,6 +136,10 @@ const commissionPlanSchema = new mongoose.Schema(
         // Measured as deposits − cashouts over the affiliate's lifetime
         // for that player. Catches deposit-then-withdraw fraud.
         minCashRetentionCents: { type: Number, default: null, min: 0 },
+        // Player's KYC tier must be at least this level for the CPA to
+        // qualify. 0=unverified, 1=basic, 2=intermediate, 3=full.
+        // null = inherit operator default (which may itself be null = no gate).
+        minKycLevel: { type: Number, default: null, min: 0, max: 3 },
       },
     },
 
