@@ -676,6 +676,7 @@ exports.feeDetails = async (req, res) => {
         sbThirdPartyFeePercent:  f.sbThirdPartyFeePercent ?? null,
         customNgrFeePercent:     f.customNgrFeePercent ?? null,
         customDepositFeePercent: f.customDepositFeePercent ?? null,
+        alwaysDeductCustomFees:  !!f.alwaysDeductCustomFees,
       }));
 
     const providers = providerRates.map((r) => ({
@@ -695,6 +696,7 @@ exports.feeDetails = async (req, res) => {
         sbThirdPartyFeePercent:  defaultSettings.sbThirdPartyFeePercent ?? null,
         customNgrFeePercent:     defaultSettings.customNgrFeePercent ?? null,
         customDepositFeePercent: defaultSettings.customDepositFeePercent ?? null,
+        alwaysDeductCustomFees:  !!defaultSettings.alwaysDeductCustomFees,
       },
       brandOverrides: brandSettings,
       providerRates: providers,

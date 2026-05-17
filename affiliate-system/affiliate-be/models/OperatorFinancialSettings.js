@@ -47,6 +47,12 @@ const operatorFinancialSettingsSchema = new mongoose.Schema(
     //                             charged twice)
     customNgrFeePercent:     { type: Number, default: 0, min: 0, max: 100 },
     customDepositFeePercent: { type: Number, default: 0, min: 0, max: 100 },
+    // When true, the daily fees job applies the custom percents regardless of
+    // whether the operator also published `additionalDeductionsCents` for the
+    // bucket. When false (default), the cron defers to the operator-published
+    // value and skips its own custom computation for any bucket that already
+    // has a non-zero additional_deductions_sum_cents — avoids double-counting.
+    alwaysDeductCustomFees: { type: Boolean, default: false },
 
     // Defaults consumed by the commission engine when a plan leaves the
     // matching field null ("inherit"). Operators can tune these once and

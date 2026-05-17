@@ -158,6 +158,7 @@ interface FeeBlock {
   sbThirdPartyFeePercent: number | null;
   customNgrFeePercent: number | null;
   customDepositFeePercent: number | null;
+  alwaysDeductCustomFees?: boolean;
 }
 
 interface FeeDetailsResponse {
@@ -457,6 +458,18 @@ function FeeDetails() {
                 <FeeChip label='Custom NGR'     value={pct(data.operatorDefaults.customNgrFeePercent)} />
                 <FeeChip label='Custom Deposit' value={pct(data.operatorDefaults.customDepositFeePercent)} />
               </div>
+              {(data.operatorDefaults.customNgrFeePercent ||
+                data.operatorDefaults.customDepositFeePercent) ? (
+                <p className='text-[11px] text-gray-500 mt-2'>
+                  Custom deductions are{' '}
+                  <b>
+                    {data.operatorDefaults.alwaysDeductCustomFees
+                      ? 'always applied'
+                      : 'applied only when the operator hasn\'t published additional deductions for the bucket'}
+                  </b>
+                  .
+                </p>
+              ) : null}
             </div>
           )}
 

@@ -20,6 +20,7 @@ interface Settings {
   sbThirdPartyFeePercent: number;
   customNgrFeePercent: number;
   customDepositFeePercent: number;
+  alwaysDeductCustomFees: boolean;
   defaults?: {
     revshareMetric: 'ngr' | 'ggr';
     ngrIncludesPaymentFees: boolean;
@@ -76,6 +77,7 @@ function SettingsForm({ scope }: { scope: Scope }) {
         sbThirdPartyFeePercent:  Number(form.get('sbThirdParty') ?? 0),
         customNgrFeePercent:     Number(form.get('customNgr') ?? 0),
         customDepositFeePercent: Number(form.get('customDeposit') ?? 0),
+        alwaysDeductCustomFees:  form.get('alwaysDeductCustom') === 'on',
       });
       qc.invalidateQueries({ queryKey: ['fees-settings', scope] });
       setDirty(false);
@@ -109,6 +111,26 @@ function SettingsForm({ scope }: { scope: Scope }) {
         <NumberInput label='Custom NGR %'     name='customNgr'     defaultValue={s?.customNgrFeePercent ?? 0}     hint='% of combined GGR — extra deduction from NGR' />
         <NumberInput label='Custom Deposit %' name='customDeposit' defaultValue={s?.customDepositFeePercent ?? 0} hint='% of deposits — extra deduction from NGR' />
       </div>
+      <label
+        key={`adcf-${scope}-${s?.alwaysDeductCustomFees ? '1' : '0'}`}
+        className='flex items-start gap-2 text-xs text-gray-700 pt-1'
+      >
+        <input
+          type='checkbox'
+          name='alwaysDeductCustom'
+          defaultChecked={!!s?.alwaysDeductCustomFees}
+          className='mt-0.5'
+        />
+        <span>
+          <b>Always deduct custom fees.</b>{' '}
+          When on, Custom NGR % and Custom Deposit % are applied every day —
+          even on buckets where you also publish{' '}
+          <code className='bg-gray-100 px-1 rounded'>additionalDeductionsCents</code>{' '}
+          via events. When off (default), the daily job defers to your
+          published value and skips its own custom computation for that bucket
+          to avoid double-counting.
+        </span>
+      </label>
       {err && <p className='text-sm text-red-500'>{err}</p>}
       <div className='flex items-center gap-3'>
         <button

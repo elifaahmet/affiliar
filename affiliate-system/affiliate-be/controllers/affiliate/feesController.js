@@ -195,6 +195,7 @@ exports.getFinancialSettings = async (req, res) => {
       sbThirdPartyFeePercent:  raw.sbThirdPartyFeePercent ?? 0,
       customNgrFeePercent:     raw.customNgrFeePercent ?? 0,
       customDepositFeePercent: raw.customDepositFeePercent ?? 0,
+      alwaysDeductCustomFees:  !!raw.alwaysDeductCustomFees,
       // Commission-engine defaults. Consumed when a plan leaves the
       // matching field null. Only meaningful for the operator-default
       // scope (brandId = null) today, but stored per-document so brand
@@ -265,6 +266,9 @@ exports.updateFinancialSettings = async (req, res) => {
     if (sbThirdParty !== undefined) update.sbThirdPartyFeePercent = sbThirdParty;
     if (customNgr !== undefined) update.customNgrFeePercent = customNgr;
     if (customDeposit !== undefined) update.customDepositFeePercent = customDeposit;
+    if (req.body?.alwaysDeductCustomFees !== undefined) {
+      update.alwaysDeductCustomFees = !!req.body.alwaysDeductCustomFees;
+    }
 
     // Commission-engine defaults. Use dotted paths so the nested subdoc's
     // other fields aren't wiped when only one is being updated.

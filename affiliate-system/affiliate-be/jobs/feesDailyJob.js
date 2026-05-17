@@ -143,7 +143,11 @@ async function runForOperator(operator, operatorFinancials, bounds) {
        SUM(sb_cancelled_bets_sum_cents)            AS sbCancelled,
        SUM(sb_rejected_bets_sum_cents)             AS sbRejected,
        SUM(sb_wins_sum_cents)                      AS sbWins,
-       SUM(sb_win_rollbacks_sum_cents)             AS sbWinRollbacks
+       SUM(sb_win_rollbacks_sum_cents)             AS sbWinRollbacks,
+       -- Existing operator-published additional deductions for this bucket.
+       -- Used to decide whether the cron should apply its own custom percents
+       -- (only when alwaysDeductCustomFees is on or this value is zero).
+       SUM(additional_deductions_sum_cents)        AS existingAdditionalDeductions
      FROM affiliate.activity_hourly_delta
      WHERE tenant_id = {tenantId:String}
        AND hour_bucket >= {fromTs:DateTime}
@@ -208,8 +212,18 @@ async function runForOperator(operator, operatorFinancials, bounds) {
       0,
       Number(r.deposits || 0) - Number(r.depositsFeeAttributed || 0),
     );
-    const customNgrFeesCents = Math.round(((casinoGgr + sbGgr) * customNgrPct) / 100);
-    const customDepositFeesCents = Math.round((depositRateBase * customDepPct) / 100);
+    // If the operator already published additional_deductions_sum_cents for
+    // this bucket, defer to that value unless alwaysDeductCustomFees is on.
+    const opPublishedAdditional =
+      Number(r.existingAdditionalDeductions || 0) > 0;
+    const applyCustomFees =
+      !!brandFinancials.alwaysDeductCustomFees || !opPublishedAdditional;
+    const customNgrFeesCents = applyCustomFees
+      ? Math.round(((casinoGgr + sbGgr) * customNgrPct) / 100)
+      : 0;
+    const customDepositFeesCents = applyCustomFees
+      ? Math.round((depositRateBase * customDepPct) / 100)
+      : 0;
     const customFeesCents = customNgrFeesCents + customDepositFeesCents;
 
     if (
