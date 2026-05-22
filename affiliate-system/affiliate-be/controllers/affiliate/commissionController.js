@@ -9,6 +9,7 @@ const clickhouse               = require("../../config/clickhouse");
 const { calculate }             = require("../../engine/commissionEngine");
 const { checkCpaQualification } = require("../../engine/cpaQualification");
 const { resolveCommissionSettings } = require("../../engine/commissionSettings");
+const { computeSubPayout }      = require("../../engine/subAffiliatePayout");
 
 /** Zero row with every metric the engine and roll-up needs. */
 function zeroRow() {
@@ -68,6 +69,40 @@ function pickProductPair(row, product) {
   : product === "combined"   ? (row.casinoGgrCents + row.sbGgrCents)
   :                            row.casinoGgrCents;
   return { ngr, ggr };
+}
+
+// ── Sub-affiliate edge helpers ────────────────────────────────────────────────
+
+// Normalize a profile's subPlan into an edge the payout engine consumes.
+// `type` is authoritative: a revshare-only edge contributes 0 to the CPA
+// bucket (and vice-versa), so a stale value left in the inactive field can't
+// leak into the cascade.
+function normalizeSubEdge(subPlan) {
+  const sp = subPlan || {};
+  const type = sp.type || "revshare";
+  return {
+    type,
+    revshareRate:
+      type === "revshare" || type === "hybrid" ? Number(sp.revshareRate) || 0 : 0,
+    cpaSharePercent:
+      type === "cpa" || type === "hybrid" ? Number(sp.cpaSharePercent) || 0 : 0,
+  };
+}
+
+// Sub-edges strictly ABOVE `parentUserId` — walking up to (not including) the
+// top-level affiliate, who has no incoming edge. Order is irrelevant; the
+// payout cascade just multiplies the shares. 100-hop guard mirrors the
+// hierarchy-walk cap elsewhere.
+function ancestorSubEdges(parentUserId, profileByUserId) {
+  const edges = [];
+  let cur = parentUserId;
+  for (let hops = 0; hops < 100; hops++) {
+    const p = profileByUserId.get(cur);
+    if (!p || !p.parentAffiliate) break; // reached the top-level affiliate
+    edges.push(normalizeSubEdge(p.subPlan));
+    cur = String(p.parentAffiliate);
+  }
+  return edges;
 }
 
 // ── ClickHouse helpers ────────────────────────────────────────────────────────
@@ -769,7 +804,7 @@ const reportController = {
           if (!hasActivity) continue;
 
           const subPlan = profile.subPlan || {
-            type: "revshare", revshareRate: 0, cpaPerFtdCents: 0,
+            type: "revshare", revshareRate: 0, cpaSharePercent: 0,
           };
 
           // CPA qualification gates come from the top-level plan (operator
@@ -800,15 +835,24 @@ const reportController = {
             const qualification = checkCpaQualification(subtreeFtdRows, resolvedSettings);
             const { ngr: productNgr, ggr: productGgr } = pickProductPair(subtreeRow, product);
 
-            const revshareAmountCents =
-              (subPlan.type === "revshare" || subPlan.type === "hybrid")
-                ? Math.floor((Math.max(0, productNgr) * (subPlan.revshareRate || 0)) / 100)
-                : 0;
-            const cpaAmountCents =
-              (subPlan.type === "cpa" || subPlan.type === "hybrid")
-                ? Math.max(0, qualification.qualified) * (subPlan.cpaPerFtdCents || 0)
-                : 0;
-            const payableCents = revshareAmountCents + cpaAmountCents;
+            // Operator-plan commission on THIS sub's subtree — the money the
+            // chain above the sub collectively earns from the sub's players.
+            const opBreakdown = calculate(
+              plan,
+              { ...subtreeRow, qualifiedFtdCount: qualification.qualified },
+              operatorDefaults,
+            );
+            // Cascade it down every edge from the top-level affiliate to this
+            // sub — share-of-parent model. See engine/subAffiliatePayout.js.
+            const {
+              revshareAmountCents, cpaAmountCents, payableCents,
+              basisRevshareCents, basisCpaCents,
+            } = computeSubPayout({
+              opRevshareCents: opBreakdown.revshareAmountCents,
+              opCpaCents:      opBreakdown.cpaAmountCents,
+              ancestorEdges:   ancestorSubEdges(parentUserId, profileByUserId),
+              ownEdge:         normalizeSubEdge(subPlan),
+            });
 
             const existing = await SubAffiliatePayout.findOne({
               operatorId: operator.operatorId,
@@ -829,9 +873,9 @@ const reportController = {
             }
 
             const snapshot = {
-              type:           subPlan.type,
-              revshareRate:   subPlan.revshareRate   || 0,
-              cpaPerFtdCents: subPlan.cpaPerFtdCents || 0,
+              type:            subPlan.type,
+              revshareRate:    subPlan.revshareRate    || 0,
+              cpaSharePercent: subPlan.cpaSharePercent || 0,
             };
             const subtreeMetrics = {
               ngrCents:          productNgr,
@@ -846,6 +890,8 @@ const reportController = {
             if (existing) {
               existing.subtreeMetrics      = subtreeMetrics;
               existing.subPlanSnapshot     = snapshot;
+              existing.basisRevshareCents  = basisRevshareCents;
+              existing.basisCpaCents       = basisCpaCents;
               existing.revshareAmountCents = revshareAmountCents;
               existing.cpaAmountCents      = cpaAmountCents;
               existing.payableCents        = payableCents;
@@ -863,6 +909,8 @@ const reportController = {
                 product,
                 subtreeMetrics,
                 subPlanSnapshot: snapshot,
+                basisRevshareCents,
+                basisCpaCents,
                 revshareAmountCents,
                 cpaAmountCents,
                 payableCents,
@@ -1177,7 +1225,7 @@ async function recalculateSubtreePayouts(req, res) {
           subtreeRow.ftdCount > 0;
         if (!hasActivity) continue;
 
-        const subPlan = profile.subPlan || { type: "revshare", revshareRate: 0, cpaPerFtdCents: 0 };
+        const subPlan = profile.subPlan || { type: "revshare", revshareRate: 0, cpaSharePercent: 0 };
 
         let topAncestorId = parentUserId;
         while (true) {
@@ -1195,15 +1243,23 @@ async function recalculateSubtreePayouts(req, res) {
           const qualification = checkCpaQualification(subtreeFtdRows, resolvedSettings);
           const { ngr: productNgr, ggr: productGgr } = pickProductPair(subtreeRow, product);
 
-          const revshareAmountCents =
-            (subPlan.type === "revshare" || subPlan.type === "hybrid")
-              ? Math.floor((Math.max(0, productNgr) * (subPlan.revshareRate || 0)) / 100)
-              : 0;
-          const cpaAmountCents =
-            (subPlan.type === "cpa" || subPlan.type === "hybrid")
-              ? Math.max(0, qualification.qualified) * (subPlan.cpaPerFtdCents || 0)
-              : 0;
-          const payableCents = revshareAmountCents + cpaAmountCents;
+          // Operator-plan commission on this sub's subtree, cascaded down
+          // every edge to the sub — share-of-parent model. See
+          // engine/subAffiliatePayout.js.
+          const opBreakdown = calculate(
+            plan,
+            { ...subtreeRow, qualifiedFtdCount: qualification.qualified },
+            operatorDefaults,
+          );
+          const {
+            revshareAmountCents, cpaAmountCents, payableCents,
+            basisRevshareCents, basisCpaCents,
+          } = computeSubPayout({
+            opRevshareCents: opBreakdown.revshareAmountCents,
+            opCpaCents:      opBreakdown.cpaAmountCents,
+            ancestorEdges:   ancestorSubEdges(parentUserId, profileByUserId),
+            ownEdge:         normalizeSubEdge(subPlan),
+          });
 
           const existing = await SubAffiliatePayout.findOne({
             operatorId: affiliate.operatorId,
@@ -1221,9 +1277,9 @@ async function recalculateSubtreePayouts(req, res) {
           }
 
           const snapshot = {
-            type:           subPlan.type,
-            revshareRate:   subPlan.revshareRate   || 0,
-            cpaPerFtdCents: subPlan.cpaPerFtdCents || 0,
+            type:            subPlan.type,
+            revshareRate:    subPlan.revshareRate    || 0,
+            cpaSharePercent: subPlan.cpaSharePercent || 0,
           };
           const subtreeMetrics = {
             ngrCents:          productNgr,
@@ -1238,6 +1294,8 @@ async function recalculateSubtreePayouts(req, res) {
           if (existing) {
             existing.subtreeMetrics      = subtreeMetrics;
             existing.subPlanSnapshot     = snapshot;
+            existing.basisRevshareCents  = basisRevshareCents;
+            existing.basisCpaCents       = basisCpaCents;
             existing.revshareAmountCents = revshareAmountCents;
             existing.cpaAmountCents      = cpaAmountCents;
             existing.payableCents        = payableCents;
@@ -1255,6 +1313,8 @@ async function recalculateSubtreePayouts(req, res) {
               product,
               subtreeMetrics,
               subPlanSnapshot: snapshot,
+              basisRevshareCents,
+              basisCpaCents,
               revshareAmountCents,
               cpaAmountCents,
               payableCents,

@@ -25,7 +25,7 @@ type SubPlanType = 'revshare' | 'cpa' | 'hybrid';
 interface SubPlan {
   type: SubPlanType;
   revshareRate: number;
-  cpaPerFtdCents: number;
+  cpaSharePercent: number;
 }
 
 interface SubAffiliate {
@@ -209,8 +209,9 @@ export default function AffiliateSubAffiliates() {
         <h2 className='text-sm font-semibold text-gray-800'>Recruit Sub-Affiliates</h2>
         <p className='text-xs text-gray-700'>
           Share the link below to invite other affiliates under your account.
-          You decide how to compensate them via the per-sub plan above —
-          revshare on subtree NGR, flat CPA per qualified FTD, or both.
+          You decide how to compensate them via the per-sub plan above. Both
+          rates are a <b>share of your own commission</b> on that sub's
+          subtree — so a sub can never be paid more than you earn on them.
         </p>
 
         {referralCodes.length === 0 ? (
@@ -329,15 +330,16 @@ function SubRow({
 
 function SubPlanDisplay({ plan, muted }: { plan: SubPlan; muted: boolean }) {
   const cls = muted ? 'text-gray-600' : 'text-gray-800';
+  // Both rates are a share of the parent's commission on the sub's subtree.
   if (plan.type === 'revshare') {
-    return <span className={cls}>{plan.revshareRate}% revshare</span>;
+    return <span className={cls}>{plan.revshareRate}% of revshare</span>;
   }
   if (plan.type === 'cpa') {
-    return <span className={cls}>€{fmt(plan.cpaPerFtdCents)} / FTD</span>;
+    return <span className={cls}>{plan.cpaSharePercent}% of CPA</span>;
   }
   return (
     <span className={cls}>
-      {plan.revshareRate}% + €{fmt(plan.cpaPerFtdCents)} / FTD
+      {plan.revshareRate}% revshare + {plan.cpaSharePercent}% CPA
     </span>
   );
 }
@@ -356,8 +358,8 @@ function SubPlanEditor({
   const [revshareRate, setRevshareRate] = useState<string>(
     sub.subPlan.revshareRate ? String(sub.subPlan.revshareRate) : '',
   );
-  const [cpaEuros, setCpaEuros] = useState<string>(
-    sub.subPlan.cpaPerFtdCents ? (sub.subPlan.cpaPerFtdCents / 100).toString() : '',
+  const [cpaShare, setCpaShare] = useState<string>(
+    sub.subPlan.cpaSharePercent ? String(sub.subPlan.cpaSharePercent) : '',
   );
   const [error, setError] = useState<string | null>(null);
 
@@ -389,7 +391,7 @@ function SubPlanEditor({
         </label>
         {showRev && (
           <label className='flex flex-col gap-1'>
-            <span className='text-[10px] font-medium uppercase tracking-[0.1em] text-gray-600'>Revshare %</span>
+            <span className='text-[10px] font-medium uppercase tracking-[0.1em] text-gray-600'>Revshare share %</span>
             <input
               type='number'
               min={0}
@@ -403,13 +405,14 @@ function SubPlanEditor({
         )}
         {showCpa && (
           <label className='flex flex-col gap-1'>
-            <span className='text-[10px] font-medium uppercase tracking-[0.1em] text-gray-600'>CPA per FTD (€)</span>
+            <span className='text-[10px] font-medium uppercase tracking-[0.1em] text-gray-600'>CPA share %</span>
             <input
               type='number'
               min={0}
+              max={100}
               step='0.01'
-              value={cpaEuros}
-              onChange={(e) => setCpaEuros(e.target.value)}
+              value={cpaShare}
+              onChange={(e) => setCpaShare(e.target.value)}
               className='w-28 bg-white text-gray-700 text-xs rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary'
             />
           </label>
@@ -428,8 +431,8 @@ function SubPlanEditor({
             onClick={() => {
               setError(null);
               const rate = Number(revshareRate) || 0;
-              const cpaCents = Math.max(0, Math.round((Number(cpaEuros) || 0) * 100));
-              mutation.mutate({ type, revshareRate: rate, cpaPerFtdCents: cpaCents });
+              const cpaShareVal = Math.max(0, Math.min(100, Number(cpaShare) || 0));
+              mutation.mutate({ type, revshareRate: rate, cpaSharePercent: cpaShareVal });
             }}
             className='px-3 py-1.5 rounded-md text-xs font-medium bg-primary text-white hover:bg-primary-dark disabled:opacity-50'
           >

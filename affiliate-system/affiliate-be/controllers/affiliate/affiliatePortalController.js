@@ -444,9 +444,9 @@ exports.subAffiliates = async (req, res) => {
 
 function normalizeSubPlan(raw) {
   return {
-    type:           raw?.type           ?? "revshare",
-    revshareRate:   Number(raw?.revshareRate)   || 0,
-    cpaPerFtdCents: Number(raw?.cpaPerFtdCents) || 0,
+    type:            raw?.type            ?? "revshare",
+    revshareRate:    Number(raw?.revshareRate)    || 0,
+    cpaSharePercent: Number(raw?.cpaSharePercent) || 0,
   };
 }
 
@@ -512,6 +512,8 @@ exports.listSubPayouts = async (req, res) => {
       } : null,
       subtreeMetrics:      r.subtreeMetrics,
       subPlanSnapshot:     r.subPlanSnapshot,
+      basisRevshareCents:  r.basisRevshareCents ?? 0,
+      basisCpaCents:       r.basisCpaCents ?? 0,
       revshareAmountCents: r.revshareAmountCents,
       cpaAmountCents:      r.cpaAmountCents,
       payableCents:        r.payableCents,
@@ -560,7 +562,8 @@ exports.markSubPayoutPaid = async (req, res) => {
 // PATCH /affiliate-portal/sub-affiliates/:subId/sub-plan
 // The caller sets how they compensate a DIRECT child. Each level edits only
 // their own immediate subs — grandchildren are managed by their own parent
-// one level down. Accepts { type, revshareRate, cpaPerFtdCents }; missing
+// one level down. Accepts { type, revshareRate, cpaSharePercent }; both rates
+// are a % of the caller's own commission on that sub's subtree. Missing
 // numeric fields default to 0.
 exports.updateSubPlan = async (req, res) => {
   try {
@@ -574,13 +577,13 @@ exports.updateSubPlan = async (req, res) => {
     if (!["revshare", "cpa", "hybrid"].includes(type)) {
       return res.status(400).json({ error: "subPlan.type must be revshare, cpa, or hybrid" });
     }
-    const revshareRate   = Number(body.revshareRate)   || 0;
-    const cpaPerFtdCents = Number(body.cpaPerFtdCents) || 0;
+    const revshareRate    = Number(body.revshareRate)    || 0;
+    const cpaSharePercent = Number(body.cpaSharePercent) || 0;
     if (revshareRate < 0 || revshareRate > 100) {
       return res.status(400).json({ error: "revshareRate must be 0–100" });
     }
-    if (cpaPerFtdCents < 0) {
-      return res.status(400).json({ error: "cpaPerFtdCents must be ≥ 0" });
+    if (cpaSharePercent < 0 || cpaSharePercent > 100) {
+      return res.status(400).json({ error: "cpaSharePercent must be 0–100" });
     }
 
     const profile = await AffiliateProfile.findOne({
@@ -591,7 +594,7 @@ exports.updateSubPlan = async (req, res) => {
       return res.status(404).json({ error: "Sub-affiliate not found among your direct children" });
     }
 
-    profile.subPlan = { type, revshareRate, cpaPerFtdCents };
+    profile.subPlan = { type, revshareRate, cpaSharePercent };
     await profile.save();
 
     res.json({ ok: true, subPlan: normalizeSubPlan(profile.subPlan) });

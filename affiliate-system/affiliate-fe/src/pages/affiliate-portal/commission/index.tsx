@@ -193,7 +193,7 @@ interface SubPayout {
     ftdCount: number;
     qualifiedFtdCount: number;
   };
-  subPlanSnapshot: { type: string; revshareRate: number; cpaPerFtdCents: number };
+  subPlanSnapshot: { type: string; revshareRate: number; cpaSharePercent: number };
   revshareAmountCents: number;
   cpaAmountCents: number;
   payableCents: number;
@@ -370,10 +370,10 @@ function MarkPaidButton({ payoutId, onPaid }: { payoutId: string; onPaid: () => 
   );
 }
 
-function planLabel(plan: { type: string; revshareRate: number; cpaPerFtdCents: number }) {
-  if (plan.type === 'revshare') return `${plan.revshareRate}% revshare`;
-  if (plan.type === 'cpa')      return `€${fmt(plan.cpaPerFtdCents)} / FTD`;
-  return `${plan.revshareRate}% + €${fmt(plan.cpaPerFtdCents)} / FTD`;
+function planLabel(plan: { type: string; revshareRate: number; cpaSharePercent: number }) {
+  if (plan.type === 'revshare') return `${plan.revshareRate}% of revshare`;
+  if (plan.type === 'cpa')      return `${plan.cpaSharePercent}% of CPA`;
+  return `${plan.revshareRate}% revshare + ${plan.cpaSharePercent}% CPA`;
 }
 
 function monthAbbr(m: number) {

@@ -39,16 +39,23 @@ const affiliateProfileSchema = new mongoose.Schema(
     // How the parent compensates THIS profile. Set by the parent on their
     // direct child; the operator never touches it. Each parent → child edge
     // has its own subPlan — independent at every level.
+    //
+    // SHARE-OF-PARENT-COMMISSION model: both rates are a percentage of what
+    // the PARENT earns on this sub's subtree (not of raw NGR). The operator
+    // pays the chain a commission on the subtree; each edge keeps the bulk
+    // and passes its share % down. Since a share can't exceed 100%, a parent
+    // can never be paid less than it owes a sub — no negative-balance bug.
+    // See engine/subAffiliatePayout.js.
     subPlan: {
       type: {
         type: String,
         enum: ["revshare", "cpa", "hybrid"],
         default: "revshare",
       },
-      // % of NGR on this profile's full subtree (sub + all descendants).
-      revshareRate:   { type: Number, default: 0, min: 0, max: 100 },
-      // Flat per-qualified-FTD payout (cents) on this profile's subtree.
-      cpaPerFtdCents: { type: Number, default: 0, min: 0 },
+      // % of the parent's REVSHARE commission on this sub's subtree.
+      revshareRate:    { type: Number, default: 0, min: 0, max: 100 },
+      // % of the parent's CPA commission on this sub's subtree.
+      cpaSharePercent: { type: Number, default: 0, min: 0, max: 100 },
       _id: false,
     },
     // DEPRECATED: legacy operator-set override flow, no longer written by

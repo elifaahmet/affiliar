@@ -54,13 +54,20 @@ const subAffiliatePayoutSchema = new mongoose.Schema(
       playerCount:        { type: Number, default: 0 },
     },
 
-    // The subPlan that drove this row, snapshotted at calc time.
+    // The subPlan that drove this row, snapshotted at calc time. Both rates
+    // are a % of the parent's commission on the sub's subtree.
     subPlanSnapshot: {
       type:            { type: String, enum: ["revshare", "cpa", "hybrid"] },
       revshareRate:    { type: Number, default: 0 },
-      cpaPerFtdCents:  { type: Number, default: 0 },
+      cpaSharePercent: { type: Number, default: 0 },
       _id: false,
     },
+
+    // What the parent held for this subtree — the basis each share % above
+    // was applied to. Stored so the affiliate can see "X% of the parent's
+    // $Y commission" rather than an opaque figure.
+    basisRevshareCents: { type: Number, default: 0 },
+    basisCpaCents:      { type: Number, default: 0 },
 
     // Components
     revshareAmountCents: { type: Number, default: 0 },
