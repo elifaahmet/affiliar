@@ -20,6 +20,13 @@ interface PayResponse {
   address: string;
 }
 
+interface DiscountResult {
+  valid: boolean;
+  code?: string;
+  amountUsd?: number;
+  error?: string;
+}
+
 /* ── Plan catalogue (mirrors affiliate-be/utils/planLimits.js) ──────────
    Feature copy is marketing content and intentionally lives here so the
    pricing page reads well without an extra endpoint. The keys/prices must
@@ -113,21 +120,62 @@ export default function Billing() {
     queryKey: ['billing-status'],
   });
 
-  const payMutation = useBaseMutation<PayResponse, { plan: string }>({
+  const payMutation = useBaseMutation<
+    PayResponse,
+    { plan: string; discountCode?: string }
+  >({
     endpoint: BILLING_API_URLS.PAY(),
     method: 'post',
     invalidateKeys: ['billing-status', 'billing-transactions'],
   });
 
+  const discountMutation = useBaseMutation<DiscountResult, { code: string }>({
+    endpoint: BILLING_API_URLS.DISCOUNT_VALIDATE(),
+    method: 'post',
+  });
+
   const [payData, setPayData] = useState<PayResponse | null>(null);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const [codeInput, setCodeInput] = useState('');
+  const [discount, setDiscount] = useState<{ code: string; amountUsd: number } | null>(null);
+  const [discountError, setDiscountError] = useState<string | null>(null);
 
   const currentPlan = billing?.plan?.toLowerCase() ?? null;
+
+  const applyCode = () => {
+    const code = codeInput.trim();
+    if (!code) return;
+    setDiscountError(null);
+    discountMutation.mutate(
+      { code },
+      {
+        onSuccess: (r) => {
+          if (r.valid && r.amountUsd != null) {
+            setDiscount({ code: r.code ?? code.toUpperCase(), amountUsd: r.amountUsd });
+            setDiscountError(null);
+          } else {
+            setDiscount(null);
+            setDiscountError(r.error ?? 'Invalid discount code');
+          }
+        },
+        onError: () => {
+          setDiscount(null);
+          setDiscountError('Could not validate the code');
+        },
+      },
+    );
+  };
+
+  const clearCode = () => {
+    setDiscount(null);
+    setCodeInput('');
+    setDiscountError(null);
+  };
 
   const subscribe = (planKey: string) => {
     setPendingKey(planKey);
     payMutation.mutate(
-      { plan: planKey },
+      { plan: planKey, discountCode: discount?.code },
       {
         onSuccess: (data) => setPayData(data),
         onSettled: () => setPendingKey(null),
@@ -173,11 +221,61 @@ export default function Billing() {
         </div>
       )}
 
+      {/* Discount code */}
+      <div className='rounded-xl border border-violet-100 bg-white px-5 py-4'>
+        {discount ? (
+          <div className='flex flex-wrap items-center gap-3'>
+            <span className='inline-flex items-center gap-1.5 rounded-lg bg-violet-100 px-3 py-1 text-sm font-semibold text-violet-700'>
+              {discount.code}
+            </span>
+            <span className='text-sm text-gray-700'>
+              −${discount.amountUsd.toLocaleString('en-US')} applied to every plan below.
+            </span>
+            <button
+              type='button'
+              onClick={clearCode}
+              className='ml-auto text-xs font-medium text-gray-500 hover:text-gray-800'
+            >
+              Remove
+            </button>
+          </div>
+        ) : (
+          <div className='flex flex-wrap items-center gap-3'>
+            <label className='text-sm font-medium text-gray-700'>
+              Have a discount code?
+            </label>
+            <input
+              type='text'
+              value={codeInput}
+              onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
+              onKeyDown={(e) => { if (e.key === 'Enter') applyCode(); }}
+              placeholder='e.g. WELCOME50'
+              className='w-44 rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-mono uppercase focus:outline-none focus:border-primary'
+            />
+            <button
+              type='button'
+              onClick={applyCode}
+              disabled={!codeInput.trim() || discountMutation.isPending}
+              className='rounded-lg border border-primary px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/5 disabled:opacity-50'
+            >
+              {discountMutation.isPending ? 'Checking…' : 'Apply'}
+            </button>
+            {discountError && (
+              <span className='text-xs text-red-600'>{discountError}</span>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Plan cards */}
       <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5'>
         {PLAN_CARDS.map((plan) => {
           const isCurrent = plan.key.toLowerCase() === currentPlan;
           const isPending = pendingKey === plan.key && payMutation.isPending;
+          const netPrice = discount
+            ? Math.max(0, plan.price - discount.amountUsd)
+            : plan.price;
+          const discounted = discount != null && netPrice !== plan.price;
           return (
             <div
               key={plan.key}
@@ -197,9 +295,19 @@ export default function Billing() {
 
               <p className='text-sm font-semibold text-gray-800'>{plan.name}</p>
               <p className='mt-1 text-3xl font-bold text-gray-900'>
-                ${plan.price.toLocaleString('en-US')}
+                ${netPrice.toLocaleString('en-US')}
                 <span className='text-sm font-normal text-gray-500'>/mo</span>
               </p>
+              {discounted && (
+                <p className='text-xs text-gray-500'>
+                  <span className='line-through'>
+                    ${plan.price.toLocaleString('en-US')}
+                  </span>{' '}
+                  <span className='text-violet-700 font-medium'>
+                    −${discount!.amountUsd.toLocaleString('en-US')}
+                  </span>
+                </p>
+              )}
               <p className='mt-1 text-xs font-medium text-violet-700'>
                 {plan.tagline}
               </p>

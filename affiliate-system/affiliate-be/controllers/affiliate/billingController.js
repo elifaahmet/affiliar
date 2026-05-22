@@ -1,6 +1,7 @@
 const axios = require("axios");
 const Operator = require("../../models/Operator");
 const BillingTransaction = require("../../models/BillingTransaction");
+const DiscountCode = require("../../models/DiscountCode");
 const { PLAN_PRICES_USD } = require("../../utils/planLimits");
 
 // Direct Sans Getirsin provider API — separate from player aggregator
@@ -66,7 +67,23 @@ const billingController = {
         return res.status(400).json({ error: "User is not linked to an operator" });
       }
 
-      const amount = PLAN_PRICES_USD[plan];
+      const planPrice = PLAN_PRICES_USD[plan];
+
+      // Optional fixed-amount discount code. Clamped to the plan price so
+      // the charged amount never goes negative. redemptionCount is bumped
+      // later, on payment confirmation (handleCallback).
+      let discountUsd = 0;
+      let discountCode = "";
+      if (req.body.discountCode) {
+        const resolved = await DiscountCode.resolve(req.body.discountCode);
+        if (!resolved.ok) {
+          return res.status(400).json({ error: resolved.error });
+        }
+        discountCode = resolved.code.code;
+        discountUsd = Math.min(resolved.code.amountUsd, planPrice);
+      }
+      const amount = Math.max(0, planPrice - discountUsd);
+
       const referenceId = `affiliar_${user.operatorId}_${Date.now()}`;
 
       // Call provider directly — create payment session
@@ -91,6 +108,8 @@ const billingController = {
         operatorUser: user._id,
         plan,
         amountUsd: amount,
+        discountCode,
+        discountUsd,
         providerTxId: providerData.transactionId || providerData.id || "",
         referenceId,
         paymentUrl: providerData.paymentUrl || "",
@@ -140,6 +159,15 @@ const billingController = {
         transaction.paidAt = new Date();
         await transaction.save();
 
+        // Burn one redemption now that the payment is confirmed — abandoned
+        // checkouts never reach here, so they don't consume the code.
+        if (transaction.discountCode) {
+          await DiscountCode.updateOne(
+            { code: transaction.discountCode },
+            { $inc: { redemptionCount: 1 } },
+          );
+        }
+
         const now = new Date();
         await Operator.findByIdAndUpdate(transaction.operatorId, {
           plan: transaction.plan,
@@ -153,6 +181,25 @@ const billingController = {
       }
 
       return res.json({ ok: true });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  // POST /billing/discount/validate — body { code }
+  // Read-only preview of a discount code so the billing page can show the
+  // adjusted price before the operator commits to a payment.
+  validateDiscount: async (req, res) => {
+    try {
+      const resolved = await DiscountCode.resolve(req.body.code);
+      if (!resolved.ok) {
+        return res.status(200).json({ valid: false, error: resolved.error });
+      }
+      return res.json({
+        valid: true,
+        code: resolved.code.code,
+        amountUsd: resolved.code.amountUsd,
+      });
     } catch (err) {
       return res.status(500).json({ error: err.message });
     }

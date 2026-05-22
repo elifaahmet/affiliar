@@ -16,9 +16,21 @@ const billingTransactionSchema = new mongoose.Schema({
     enum: ["tier1", "tier2", "plus", "plusL2", "pro"],
     required: true,
   },
+  // Final amount charged to the provider — plan price minus any discount.
   amountUsd: {
     type: Number,
     required: true,
+  },
+  // Discount code applied at checkout (uppercased), "" if none.
+  discountCode: {
+    type: String,
+    default: "",
+  },
+  // USD knocked off the plan price by `discountCode`.
+  discountUsd: {
+    type: Number,
+    default: 0,
+    min: 0,
   },
   providerTxId: {
     type: String,
