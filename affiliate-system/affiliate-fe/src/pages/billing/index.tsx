@@ -141,7 +141,7 @@ export default function Billing() {
       <div>
         <h1 className='text-xl font-semibold text-gray-800'>Plans &amp; Billing</h1>
         <p className='text-sm text-gray-600 mt-1'>
-          Pick a plan and complete payment to activate it. Payment is settled
+          Choose a plan and complete payment to activate it. Payment is settled
           in USDT through our provider.
         </p>
       </div>
@@ -166,7 +166,7 @@ export default function Billing() {
             </span>
           )}
           {billing.billingStatus === 'trial' && billing.trialEndsAt && (
-            <span className='text-sm text-emerald-700'>
+            <span className='text-sm text-violet-700'>
               Trial ends {new Date(billing.trialEndsAt).toLocaleDateString('en-US')}
             </span>
           )}
@@ -183,14 +183,14 @@ export default function Billing() {
               key={plan.key}
               className={`relative flex flex-col rounded-2xl border-2 bg-white p-5 transition-colors ${
                 isCurrent
-                  ? 'border-emerald-500'
+                  ? 'border-primary'
                   : plan.highlight
-                    ? 'border-emerald-300'
+                    ? 'border-primary/40'
                     : 'border-gray-100'
               }`}
             >
               {plan.highlight && !isCurrent && (
-                <span className='absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-emerald-500 px-3 py-0.5 text-[11px] font-semibold text-white'>
+                <span className='absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-[11px] font-semibold text-white'>
                   Most popular
                 </span>
               )}
@@ -200,7 +200,7 @@ export default function Billing() {
                 ${plan.price.toLocaleString('en-US')}
                 <span className='text-sm font-normal text-gray-500'>/mo</span>
               </p>
-              <p className='mt-1 text-xs font-medium text-emerald-700'>
+              <p className='mt-1 text-xs font-medium text-violet-700'>
                 {plan.tagline}
               </p>
               <p className='mt-2 text-xs text-gray-600'>{plan.note}</p>
@@ -208,7 +208,7 @@ export default function Billing() {
               <ul className='mt-4 space-y-1.5 flex-1'>
                 {plan.features.map((f) => (
                   <li key={f} className='flex gap-2 text-xs text-gray-700'>
-                    <span className='text-emerald-500'>✓</span>
+                    <span className='text-violet-500'>✓</span>
                     <span>{f}</span>
                   </li>
                 ))}
@@ -221,7 +221,7 @@ export default function Billing() {
                 className={`mt-5 w-full rounded-lg px-3 py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${
                   isCurrent
                     ? 'bg-gray-100 text-gray-600 cursor-default'
-                    : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                    : 'bg-primary text-white hover:bg-primary-dark'
                 }`}
               >
                 {isCurrent
@@ -332,7 +332,7 @@ function PaymentModal({
             href={data.paymentUrl}
             target='_blank'
             rel='noopener noreferrer'
-            className='block w-full rounded-lg bg-emerald-600 px-3 py-2 text-center text-sm font-semibold text-white hover:bg-emerald-700'
+            className='block w-full rounded-lg bg-primary px-3 py-2 text-center text-sm font-semibold text-white hover:bg-primary-dark'
           >
             Open payment page →
           </a>

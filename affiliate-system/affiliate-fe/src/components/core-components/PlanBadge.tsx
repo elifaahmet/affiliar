@@ -5,7 +5,7 @@ interface PlanBadgeProps {
 // Keyed to the five subscription tiers (see affiliate-be/utils/planLimits.js).
 const BADGE_STYLES: Record<string, string> = {
   tier1:  'bg-gray-100 text-gray-600',
-  tier2:  'bg-emerald-100 text-emerald-700',
+  tier2:  'bg-indigo-100 text-indigo-700',
   plus:   'bg-violet-100 text-violet-700',
   plusl2: 'bg-fuchsia-100 text-fuchsia-700',
   pro:    'bg-amber-100 text-amber-700',
