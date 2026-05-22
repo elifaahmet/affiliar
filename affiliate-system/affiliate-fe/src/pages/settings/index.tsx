@@ -49,9 +49,11 @@ interface PayResponse {
 }
 
 const PLANS = [
-  { key: 'starter', label: 'Starter', price: 999 },
-  { key: 'growth', label: 'Growth', price: 1999 },
-  { key: 'scale', label: 'Scale', price: 2999 },
+  { key: 'tier1',  label: '1-Tier',            price: 47 },
+  { key: 'tier2',  label: '1-Tier & 2-Tier',   price: 97 },
+  { key: 'plus',   label: 'Affiliate Plus',    price: 497 },
+  { key: 'plusL2', label: 'Affiliate Plus L2', price: 997 },
+  { key: 'pro',    label: 'Affiliate Pro',     price: 2000 },
 ] as const;
 
 const STATUS_BADGE: Record<string, string> = {
@@ -350,9 +352,9 @@ export default function Settings() {
         {/* Plan Selection */}
         <div className='bg-white rounded-xl p-6 shadow-sm border border-gray-100 space-y-4'>
           <h3 className='text-sm font-semibold text-gray-800'>Plans</h3>
-          <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
+          <div className='grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4'>
             {PLANS.map((p) => {
-              const isCurrent = billingData?.plan?.toLowerCase() === p.key;
+              const isCurrent = billingData?.plan?.toLowerCase() === p.key.toLowerCase();
               return (
                 <div
                   key={p.key}

@@ -57,9 +57,9 @@ const billingController = {
       const { plan } = req.body;
 
       if (!plan || !PLAN_PRICES_USD[plan]) {
-        return res
-          .status(400)
-          .json({ error: "Invalid plan. Must be starter, growth, or scale" });
+        return res.status(400).json({
+          error: `Invalid plan. Must be one of: ${Object.keys(PLAN_PRICES_USD).join(", ")}`,
+        });
       }
 
       if (!user.operatorId) {

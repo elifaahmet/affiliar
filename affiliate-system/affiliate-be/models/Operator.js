@@ -23,8 +23,8 @@ const operatorSchema = new mongoose.Schema(
     },
     plan: {
       type: String,
-      enum: ["starter", "growth", "scale"],
-      default: "starter",
+      enum: ["tier1", "tier2", "plus", "plusL2", "pro"],
+      default: "tier1",
     },
     billingStatus: {
       type: String,

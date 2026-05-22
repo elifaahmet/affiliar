@@ -13,7 +13,7 @@ const billingTransactionSchema = new mongoose.Schema({
   },
   plan: {
     type: String,
-    enum: ["starter", "growth", "scale"],
+    enum: ["tier1", "tier2", "plus", "plusL2", "pro"],
     required: true,
   },
   amountUsd: {

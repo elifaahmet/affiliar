@@ -1,6 +1,6 @@
 const Operator = require("../models/Operator");
 const User = require("../models/User");
-const { getPlan } = require("../utils/planLimits");
+const { getPlan, firstPlanWith, PLAN_ORDER } = require("../utils/planLimits");
 
 async function resolveOperatorPlan(req) {
   const user = req.affiliateUser;
@@ -11,7 +11,11 @@ async function resolveOperatorPlan(req) {
   if (!operator || operator.isDeleted) {
     return null;
   }
-  return { operator, plan: getPlan(operator.plan), planKey: operator.plan || "starter" };
+  return {
+    operator,
+    plan: getPlan(operator.plan),
+    planKey: operator.plan || PLAN_ORDER[0],
+  };
 }
 
 function planError(message, currentPlan, requiredPlan) {
@@ -52,7 +56,7 @@ const checkAffiliateLimit = async (req, res, next) => {
     });
 
     if (count >= plan.maxAffiliates) {
-      const required = planKey === "starter" ? "growth" : "scale";
+      const required = firstPlanWith((p) => p.maxAffiliates > count);
       return res.status(403).json(
         planError(
           `Affiliate limit reached (${plan.maxAffiliates}). Upgrade to add more.`,
@@ -77,7 +81,9 @@ const checkCommissionType = async (req, res, next) => {
     const requestedType = req.body.type;
 
     if (requestedType && !plan.commissionTypes.includes(requestedType)) {
-      const required = planKey === "starter" ? "growth" : "scale";
+      const required = firstPlanWith((p) =>
+        p.commissionTypes.includes(requestedType),
+      );
       return res.status(403).json(
         planError(
           `Commission type "${requestedType}" is not available on the ${plan.name} plan.`,
@@ -103,9 +109,9 @@ const checkSubAffiliates = async (req, res, next) => {
     if (!plan.subAffiliates) {
       return res.status(403).json(
         planError(
-          "Sub-affiliates are not available on the Starter plan.",
+          `Sub-affiliates are not available on the ${plan.name} plan.`,
           planKey,
-          "growth",
+          firstPlanWith((p) => p.subAffiliates),
         ),
       );
     }
@@ -126,9 +132,9 @@ const checkCampaignTracking = async (req, res, next) => {
     if (!plan.campaignTracking) {
       return res.status(403).json(
         planError(
-          "Campaign tracking is not available on the Starter plan.",
+          `Campaign tracking is not available on the ${plan.name} plan.`,
           planKey,
-          "growth",
+          firstPlanWith((p) => p.campaignTracking),
         ),
       );
     }

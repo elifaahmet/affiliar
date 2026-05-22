@@ -7,6 +7,7 @@ import {
   BuildingStorefrontIcon,
   ChartBarSquareIcon,
   Cog6ToothIcon,
+  CreditCardIcon,
   HeartIcon,
   Squares2X2Icon,
   UserGroupIcon,
@@ -142,6 +143,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       href: '/refer-a-friend',
       Icon: HeartIcon,
       current: pathname.startsWith('/refer-a-friend'),
+    },
+    {
+      key: 'billing',
+      name: t('menuItems.billing') || 'Plans & Billing',
+      href: '/billing',
+      Icon: CreditCardIcon,
+      current: pathname.startsWith('/billing'),
     },
     {
       key: 'settings',
