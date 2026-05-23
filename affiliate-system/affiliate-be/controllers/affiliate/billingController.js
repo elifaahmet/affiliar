@@ -182,10 +182,35 @@ const billingController = {
         });
       }
 
+      // Sans's response shape isn't strictly documented — different account
+      // setups have surfaced { data: [...] }, { data: { wallets: [...] } },
+      // { data: { data: [...] } } and a bare top-level array. Probe the
+      // common spots; if everything's empty/unrecognised, log the raw body
+      // so we can extend the list without guessing.
+      const d = listResp.data;
+      const wallets =
+        (Array.isArray(d?.data) && d.data) ||
+        (Array.isArray(d?.data?.wallets) && d.data.wallets) ||
+        (Array.isArray(d?.data?.data) && d.data.data) ||
+        (Array.isArray(d?.wallets) && d.wallets) ||
+        (Array.isArray(d) && d) ||
+        [];
+
+      if (wallets.length === 0) {
+        logger.warn("billing.sans.list_wallets.empty", {
+          operatorId: String(user.operatorId),
+          amount,
+          status: listResp.status,
+          // First 800 chars of whatever the provider sent so we can extend
+          // the parser if the shape is one we haven't seen.
+          body_preview: JSON.stringify(d ?? null).slice(0, 800),
+        });
+      }
+
       return res.json({
         amount, planPrice, discountUsd,
         discountCode: resolvedCode,
-        wallets: listResp.data?.data || listResp.data || [],
+        wallets,
       });
     } catch (err) {
       return res.status(err.status || 500).json({ error: err.message });
