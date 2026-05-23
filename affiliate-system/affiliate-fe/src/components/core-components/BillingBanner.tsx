@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { BILLING_API_URLS } from 'config/apiUrls';
 
@@ -24,6 +24,8 @@ export default function BillingBanner() {
     endpoint: BILLING_API_URLS.STATUS(),
     queryKey: ['billing-status'],
   });
+  const navigate = useNavigate();
+  const location = useLocation();
 
   if (!data) return null;
 
@@ -32,6 +34,23 @@ export default function BillingBanner() {
     next != null && next.getTime() < Date.now() && data.billingStatus === 'active';
   const pastDue = data.billingStatus === 'past_due' || overdueByDate;
   if (!pastDue) return null;
+
+  // When already on /billing, navigating again is a no-op (same route) so
+  // the click looked dead. Scroll the plan cards into view instead.
+  const onPayNow = () => {
+    const scrollToPlans = () => {
+      document
+        .getElementById('billing-plans')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    if (location.pathname === '/billing') {
+      scrollToPlans();
+    } else {
+      navigate('/billing');
+      // Give the page a moment to mount before scrolling.
+      setTimeout(scrollToPlans, 80);
+    }
+  };
 
   return (
     <div className='bg-red-50 border-b border-red-200 px-4 py-2 flex items-center gap-3'>
@@ -50,12 +69,13 @@ export default function BillingBanner() {
         )}{' '}
         Pay now to avoid losing access.
       </span>
-      <Link
-        to='/billing'
+      <button
+        type='button'
+        onClick={onPayNow}
         className='ml-auto inline-flex items-center rounded-md bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700'
       >
         Pay now →
-      </Link>
+      </button>
     </div>
   );
 }

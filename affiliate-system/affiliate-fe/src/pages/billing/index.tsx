@@ -372,7 +372,7 @@ export default function Billing() {
       </div>
 
       {/* Plan cards */}
-      <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5'>
+      <div id='billing-plans' className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5 scroll-mt-24'>
         {PLAN_CARDS.map((plan) => {
           const isCurrent = plan.key.toLowerCase() === currentPlan;
           // Card button reflects step 1 (fetching wallets). Step 2's spinner
