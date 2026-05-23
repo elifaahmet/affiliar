@@ -277,6 +277,32 @@ async function updateAffiliatePlayerFlag(event, data) {
   }
 }
 
+// Capture / refresh the per-player anti-abuse fingerprints whenever an
+// event carries them. ipHash/deviceHash/walletHash are operator-hashed
+// on their side (we never see raw values); we just store the latest and
+// the refer-a-friend track-signup flow uses them for collision checks.
+// Only $sets the fields the event actually carried — a missing field
+// doesn't clobber a previously-recorded one.
+async function updateAffiliatePlayerFingerprints(event, data) {
+  const set = {};
+  if (typeof data?.ipHash     === "string" && data.ipHash    ) set.ipHash     = data.ipHash;
+  if (typeof data?.deviceHash === "string" && data.deviceHash) set.deviceHash = data.deviceHash;
+  if (typeof data?.walletHash === "string" && data.walletHash) set.walletHash = data.walletHash;
+  if (Object.keys(set).length === 0) return;
+  try {
+    await AffiliatePlayer.updateOne(
+      { operatorId: event.tenantId, playerId: event.playerId },
+      { $set: set },
+    );
+  } catch (err) {
+    logger.error("rawEvent.fingerprintsUpdateFailed", {
+      eventId: event.eventId,
+      playerId: event.playerId,
+      error: err.message,
+    });
+  }
+}
+
 async function ingestRawEvent(event, data) {
   const affiliateId = await resolveAffiliateId(data.affiliateCode);
   const work = [
@@ -288,6 +314,13 @@ async function ingestRawEvent(event, data) {
   }
   if (event.eventType === "player.flagged") {
     work.push(updateAffiliatePlayerFlag(event, data));
+  }
+  // Two event types may carry fingerprint hashes — register + deposit.
+  if (
+    event.eventType === "player.registered" ||
+    event.eventType === "wallet.deposit.confirmed"
+  ) {
+    work.push(updateAffiliatePlayerFingerprints(event, data));
   }
   await Promise.all(work);
 }

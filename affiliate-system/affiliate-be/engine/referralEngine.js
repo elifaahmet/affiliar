@@ -93,6 +93,27 @@ async function trackSignup({ brandId, referrerPlayerId, refereePlayerId, refCode
     );
   }
 
+  // Anti-abuse: when the brand opts into blockSameSignals, refuse the
+  // referral if the referee shares any of ipHash/deviceHash/walletHash
+  // with the referrer (or, more broadly, with any other operator-scoped
+  // AffiliatePlayer). Hashes are captured upstream by ingestRawEvent on
+  // player.registered + wallet.deposit.confirmed; missing hashes simply
+  // can't trip the check.
+  if (config.qualification && config.qualification.blockSameSignals) {
+    const collision = await detectSignalCollision({
+      operatorId,
+      referrerPlayerId,
+      refereePlayerId,
+    });
+    if (collision) {
+      throw new ReferralEngineError(
+        "abuse_same_signals",
+        `referral blocked: ${collision} matches another account on this operator`,
+        409,
+      );
+    }
+  }
+
   const referral = await PlayerReferral.create({
     brandId: config.brandId,
     operatorId,
@@ -760,6 +781,47 @@ async function fetchPlayerMonthlyBase({ operatorId, refereePlayerId, year, month
  * activity, returns 0. The qualification function will then leave the
  * referral in `pending` due to the wager gate (assuming one is set).
  */
+/**
+ * Refer-a-friend anti-abuse check. Returns null when the referee's
+ * fingerprints don't collide with anyone else on the operator, or a
+ * short reason string ("ipHash" / "deviceHash" / "walletHash") naming
+ * the first matching field. The check is scoped to the operator's own
+ * AffiliatePlayer rows; no cross-operator data leak.
+ */
+async function detectSignalCollision({ operatorId, referrerPlayerId, refereePlayerId }) {
+  const referee = await AffiliatePlayer.findOne({
+    operatorId,
+    playerId: refereePlayerId,
+  })
+    .select({ ipHash: 1, deviceHash: 1, walletHash: 1 })
+    .lean();
+  if (!referee) return null; // no fingerprints captured yet — can't trip
+
+  const fields = ["ipHash", "deviceHash", "walletHash"];
+  for (const f of fields) {
+    const val = referee[f];
+    if (!val) continue;
+    const conflict = await AffiliatePlayer.findOne({
+      operatorId,
+      playerId: { $ne: refereePlayerId },
+      [f]: val,
+    })
+      .select({ _id: 1, playerId: 1 })
+      .lean();
+    if (conflict) return f;
+  }
+
+  // Always-on belt-and-suspenders: even when the referee has no captured
+  // fingerprints, the referrer might share one with someone else who has
+  // the same hash as the referee at deposit time. The narrower check
+  // above already covers the common case; if we wanted to widen we'd
+  // also scan the referrer's hashes here. Skip for V1 — the referee-side
+  // check is the meaningful one (you're attributing a signup to a new
+  // account that turns out to share signals with an old account).
+  void referrerPlayerId;
+  return null;
+}
+
 /**
  * Quick check for whether the Crew "active player" snapshot is needed for
  * a given qualification config. Avoids a ClickHouse round-trip on legacy

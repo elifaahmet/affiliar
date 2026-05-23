@@ -469,6 +469,118 @@ exports.listPlayerRewards = async (req, res) => {
   });
 };
 
+// GET /api/v1/refer/player/:playerId/crew?brandId=<optional>
+//
+// Crew dashboard payload the operator's player frontend renders for the
+// invite page: current level, progress to next, lifetime/pending/available
+// earnings. Operator-auth (same as the other /player/:id endpoints) — the
+// casino backend proxies this to its own players.
+//
+// `currentLevel` and `nextLevel` are only meaningful when the brand's
+// reward.type === "crew_tiered". For other reward shapes the level fields
+// come back null but the earnings summary still works.
+exports.getPlayerCrew = async (req, res) => {
+  const operatorId = operatorOnly(req, res);
+  if (!operatorId) return;
+
+  const { playerId } = req.params;
+  if (!playerId) return res.status(400).json({ error: "missing_player_id" });
+
+  const brandId = req.query && req.query.brandId;
+  const cfgFilter = { operatorId };
+  if (brandId) cfgFilter.brandId = brandId;
+
+  // First enabled config for this operator if no brandId is given — the
+  // common single-brand case.
+  const config = await ReferAFriendConfig.findOne(cfgFilter)
+    .sort({ enabled: -1, updatedAt: -1 })
+    .lean();
+  if (!config) return res.status(404).json({ error: "config_not_found" });
+
+  const isCrew = config.reward && config.reward.type === "crew_tiered";
+
+  // Active crew count = referrer's rewarded referrals on this brand.
+  const referralFilter = {
+    operatorId,
+    referrerPlayerId: playerId,
+    status: "rewarded",
+    brandId: config.brandId,
+  };
+  const activeReferralsCount = await PlayerReferral.countDocuments(referralFilter);
+
+  // Resolve current + next tier (only meaningful for crew_tiered).
+  let currentLevel = null;
+  let nextLevel = null;
+  let currentPercent = 0;
+  if (isCrew && Array.isArray(config.reward.crewLevels)) {
+    const sorted = [...config.reward.crewLevels].sort(
+      (a, b) => a.activeReferrals - b.activeReferrals,
+    );
+    for (const lvl of sorted) {
+      if (activeReferralsCount >= (Number(lvl.activeReferrals) || 0)) {
+        currentLevel = { activeReferrals: lvl.activeReferrals, percent: lvl.percent };
+        currentPercent = Number(lvl.percent) || 0;
+      } else if (!nextLevel) {
+        nextLevel = { activeReferrals: lvl.activeReferrals, percent: lvl.percent };
+        break;
+      }
+    }
+  }
+
+  // Earnings: aggregate over RewardDelivery for the referrer side. The
+  // referee-side events go to the friend, not the referrer — exclude.
+  // Reversals subtract from lifetime so a clawed-back FTD doesn't pad
+  // a referrer's "lifetime" history.
+  const baseMatch = {
+    operatorId,
+    brandId: config.brandId,
+    "payload.data.referrerPlayerId": playerId,
+  };
+  const RES_EVENTS = ["referral.reward.issued", "referral.reward.recurring.issued"];
+  const REV_EVENTS = ["referral.reward.reversed"];
+
+  const [pendingAgg, deliveredAgg, reversedAgg] = await Promise.all([
+    RewardDelivery.aggregate([
+      { $match: { ...baseMatch, status: "pending",   eventType: { $in: RES_EVENTS } } },
+      { $group: { _id: null, cents: { $sum: "$payload.data.rewardCents" } } },
+    ]),
+    RewardDelivery.aggregate([
+      { $match: { ...baseMatch, status: "delivered", eventType: { $in: RES_EVENTS } } },
+      { $group: { _id: null, cents: { $sum: "$payload.data.rewardCents" } } },
+    ]),
+    RewardDelivery.aggregate([
+      { $match: { ...baseMatch, status: "delivered", eventType: { $in: REV_EVENTS } } },
+      { $group: { _id: null, cents: { $sum: "$payload.data.rewardCents" } } },
+    ]),
+  ]);
+  const pendingCents   = pendingAgg[0]?.cents   || 0;
+  const deliveredCents = deliveredAgg[0]?.cents || 0;
+  const reversedCents  = reversedAgg[0]?.cents  || 0;
+
+  return res.status(200).json({
+    brandId: String(config.brandId),
+    rewardType: config.reward?.type ?? null,
+    activeReferralsCount,
+    currentLevel,                  // { activeReferrals, percent } or null
+    nextLevel,                     // null when at the top tier
+    currentPercent,                // 0 if below the first threshold
+    progressToNext: nextLevel
+      ? {
+          current:   activeReferralsCount,
+          target:    nextLevel.activeReferrals,
+          remaining: Math.max(0, nextLevel.activeReferrals - activeReferralsCount),
+        }
+      : null,
+    metric: config.reward?.crewMetric ?? null,
+    earnings: {
+      pendingCents,                                       // not yet delivered to wallet
+      availableCents: Math.max(0, deliveredCents - reversedCents),  // in-wallet balance
+      lifetimeCents:  Math.max(0, deliveredCents - reversedCents) + pendingCents, // total ever earned (net of reversals)
+      currency: config.reward?.currency ?? "EUR",
+    },
+  });
+};
+
 // POST /api/v1/refer/player/:playerId/rewards/claim
 //
 // Casino backend posts this after it has credited (or debited, for

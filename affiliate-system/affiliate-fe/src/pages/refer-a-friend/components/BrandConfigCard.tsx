@@ -61,6 +61,7 @@ const DEFAULT_CONFIG: Omit<ReferConfig, 'brandId'> = {
     minActiveDeposits: 0,
     minAccountAgeDays: 0,
     requirePositiveNgr: false,
+    blockSameSignals: false,
   },
   caps: {
     perReferrerMonthlyCents: 0,
@@ -479,6 +480,20 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
                     type='checkbox'
                     checked={form.qualification.requirePositiveNgr}
                     onChange={(e) => setQual('requirePositiveNgr', e.target.checked)}
+                    className='h-4 w-4 rounded accent-primary cursor-pointer'
+                  />
+                  Enabled
+                </label>
+              </Field>
+              <Field
+                label='Block same-signal accounts'
+                hint='Reject signup when the referee shares IP, device, or wallet hash with another account. Requires your casino backend to send ipHash/deviceHash/walletHash on player.registered + wallet.deposit.confirmed.'
+              >
+                <label className='flex items-center gap-2 text-sm text-gray-700'>
+                  <input
+                    type='checkbox'
+                    checked={form.qualification.blockSameSignals}
+                    onChange={(e) => setQual('blockSameSignals', e.target.checked)}
                     className='h-4 w-4 rounded accent-primary cursor-pointer'
                   />
                   Enabled

@@ -203,6 +203,13 @@ const referAFriendConfigSchema = new mongoose.Schema(
       // requirePositiveNgr — when true, referee's lifetime NGR must be > 0
       //                      (so unprofitable players don't pad the crew).
       requirePositiveNgr: { type: Boolean, default: false },
+      // blockSameSignals — when true, track-signup rejects the referral if
+      //                    the referee shares any of {ipHash, deviceHash,
+      //                    walletHash} with the referrer or with another
+      //                    operator-scoped AffiliatePlayer. Requires the
+      //                    operator to actually send those fields on
+      //                    player.registered / wallet.deposit.confirmed.
+      blockSameSignals: { type: Boolean, default: false },
     },
 
     /**

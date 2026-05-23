@@ -81,6 +81,15 @@ const affiliatePlayerSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    // Anti-abuse fingerprints — hashed by the operator (we never see raw
+    // IP / device / wallet). Used by the refer-a-friend track-signup
+    // collision check when the brand opts into blockSameSignals.
+    // Updated on player.registered + on every subsequent deposit/login
+    // event that carries the field; null means we never received one.
+    ipHash:     { type: String, default: null, index: true },
+    deviceHash: { type: String, default: null, index: true },
+    walletHash: { type: String, default: null, index: true },
     source: {
       type: String,
       enum: ["realtime", "bulk", "csv"],

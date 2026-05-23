@@ -32,6 +32,7 @@ router.get ("/stats",               integration.getStats);
 // Pull-model reward ledger (replaces the old webhook push)
 router.get ("/player/:playerId/referrals",      integration.listPlayerReferrals);
 router.get ("/player/:playerId/rewards",        integration.listPlayerRewards);
+router.get ("/player/:playerId/crew",           integration.getPlayerCrew);
 router.post("/player/:playerId/rewards/claim",  integration.claimPlayerRewards);
 
 // ── Operator: per-brand config CRUD ──────────────────────────────────────────

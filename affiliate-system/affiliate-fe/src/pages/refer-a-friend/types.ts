@@ -59,6 +59,7 @@ export interface QualificationGates {
   minActiveDeposits: number;     // deposit *count* (not amount). 0 = off.
   minAccountAgeDays: number;     // days between AffiliatePlayer.registeredAt and now. 0 = off.
   requirePositiveNgr: boolean;   // referee's lifetime NGR must be > 0
+  blockSameSignals: boolean;     // reject signup if ipHash/deviceHash/walletHash matches another account
 }
 
 export interface CapsConfig {

@@ -27,6 +27,11 @@ const playerRegisteredData = z.object({
   affiliateCode: z.string().optional(),
   campaign:      z.string().optional(),
   subId:         z.string().optional(),
+  // Optional fingerprints for refer-a-friend anti-abuse. Operator hashes
+  // them on their side (we never see raw values); we store + compare.
+  ipHash:        z.string().optional(),
+  deviceHash:    z.string().optional(),
+  walletHash:    z.string().optional(),
 });
 
 const playerFlaggedData = z.object({
@@ -37,6 +42,12 @@ const depositConfirmedData = z.object({
   amountCents:    z.number().int().min(0),
   paymentMethod:  z.string().optional(),
   isFirstDeposit: z.boolean(),
+  // Optional fingerprints — same purpose as on player.registered; useful
+  // for catching abuse rings that share IP/device/wallet at deposit time
+  // even when the signup looked clean.
+  ipHash:         z.string().optional(),
+  deviceHash:     z.string().optional(),
+  walletHash:     z.string().optional(),
 });
 
 const depositChargebackData = z.object({
