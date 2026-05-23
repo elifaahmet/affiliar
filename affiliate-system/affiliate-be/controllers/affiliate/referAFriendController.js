@@ -17,6 +17,9 @@ const Brand              = require("../../models/Brand");
 const ReferAFriendConfig = require("../../models/ReferAFriendConfig");
 const PlayerReferral     = require("../../models/PlayerReferral");
 const RewardDelivery     = require("../../models/RewardDelivery");
+const {
+  resolveOperatorPlan, planError,
+} = require("../../middlewares/planGuard");
 
 // ── Auth helpers ──────────────────────────────────────────────────────────────
 
@@ -89,6 +92,23 @@ exports.upsertConfig = async (req, res) => {
     qualification,
     caps,
   } = req.body || {};
+
+  // Crew is a custom-deal feature — only operators flagged with
+  // featureOverrides.crewSystem can save reward.type === "crew_tiered".
+  // The planGuard on /refer/* (checkReferAFriend) is the broader gate; this
+  // is the per-reward-shape gate on top.
+  if (reward && reward.type === "crew_tiered") {
+    const resolved = await resolveOperatorPlan(req);
+    if (resolved && !resolved.plan.crewSystem) {
+      return res.status(403).json(
+        planError(
+          `Crew (tiered) refer-a-friend is a custom-plan feature — not available on the ${resolved.plan.name} plan.`,
+          resolved.planKey,
+          resolved.planKey, // upgrade target is the same plan + custom override
+        ),
+      );
+    }
+  }
 
   const update = {
     operatorId,

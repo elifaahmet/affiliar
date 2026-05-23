@@ -5,8 +5,18 @@ import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import { REFER_API_URLS } from 'config/apiUrls';
 
 import StyledSelect from '@components/core-components/StyledSelect';
-import type { Brand, ReferConfig } from '../types';
+import type { Brand, ReferConfig, CrewLevel } from '../types';
 import DeliveriesPanel from './DeliveriesPanel';
+import { useOperatorPlan } from 'hooks/useOperatorPlan';
+
+const DEFAULT_CREW_LEVELS: CrewLevel[] = [
+  { activeReferrals: 3,  percent: 3 },
+  { activeReferrals: 5,  percent: 5 },
+  { activeReferrals: 10, percent: 8 },
+  { activeReferrals: 15, percent: 12 },
+  { activeReferrals: 20, percent: 15 },
+  { activeReferrals: 25, percent: 18 },
+];
 
 interface Props {
   brand: Brand;
@@ -21,6 +31,9 @@ const DEFAULT_CONFIG: Omit<ReferConfig, 'brandId'> = {
     amountCents: 500,
     percent: 10,
     capCents: null,
+    crewLevels: DEFAULT_CREW_LEVELS,
+    crewMetric: 'ngr',
+    crewMonthlyCapCents: null,
     currency: 'EUR',
     rewardKind: 'bonus',
   },
@@ -66,6 +79,11 @@ function buildInitialForm(existingConfig: ReferConfig | null): Omit<ReferConfig,
 
 export default function BrandConfigCard({ brand, existingConfig, onSaved }: Props) {
   const queryClient = useQueryClient();
+  const { limits } = useOperatorPlan();
+  // Crew (tiered) is a custom-plan feature — only show the option when the
+  // operator's featureOverrides unlock it. BE rejects too if a stale FE
+  // sends the type through.
+  const crewEnabled = !!(limits as { crewSystem?: boolean } | null)?.crewSystem;
   const [open, setOpen]   = useState(!!existingConfig?.enabled);
   const [form, setForm]   = useState<Omit<ReferConfig, 'brandId'>>(() => buildInitialForm(existingConfig));
   const [baseline, setBaseline] = useState<Omit<ReferConfig, 'brandId'>>(() => buildInitialForm(existingConfig));
@@ -162,6 +180,9 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
                   options={[
                     { value: 'fixed_bonus', label: 'Fixed bonus' },
                     { value: 'percent_of_first_deposit', label: 'Percent of first deposit' },
+                    ...(crewEnabled
+                      ? [{ value: 'crew_tiered', label: 'Crew (tiered) — custom plan' }]
+                      : []),
                   ]}
                 />
               </Field>
@@ -222,6 +243,16 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
                   />
                 </Field>
               </Row>
+            )}
+            {form.reward.type === 'crew_tiered' && (
+              <CrewTierEditor
+                levels={form.reward.crewLevels ?? DEFAULT_CREW_LEVELS}
+                metric={form.reward.crewMetric ?? 'ngr'}
+                monthlyCapCents={form.reward.crewMonthlyCapCents ?? null}
+                onLevelsChange={(levels) => setReward('crewLevels', levels)}
+                onMetricChange={(metric) => setReward('crewMetric', metric)}
+                onCapChange={(cap) => setReward('crewMonthlyCapCents', cap)}
+              />
             )}
           </Section>
 
@@ -502,6 +533,133 @@ function Field({
       <label className='mb-1 block text-xs font-medium text-gray-700'>{label}</label>
       {children}
       {hint && <p className='text-[11px] text-gray-600 mt-1'>{hint}</p>}
+    </div>
+  );
+}
+
+/* ── Crew tier editor ─────────────────────────────────────────────────────
+   Inline editor for reward.crewLevels[] when reward.type === 'crew_tiered'.
+   Each row = { activeReferrals threshold, percent of NGR }. Operator can
+   add, remove, edit; the strategy module sorts rows defensively so any
+   ordering renders correctly on save.
+   ────────────────────────────────────────────────────────────────────── */
+function CrewTierEditor({
+  levels, metric, monthlyCapCents,
+  onLevelsChange, onMetricChange, onCapChange,
+}: {
+  levels: CrewLevel[];
+  metric: 'ngr' | 'ggr';
+  monthlyCapCents: number | null;
+  onLevelsChange: (levels: CrewLevel[]) => void;
+  onMetricChange: (metric: 'ngr' | 'ggr') => void;
+  onCapChange: (capCents: number | null) => void;
+}) {
+  const updateRow = (idx: number, patch: Partial<CrewLevel>) => {
+    onLevelsChange(levels.map((lvl, i) => (i === idx ? { ...lvl, ...patch } : lvl)));
+  };
+  const addRow = () => {
+    const last = levels[levels.length - 1];
+    onLevelsChange([
+      ...levels,
+      {
+        activeReferrals: (last?.activeReferrals ?? 0) + 5,
+        percent:         Math.min(100, (last?.percent ?? 0) + 3),
+      },
+    ]);
+  };
+  const removeRow = (idx: number) => {
+    onLevelsChange(levels.filter((_, i) => i !== idx));
+  };
+  return (
+    <div className='space-y-4'>
+      <Row>
+        <Field label='Base metric' hint='Percent applies to the referee&apos;s monthly NGR (or GGR).'>
+          <StyledSelect
+            value={metric}
+            onChange={(v) => onMetricChange(v as 'ngr' | 'ggr')}
+            options={[
+              { value: 'ngr', label: 'NGR (bets − wins − bonuses)' },
+              { value: 'ggr', label: 'GGR (bets − wins)' },
+            ]}
+          />
+        </Field>
+        <Field label='Monthly cap (cents) per referral' hint='Optional. Empty = no cap.'>
+          <input
+            type='number'
+            min={0}
+            value={monthlyCapCents ?? ''}
+            onChange={(e) =>
+              onCapChange(e.target.value === '' ? null : Number(e.target.value) || 0)
+            }
+            className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
+          />
+        </Field>
+      </Row>
+
+      <div>
+        <p className='text-xs font-medium text-gray-800 mb-2'>
+          Crew tier table
+        </p>
+        <p className='text-[11px] text-gray-600 mb-3'>
+          Referrer&apos;s earnings rate climbs as their active-crew count crosses each threshold.
+          Below the lowest threshold the referrer earns nothing.
+        </p>
+        <div className='overflow-x-auto'>
+          <table className='w-full text-sm'>
+            <thead>
+              <tr className='text-left text-[11px] uppercase tracking-wider text-gray-600 border-b border-gray-100'>
+                <th className='py-2 pr-3'>Active referrals (≥)</th>
+                <th className='py-2 pr-3'>Percent</th>
+                <th className='py-2 w-10' />
+              </tr>
+            </thead>
+            <tbody>
+              {levels.map((lvl, idx) => (
+                <tr key={idx} className='border-b border-gray-50 last:border-0'>
+                  <td className='py-1.5 pr-3'>
+                    <input
+                      type='number'
+                      min={0}
+                      value={lvl.activeReferrals}
+                      onChange={(e) => updateRow(idx, { activeReferrals: Number(e.target.value) || 0 })}
+                      className='w-28 text-sm rounded-md px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary'
+                    />
+                  </td>
+                  <td className='py-1.5 pr-3'>
+                    <input
+                      type='number'
+                      min={0}
+                      max={100}
+                      step={0.5}
+                      value={lvl.percent}
+                      onChange={(e) => updateRow(idx, { percent: Number(e.target.value) || 0 })}
+                      className='w-24 text-sm rounded-md px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary'
+                    />
+                    <span className='text-xs text-gray-600 ml-1'>%</span>
+                  </td>
+                  <td className='py-1.5 text-right'>
+                    <button
+                      type='button'
+                      onClick={() => removeRow(idx)}
+                      disabled={levels.length <= 1}
+                      className='text-xs text-red-600 hover:underline disabled:opacity-30 disabled:cursor-not-allowed'
+                    >
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <button
+          type='button'
+          onClick={addRow}
+          className='mt-3 text-xs font-medium text-primary hover:text-primary-dark'
+        >
+          + Add tier
+        </button>
+      </div>
     </div>
   );
 }

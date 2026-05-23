@@ -33,6 +33,7 @@
 const PlayerReferral     = require("../models/PlayerReferral");
 const ReferAFriendConfig = require("../models/ReferAFriendConfig");
 const engine             = require("../engine/referralEngine");
+const raReward           = require("../engine/raReward");
 const { logger }         = require("../middlewares/logger");
 
 const REFRESH_MS = parseInt(
@@ -96,6 +97,20 @@ async function runForMonth({ year, month }) {
  *   { skipped: '<reason>' } when nothing to do
  */
 async function processReferral(referral, { year, month }) {
+  // Crew (tiered) reward branch — when the referee's qualifying config
+  // chose reward.type === "crew_tiered", the monthly payout uses the
+  // referrer's current active-crew count, not a static percent. Detect
+  // first; if not Crew, fall through to the legacy recurringReward path.
+  const snapReward = referral.configSnapshot && referral.configSnapshot.reward;
+  let rewardCfg = snapReward;
+  if (!rewardCfg || !rewardCfg.type) {
+    const live = await ReferAFriendConfig.findOne({ brandId: referral.brandId });
+    rewardCfg = live && live.reward;
+  }
+  if (rewardCfg && rewardCfg.type === "crew_tiered") {
+    return processCrewReferral(referral, { year, month, rewardCfg });
+  }
+
   // Resolve the recurring config. Prefer the snapshot taken at
   // qualification time (so plan changes don't retroactively shift
   // earnings). Fall back to live config for referrals that qualified
@@ -165,6 +180,90 @@ async function processReferral(referral, { year, month }) {
   );
 
   // Back-fill deliveryId on the row we just appended.
+  const last = referral.recurringPayments[referral.recurringPayments.length - 1];
+  last.deliveryId = delivery._id;
+  await referral.save();
+
+  return { paid: true };
+}
+
+/**
+ * Crew (tiered) variant of processReferral. The referrer's current active-
+ * crew count drives the percent (via crewLevels), the referee's monthly
+ * NGR is the base, and the strategy module decides the exact cents. Same
+ * idempotency + ledger semantics as the legacy path — payment row is
+ * written first, delivery is enqueued second, then the deliveryId is
+ * back-filled.
+ *
+ * Active count = referrer's `status: 'rewarded'` referrals on the same
+ * operator. Counted at run time (cheap with the index on
+ * { operatorId, referrerPlayerId, status }) so a referrer who climbs a
+ * level mid-month gets the higher rate next run, not retroactively.
+ */
+async function processCrewReferral(referral, { year, month, rewardCfg }) {
+  // Duration (Crew has no built-in duration cap yet — runs as long as
+  // referral is rewarded) and idempotency mirror the legacy path.
+  const already = (referral.recurringPayments || []).some(
+    (p) => p.year === year && p.month === month,
+  );
+  if (already) return { skipped: "already_paid" };
+
+  // Referee's monthly base (NGR or GGR per cfg).
+  const ngrCents = await engine.fetchPlayerMonthlyBase({
+    operatorId: referral.operatorId,
+    refereePlayerId: referral.refereePlayerId,
+    year,
+    month,
+    ngrMetric: rewardCfg.crewMetric || "ngr",
+  });
+  if (ngrCents <= 0) return { skipped: "zero_base" };
+
+  // Referrer's active-crew count = sibling rewarded referrals for the
+  // same operator. Includes the referral we're processing — that's
+  // intentional, it counts itself once it became rewarded.
+  const activeReferralsCount = await PlayerReferral.countDocuments({
+    operatorId: referral.operatorId,
+    referrerPlayerId: referral.referrerPlayerId,
+    status: "rewarded",
+  });
+
+  const rewardCents = raReward.compute(rewardCfg, {
+    activeReferralsCount,
+    ngrCents,
+  });
+  if (rewardCents <= 0) return { skipped: "zero_reward" };
+
+  const rewardCurrency = referral.rewardCurrency || rewardCfg.currency || "EUR";
+
+  referral.recurringPayments = referral.recurringPayments || [];
+  referral.recurringPayments.push({
+    year,
+    month,
+    ngrCents,
+    rewardCents,
+    rewardCurrency,
+    enqueuedAt: new Date(),
+  });
+  await referral.save();
+
+  // The delivery enqueue helper expects the legacy `recurring` shape
+  // (percent / ngrMetric / monthlyCapCents / rewardKind) — synthesize a
+  // surface for it from the Crew config so downstream auditing stays
+  // consistent.
+  const recurringShim = {
+    percent: 0,                              // dynamic — surfaced via activeReferralsCount instead
+    ngrMetric: rewardCfg.crewMetric || "ngr",
+    monthlyCapCents: rewardCfg.crewMonthlyCapCents || null,
+    rewardKind: rewardCfg.rewardKind || "cash",
+    rewardShape: "crew_tiered",
+    activeReferralsCount,
+  };
+  const delivery = await engine.enqueueRecurringDelivery(
+    referral,
+    { year, month, ngrCents, rewardCents, rewardCurrency },
+    recurringShim,
+  );
+
   const last = referral.recurringPayments[referral.recurringPayments.length - 1];
   last.deliveryId = delivery._id;
   await referral.save();

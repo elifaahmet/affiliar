@@ -44,11 +44,22 @@ const referAFriendConfigSchema = new mongoose.Schema(
      *   fixed_bonus                — pay `amountCents` regardless of FTD size
      *   percent_of_first_deposit   — pay `percent`% of the referee's FTD,
      *                                capped at `capCents` if set
+     *   crew_tiered                — ongoing monthly % of the referee's NGR
+     *                                where the % depends on how many active
+     *                                referrals the referrer currently has
+     *                                (resolved against `crewLevels`). Unlike
+     *                                the two shapes above this is a
+     *                                recurring payout, so it doesn't fire a
+     *                                one-shot reward at qualification time —
+     *                                referralRecurringJob handles every
+     *                                month-end after the first qualifies.
+     *                                Plan-gated: requires
+     *                                Operator.featureOverrides.crewSystem.
      */
     reward: {
       type: {
         type: String,
-        enum: ["fixed_bonus", "percent_of_first_deposit"],
+        enum: ["fixed_bonus", "percent_of_first_deposit", "crew_tiered"],
         default: "fixed_bonus",
       },
       // For fixed_bonus: the payout. Ignored for percent_of_first_deposit.
@@ -57,6 +68,37 @@ const referAFriendConfigSchema = new mongoose.Schema(
       percent: { type: Number, default: 0, min: 0, max: 100 },
       // Hard ceiling on percent reward, regardless of FTD size. null = no cap.
       capCents: { type: Number, default: null, min: 0 },
+      // For crew_tiered: tier table the referrer climbs as they bring in
+      // more active referrals. Sorted ascending by activeReferrals; the
+      // strategy finds the highest row whose threshold is met. Default
+      // mirrors the operator spec (3/5/10/15/20/25 → 3/5/8/12/15/18%).
+      crewLevels: {
+        type: [
+          {
+            _id: false,
+            activeReferrals: { type: Number, required: true, min: 0 },
+            percent:         { type: Number, required: true, min: 0, max: 100 },
+          },
+        ],
+        default: () => [
+          { activeReferrals: 3,  percent: 3  },
+          { activeReferrals: 5,  percent: 5  },
+          { activeReferrals: 10, percent: 8  },
+          { activeReferrals: 15, percent: 12 },
+          { activeReferrals: 20, percent: 15 },
+          { activeReferrals: 25, percent: 18 },
+        ],
+      },
+      // Which base the crew percent applies to. `ngr` = bets − wins − bonuses
+      // (same simplified definition as recurringReward.ngrMetric); `ggr`
+      // = bets − wins.
+      crewMetric: {
+        type: String,
+        enum: ["ngr", "ggr"],
+        default: "ngr",
+      },
+      // Per-month payout cap *per referral* under crew_tiered. null = no cap.
+      crewMonthlyCapCents: { type: Number, default: null, min: 0 },
       // Reporting currency. Affiliar normalizes incoming FTDs to this.
       currency: { type: String, default: "EUR" },
       // Hint to the operator's wallet system about how to credit the reward.

@@ -17,11 +17,12 @@
 
 const fixedBonus  = require("./fixedBonus");
 const percentFtd  = require("./percentFtd");
+const crewTiered  = require("./crewTiered");
 
 const STRATEGIES = {
   fixed_bonus:              fixedBonus,
   percent_of_first_deposit: percentFtd,
-  // crew_tiered: require("./crewTiered"),   // wired when the Crew build lands
+  crew_tiered:              crewTiered,
 };
 
 /**

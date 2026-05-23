@@ -9,11 +9,20 @@ export interface BrandsResponse {
   brands?: Brand[];
 }
 
+export interface CrewLevel {
+  activeReferrals: number;
+  percent: number;
+}
+
 export interface RewardConfig {
-  type: 'fixed_bonus' | 'percent_of_first_deposit';
+  type: 'fixed_bonus' | 'percent_of_first_deposit' | 'crew_tiered';
   amountCents: number;
   percent: number;
   capCents: number | null;
+  // crew_tiered: tier table + monthly base + per-month cap
+  crewLevels?: CrewLevel[];
+  crewMetric?: 'ngr' | 'ggr';
+  crewMonthlyCapCents?: number | null;
   currency: string;
   rewardKind: 'bonus' | 'cash' | 'freespins';
 }
