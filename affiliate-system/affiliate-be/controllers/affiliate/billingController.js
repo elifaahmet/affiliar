@@ -7,7 +7,7 @@ const { PLAN_PRICES_USD } = require("../../utils/planLimits");
 // Direct Sans Getirsin provider API — separate from player aggregator
 const PROVIDER_BASE_URL = process.env.BILLING_PROVIDER_URL || "https://api-ke.sansgetirsin.com";
 const PROVIDER_API_KEY  = process.env.BILLING_PROVIDER_API_KEY || "";
-const BILLING_CALLBACK_URL = process.env.BILLING_CALLBACK_URL || "http://localhost:4141/api/billing/callback";
+const BILLING_CALLBACK_URL = process.env.BILLING_CALLBACK_URL || "http://localhost:4100/billing/sans/callback";
 
 const provider = axios.create({
   baseURL: PROVIDER_BASE_URL,
@@ -129,7 +129,9 @@ const billingController = {
     }
   },
 
-  handleCallback: async (req, res) => {
+  // Sans Getirsin webhook handler. Provider-namespaced ("sans/") so future
+  // payment providers (Stripe, etc.) can mount alongside without colliding.
+  handleSansCallback: async (req, res) => {
     try {
       const { transactionId, providerTransactionId, paymentStatus, referenceId, status } = req.body;
 

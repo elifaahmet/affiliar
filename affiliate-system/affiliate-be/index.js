@@ -10,7 +10,6 @@ const authRoutes = require("./routes/authRoutes");
 const affiliateRoutes = require("./routes/affiliate");
 const integrationRoutes = require("./routes/integrationRoutes");
 const authorize = require("./middlewares/auth");
-const billingController = require("./controllers/affiliate/billingController");
 
 const connectDB = require("./config/db");
 const swaggerOptions = require("./config/swaggerOptions");
@@ -63,7 +62,7 @@ const publicAuthPaths = new Set([
   `${prefix}/auth/forgot-password`,
   `${prefix}/auth/reset-password`,
   `${prefix}/auth/dev-token`,
-  `${prefix}/billing/callback`,
+  `${prefix}/billing/sans/callback`,
 ]);
 
 app.use((req, res, next) => {
@@ -85,7 +84,6 @@ app.use(`${prefix}/affiliate-portal`, affiliateRoutes.affiliatePortalRoutes);
 app.use(`${prefix}/billing`, affiliateRoutes.billingRoutes);
 app.use(`${prefix}/fees`, affiliateRoutes.feesRoutes);
 app.use(`${prefix}/refer`, affiliateRoutes.referAFriendRoutes);
-app.post(`${prefix}/billing/callback`, billingController.handleCallback);
 app.use(`${prefix}/integration`, integrationRoutes);
 
 app.get(`${prefix}/health`, (req, res) => {

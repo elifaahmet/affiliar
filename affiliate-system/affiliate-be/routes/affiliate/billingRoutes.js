@@ -11,9 +11,10 @@ router.post("/pay", billingController.initPayment);
 // POST /billing/discount/validate → preview a discount code
 router.post("/discount/validate", billingController.validateDiscount);
 
-// POST /billing/callback → provider webhook (public; whitelisted in index.js
-// publicAuthPaths so it bypasses the operator/affiliate auth gate).
-router.post("/callback", billingController.handleCallback);
+// POST /billing/sans/callback → Sans Getirsin webhook (public; whitelisted in
+// index.js publicAuthPaths so it bypasses the operator/affiliate auth gate).
+// Provider-namespaced so we can add /stripe/callback etc. later.
+router.post("/sans/callback", billingController.handleSansCallback);
 
 // GET /billing/transactions → list transactions
 router.get("/transactions", billingController.getTransactions);
