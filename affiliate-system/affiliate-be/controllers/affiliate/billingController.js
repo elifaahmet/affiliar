@@ -168,12 +168,16 @@ const billingController = {
           );
         }
 
+        // Roll the cycle forward by one calendar month, not 30 days — a
+        // fixed-day shift drifts the anniversary backward over a year.
         const now = new Date();
+        const next = new Date(now);
+        next.setMonth(next.getMonth() + 1);
         await Operator.findByIdAndUpdate(transaction.operatorId, {
           plan: transaction.plan,
           billingStatus: "active",
           billingCycle: now,
-          nextBillingDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+          nextBillingDate: next,
         });
       } else if (normalizedStatus === "failed" || normalizedStatus === "rejected") {
         transaction.status = "failed";

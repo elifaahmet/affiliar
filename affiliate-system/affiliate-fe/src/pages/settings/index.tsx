@@ -336,9 +336,19 @@ export default function Settings() {
             )}
 
             {billingData.billingStatus === 'active' && billingData.nextBillingDate && (
-              <p className='text-sm text-gray-600'>
-                Next billing date: {formatDate(billingData.nextBillingDate)}
-              </p>
+              (() => {
+                const overdue =
+                  new Date(billingData.nextBillingDate).getTime() < Date.now();
+                return overdue ? (
+                  <p className='text-sm font-medium text-red-700 bg-red-50 px-3 py-2 rounded-lg'>
+                    Payment overdue — was due {formatDate(billingData.nextBillingDate)}
+                  </p>
+                ) : (
+                  <p className='text-sm text-gray-600'>
+                    Next billing date: {formatDate(billingData.nextBillingDate)}
+                  </p>
+                );
+              })()
             )}
 
             {billingData.billingStatus === 'past_due' && (

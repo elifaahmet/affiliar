@@ -207,12 +207,23 @@ export default function Billing() {
           <span className='text-sm text-gray-600'>
             Status: <b className='text-gray-800'>{billing.billingStatus}</b>
           </span>
-          {billing.nextBillingDate && (
-            <span className='text-sm text-gray-600'>
-              Next billing:{' '}
-              {new Date(billing.nextBillingDate).toLocaleDateString('en-US')}
-            </span>
-          )}
+          {billing.nextBillingDate &&
+            (() => {
+              const next = new Date(billing.nextBillingDate);
+              const overdue =
+                next.getTime() < Date.now() &&
+                billing.billingStatus === 'active';
+              return overdue ? (
+                <span className='text-sm font-medium text-red-700'>
+                  Payment overdue — was due{' '}
+                  {next.toLocaleDateString('en-US')}
+                </span>
+              ) : (
+                <span className='text-sm text-gray-600'>
+                  Next billing: {next.toLocaleDateString('en-US')}
+                </span>
+              );
+            })()}
           {billing.billingStatus === 'trial' && billing.trialEndsAt && (
             <span className='text-sm text-violet-700'>
               Trial ends {new Date(billing.trialEndsAt).toLocaleDateString('en-US')}
