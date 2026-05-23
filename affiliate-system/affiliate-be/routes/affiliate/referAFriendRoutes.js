@@ -16,6 +16,11 @@ const router  = express.Router();
 
 const integration = require("../../controllers/integration/referAFriendIntegrationController");
 const operatorCtl = require("../../controllers/affiliate/referAFriendController");
+const { checkReferAFriend } = require("../../middlewares/planGuard");
+
+// Refer-a-Friend is a plan-gated feature — the whole router needs it.
+// Mounted at /api/refer in index.js, so the gate runs before any handler.
+router.use(checkReferAFriend);
 
 // ── Integration: operator → affiliar event reports ───────────────────────────
 

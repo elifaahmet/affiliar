@@ -37,7 +37,7 @@ const operatorController = {
         return res.status(404).json({ error: "Operator not found" });
       }
 
-      const planKey = operator.plan || "starter";
+      const planKey = operator.plan || "tier1";
       const plan = getPlan(planKey);
 
       return res.json({ plan: planKey, limits: plan });

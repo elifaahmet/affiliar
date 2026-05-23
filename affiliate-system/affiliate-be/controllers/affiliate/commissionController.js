@@ -10,6 +10,32 @@ const { calculate }             = require("../../engine/commissionEngine");
 const { checkCpaQualification } = require("../../engine/cpaQualification");
 const { resolveCommissionSettings } = require("../../engine/commissionSettings");
 const { computeSubPayout }      = require("../../engine/subAffiliatePayout");
+const {
+  resolveOperatorPlan, planError,
+} = require("../../middlewares/planGuard");
+const { firstPlanWith }         = require("../../utils/planLimits");
+
+/**
+ * Reject a plan body that tries to set a non-null minKycLevel when the
+ * operator's subscription plan doesn't carry the kycGate flag. Sends the
+ * 403 itself if needed; returns true when the request should keep going.
+ */
+async function ensureKycGatePermitted(req, res) {
+  const min = req.body?.cpa?.qualification?.minKycLevel;
+  if (min == null) return true; // null/undefined = "inherit", always allowed
+  const resolved = await resolveOperatorPlan(req);
+  if (!resolved) return true; // resolution failure handled elsewhere
+  const { plan, planKey } = resolved;
+  if (plan.kycGate) return true;
+  res.status(403).json(
+    planError(
+      `The minKycLevel CPA gate is not available on the ${plan.name} plan.`,
+      planKey,
+      firstPlanWith((p) => p.kycGate),
+    ),
+  );
+  return false;
+}
 
 /** Zero row with every metric the engine and roll-up needs. */
 function zeroRow() {
@@ -381,6 +407,11 @@ const planController = {
       const { name, type, revshare, cpa, tiers, isDefault, notes } = req.body;
       if (!name || !type) return res.status(400).json({ error: "name and type are required" });
 
+      // Plan-gated: a minKycLevel on the qualification block is only honored
+      // on plans where kycGate is true. Setting null / leaving it off stays
+      // free for every plan.
+      if (!(await ensureKycGatePermitted(req, res))) return;
+
       // If this will be default, unset any existing default
       if (isDefault) {
         await CommissionPlan.updateMany(
@@ -416,6 +447,8 @@ const planController = {
         operatorId: operator.operatorId,
       });
       if (!plan) return res.status(404).json({ error: "Plan not found" });
+
+      if (!(await ensureKycGatePermitted(req, res))) return;
 
       const { name, type, revshare, cpa, tiers, isDefault, isActive, notes } = req.body;
 

@@ -1,6 +1,32 @@
 const Operator = require("../models/Operator");
 const User = require("../models/User");
+const Brand = require("../models/Brand");
 const { getPlan, firstPlanWith, PLAN_ORDER } = require("../utils/planLimits");
+
+// Generic factory for boolean-flag gates (referAFriend, bulkImport,
+// apiAccess, whiteLabel, …). Centralises the resolve + planError plumbing
+// so each new feature flag only needs one line at the bottom of the file.
+function makeFlagGuard({ flag, label }) {
+  return async (req, res, next) => {
+    try {
+      const result = await resolveOperatorPlan(req);
+      if (!result) return res.status(400).json({ error: "Operator not found" });
+      const { plan, planKey } = result;
+      if (!plan[flag]) {
+        return res.status(403).json(
+          planError(
+            `${label} is not available on the ${plan.name} plan.`,
+            planKey,
+            firstPlanWith((p) => p[flag]),
+          ),
+        );
+      }
+      next();
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  };
+}
 
 async function resolveOperatorPlan(req) {
   const user = req.affiliateUser;
@@ -144,10 +170,49 @@ const checkCampaignTracking = async (req, res, next) => {
   }
 };
 
+// maxBrands gate: count this operator's existing brands (mirrors the
+// User.operatorId convention used by checkAffiliateLimit; Brand.operatorId
+// points at the operator's User _id, not the tenant id).
+const checkMaxBrands = async (req, res, next) => {
+  try {
+    const result = await resolveOperatorPlan(req);
+    if (!result) return res.status(400).json({ error: "Operator not found" });
+    const { plan, planKey } = result;
+    const user = req.affiliateUser;
+    const count = await Brand.countDocuments({
+      operatorId: user._id,
+      enabled: true,
+    });
+    if (count >= plan.maxBrands) {
+      return res.status(403).json(
+        planError(
+          `Brand limit reached (${plan.maxBrands}). Upgrade to add more.`,
+          planKey,
+          firstPlanWith((p) => p.maxBrands > count),
+        ),
+      );
+    }
+    next();
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+const checkReferAFriend = makeFlagGuard({ flag: "referAFriend", label: "Refer-a-Friend" });
+const checkBulkImport   = makeFlagGuard({ flag: "bulkImport",   label: "Bulk CSV import" });
+const checkApiAccess    = makeFlagGuard({ flag: "apiAccess",    label: "API access" });
+
 module.exports = {
   attachPlan,
   checkAffiliateLimit,
   checkCommissionType,
   checkSubAffiliates,
   checkCampaignTracking,
+  checkMaxBrands,
+  checkReferAFriend,
+  checkBulkImport,
+  checkApiAccess,
+  // For controller-level body-conditional checks:
+  resolveOperatorPlan,
+  planError,
 };

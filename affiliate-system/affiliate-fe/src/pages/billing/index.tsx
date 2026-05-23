@@ -93,7 +93,6 @@ const PLAN_CARDS: PlanCard[] = [
       'Sub-affiliates (2-tier) with revenue cascading',
       'All commission types: revshare, CPA, hybrid, tiered',
       'Campaign / sub-id tracking',
-      'Refer-a-Friend program',
     ],
   },
   {
@@ -135,6 +134,7 @@ const PLAN_CARDS: PlanCard[] = [
       'Everything in Affiliate Plus L2',
       'Unlimited affiliates · unlimited brands',
       'White-label / custom branding on the portal',
+      'Refer-a-Friend program',
       'Priority co-managed sourcing',
     ],
   },

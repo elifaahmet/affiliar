@@ -4,6 +4,7 @@ import { useBaseMutation } from 'api/core/useBaseMutation';
 import { COMMISSION_API_URLS, OPERATOR_API_URLS } from 'config/apiUrls';
 import axiosInstance from 'config/axiosInstance';
 import UpgradeBanner from '@components/core-components/UpgradeBanner';
+import { useOperatorPlan } from 'hooks/useOperatorPlan';
 
 interface PlanLimits {
   name: string;
@@ -173,6 +174,11 @@ function PlanModal({
   plan, onClose, onSaved,
 }: { plan?: CommissionPlan; onClose: () => void; onSaved: () => void }) {
   const isEdit = !!plan;
+  const { limits } = useOperatorPlan();
+  // minKycLevel input is only meaningful for plans where kycGate is on; lock
+  // the select otherwise. The BE rejects too (commissionController) so a
+  // stale FE can't sneak a value through.
+  const kycEnabled = limits ? limits.kycGate : true;
   const [form, setForm] = useState(
     plan
       ? {
@@ -487,7 +493,7 @@ function PlanModal({
                     step={1}
                     fromCents
                   />
-                  <div>
+                  <div className={kycEnabled ? '' : 'opacity-60'}>
                     <label className='block text-xs text-gray-600 mb-1'>Min KYC level</label>
                     <select
                       value={
@@ -502,7 +508,8 @@ function PlanModal({
                           e.target.value === '' ? null : Number(e.target.value),
                         )
                       }
-                      className='w-full border border-gray-200 rounded px-3 py-2 text-sm bg-white'
+                      disabled={!kycEnabled}
+                      className='w-full border border-gray-200 rounded px-3 py-2 text-sm bg-white disabled:bg-gray-50 disabled:cursor-not-allowed'
                     >
                       <option value=''>Inherit operator default</option>
                       <option value='0'>0 — unverified</option>
@@ -510,6 +517,11 @@ function PlanModal({
                       <option value='2'>2 — intermediate</option>
                       <option value='3'>3 — full</option>
                     </select>
+                    {!kycEnabled && (
+                      <p className='text-xs text-amber-700 mt-1'>
+                        Upgrade to Affiliate Plus to enable the KYC qualification gate.
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

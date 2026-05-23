@@ -34,7 +34,7 @@ const PLANS = {
     commissionTypes: ["revshare", "cpa", "hybrid", "tiered_revshare"],
     subAffiliates: true,       // 2-tier: sub-affiliates per affiliate
     campaignTracking: true,
-    referAFriend: true,
+    referAFriend: false,
     bulkImport: false,
     customFees: false,
     kycGate: false,
@@ -50,7 +50,7 @@ const PLANS = {
     commissionTypes: ["revshare", "cpa", "hybrid", "tiered_revshare"],
     subAffiliates: true,
     campaignTracking: true,
-    referAFriend: true,
+    referAFriend: false,
     bulkImport: true,          // provider-fee CSV, affiliate CSV import
     customFees: true,          // Custom NGR % + Custom Deposit %
     kycGate: true,             // minKycLevel CPA gate
@@ -66,7 +66,7 @@ const PLANS = {
     commissionTypes: ["revshare", "cpa", "hybrid", "tiered_revshare"],
     subAffiliates: true,
     campaignTracking: true,
-    referAFriend: true,
+    referAFriend: false,
     bulkImport: true,
     customFees: true,
     kycGate: true,
@@ -82,7 +82,7 @@ const PLANS = {
     commissionTypes: ["revshare", "cpa", "hybrid", "tiered_revshare"],
     subAffiliates: true,
     campaignTracking: true,
-    referAFriend: true,
+    referAFriend: true,        // Refer-a-Friend is Pro-only
     bulkImport: true,
     customFees: true,
     kycGate: true,

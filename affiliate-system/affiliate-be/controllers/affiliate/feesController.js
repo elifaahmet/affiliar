@@ -2,6 +2,10 @@ const ProviderFeeRate = require("../../models/ProviderFeeRate");
 const OperatorFinancialSettings = require("../../models/OperatorFinancialSettings");
 const Brand = require("../../models/Brand");
 const { runOnce: runFeesJob } = require("../../jobs/feesDailyJob");
+const {
+  resolveOperatorPlan, planError,
+} = require("../../middlewares/planGuard");
+const { firstPlanWith } = require("../../utils/planLimits");
 
 function operatorOnly(req, res) {
   const user = req.affiliateUser;
@@ -224,6 +228,42 @@ exports.updateFinancialSettings = async (req, res) => {
   const operatorId = operatorOnly(req, res);
   if (!operatorId) return;
   try {
+    // Body-conditional plan gates: the Operator-wide fees, deposit/withdrawal,
+    // jackpot, tax, sb-third-party rates and the commission defaults are
+    // open to every plan. Only the **new** capability fields (Custom NGR /
+    // Custom Deposit %, and the minKycLevel CPA gate) are plan-restricted —
+    // reject them at the controller layer so the rest of the payload still
+    // applies on lower tiers.
+    const wantsCustomFees =
+      req.body?.customNgrFeePercent !== undefined ||
+      req.body?.customDepositFeePercent !== undefined;
+    const wantsKycGate =
+      req.body?.defaults && req.body.defaults.minKycLevel !== undefined;
+    if (wantsCustomFees || wantsKycGate) {
+      const resolved = await resolveOperatorPlan(req);
+      if (resolved) {
+        const { plan, planKey } = resolved;
+        if (wantsCustomFees && !plan.customFees) {
+          return res.status(403).json(
+            planError(
+              `Custom NGR / Custom Deposit deductions are not available on the ${plan.name} plan.`,
+              planKey,
+              firstPlanWith((p) => p.customFees),
+            ),
+          );
+        }
+        if (wantsKycGate && !plan.kycGate) {
+          return res.status(403).json(
+            planError(
+              `The minKycLevel CPA gate is not available on the ${plan.name} plan.`,
+              planKey,
+              firstPlanWith((p) => p.kycGate),
+            ),
+          );
+        }
+      }
+    }
+
     const brandId = normalizeBrandId(req.body?.brandId);
     const pick = (v) => {
       if (v == null) return undefined;

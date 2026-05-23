@@ -4,6 +4,7 @@ import { useBaseQuery } from 'api/core/useBaseQuery';
 import { baseService } from 'api/core/baseService';
 import { FEES_API_URLS } from 'config/apiUrls';
 import { parseCsv, buildCsv, downloadCsv, readFileAsText } from 'utils/csv';
+import { useOperatorPlan } from 'hooks/useOperatorPlan';
 
 interface ProviderRate {
   _id?: string;
@@ -59,6 +60,12 @@ function SettingsForm({ scope }: { scope: Scope }) {
     params: { brandId: scope },
   });
   const s = data?.settings;
+  const { limits } = useOperatorPlan();
+  // Plan-gated: when the operator's plan doesn't unlock Custom NGR / Custom
+  // Deposit % the inputs render disabled with an upgrade hint. The BE
+  // double-checks too (feesController.updateFinancialSettings) so a stale
+  // FE can't sneak the field in.
+  const customFeesEnabled = limits ? limits.customFees : true;
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -109,8 +116,10 @@ function SettingsForm({ scope }: { scope: Scope }) {
         <NumberInput label='Jackpot %'        name='jackpot'       defaultValue={s?.jackpotFeePercent ?? 0}       hint='% of casino bets' />
         <NumberInput label='Casino Tax %'     name='tax'           defaultValue={s?.casinoTaxPercent ?? 0}        hint='% of casino GGR' />
         <NumberInput label='SB 3rd-party %'   name='sbThirdParty'  defaultValue={s?.sbThirdPartyFeePercent ?? 0}  hint='% of sportsbook GGR (bookmaker/data-feed)' />
-        <NumberInput label='Custom NGR %'     name='customNgr'     defaultValue={s?.customNgrFeePercent ?? 0}     hint='% of combined GGR — extra deduction from NGR' />
-        <NumberInput label='Custom Deposit %' name='customDeposit' defaultValue={s?.customDepositFeePercent ?? 0} hint='% of deposits — extra deduction from NGR' />
+        <NumberInput label='Custom NGR %'     name='customNgr'     defaultValue={s?.customNgrFeePercent ?? 0}     hint='% of combined GGR — extra deduction from NGR'
+                     disabled={!customFeesEnabled} lockedHint='Upgrade to Affiliate Plus to enable' />
+        <NumberInput label='Custom Deposit %' name='customDeposit' defaultValue={s?.customDepositFeePercent ?? 0} hint='% of deposits — extra deduction from NGR'
+                     disabled={!customFeesEnabled} lockedHint='Upgrade to Affiliate Plus to enable' />
       </div>
       <label
         key={`adcf-${scope}-${s?.alwaysDeductCustomFees ? '1' : '0'}`}
@@ -120,7 +129,8 @@ function SettingsForm({ scope }: { scope: Scope }) {
           type='checkbox'
           name='alwaysDeductCustom'
           defaultChecked={!!s?.alwaysDeductCustomFees}
-          className='mt-0.5'
+          disabled={!customFeesEnabled}
+          className='mt-0.5 disabled:cursor-not-allowed'
         />
         <span>
           <b>Always deduct custom fees.</b>{' '}
@@ -151,6 +161,10 @@ function SettingsForm({ scope }: { scope: Scope }) {
 
 function CommissionDefaultsForm() {
   const qc = useQueryClient();
+  const { limits } = useOperatorPlan();
+  // KYC qualification gate is a plan feature; lock the input + null it out
+  // on save when the plan doesn't allow it (BE rejects too).
+  const kycEnabled = limits ? limits.kycGate : true;
   const { data, isLoading } = useBaseQuery<{ settings: Settings }>({
     endpoint: FEES_API_URLS.SETTINGS(),
     queryKey: ['fees-settings', 'default'],
@@ -270,6 +284,8 @@ function CommissionDefaultsForm() {
           label='Min KYC level'
           name='minKycLevel'
           defaultValue={s?.defaults?.minKycLevel}
+          disabled={!kycEnabled}
+          lockedHint='Upgrade to Affiliate Plus to enable'
         />
       </div>
 
@@ -290,11 +306,12 @@ function CommissionDefaultsForm() {
   );
 }
 
-function NumberInput({ label, name, defaultValue, hint }: {
+function NumberInput({ label, name, defaultValue, hint, disabled, lockedHint }: {
   label: string; name: string; defaultValue: number; hint?: string;
+  disabled?: boolean; lockedHint?: string;
 }) {
   return (
-    <label className='flex flex-col gap-1'>
+    <label className={`flex flex-col gap-1 ${disabled ? 'opacity-60' : ''}`}>
       <span className='text-xs font-medium text-gray-700'>{label}</span>
       <input
         type='number'
@@ -303,28 +320,36 @@ function NumberInput({ label, name, defaultValue, hint }: {
         max={100}
         step={0.01}
         defaultValue={defaultValue}
-        className='border border-gray-200 rounded px-3 py-2 text-sm'
+        disabled={disabled}
+        className='border border-gray-200 rounded px-3 py-2 text-sm disabled:bg-gray-50 disabled:cursor-not-allowed'
       />
-      {hint && <span className='text-xs text-gray-600'>{hint}</span>}
+      {disabled && lockedHint ? (
+        <span className='text-xs text-amber-700'>{lockedHint}</span>
+      ) : hint ? (
+        <span className='text-xs text-gray-600'>{hint}</span>
+      ) : null}
     </label>
   );
 }
 
-function KycLevelSelect({ label, name, defaultValue }: {
+function KycLevelSelect({ label, name, defaultValue, disabled, lockedHint }: {
   label: string;
   name: string;
   defaultValue: number | null | undefined;
+  disabled?: boolean;
+  lockedHint?: string;
 }) {
   const display =
     defaultValue === null || defaultValue === undefined ? 'null' : String(defaultValue);
   return (
-    <label className='flex flex-col gap-1'>
+    <label className={`flex flex-col gap-1 ${disabled ? 'opacity-60' : ''}`}>
       <span className='text-xs font-medium text-gray-700'>{label}</span>
       <select
         key={display}
         name={name}
         defaultValue={display}
-        className='border border-gray-200 rounded px-3 py-2 text-sm bg-white'
+        disabled={disabled}
+        className='border border-gray-200 rounded px-3 py-2 text-sm bg-white disabled:bg-gray-50 disabled:cursor-not-allowed'
       >
         <option value='null'>Disabled</option>
         <option value='0'>0 — unverified</option>
@@ -332,6 +357,9 @@ function KycLevelSelect({ label, name, defaultValue }: {
         <option value='2'>2 — intermediate</option>
         <option value='3'>3 — full</option>
       </select>
+      {disabled && lockedHint && (
+        <span className='text-xs text-amber-700'>{lockedHint}</span>
+      )}
     </label>
   );
 }
@@ -725,6 +753,11 @@ evolution,Evolution,4.5`}
 }
 
 function ProviderFeesSection({ scope }: { scope: Scope }) {
+  const { limits } = useOperatorPlan();
+  // Bulk CSV import lives behind a plan flag; the BE rejects too. We just
+  // grey the tab and stop selection so the operator sees what they'd
+  // unlock without surprises.
+  const bulkEnabled = limits ? limits.bulkImport : true;
   const [tab, setTab] = useState<'rates' | 'bulk'>('rates');
   return (
     <div className='space-y-4'>
@@ -740,12 +773,14 @@ function ProviderFeesSection({ scope }: { scope: Scope }) {
         </button>
         <button
           type='button'
+          disabled={!bulkEnabled}
           onClick={() => setTab('bulk')}
+          title={bulkEnabled ? '' : 'Upgrade to Affiliate Plus to enable bulk CSV import'}
           className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
             tab === 'bulk' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-600 hover:text-gray-800'
-          }`}
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
         >
-          Bulk import
+          Bulk import{!bulkEnabled && ' 🔒'}
         </button>
       </div>
       {tab === 'rates' ? <ProviderRatesTable scope={scope} /> : <ProviderRatesBulkImport scope={scope} />}

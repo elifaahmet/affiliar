@@ -5,6 +5,12 @@ const playerIntegration = require("../controllers/integration/playerIntegrationC
 const { parseRawEvent } = require("../utils/rawEventSchema");
 const { ingestRawEvent } = require("../utils/rawEventIngest");
 const { logger } = require("../middlewares/logger");
+const { checkApiAccess } = require("../middlewares/planGuard");
+
+// API + webhook access is a plan-gated feature — every integration endpoint
+// goes through it. Operators on tier1/tier2/plus get a 403 with the upgrade
+// hint instead of silently using the integration surface.
+router.use(checkApiAccess);
 
 router.post("/activity", importActivity);
 
