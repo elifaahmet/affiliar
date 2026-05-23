@@ -40,16 +40,45 @@ async function getSansToken(operatorId, operatorUser) {
   if (!PROVIDER_API_KEY) {
     throw new Error("BILLING_PROVIDER_API_KEY not configured");
   }
-  const resp = await provider.post("/json", {
+
+  // Mirrors the player-side payload — Sans 400s when additionalData is
+  // missing userId / maxWithdrawLimit / paymentMethod. paymentMethod = 1 is
+  // the default the player flow uses; if Sans rejects, the response body
+  // is now logged so we can iterate without guessing.
+  const body = {
     username: operatorUser?.email || String(operatorId),
     apiKey: PROVIDER_API_KEY,
     additionalData: {
-      operatorId: String(operatorId),
-      service: "affiliar",
+      userId: String(operatorId),
+      maxWithdrawLimit: 6000.0,
+      paymentMethod: 1,
     },
+  };
+  const resp = await provider.post("/json", body, {
+    validateStatus: () => true,
   });
-  const token = resp?.data?.data?.token || resp?.data?.token;
+  if (resp.status < 200 || resp.status >= 300) {
+    logger.error("billing.sans.token.failed", {
+      operatorId: key,
+      status: resp.status,
+      body: resp.data,
+      requestPreview: {
+        username: body.username,
+        additionalData: body.additionalData,
+      },
+    });
+    const err = new Error(
+      resp.data?.error ||
+        resp.data?.message ||
+        `Sans /payment/json failed with ${resp.status}`,
+    );
+    err.status = resp.status === 401 ? 401 : 502;
+    err.upstream = resp.data;
+    throw err;
+  }
+  const token = resp.data?.data?.token || resp.data?.token;
   if (!token) {
+    logger.error("billing.sans.token.no_token", { operatorId: key, body: resp.data });
     throw new Error("Sans /payment/json returned no token");
   }
   sansTokens.set(key, { token, expiresAt: Date.now() + TOKEN_TTL_MS });
