@@ -51,7 +51,11 @@ async function getSansToken(operatorId, operatorUser) {
     additionalData: {
       userId: String(operatorId),
       maxWithdrawLimit: 6000.0,
-      paymentMethod: 1,
+      // 9 = crypto / USDT for our merchant. Sans accepts 1..22 (codes are
+      // merchant-config-driven); probe showed 1/2/3 return zero wallets,
+      // 9 returns the USDT-TRC20 receiver. Override via env when the right
+      // value differs per environment.
+      paymentMethod: Number(process.env.BILLING_PAYMENT_METHOD) || 9,
     },
   };
   const resp = await provider.post("/json", body, {
@@ -182,13 +186,15 @@ const billingController = {
         });
       }
 
-      // Sans's response shape isn't strictly documented — different account
-      // setups have surfaced { data: [...] }, { data: { wallets: [...] } },
-      // { data: { data: [...] } } and a bare top-level array. Probe the
-      // common spots; if everything's empty/unrecognised, log the raw body
-      // so we can extend the list without guessing.
+      // Sans returns nested wallets:
+      //   [{ _id, name, logo, accounts: [{ _id, fields: [{name,value}] }] }]
+      // The operator actually picks one *account* (a specific deposit
+      // address on a chain), not the wallet group, so flatten to one item
+      // per account. Each account's `fields` is a free-form key/value list
+      // ("Wallet", "Chain", "Address", "Network" — varies). Read case-
+      // insensitively and accept a few synonyms.
       const d = listResp.data;
-      const wallets =
+      const raw =
         (Array.isArray(d?.data) && d.data) ||
         (Array.isArray(d?.data?.wallets) && d.data.wallets) ||
         (Array.isArray(d?.data?.data) && d.data.data) ||
@@ -196,13 +202,32 @@ const billingController = {
         (Array.isArray(d) && d) ||
         [];
 
+      const wallets = [];
+      for (const w of raw) {
+        const accounts = Array.isArray(w?.accounts) ? w.accounts : [];
+        for (const acc of accounts) {
+          const f = {};
+          for (const kv of acc?.fields || []) {
+            if (kv?.name != null) f[String(kv.name).toLowerCase()] = kv.value;
+          }
+          const network = f.chain || f.network || "";
+          const address = f.wallet || f.address || "";
+          wallets.push({
+            id:             String(acc?._id || ""),
+            cryptoCurrency: w?.name || "",
+            network,
+            address,
+            label:          [w?.name, network].filter(Boolean).join(" · "),
+            logo:           w?.logo || "",
+          });
+        }
+      }
+
       if (wallets.length === 0) {
         logger.warn("billing.sans.list_wallets.empty", {
           operatorId: String(user.operatorId),
           amount,
           status: listResp.status,
-          // First 800 chars of whatever the provider sent so we can extend
-          // the parser if the shape is one we haven't seen.
           body_preview: JSON.stringify(d ?? null).slice(0, 800),
         });
       }
