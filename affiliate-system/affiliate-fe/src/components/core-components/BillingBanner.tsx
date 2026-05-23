@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { BILLING_API_URLS } from 'config/apiUrls';
 
@@ -25,7 +25,6 @@ export default function BillingBanner() {
     queryKey: ['billing-status'],
   });
   const navigate = useNavigate();
-  const location = useLocation();
 
   if (!data) return null;
 
@@ -35,21 +34,19 @@ export default function BillingBanner() {
   const pastDue = data.billingStatus === 'past_due' || overdueByDate;
   if (!pastDue) return null;
 
-  // When already on /billing, navigating again is a no-op (same route) so
-  // the click looked dead. Scroll the plan cards into view instead.
+  // Push the operator straight into the renewal flow. /billing reads ?renew=1
+  // and auto-triggers the wallet picker for their current plan, so they
+  // don't have to find the right card and click Subscribe themselves.
   const onPayNow = () => {
-    const scrollToPlans = () => {
+    navigate({ pathname: '/billing', search: '?renew=1' }, { replace: false });
+    // Path-only navigations on the same route don't reset scroll; nudge the
+    // plan grid into view too in case the picker fetch fails and the
+    // operator falls back to picking manually.
+    setTimeout(() => {
       document
         .getElementById('billing-plans')
         ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    };
-    if (location.pathname === '/billing') {
-      scrollToPlans();
-    } else {
-      navigate('/billing');
-      // Give the page a moment to mount before scrolling.
-      setTimeout(scrollToPlans, 80);
-    }
+    }, 80);
   };
 
   return (

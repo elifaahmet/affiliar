@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { useBaseMutation } from 'api/core/useBaseMutation';
 import { BILLING_API_URLS } from 'config/apiUrls';
@@ -186,6 +187,16 @@ export default function Billing() {
   const [discountError, setDiscountError] = useState<string | null>(null);
 
   const currentPlan = billing?.plan?.toLowerCase() ?? null;
+  // Canonical (case-correct) plan key, since `currentPlan` is lowercased
+  // for comparisons. We need the canonical for subscribe(planKey).
+  const currentPlanKey =
+    PLAN_CARDS.find((p) => p.key.toLowerCase() === currentPlan)?.key ?? null;
+  const isOverdue =
+    !!billing &&
+    (billing.billingStatus === 'past_due' ||
+      (billing.billingStatus === 'active' &&
+        billing.nextBillingDate != null &&
+        new Date(billing.nextBillingDate).getTime() < Date.now()));
 
   const applyCode = () => {
     const code = codeInput.trim();
@@ -237,6 +248,24 @@ export default function Billing() {
       },
     );
   };
+
+  // ?renew=1 from the past-due banner — auto-open the wallet picker for the
+  // operator's current plan so they don't have to scroll-find-click.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const renewTriggeredRef = useRef(false);
+  useEffect(() => {
+    if (renewTriggeredRef.current) return;
+    if (searchParams.get('renew') !== '1') return;
+    if (!currentPlanKey) return; // billing data not loaded yet
+    if (walletsMutation.isPending || payMutation.isPending || pickerData || payData) return;
+    renewTriggeredRef.current = true;
+    subscribe(currentPlanKey);
+    // Drop the query so refresh doesn't retrigger the flow.
+    const next = new URLSearchParams(searchParams);
+    next.delete('renew');
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, currentPlanKey]);
 
   // Step 2: operator picked a wallet — actually open the deposit session
   // and show the payment modal. SANS_SESSION_EXPIRED means the token timed
@@ -428,24 +457,43 @@ export default function Billing() {
                 ))}
               </ul>
 
-              <button
-                type='button'
-                disabled={isCurrent || walletsMutation.isPending || payMutation.isPending || !!pickerData}
-                onClick={() => subscribe(plan.key)}
-                className={`mt-5 w-full rounded-lg px-3 py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${
-                  isCurrent
+              {(() => {
+                // When overdue, the operator's current plan needs a renewal
+                // path — disabling its button (the old behaviour) was the
+                // dead-end the banner's Pay now ran into. Show "Renew" and
+                // wire it back to subscribe(); use red so the urgency reads.
+                const isRenewable = isCurrent && isOverdue;
+                const buttonDisabled =
+                  (isCurrent && !isOverdue) ||
+                  walletsMutation.isPending ||
+                  payMutation.isPending ||
+                  !!pickerData;
+                const buttonClass = isRenewable
+                  ? 'bg-red-600 text-white hover:bg-red-700'
+                  : isCurrent
                     ? 'bg-gray-100 text-gray-600 cursor-default'
-                    : 'bg-primary text-white hover:bg-primary-dark'
-                }`}
-              >
-                {isCurrent
-                  ? 'Current plan'
-                  : isPending
+                    : 'bg-primary text-white hover:bg-primary-dark';
+                const buttonLabel =
+                  isPending
                     ? 'Starting…'
-                    : currentPlan
-                      ? 'Switch to this plan'
-                      : 'Subscribe'}
-              </button>
+                    : isRenewable
+                      ? 'Renew →'
+                      : isCurrent
+                        ? 'Current plan'
+                        : currentPlan
+                          ? 'Switch to this plan'
+                          : 'Subscribe';
+                return (
+                  <button
+                    type='button'
+                    disabled={buttonDisabled}
+                    onClick={() => subscribe(plan.key)}
+                    className={`mt-5 w-full rounded-lg px-3 py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${buttonClass}`}
+                  >
+                    {buttonLabel}
+                  </button>
+                );
+              })()}
             </div>
           );
         })}
