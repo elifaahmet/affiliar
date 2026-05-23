@@ -58,6 +58,9 @@ const DEFAULT_CONFIG: Omit<ReferConfig, 'brandId'> = {
     holdDays: 7,
     minWagerCents: 0,
     minWagerMultiple: 3,
+    minActiveDeposits: 0,
+    minAccountAgeDays: 0,
+    requirePositiveNgr: false,
   },
   caps: {
     perReferrerMonthlyCents: 0,
@@ -449,6 +452,37 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
                   onChange={(e) => setQual('minWagerMultiple', Number(e.target.value) || 0)}
                   className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
                 />
+              </Field>
+            </Row>
+            <Row>
+              <Field label='Min deposit count' hint='Number of confirmed deposits required. 0 = off.'>
+                <input
+                  type='number' min={0}
+                  value={form.qualification.minActiveDeposits || ''}
+                  onChange={(e) => setQual('minActiveDeposits', Number(e.target.value) || 0)}
+                  className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
+                />
+              </Field>
+              <Field label='Min account age (days)' hint='Days since referee signed up. 0 = off.'>
+                <input
+                  type='number' min={0}
+                  value={form.qualification.minAccountAgeDays || ''}
+                  onChange={(e) => setQual('minAccountAgeDays', Number(e.target.value) || 0)}
+                  className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
+                />
+              </Field>
+            </Row>
+            <Row>
+              <Field label='Require positive NGR' hint='Referee&apos;s lifetime NGR must be &gt; 0 (only profitable players count).'>
+                <label className='flex items-center gap-2 text-sm text-gray-700'>
+                  <input
+                    type='checkbox'
+                    checked={form.qualification.requirePositiveNgr}
+                    onChange={(e) => setQual('requirePositiveNgr', e.target.checked)}
+                    className='h-4 w-4 rounded accent-primary cursor-pointer'
+                  />
+                  Enabled
+                </label>
               </Field>
             </Row>
           </Section>

@@ -190,6 +190,19 @@ const referAFriendConfigSchema = new mongoose.Schema(
       minWagerCents: { type: Number, default: 0, min: 0 },
       // Wager-as-multiple of FTD. e.g. 3 = "must wager 3× the FTD amount".
       minWagerMultiple: { type: Number, default: 0, min: 0 },
+
+      // Active-player gates from the Crew spec. Default 0 / 0 / false keep
+      // existing brands unaffected; the Crew operator sets these to 3/7/true.
+      //
+      // minActiveDeposits — referee must have made at least this many
+      //                     confirmed deposits (count, not amount).
+      minActiveDeposits: { type: Number, default: 0, min: 0 },
+      // minAccountAgeDays — referee's AffiliatePlayer.registeredAt must be
+      //                     at least this many days old at evaluation time.
+      minAccountAgeDays: { type: Number, default: 0, min: 0 },
+      // requirePositiveNgr — when true, referee's lifetime NGR must be > 0
+      //                      (so unprofitable players don't pad the crew).
+      requirePositiveNgr: { type: Boolean, default: false },
     },
 
     /**

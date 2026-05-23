@@ -288,17 +288,30 @@ async function evaluateQualification(referralId, { now } = {}) {
     return referral;
   }
 
-  const wagerSinceFtdCents = await fetchWagerSinceFtd({
-    operatorId: referral.operatorId,
-    refereePlayerId: referral.refereePlayerId,
-    ftdAt: referral.ftdAt,
-  });
+  const [wagerSinceFtdCents, refereeSnapshot] = await Promise.all([
+    fetchWagerSinceFtd({
+      operatorId: referral.operatorId,
+      refereePlayerId: referral.refereePlayerId,
+      ftdAt: referral.ftdAt,
+    }),
+    // Crew "active player" gates need the referee's lifetime activity +
+    // account age + fraud signal. Fetched only when the operator has
+    // configured at least one of the new gates so we don't pay the CH
+    // round-trip on every legacy referral evaluation.
+    needsActiveSnapshot(config.qualification || {})
+      ? fetchRefereeActivitySnapshot({
+          operatorId: referral.operatorId,
+          refereePlayerId: referral.refereePlayerId,
+        })
+      : Promise.resolve(null),
+  ]);
 
   const decision = evaluateGates({
     ftdCents: referral.ftdCents,
     ftdAt: referral.ftdAt,
     gates: config.qualification || {},
     wagerSinceFtdCents,
+    refereeSnapshot,
     now: now || new Date(),
   });
 
@@ -747,6 +760,99 @@ async function fetchPlayerMonthlyBase({ operatorId, refereePlayerId, year, month
  * activity, returns 0. The qualification function will then leave the
  * referral in `pending` due to the wager gate (assuming one is set).
  */
+/**
+ * Quick check for whether the Crew "active player" snapshot is needed for
+ * a given qualification config. Avoids a ClickHouse round-trip on legacy
+ * brands that haven't opted into any of the new gates.
+ */
+function needsActiveSnapshot(qualification) {
+  if (!qualification) return false;
+  return (
+    (Number(qualification.minActiveDeposits) || 0) > 0 ||
+    (Number(qualification.minAccountAgeDays) || 0) > 0 ||
+    !!qualification.requirePositiveNgr
+  );
+}
+
+/**
+ * Lifetime snapshot of a referee's activity for the Crew "active player"
+ * gates. Mirrors fetchWagerSinceFtd's pattern (defensive against a missing
+ * ClickHouse module so unit envs still load). Combines:
+ *   - ClickHouse: depositsCount + lifetime NGR (cents) for the player
+ *   - Mongo:      registeredAt + fraudFlagged from AffiliatePlayer
+ *
+ * Returns sane defaults on any failure so the qualification engine can
+ * still make a decision (it'll fail-open on missing data).
+ */
+async function fetchRefereeActivitySnapshot({ operatorId, refereePlayerId }) {
+  const out = {
+    depositsCount:    0,
+    lifetimeNgrCents: 0,
+    accountAgeDays:   null,    // null = unknown (no AffiliatePlayer row)
+    fraudFlagged:     false,
+  };
+
+  // AffiliatePlayer side: registeredAt + fraud signal.
+  try {
+    const ap = await AffiliatePlayer.findOne({
+      operatorId,
+      playerId: refereePlayerId,
+    })
+      .select({ registeredAt: 1, fraudFlagged: 1 })
+      .lean();
+    if (ap) {
+      out.fraudFlagged = !!ap.fraudFlagged;
+      if (ap.registeredAt) {
+        const ageMs = Date.now() - new Date(ap.registeredAt).getTime();
+        out.accountAgeDays = Math.max(0, ageMs / (24 * 60 * 60 * 1000));
+      }
+    }
+  } catch (_e) {
+    /* leave defaults */
+  }
+
+  // ClickHouse side: lifetime deposit count + NGR.
+  let clickhouse;
+  try { clickhouse = require("../config/clickhouse"); } catch (_e) {
+    return out; // dev/test envs without CH wired up
+  }
+  const sql = `
+    SELECT
+      toInt64(SUM(toInt64(deposits_count))) AS depositsCount,
+      toInt64(SUM(
+          toInt64(bets_sum_cents) - toInt64(casino_bets_rollbacks_sum_cents)
+        - toInt64(wins_sum_cents) + toInt64(casino_wins_rollbacks_sum_cents)
+        - toInt64(bonus_issues_sum_cents)
+        - toInt64(additional_deductions_sum_cents)
+        - toInt64(payment_system_fees_sum_cents)
+        - toInt64(jackpot_fees_sum_cents)
+        - toInt64(game_provider_fees_sum_cents)
+        - toInt64(casino_taxes_sum_cents)
+      )) AS lifetimeNgrCents
+    FROM affiliate.activity_hourly_delta
+    WHERE tenant_id = {tenantId:String}
+      AND player_id = {playerId:String}
+  `;
+  try {
+    const result = await clickhouse.query({
+      query: sql,
+      query_params: {
+        tenantId: String(operatorId),
+        playerId: refereePlayerId,
+      },
+      format: "JSONEachRow",
+    });
+    const rows = await result.json();
+    const r = rows[0] || {};
+    out.depositsCount    = Math.max(0, Number(r.depositsCount)    || 0);
+    out.lifetimeNgrCents = Number(r.lifetimeNgrCents) || 0; // can be < 0
+  } catch (_e) {
+    /* leave defaults */
+  }
+
+  return out;
+}
+
 async function fetchWagerSinceFtd({ operatorId, refereePlayerId, ftdAt }) {
   if (!ftdAt) return 0;
   let clickhouse;

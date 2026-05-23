@@ -37,17 +37,32 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
  * @param {Date|number} [args.now=new Date()]
  * @returns {{ decision: 'qualified'|'pending'|'rejected', reason: string }}
  */
-function evaluateGates({ ftdCents, ftdAt, gates, wagerSinceFtdCents, now = new Date() }) {
+function evaluateGates({
+  ftdCents, ftdAt, gates, wagerSinceFtdCents,
+  // Crew active-player snapshot. Optional — older callers can skip and
+  // the new gates won't fire (only active when the corresponding config
+  // value is set anyway).
+  refereeSnapshot,
+  now = new Date(),
+}) {
   const nowMs = now instanceof Date ? now.getTime() : new Date(now).getTime();
   const deposit = Number(ftdCents) || 0;
   const wager   = Number(wagerSinceFtdCents) || 0;
+  const snap = refereeSnapshot || {};
 
   // 1. Minimum deposit — permanent rejection if below floor.
   if (isActive(gates.minDepositCents) && deposit < gates.minDepositCents) {
     return { decision: "rejected", reason: "min_deposit_not_met" };
   }
 
-  // 2. Hold period — pending until enough time has elapsed since FTD.
+  // 2. Fraud flag — permanent rejection. Operator can clear the flag in
+  // their own system and re-emit `player.flagged` with flag=active to
+  // unblock; manual replay of the referral is the path back in.
+  if (snap.fraudFlagged) {
+    return { decision: "rejected", reason: "player_flagged" };
+  }
+
+  // 3. Hold period — pending until enough time has elapsed since FTD.
   if (isActive(gates.holdDays)) {
     const ftdMs = ftdAt instanceof Date ? ftdAt.getTime() : new Date(ftdAt).getTime();
     const ageDays = (nowMs - ftdMs) / MS_PER_DAY;
@@ -56,7 +71,24 @@ function evaluateGates({ ftdCents, ftdAt, gates, wagerSinceFtdCents, now = new D
     }
   }
 
-  // 3. Wager gates — flat floor + multiple-of-deposit. Both can be active
+  // 4. Account age — pending until the referee's AffiliatePlayer.registeredAt
+  // is old enough. If we don't have a snapshot age (unknown), let it pass
+  // — better than blocking on missing data.
+  if (isActive(gates.minAccountAgeDays) && snap.accountAgeDays != null) {
+    if (snap.accountAgeDays < gates.minAccountAgeDays) {
+      return { decision: "pending", reason: "account_too_young" };
+    }
+  }
+
+  // 5. Min deposit count (Crew "active player" rule). Deposit *count*, not
+  // amount — that one's minDepositCents above.
+  if (isActive(gates.minActiveDeposits)) {
+    if ((Number(snap.depositsCount) || 0) < gates.minActiveDeposits) {
+      return { decision: "pending", reason: "deposit_count_too_low" };
+    }
+  }
+
+  // 6. Wager gates — flat floor + multiple-of-deposit. Both can be active
   // independently; effective requirement is whichever is higher.
   const wagerRequired = Math.max(
     isActive(gates.minWagerCents)    ? gates.minWagerCents : 0,
@@ -64,6 +96,11 @@ function evaluateGates({ ftdCents, ftdAt, gates, wagerSinceFtdCents, now = new D
   );
   if (wagerRequired > 0 && wager < wagerRequired) {
     return { decision: "pending", reason: "wager_floor_not_met" };
+  }
+
+  // 7. Positive NGR — operator wants only profitable referees in the crew.
+  if (gates.requirePositiveNgr && (Number(snap.lifetimeNgrCents) || 0) <= 0) {
+    return { decision: "pending", reason: "ngr_not_positive" };
   }
 
   return { decision: "qualified", reason: "ok" };

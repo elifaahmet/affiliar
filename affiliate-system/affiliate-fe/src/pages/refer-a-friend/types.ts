@@ -55,6 +55,10 @@ export interface QualificationGates {
   holdDays: number;
   minWagerCents: number;
   minWagerMultiple: number;
+  // Crew "active player" gates (V1.5)
+  minActiveDeposits: number;     // deposit *count* (not amount). 0 = off.
+  minAccountAgeDays: number;     // days between AffiliatePlayer.registeredAt and now. 0 = off.
+  requirePositiveNgr: boolean;   // referee's lifetime NGR must be > 0
 }
 
 export interface CapsConfig {

@@ -62,6 +62,25 @@ const affiliatePlayerSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Persists the latest player.flagged signal so refer-a-friend
+    // qualification can fail-fast without scanning the raw event log.
+    // `fraudFlagged` is true whenever the most recent flag was anything
+    // other than "active" (e.g. duplicate, disabled, self_excluded,
+    // unverified). The original flag string is kept on `lastFraudFlag`
+    // so admins can see why.
+    fraudFlagged: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    lastFraudFlag: {
+      type: String,
+      default: null,
+    },
+    lastFraudFlagAt: {
+      type: Date,
+      default: null,
+    },
     source: {
       type: String,
       enum: ["realtime", "bulk", "csv"],

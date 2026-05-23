@@ -248,6 +248,35 @@ async function updateAffiliatePlayerKyc(event, data) {
   }
 }
 
+// Persist the latest flag onto AffiliatePlayer so refer-a-friend
+// qualification can fail-fast on fraud without scanning raw_events. Treat
+// any flag other than "active" as a fraud-flagged signal; "active" clears
+// the boolean and lets the player re-qualify after manual review.
+async function updateAffiliatePlayerFlag(event, data) {
+  const flag = String(data?.flag || "").toLowerCase().trim();
+  if (!flag) return;
+  const fraudFlagged = flag !== "active";
+  const now = new Date(event.occurredAt);
+  try {
+    await AffiliatePlayer.updateOne(
+      { operatorId: event.tenantId, playerId: event.playerId },
+      {
+        $set: {
+          fraudFlagged,
+          lastFraudFlag: flag,
+          lastFraudFlagAt: now,
+        },
+      },
+    );
+  } catch (err) {
+    logger.error("rawEvent.flagUpdateFailed", {
+      eventId: event.eventId,
+      playerId: event.playerId,
+      error: err.message,
+    });
+  }
+}
+
 async function ingestRawEvent(event, data) {
   const affiliateId = await resolveAffiliateId(data.affiliateCode);
   const work = [
@@ -256,6 +285,9 @@ async function ingestRawEvent(event, data) {
   ];
   if (event.eventType === "player.kyc.updated") {
     work.push(updateAffiliatePlayerKyc(event, data));
+  }
+  if (event.eventType === "player.flagged") {
+    work.push(updateAffiliatePlayerFlag(event, data));
   }
   await Promise.all(work);
 }
