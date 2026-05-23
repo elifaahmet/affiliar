@@ -94,4 +94,36 @@ async function sendPasswordReset({ to, name, token }) {
   return sendMail({ to, subject, htmlBody, textBody });
 }
 
-module.exports = { sendMail, sendAffiliateInvite, sendPasswordReset };
+async function sendBillingPastDue({ to, name, planName, dueDate }) {
+  const billingUrl = `${APP_URL}/billing`;
+  const logoUrl = `${APP_URL}/affiliar-logo-email.svg`;
+  const niceDate = new Date(dueDate).toLocaleDateString("en-US", {
+    year: "numeric", month: "short", day: "numeric",
+  });
+  const subject = "Your Affiliar subscription payment is overdue";
+  const htmlBody = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; padding: 40px 30px;">
+      <div style="text-align: center; margin-bottom: 32px;">
+        <img src="${logoUrl}" alt="Affiliar" width="160" style="display: inline-block;" />
+      </div>
+      <h2 style="color: #B91C1C; margin-top: 0;">Payment overdue</h2>
+      <p style="color: #334155; font-size: 15px; line-height: 1.6;">Hi ${name || "there"},</p>
+      <p style="color: #334155; font-size: 15px; line-height: 1.6;">Your Affiliar subscription${planName ? ` (${planName})` : ""} was due on <b>${niceDate}</b> and is now past due. To avoid limited access to your operator panel, please settle the payment as soon as possible.</p>
+      <p style="margin: 32px 0; text-align: center;">
+        <a href="${billingUrl}"
+           style="background: #B91C1C; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">
+          Pay now
+        </a>
+      </p>
+      <p style="color: #64748B; font-size: 13px; line-height: 1.5;">Or open the billing page directly:<br/>
+      <a href="${billingUrl}" style="color: #2563EB; word-break: break-all;">${billingUrl}</a></p>
+      <hr style="border: none; border-top: 1px solid #E2E8F0; margin: 32px 0;" />
+      <p style="color: #94A3B8; font-size: 12px; text-align: center;">If you've already paid, you can ignore this email — it may take a few minutes for the provider to confirm.</p>
+    </div>
+  `;
+  const textBody = `Hi ${name || "there"},\n\nYour Affiliar subscription${planName ? ` (${planName})` : ""} was due on ${niceDate} and is now past due.\n\nPay now: ${billingUrl}\n\nIf you've already paid, ignore this email.`;
+
+  return sendMail({ to, subject, htmlBody, textBody });
+}
+
+module.exports = { sendMail, sendAffiliateInvite, sendPasswordReset, sendBillingPastDue };

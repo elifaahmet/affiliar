@@ -133,4 +133,9 @@ app.listen(PORT, () => {
   // ClickHouse aggregates have time to settle.
   const { startReferralRecurringJob } = require("./jobs/referralRecurringJob");
   startReferralRecurringJob();
+
+  // Billing: flip subscriptions past_due once nextBillingDate passes
+  // (transition-only) and email the operator's users.
+  const { startBillingExpiryJob } = require("./jobs/billingExpiryJob");
+  startBillingExpiryJob();
 });
