@@ -36,6 +36,21 @@ const billingTransactionSchema = new mongoose.Schema({
     type: String,
     default: "",
   },
+  // Sans `bankAccount` (one of the merchant's receiving wallets) the operator
+  // picked at checkout — together with cryptoCurrency/network these identify
+  // exactly where the operator was told to send the payment.
+  walletId: {
+    type: String,
+    default: "",
+  },
+  cryptoCurrency: {
+    type: String,
+    default: "",
+  },
+  network: {
+    type: String,
+    default: "",
+  },
   referenceId: {
     type: String,
     unique: true,

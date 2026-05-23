@@ -20,6 +20,30 @@ interface PayResponse {
   address: string;
 }
 
+// Shape of a Sans receiving wallet. The provider's response is best-effort
+// flexible — we render any field that's there, no schema commitment.
+interface SansWallet {
+  id?: string;
+  walletId?: string;
+  address?: string;
+  cryptoCurrency?: string;
+  currency?: string;
+  network?: string;
+  chain?: string;
+  name?: string;
+  label?: string;
+  minAmount?: number;
+  maxAmount?: number;
+}
+
+interface WalletsResponse {
+  amount: number;
+  planPrice: number;
+  discountUsd: number;
+  discountCode: string;
+  wallets: SansWallet[];
+}
+
 interface DiscountResult {
   valid: boolean;
   code?: string;
@@ -120,9 +144,24 @@ export default function Billing() {
     queryKey: ['billing-status'],
   });
 
+  const walletsMutation = useBaseMutation<
+    WalletsResponse,
+    { plan: string; discountCode?: string }
+  >({
+    endpoint: BILLING_API_URLS.WALLETS(),
+    method: 'post',
+  });
+
   const payMutation = useBaseMutation<
     PayResponse,
-    { plan: string; discountCode?: string }
+    {
+      plan: string;
+      walletId: string;
+      cryptoCurrency?: string;
+      network?: string;
+      address?: string;
+      discountCode?: string;
+    }
   >({
     endpoint: BILLING_API_URLS.PAY(),
     method: 'post',
@@ -136,6 +175,12 @@ export default function Billing() {
 
   const [payData, setPayData] = useState<PayResponse | null>(null);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
+  // Wallet picker state — open when wallets fetch resolves, keyed by which
+  // plan the operator clicked.
+  const [pickerData, setPickerData] = useState<
+    (WalletsResponse & { plan: string }) | null
+  >(null);
+  const [pickError, setPickError] = useState<string | null>(null);
   const [codeInput, setCodeInput] = useState('');
   const [discount, setDiscount] = useState<{ code: string; amountUsd: number } | null>(null);
   const [discountError, setDiscountError] = useState<string | null>(null);
@@ -172,13 +217,61 @@ export default function Billing() {
     setDiscountError(null);
   };
 
+  // Step 1: open the wallet picker. Asks the BE to fetch Sans's receiving
+  // wallets for the net amount of this plan. On success the picker modal
+  // takes over; the operator's choice triggers step 2.
   const subscribe = (planKey: string) => {
     setPendingKey(planKey);
-    payMutation.mutate(
+    setPickError(null);
+    walletsMutation.mutate(
       { plan: planKey, discountCode: discount?.code },
       {
-        onSuccess: (data) => setPayData(data),
+        onSuccess: (data) => setPickerData({ ...data, plan: planKey }),
+        onError: (err: any) => {
+          setPickError(
+            err?.response?.data?.error ??
+              'Could not load payment wallets — please try again.',
+          );
+        },
         onSettled: () => setPendingKey(null),
+      },
+    );
+  };
+
+  // Step 2: operator picked a wallet — actually open the deposit session
+  // and show the payment modal. SANS_SESSION_EXPIRED means the token timed
+  // out between list and pay; reopening the picker refreshes it.
+  const confirmWallet = (wallet: SansWallet) => {
+    if (!pickerData) return;
+    const walletId = String(wallet.id ?? wallet.walletId ?? '');
+    if (!walletId) {
+      setPickError('Selected wallet is missing an id.');
+      return;
+    }
+    payMutation.mutate(
+      {
+        plan: pickerData.plan,
+        walletId,
+        cryptoCurrency: wallet.cryptoCurrency ?? wallet.currency,
+        network: wallet.network ?? wallet.chain,
+        address: wallet.address,
+        discountCode: discount?.code,
+      },
+      {
+        onSuccess: (data) => {
+          setPickerData(null);
+          setPayData(data);
+        },
+        onError: (err: any) => {
+          if (err?.response?.data?.errorCode === 'SANS_SESSION_EXPIRED') {
+            setPickError('Session expired — close and click Subscribe again to refresh wallets.');
+          } else {
+            setPickError(
+              err?.response?.data?.error ??
+                'Could not start the payment — please try again.',
+            );
+          }
+        },
       },
     );
   };
@@ -282,7 +375,9 @@ export default function Billing() {
       <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5'>
         {PLAN_CARDS.map((plan) => {
           const isCurrent = plan.key.toLowerCase() === currentPlan;
-          const isPending = pendingKey === plan.key && payMutation.isPending;
+          // Card button reflects step 1 (fetching wallets). Step 2's spinner
+          // lives inside the picker modal's Continue button.
+          const isPending = pendingKey === plan.key && walletsMutation.isPending;
           const netPrice = discount
             ? Math.max(0, plan.price - discount.amountUsd)
             : plan.price;
@@ -335,7 +430,7 @@ export default function Billing() {
 
               <button
                 type='button'
-                disabled={isCurrent || payMutation.isPending}
+                disabled={isCurrent || walletsMutation.isPending || payMutation.isPending || !!pickerData}
                 onClick={() => subscribe(plan.key)}
                 className={`mt-5 w-full rounded-lg px-3 py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${
                   isCurrent
@@ -356,15 +451,139 @@ export default function Billing() {
         })}
       </div>
 
-      {payMutation.isError && (
-        <p className='text-sm text-red-600'>
-          Could not start the payment. Please try again.
-        </p>
+      {pickError && !pickerData && (
+        <p className='text-sm text-red-600'>{pickError}</p>
+      )}
+
+      {pickerData && (
+        <WalletPickerModal
+          data={pickerData}
+          submitting={payMutation.isPending}
+          error={pickError}
+          onPick={confirmWallet}
+          onClose={() => { setPickerData(null); setPickError(null); }}
+        />
       )}
 
       {payData && (
         <PaymentModal data={payData} onClose={() => setPayData(null)} />
       )}
+    </div>
+  );
+}
+
+/* ── Wallet picker modal ────────────────────────────────────────────── */
+
+function WalletPickerModal({
+  data, submitting, error, onPick, onClose,
+}: {
+  data: WalletsResponse & { plan: string };
+  submitting: boolean;
+  error: string | null;
+  onPick: (w: SansWallet) => void;
+  onClose: () => void;
+}) {
+  const [chosenIdx, setChosenIdx] = useState<number | null>(null);
+
+  return (
+    <div
+      className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4'
+      onClick={onClose}
+    >
+      <div
+        className='w-full max-w-lg rounded-2xl bg-white p-6 space-y-4 max-h-[90vh] overflow-auto'
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className='flex items-start justify-between'>
+          <div>
+            <h2 className='text-base font-semibold text-gray-800'>
+              Choose a payment wallet
+            </h2>
+            <p className='text-xs text-gray-600 mt-0.5'>
+              ${data.amount.toLocaleString('en-US')} to pay
+              {data.discountUsd > 0 && (
+                <> (after −${data.discountUsd.toLocaleString('en-US')} discount)</>
+              )}
+              {' · '} pick which crypto network you'll send from.
+            </p>
+          </div>
+          <button
+            type='button'
+            onClick={onClose}
+            className='text-gray-400 hover:text-gray-700 text-lg leading-none'
+          >
+            ✕
+          </button>
+        </div>
+
+        {data.wallets.length === 0 ? (
+          <p className='text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-4 text-center'>
+            No wallets are currently available for this amount. Please try again
+            in a moment.
+          </p>
+        ) : (
+          <ul className='space-y-2'>
+            {data.wallets.map((w, idx) => {
+              const id = w.id ?? w.walletId ?? `idx-${idx}`;
+              const isChosen = chosenIdx === idx;
+              const title =
+                w.label ??
+                w.name ??
+                ([w.cryptoCurrency ?? w.currency, w.network ?? w.chain]
+                  .filter(Boolean)
+                  .join(' · ') || 'Wallet');
+              return (
+                <li key={String(id)}>
+                  <button
+                    type='button'
+                    onClick={() => setChosenIdx(idx)}
+                    className={`w-full text-left rounded-lg border-2 px-3 py-2.5 transition-colors ${
+                      isChosen
+                        ? 'border-primary bg-primary/5'
+                        : 'border-gray-100 hover:border-gray-200'
+                    }`}
+                  >
+                    <p className='text-sm font-semibold text-gray-800'>{title}</p>
+                    {w.address && (
+                      <p className='text-[11px] font-mono text-gray-500 break-all mt-0.5'>
+                        {w.address}
+                      </p>
+                    )}
+                    {(w.minAmount != null || w.maxAmount != null) && (
+                      <p className='text-[11px] text-gray-500 mt-0.5'>
+                        Range:{' '}
+                        {w.minAmount != null ? `$${w.minAmount}` : '—'}
+                        {' '}–{' '}
+                        {w.maxAmount != null ? `$${w.maxAmount}` : '—'}
+                      </p>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {error && <p className='text-xs text-red-600'>{error}</p>}
+
+        <div className='flex justify-end gap-2 pt-2'>
+          <button
+            type='button'
+            onClick={onClose}
+            className='rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50'
+          >
+            Cancel
+          </button>
+          <button
+            type='button'
+            disabled={chosenIdx == null || submitting || data.wallets.length === 0}
+            onClick={() => chosenIdx != null && onPick(data.wallets[chosenIdx])}
+            className='rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50'
+          >
+            {submitting ? 'Starting…' : 'Continue to payment →'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

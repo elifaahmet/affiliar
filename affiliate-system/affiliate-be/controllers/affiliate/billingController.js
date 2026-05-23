@@ -1,23 +1,85 @@
 const axios = require("axios");
 const Operator = require("../../models/Operator");
+const User = require("../../models/User");
 const BillingTransaction = require("../../models/BillingTransaction");
 const DiscountCode = require("../../models/DiscountCode");
 const { PLAN_PRICES_USD } = require("../../utils/planLimits");
 const { logger } = require("../../middlewares/logger");
 
-// Direct Sans Getirsin provider API — separate from player aggregator
-const PROVIDER_BASE_URL = process.env.BILLING_PROVIDER_URL || "https://api-ke.sansgetirsin.com";
-const PROVIDER_API_KEY  = process.env.BILLING_PROVIDER_API_KEY || "";
+// Sans Getirsin payment gateway — mirrors the player-side dance:
+//   1) POST /payment/json   { username, apiKey, additionalData }  → { token }
+//   2) GET  /payment/deposit?amount=X   (Bearer token)            → wallet list
+//   3) POST /payment/deposit { bankAccount, amount, extraData }   → transactionId
+// The token is per-session (20 min upstream) so we cache it in-process per
+// operator. Redis would be better for multi-instance deploys but the
+// affiliate-be currently runs single-PM2-fork with Redis disabled.
+const PROVIDER_BASE_URL    = process.env.BILLING_PROVIDER_URL || "https://api-ke.sansgetirsin.com";
+const PROVIDER_API_KEY     = process.env.BILLING_PROVIDER_API_KEY || "";
 const BILLING_CALLBACK_URL = process.env.BILLING_CALLBACK_URL || "http://localhost:4100/billing/sans/callback";
 
 const provider = axios.create({
-  baseURL: PROVIDER_BASE_URL,
+  baseURL: PROVIDER_BASE_URL + "/payment",
   timeout: 30000,
-  headers: {
-    "Content-Type": "application/json",
-    "Authorization": `Bearer ${PROVIDER_API_KEY}`,
-  },
+  headers: { "Content-Type": "application/json" },
 });
+
+// In-memory session-token cache: operatorId → { token, expiresAt }. TTL
+// padded to 18 min so we don't hand out a token that's about to expire
+// on the upstream's 20-min window.
+const TOKEN_TTL_MS = 18 * 60 * 1000;
+const sansTokens = new Map();
+
+async function getSansToken(operatorId, operatorUser) {
+  const key = String(operatorId);
+  const cached = sansTokens.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.token;
+
+  if (!PROVIDER_API_KEY) {
+    throw new Error("BILLING_PROVIDER_API_KEY not configured");
+  }
+  const resp = await provider.post("/json", {
+    username: operatorUser?.email || String(operatorId),
+    apiKey: PROVIDER_API_KEY,
+    additionalData: {
+      operatorId: String(operatorId),
+      service: "affiliar",
+    },
+  });
+  const token = resp?.data?.data?.token || resp?.data?.token;
+  if (!token) {
+    throw new Error("Sans /payment/json returned no token");
+  }
+  sansTokens.set(key, { token, expiresAt: Date.now() + TOKEN_TTL_MS });
+  return token;
+}
+
+// Net price for a plan after an optional discount code (same rules as the
+// checkout flow). Throws on invalid plan or bad code so the caller can
+// return a clean 400.
+async function resolvePlanAmount({ plan, discountCode }) {
+  const planPrice = PLAN_PRICES_USD[plan];
+  if (!planPrice) {
+    const err = new Error(
+      `Invalid plan. Must be one of: ${Object.keys(PLAN_PRICES_USD).join(", ")}`,
+    );
+    err.status = 400;
+    throw err;
+  }
+  let discountUsd = 0;
+  let resolvedCode = "";
+  if (discountCode) {
+    const resolved = await DiscountCode.resolve(discountCode);
+    if (!resolved.ok) {
+      const err = new Error(resolved.error);
+      err.status = 400;
+      throw err;
+    }
+    resolvedCode = resolved.code.code;
+    discountUsd = Math.min(resolved.code.amountUsd, planPrice);
+  }
+  const amount = Math.max(0, planPrice - discountUsd);
+  return { planPrice, discountUsd, amount, resolvedCode };
+}
 
 const billingController = {
   getBillingStatus: async (req, res) => {
@@ -53,80 +115,150 @@ const billingController = {
     }
   },
 
-  initPayment: async (req, res) => {
+  // POST /billing/wallets — body { plan, discountCode? }
+  // Step 1 of the Sans flow: open a session token for this operator and
+  // return the list of receiving wallets Sans will accept for the net
+  // amount. The FE renders these as a picker; the operator's choice is
+  // posted back to /billing/pay.
+  listWallets: async (req, res) => {
     try {
       const user = req.affiliateUser;
-      const { plan } = req.body;
-
-      if (!plan || !PLAN_PRICES_USD[plan]) {
-        return res.status(400).json({
-          error: `Invalid plan. Must be one of: ${Object.keys(PLAN_PRICES_USD).join(", ")}`,
-        });
-      }
-
       if (!user.operatorId) {
         return res.status(400).json({ error: "User is not linked to an operator" });
       }
+      const { amount, planPrice, discountUsd, resolvedCode } =
+        await resolvePlanAmount({
+          plan: req.body.plan,
+          discountCode: req.body.discountCode,
+        });
 
-      const planPrice = PLAN_PRICES_USD[plan];
-
-      // Optional fixed-amount discount code. Clamped to the plan price so
-      // the charged amount never goes negative. redemptionCount is bumped
-      // later, on payment confirmation (handleCallback).
-      let discountUsd = 0;
-      let discountCode = "";
-      if (req.body.discountCode) {
-        const resolved = await DiscountCode.resolve(req.body.discountCode);
-        if (!resolved.ok) {
-          return res.status(400).json({ error: resolved.error });
-        }
-        discountCode = resolved.code.code;
-        discountUsd = Math.min(resolved.code.amountUsd, planPrice);
+      const token = await getSansToken(user.operatorId, user);
+      const listResp = await provider.get("/deposit", {
+        params: { amount },
+        headers: { Authorization: `Bearer ${token}` },
+        validateStatus: () => true,
+      });
+      if (listResp.status < 200 || listResp.status >= 300) {
+        logger.error("billing.sans.list_wallets.failed", {
+          operatorId: String(user.operatorId),
+          status: listResp.status,
+          body: listResp.data,
+        });
+        return res.status(502).json({
+          error: listResp.data?.error || listResp.data?.message ||
+                 "Failed to fetch wallets from provider",
+        });
       }
-      const amount = Math.max(0, planPrice - discountUsd);
 
-      const referenceId = `affiliar_${user.operatorId}_${Date.now()}`;
+      return res.json({
+        amount, planPrice, discountUsd,
+        discountCode: resolvedCode,
+        wallets: listResp.data?.data || listResp.data || [],
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({ error: err.message });
+    }
+  },
 
-      // Call provider directly — create payment session
-      const providerRes = await provider.post("/api/payment/create", {
-        amount,
-        currency: "USDT",
-        referenceId,
-        callbackUrl: BILLING_CALLBACK_URL,
-        metadata: {
-          service: "affiliar",
-          plan,
-          operatorId: user.operatorId.toString(),
-          operatorUser: user._id.toString(),
-        },
+  // POST /billing/pay — body { plan, walletId, cryptoCurrency?, network?, address?, discountCode? }
+  // Step 2 of the Sans flow: with the wallet the operator picked, ask Sans
+  // to create a deposit session and store our BillingTransaction keyed on
+  // its transactionId. The callback (/billing/sans/callback) finalizes the
+  // status when Sans confirms the payment.
+  initPayment: async (req, res) => {
+    try {
+      const user = req.affiliateUser;
+      if (!user.operatorId) {
+        return res.status(400).json({ error: "User is not linked to an operator" });
+      }
+      const { plan, walletId, cryptoCurrency, network, address, discountCode } = req.body || {};
+      if (!walletId) {
+        return res.status(400).json({ error: "walletId is required — pick a wallet first" });
+      }
+
+      const { amount, discountUsd, resolvedCode } = await resolvePlanAmount({
+        plan, discountCode,
       });
 
-      const providerData = providerRes.data;
+      const referenceId = `affiliar_${user.operatorId}_${Date.now()}`;
+      const token = await getSansToken(user.operatorId, user);
 
-      // Save billing transaction
+      const providerReq = {
+        bankAccount: walletId,
+        amount,
+        extraData: {
+          service: "affiliar",
+          plan,
+          operatorId: String(user.operatorId),
+          operatorUser: String(user._id),
+          referenceId,
+          callbackUrl: BILLING_CALLBACK_URL,
+          cryptoCurrency: cryptoCurrency || null,
+          network: network || null,
+        },
+      };
+
+      const providerResp = await provider.post("/deposit", providerReq, {
+        headers: { Authorization: `Bearer ${token}` },
+        validateStatus: () => true,
+      });
+      if (
+        providerResp.status < 200 ||
+        providerResp.status >= 300 ||
+        providerResp.data?.error
+      ) {
+        // Session expired? Clear the cached token so the next call refreshes.
+        if (providerResp.status === 401) sansTokens.delete(String(user.operatorId));
+        logger.error("billing.sans.deposit.failed", {
+          operatorId: String(user.operatorId),
+          status: providerResp.status,
+          body: providerResp.data,
+        });
+        return res.status(providerResp.status === 401 ? 400 : 502).json({
+          error: providerResp.data?.error || providerResp.data?.message ||
+                 "Deposit declined by provider",
+          ...(providerResp.status === 401 && { errorCode: "SANS_SESSION_EXPIRED" }),
+        });
+      }
+
+      const externalId =
+        providerResp.data?.data?.transactionId ||
+        providerResp.data?.transactionId ||
+        providerResp.data?.id || "";
+      if (!externalId) {
+        logger.error("billing.sans.deposit.no_tx_id", {
+          operatorId: String(user.operatorId),
+          body: providerResp.data,
+        });
+        return res.status(502).json({ error: "Provider did not return a transactionId" });
+      }
+
       const transaction = await BillingTransaction.create({
-        operatorId: user.operatorId,
-        operatorUser: user._id,
+        operatorId:     user.operatorId,
+        operatorUser:   user._id,
         plan,
-        amountUsd: amount,
-        discountCode,
+        amountUsd:      amount,
+        discountCode:   resolvedCode,
         discountUsd,
-        providerTxId: providerData.transactionId || providerData.id || "",
+        providerTxId:   externalId,
         referenceId,
-        paymentUrl: providerData.paymentUrl || "",
-        qrCode: providerData.qrCode || "",
-        address: providerData.address || providerData.walletAddress || "",
-        status: "pending",
+        walletId,
+        cryptoCurrency: cryptoCurrency || "",
+        network:        network || "",
+        address:        address || providerResp.data?.data?.address || "",
+        paymentUrl:     providerResp.data?.data?.paymentUrl || "",
+        qrCode:         providerResp.data?.data?.qrCode || "",
+        status:         "pending",
       });
 
       return res.json({
         transaction,
-        paymentUrl: providerData.paymentUrl || "",
-        qrCode: providerData.qrCode || "",
-        address: providerData.address || providerData.walletAddress || "",
+        paymentUrl: transaction.paymentUrl,
+        qrCode:     transaction.qrCode,
+        address:    transaction.address,
       });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(err.status || 500).json({ error: err.message });
     }
   },
 

@@ -327,9 +327,10 @@ export const COMMISSION_API_URLS = {
 };
 
 export const BILLING_API_URLS = {
-  STATUS:           () => `${API_BASE_URL}api/billing`,
-  PAY:              () => `${API_BASE_URL}api/billing/pay`,
-  TRANSACTIONS:     () => `${API_BASE_URL}api/billing/transactions`,
+  STATUS:            () => `${API_BASE_URL}api/billing`,
+  WALLETS:           () => `${API_BASE_URL}api/billing/wallets`,
+  PAY:               () => `${API_BASE_URL}api/billing/pay`,
+  TRANSACTIONS:      () => `${API_BASE_URL}api/billing/transactions`,
   DISCOUNT_VALIDATE: () => `${API_BASE_URL}api/billing/discount/validate`,
 };
 
