@@ -38,9 +38,18 @@ const operatorController = {
       }
 
       const planKey = operator.plan || "tier1";
-      const plan = getPlan(planKey);
+      const basePlan = getPlan(planKey);
+      // Cascade: base subscription flags overridden by Operator.featureOverrides.
+      // Custom (off-ladder) features are unlocked here so the FE sees them in
+      // `limits` exactly like the regular plan flags.
+      const overridesRaw = operator.featureOverrides;
+      const overrides =
+        overridesRaw instanceof Map
+          ? Object.fromEntries(overridesRaw)
+          : (overridesRaw && typeof overridesRaw === "object" ? { ...overridesRaw } : {});
+      const limits = { ...basePlan, ...overrides };
 
-      return res.json({ plan: planKey, limits: plan });
+      return res.json({ plan: planKey, limits, basePlan, overrides });
     } catch (err) {
       return res.status(500).json({ error: err.message });
     }

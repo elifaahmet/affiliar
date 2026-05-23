@@ -28,6 +28,15 @@ function makeFlagGuard({ flag, label }) {
   };
 }
 
+// Featue overrides may arrive as a plain object (from .lean()), a Map, or
+// undefined. Normalize to a plain object the caller can safely spread.
+function overridesToObject(raw) {
+  if (!raw) return {};
+  if (raw instanceof Map) return Object.fromEntries(raw);
+  if (typeof raw === "object") return { ...raw };
+  return {};
+}
+
 async function resolveOperatorPlan(req) {
   const user = req.affiliateUser;
   if (!user || !user.operatorId) {
@@ -37,9 +46,16 @@ async function resolveOperatorPlan(req) {
   if (!operator || operator.isDeleted) {
     return null;
   }
+  // Operator's effective plan = base plan from planLimits.PLANS overlaid
+  // with anything in Operator.featureOverrides. So a custom Crew deal can
+  // set { crewSystem: true } without bumping the operator off Pro.
+  const basePlan = getPlan(operator.plan);
+  const overrides = overridesToObject(operator.featureOverrides);
   return {
     operator,
-    plan: getPlan(operator.plan),
+    plan: { ...basePlan, ...overrides },
+    basePlan,
+    overrides,
     planKey: operator.plan || PLAN_ORDER[0],
   };
 }

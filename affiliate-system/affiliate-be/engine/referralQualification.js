@@ -73,32 +73,15 @@ function evaluateGates({ ftdCents, ftdAt, gates, wagerSinceFtdCents, now = new D
  * Compute the reward in cents from the resolved reward config and the
  * referee's FTD. Returns 0 for malformed config (defensive).
  *
- * For percent_of_first_deposit, the FTD currency is treated as the
- * reward currency — Phase 1 ships without FX normalization; operators
- * who want exact-EUR percent calcs should normalize their FTDs upstream.
- *
- * @param {object} rewardConfig  ReferAFriendConfig.reward subdoc
- * @param {number} ftdCents
- * @returns {number} reward cents (clamped >= 0)
+ * Thin wrapper around `engine/raReward` so the strategy registry handles
+ * the actual math — keeps the call sites unchanged while letting new
+ * shapes (crew_tiered, match-deposit, …) drop into ./raReward/ without
+ * touching this file.
  */
+const raReward = require("./raReward");
+
 function computeReward(rewardConfig, ftdCents) {
-  if (!rewardConfig) return 0;
-  const ftd = Number(ftdCents) || 0;
-
-  if (rewardConfig.type === "fixed_bonus") {
-    return Math.max(0, Number(rewardConfig.amountCents) || 0);
-  }
-
-  if (rewardConfig.type === "percent_of_first_deposit") {
-    const pct = Number(rewardConfig.percent) || 0;
-    let raw = Math.floor((ftd * pct) / 100);
-    if (isActive(rewardConfig.capCents) && raw > rewardConfig.capCents) {
-      raw = rewardConfig.capCents;
-    }
-    return Math.max(0, raw);
-  }
-
-  return 0;
+  return raReward.compute(rewardConfig, { ftdCents });
 }
 
 // A gate is "active" only when an explicit non-null, non-zero value is set.
