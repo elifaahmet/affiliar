@@ -84,9 +84,10 @@ function buildInitialForm(existingConfig: ReferConfig | null): Omit<ReferConfig,
 export default function BrandConfigCard({ brand, existingConfig, onSaved }: Props) {
   const queryClient = useQueryClient();
   const { limits } = useOperatorPlan();
-  // Crew (tiered) is a custom-plan feature — only show the option when the
-  // operator's featureOverrides unlock it. BE rejects too if a stale FE
-  // sends the type through.
+  // Crew (tiered) is a Pro-plan feature. limits.crewSystem comes back true
+  // for pro operators (and for anyone with a Operator.featureOverrides
+  // override granting it for a custom deal). BE rejects too if a stale FE
+  // sends the type through on a plan that doesn't carry it.
   const crewEnabled = !!(limits as { crewSystem?: boolean } | null)?.crewSystem;
   const [open, setOpen]   = useState(!!existingConfig?.enabled);
   const [form, setForm]   = useState<Omit<ReferConfig, 'brandId'>>(() => buildInitialForm(existingConfig));
@@ -185,7 +186,7 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
                     { value: 'fixed_bonus', label: 'Fixed bonus' },
                     { value: 'percent_of_first_deposit', label: 'Percent of first deposit' },
                     ...(crewEnabled
-                      ? [{ value: 'crew_tiered', label: 'Crew (tiered) — custom plan' }]
+                      ? [{ value: 'crew_tiered', label: 'Crew (tiered)' }]
                       : []),
                   ]}
                 />

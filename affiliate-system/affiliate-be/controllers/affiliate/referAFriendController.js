@@ -93,18 +93,18 @@ exports.upsertConfig = async (req, res) => {
     caps,
   } = req.body || {};
 
-  // Crew is a custom-deal feature — only operators flagged with
-  // featureOverrides.crewSystem can save reward.type === "crew_tiered".
-  // The planGuard on /refer/* (checkReferAFriend) is the broader gate; this
-  // is the per-reward-shape gate on top.
+  // Crew (tiered) lives on the Pro plan (or any plan granted the
+  // crewSystem flag via Operator.featureOverrides for a custom deal).
+  // The planGuard on /refer/* (checkReferAFriend) is the broader gate;
+  // this is the per-reward-shape gate on top.
   if (reward && reward.type === "crew_tiered") {
     const resolved = await resolveOperatorPlan(req);
     if (resolved && !resolved.plan.crewSystem) {
       return res.status(403).json(
         planError(
-          `Crew (tiered) refer-a-friend is a custom-plan feature — not available on the ${resolved.plan.name} plan.`,
+          `Crew (tiered) refer-a-friend is not available on the ${resolved.plan.name} plan — upgrade to Affiliate Pro.`,
           resolved.planKey,
-          resolved.planKey, // upgrade target is the same plan + custom override
+          "pro",
         ),
       );
     }

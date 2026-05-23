@@ -19,6 +19,7 @@ const PLANS = {
     subAffiliates: false,      // direct referrals only — no sub-affiliates
     campaignTracking: false,
     referAFriend: false,
+    crewSystem: false,
     bulkImport: false,
     customFees: false,
     kycGate: false,
@@ -35,6 +36,7 @@ const PLANS = {
     subAffiliates: true,       // 2-tier: sub-affiliates per affiliate
     campaignTracking: true,
     referAFriend: false,
+    crewSystem: false,
     bulkImport: false,
     customFees: false,
     kycGate: false,
@@ -51,6 +53,7 @@ const PLANS = {
     subAffiliates: true,
     campaignTracking: true,
     referAFriend: false,
+    crewSystem: false,
     bulkImport: true,          // provider-fee CSV, affiliate CSV import
     customFees: true,          // Custom NGR % + Custom Deposit %
     kycGate: true,             // minKycLevel CPA gate
@@ -67,6 +70,7 @@ const PLANS = {
     subAffiliates: true,
     campaignTracking: true,
     referAFriend: false,
+    crewSystem: false,
     bulkImport: true,
     customFees: true,
     kycGate: true,
@@ -83,6 +87,7 @@ const PLANS = {
     subAffiliates: true,
     campaignTracking: true,
     referAFriend: true,        // Refer-a-Friend is Pro-only
+    crewSystem: true,          // Crew (tiered) RaF shape — Pro-only
     bulkImport: true,
     customFees: true,
     kycGate: true,
