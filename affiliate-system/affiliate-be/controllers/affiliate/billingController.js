@@ -13,7 +13,10 @@ const { logger } = require("../../middlewares/logger");
 // The token is per-session (20 min upstream) so we cache it in-process per
 // operator. Redis would be better for multi-instance deploys but the
 // affiliate-be currently runs single-PM2-fork with Redis disabled.
-const PROVIDER_BASE_URL    = process.env.BILLING_PROVIDER_URL || "https://api-ke.sansgetirsin.com";
+// Sans's prod host is merchant-specific (the subdomain is per-account).
+// Always set BILLING_PROVIDER_URL via env in deployed configs; the literal
+// here is the placeholder used in playlike/pixupplay configs.
+const PROVIDER_BASE_URL    = process.env.BILLING_PROVIDER_URL || "https://api-kev9ubrxgt3p9i4a.sansgetirsin.com";
 const PROVIDER_API_KEY     = process.env.BILLING_PROVIDER_API_KEY || "";
 const BILLING_CALLBACK_URL = process.env.BILLING_CALLBACK_URL || "http://localhost:4100/billing/sans/callback";
 
