@@ -49,11 +49,11 @@ interface PayResponse {
 }
 
 const PLANS = [
-  { key: 'tier1',  label: '1-Tier',            price: 47 },
-  { key: 'tier2',  label: '1-Tier & 2-Tier',   price: 97 },
-  { key: 'plus',   label: 'Affiliate Plus',    price: 497 },
-  { key: 'plusL2', label: 'Affiliate Plus L2', price: 997 },
-  { key: 'pro',    label: 'Affiliate Pro',     price: 2000 },
+  { key: 'tier1',  label: '1-Tier',            price: 53 },
+  { key: 'tier2',  label: '1-Tier & 2-Tier',   price: 98 },
+  { key: 'plus',   label: 'Affiliate Plus',    price: 494 },
+  { key: 'plusL2', label: 'Affiliate Plus L2', price: 998 },
+  { key: 'pro',    label: 'Affiliate Pro',     price: 1799 },
 ] as const;
 
 const STATUS_BADGE: Record<string, string> = {

@@ -5,51 +5,90 @@
 
 const PLAN_ORDER = ["tier1", "tier2", "plus", "plusL2", "pro"];
 
+// Feature flags carried per plan. Only `maxAffiliates`, `commissionTypes`,
+// `subAffiliates` and `campaignTracking` are currently enforced by
+// planGuard.js — the rest live here as the source of truth for the public
+// pricing page; wiring them into real middleware is a follow-up step.
 const PLANS = {
   tier1: {
     name: "1-Tier",
-    priceUsd: 47,
-    maxAffiliates: 100000,
+    priceUsd: 53,
+    maxAffiliates: 10,
+    maxBrands: 1,
     commissionTypes: ["revshare", "cpa"],
     subAffiliates: false,      // direct referrals only — no sub-affiliates
     campaignTracking: false,
+    referAFriend: false,
+    bulkImport: false,
+    customFees: false,
+    kycGate: false,
+    apiAccess: false,
+    whiteLabel: false,
     coManaged: false,
   },
   tier2: {
     name: "1-Tier & 2-Tier",
-    priceUsd: 97,
-    maxAffiliates: 999999,
+    priceUsd: 98,
+    maxAffiliates: 50,
+    maxBrands: 3,
     commissionTypes: ["revshare", "cpa", "hybrid", "tiered_revshare"],
     subAffiliates: true,       // 2-tier: sub-affiliates per affiliate
     campaignTracking: true,
+    referAFriend: true,
+    bulkImport: false,
+    customFees: false,
+    kycGate: false,
+    apiAccess: false,
+    whiteLabel: false,
     coManaged: false,
   },
   plus: {
     name: "Affiliate Plus",
-    priceUsd: 497,
-    maxAffiliates: 999999,
+    priceUsd: 494,
+    maxAffiliates: 100,
+    maxBrands: 10,
     commissionTypes: ["revshare", "cpa", "hybrid", "tiered_revshare"],
     subAffiliates: true,
     campaignTracking: true,
-    coManaged: true,           // DWY co-management (level 1)
+    referAFriend: true,
+    bulkImport: true,          // provider-fee CSV, affiliate CSV import
+    customFees: true,          // Custom NGR % + Custom Deposit %
+    kycGate: true,             // minKycLevel CPA gate
+    apiAccess: false,
+    whiteLabel: false,
+    coManaged: true,           // DWY co-management (level 1, 25 sourced)
   },
   plusL2: {
     name: "Affiliate Plus L2",
-    priceUsd: 997,
-    maxAffiliates: 999999,
+    priceUsd: 998,
+    maxAffiliates: 500,
+    maxBrands: 50,
     commissionTypes: ["revshare", "cpa", "hybrid", "tiered_revshare"],
     subAffiliates: true,
     campaignTracking: true,
-    coManaged: true,           // DWY co-management (level 2)
+    referAFriend: true,
+    bulkImport: true,
+    customFees: true,
+    kycGate: true,
+    apiAccess: true,           // integration + webhook endpoints
+    whiteLabel: false,
+    coManaged: true,           // DWY co-management (level 2, 50 sourced)
   },
   pro: {
     name: "Affiliate Pro",
-    priceUsd: 2000,
-    maxAffiliates: 999999,
+    priceUsd: 1799,
+    maxAffiliates: 999999,     // unlimited
+    maxBrands: 999999,
     commissionTypes: ["revshare", "cpa", "hybrid", "tiered_revshare"],
     subAffiliates: true,
     campaignTracking: true,
-    coManaged: true,           // DWY co-management (level 3)
+    referAFriend: true,
+    bulkImport: true,
+    customFees: true,
+    kycGate: true,
+    apiAccess: true,
+    whiteLabel: true,          // custom branding on the affiliate portal
+    coManaged: true,           // DWY co-management (level 3, priority)
   },
 };
 
