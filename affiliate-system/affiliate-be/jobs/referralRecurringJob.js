@@ -67,7 +67,12 @@ async function runForMonth({ year, month }) {
   // Stream referrals in 'rewarded' state — these are the only ones that
   // accrue. Even if recurringReward was disabled at qualification time,
   // we still iterate; the per-row check below filters them out cheaply.
-  const cursor = PlayerReferral.find({ status: "rewarded" }).cursor();
+  // Frozen referrals are skipped — operator admin re-enables them later
+  // and the next monthly run resumes payouts.
+  const cursor = PlayerReferral.find({
+    status: "rewarded",
+    $or: [{ frozen: false }, { frozen: { $exists: false } }],
+  }).cursor();
 
   for await (const referral of cursor) {
     try {

@@ -80,6 +80,14 @@ const playerReferralSchema = new mongoose.Schema(
     // 'min_deposit_not_met', 'wager_floor_not_met', 'ftd_reversed', 'fraud'.
     rejectionReason: { type: String, default: null },
 
+    // Operator admin can freeze a non-terminal referral — qualification job
+    // skips it and the recurring payouts pause. Independent of status so
+    // the freeze can be lifted later and the referral resumes from
+    // wherever it was. `frozenReason`/`frozenAt` give the audit trail.
+    frozen:       { type: Boolean, default: false, index: true },
+    frozenReason: { type: String,  default: null },
+    frozenAt:     { type: Date,    default: null },
+
     // Timestamps along the lifecycle. Each is set when the corresponding
     // transition occurs and never modified afterward (audit trail).
     signedUpAt: { type: Date, default: null },

@@ -191,3 +191,34 @@ export interface ReferralDetailResponse {
   referral: PlayerReferral;
   deliveries: RewardDelivery[];
 }
+
+// ── Crew admin ──────────────────────────────────────────────────────────────
+
+export interface TopReferrerRow {
+  referrerPlayerId: string;
+  totalReferrals: number;
+  activeReferrals: number;
+  pendingReferrals: number;
+  earningsCents: number;
+  lastActivityAt: string | null;
+}
+
+export interface TopReferrersResponse {
+  referrers: TopReferrerRow[];
+  count: number;
+}
+
+export interface FraudFlaggedRow {
+  _id: string;
+  playerId: string;
+  brandId: string;
+  lastFraudFlag: string | null;
+  lastFraudFlagAt: string | null;
+  registeredAt: string | null;
+  country: string | null;
+}
+
+export interface FraudFlaggedResponse {
+  players: FraudFlaggedRow[];
+  count: number;
+}

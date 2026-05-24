@@ -340,6 +340,13 @@ export const REFER_API_URLS = {
   REFERRALS:  () => `${API_BASE_URL}api/refer/referrals`,
   REFERRAL:   (id: string) => `${API_BASE_URL}api/refer/referrals/${id}`,
   DELIVERIES: () => `${API_BASE_URL}api/refer/deliveries`,
+
+  // Crew admin surface
+  TOP_REFERRERS:     () => `${API_BASE_URL}api/refer/admin/top-referrers`,
+  FRAUD_FLAGGED:     () => `${API_BASE_URL}api/refer/admin/fraud-flagged`,
+  REFERRAL_APPROVE:  (id: string) => `${API_BASE_URL}api/refer/admin/referrals/${id}/approve`,
+  REFERRAL_REJECT:   (id: string) => `${API_BASE_URL}api/refer/admin/referrals/${id}/reject`,
+  REFERRAL_FREEZE:   (id: string) => `${API_BASE_URL}api/refer/admin/referrals/${id}/freeze`,
 };
 
 export const AFFILIATE_PLAYERS_API_URLS = {

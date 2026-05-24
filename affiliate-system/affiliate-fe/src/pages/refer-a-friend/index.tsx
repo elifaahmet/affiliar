@@ -5,13 +5,15 @@ import { BRANDS_API_URLS, REFER_API_URLS } from 'config/apiUrls';
 
 import ConfigurationTab from './components/ConfigurationTab';
 import ActivityTab from './components/ActivityTab';
+import CrewAdminTab from './components/CrewAdminTab';
 import type { Brand, BrandsResponse, ConfigsResponse } from './types';
 
-type TabKey = 'configuration' | 'activity';
+type TabKey = 'configuration' | 'activity' | 'crew-admin';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'configuration', label: 'Configuration' },
   { key: 'activity',      label: 'Activity' },
+  { key: 'crew-admin',    label: 'Crew admin' },
 ];
 
 export default function ReferAFriendPage() {
@@ -76,6 +78,8 @@ export default function ReferAFriendPage() {
       )}
 
       {tab === 'activity' && <ActivityTab brands={brands} />}
+
+      {tab === 'crew-admin' && <CrewAdminTab brands={brands} />}
     </div>
   );
 }

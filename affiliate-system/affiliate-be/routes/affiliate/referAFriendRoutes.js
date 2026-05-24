@@ -47,4 +47,14 @@ router.get ("/referrals",                operatorCtl.listReferrals);
 router.get ("/referrals/:id",            operatorCtl.getReferral);
 router.get ("/deliveries",               operatorCtl.listDeliveries);
 
+// ── Operator: Crew admin (leaderboard, fraud, manual transitions) ────────────
+// Mounted under /admin/ to keep the surface tidy and to make it obvious in
+// access logs which endpoints are operator-driven rather than integration.
+
+router.get ("/admin/top-referrers",            operatorCtl.listTopReferrers);
+router.get ("/admin/fraud-flagged",            operatorCtl.listFraudFlagged);
+router.post("/admin/referrals/:id/approve",    operatorCtl.approveReferral);
+router.post("/admin/referrals/:id/reject",     operatorCtl.rejectReferral);
+router.post("/admin/referrals/:id/freeze",     operatorCtl.setReferralFrozen);
+
 module.exports = router;

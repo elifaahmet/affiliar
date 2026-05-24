@@ -42,7 +42,12 @@ async function runOnce() {
   // Stream rather than load-all-into-memory: in pathological cases there
   // could be thousands of pending referrals. Mongoose .cursor() yields
   // one doc at a time without buffering the full result set.
-  const cursor = PlayerReferral.find({ status: "pending_qualification" })
+  // Frozen referrals are paused — operator admin lifted the freeze toggle
+  // and we'll pick them up on the next run.
+  const cursor = PlayerReferral.find({
+    status: "pending_qualification",
+    $or: [{ frozen: false }, { frozen: { $exists: false } }],
+  })
     .sort({ ftdAt: 1 })
     .cursor();
 
