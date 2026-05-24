@@ -126,4 +126,171 @@ async function sendBillingPastDue({ to, name, planName, dueDate }) {
   return sendMail({ to, subject, htmlBody, textBody });
 }
 
-module.exports = { sendMail, sendAffiliateInvite, sendPasswordReset, sendBillingPastDue };
+// ── Billing reminder cadence ─────────────────────────────────────────────────
+//
+// The billingExpiryJob walks operators daily and picks the right reminder for
+// where they sit on the timeline:
+//
+//   -7d / -3d   →  sendBillingUpcoming          (heads-up before due)
+//    0d         →  sendBillingDueToday          (paid grace expires today)
+//   +1..+9d     →  sendBillingPastDueReminder   (daily, with countdown)
+//   +10d       →  sendBillingSuspensionWarning (final notice)
+//
+// All four share the same shell (logo, button, text body) so the operator
+// sees a consistent thread of messages; only the headline + body copy + CTA
+// tone shift as the urgency increases.
+
+function billingShell({ logoUrl, billingUrl, headline, headlineColor, bodyHtml, ctaLabel, ctaColor, footerHtml }) {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; padding: 40px 30px;">
+      <div style="text-align: center; margin-bottom: 32px;">
+        <img src="${logoUrl}" alt="Affiliar" width="160" style="display: inline-block;" />
+      </div>
+      <h2 style="color: ${headlineColor}; margin-top: 0;">${headline}</h2>
+      ${bodyHtml}
+      <p style="margin: 32px 0; text-align: center;">
+        <a href="${billingUrl}"
+           style="background: ${ctaColor}; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">
+          ${ctaLabel}
+        </a>
+      </p>
+      <p style="color: #64748B; font-size: 13px; line-height: 1.5;">Or open the billing page directly:<br/>
+      <a href="${billingUrl}" style="color: #6D28D9; word-break: break-all;">${billingUrl}</a></p>
+      <hr style="border: none; border-top: 1px solid #E2E8F0; margin: 32px 0;" />
+      ${footerHtml}
+    </div>
+  `;
+}
+
+function fmtDate(d) {
+  return new Date(d).toLocaleDateString("en-US", {
+    year: "numeric", month: "short", day: "numeric",
+  });
+}
+
+// -7d and -3d both use this — `daysUntilDue` differentiates the wording.
+async function sendBillingUpcoming({ to, name, planName, dueDate, daysUntilDue }) {
+  const billingUrl = `${APP_URL}/billing`;
+  const logoUrl = `${APP_URL}/affiliar-logo-email.svg`;
+  const niceDate = fmtDate(dueDate);
+  const subject = `Affiliar subscription payment due in ${daysUntilDue} day${daysUntilDue === 1 ? "" : "s"}`;
+
+  const bodyHtml = `
+    <p style="color: #334155; font-size: 15px; line-height: 1.6;">Hi ${name || "there"},</p>
+    <p style="color: #334155; font-size: 15px; line-height: 1.6;">A heads-up: your Affiliar subscription${planName ? ` (${planName})` : ""} is due on <b>${niceDate}</b> — that's <b>${daysUntilDue} day${daysUntilDue === 1 ? "" : "s"}</b> from now.</p>
+    <p style="color: #334155; font-size: 15px; line-height: 1.6;">You can settle it now from the billing page so nothing interrupts your operator panel access.</p>
+  `;
+  const footerHtml = `<p style="color: #94A3B8; font-size: 12px; text-align: center;">You're receiving this because your billing date is approaching. No action needed if you've already paid.</p>`;
+  const htmlBody = billingShell({
+    logoUrl, billingUrl,
+    headline: "Payment coming up",
+    headlineColor: "#6D28D9",
+    bodyHtml,
+    ctaLabel: "Pay now",
+    ctaColor: "#6D28D9",
+    footerHtml,
+  });
+  const textBody = `Hi ${name || "there"},\n\nYour Affiliar subscription${planName ? ` (${planName})` : ""} is due on ${niceDate} (in ${daysUntilDue} day${daysUntilDue === 1 ? "" : "s"}).\n\nPay now: ${billingUrl}`;
+
+  return sendMail({ to, subject, htmlBody, textBody });
+}
+
+// Day-of due date. Operator still has the day to pay before sliding into
+// past_due, so the tone is firm but not punitive yet.
+async function sendBillingDueToday({ to, name, planName, dueDate }) {
+  const billingUrl = `${APP_URL}/billing`;
+  const logoUrl = `${APP_URL}/affiliar-logo-email.svg`;
+  const niceDate = fmtDate(dueDate);
+  const subject = "Your Affiliar subscription payment is due today";
+
+  const bodyHtml = `
+    <p style="color: #334155; font-size: 15px; line-height: 1.6;">Hi ${name || "there"},</p>
+    <p style="color: #334155; font-size: 15px; line-height: 1.6;">Your Affiliar subscription${planName ? ` (${planName})` : ""} is due <b>today</b> (${niceDate}). Pay now to keep everything running without a hitch.</p>
+  `;
+  const footerHtml = `<p style="color: #94A3B8; font-size: 12px; text-align: center;">If you've already paid, it can take a few minutes for the provider to confirm — you can safely ignore this email in that case.</p>`;
+  const htmlBody = billingShell({
+    logoUrl, billingUrl,
+    headline: "Payment due today",
+    headlineColor: "#B45309",
+    bodyHtml,
+    ctaLabel: "Pay now",
+    ctaColor: "#B45309",
+    footerHtml,
+  });
+  const textBody = `Hi ${name || "there"},\n\nYour Affiliar subscription${planName ? ` (${planName})` : ""} is due today (${niceDate}).\n\nPay now: ${billingUrl}`;
+
+  return sendMail({ to, subject, htmlBody, textBody });
+}
+
+// +1..+9 days overdue. We always include a "service will be suspended in N
+// days" countdown so the operator knows exactly when the cut-off lands.
+async function sendBillingPastDueReminder({ to, name, planName, dueDate, daysOverdue, daysUntilSuspension }) {
+  const billingUrl = `${APP_URL}/billing`;
+  const logoUrl = `${APP_URL}/affiliar-logo-email.svg`;
+  const niceDate = fmtDate(dueDate);
+  const subject = `Payment overdue — service will be suspended in ${daysUntilSuspension} day${daysUntilSuspension === 1 ? "" : "s"}`;
+
+  const bodyHtml = `
+    <p style="color: #334155; font-size: 15px; line-height: 1.6;">Hi ${name || "there"},</p>
+    <p style="color: #334155; font-size: 15px; line-height: 1.6;">Your Affiliar subscription${planName ? ` (${planName})` : ""} was due on <b>${niceDate}</b> and is now <b>${daysOverdue} day${daysOverdue === 1 ? "" : "s"} overdue</b>.</p>
+    <div style="background: #FEF3C7; border-left: 4px solid #D97706; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
+      <p style="color: #92400E; font-size: 14px; line-height: 1.5; margin: 0;">Service will be suspended in <b>${daysUntilSuspension} day${daysUntilSuspension === 1 ? "" : "s"}</b> if payment isn't received. Once suspended, your affiliates will not be able to track new conversions.</p>
+    </div>
+  `;
+  const footerHtml = `<p style="color: #94A3B8; font-size: 12px; text-align: center;">Already paid? Provider confirmations can take a few minutes — you can ignore this email if so.</p>`;
+  const htmlBody = billingShell({
+    logoUrl, billingUrl,
+    headline: "Payment overdue",
+    headlineColor: "#B91C1C",
+    bodyHtml,
+    ctaLabel: "Pay now",
+    ctaColor: "#B91C1C",
+    footerHtml,
+  });
+  const textBody = `Hi ${name || "there"},\n\nYour Affiliar subscription${planName ? ` (${planName})` : ""} was due on ${niceDate} and is now ${daysOverdue} day${daysOverdue === 1 ? "" : "s"} overdue.\n\nService will be suspended in ${daysUntilSuspension} day${daysUntilSuspension === 1 ? "" : "s"} if payment isn't received.\n\nPay now: ${billingUrl}`;
+
+  return sendMail({ to, subject, htmlBody, textBody });
+}
+
+// +10 days overdue — the final notice. The job doesn't actually flip to a
+// `suspended` status yet (that's a planGuard / access-control decision for
+// later); this email is the strongest warning the operator gets and is the
+// last automated reminder for the cycle.
+async function sendBillingSuspensionWarning({ to, name, planName, dueDate }) {
+  const billingUrl = `${APP_URL}/billing`;
+  const logoUrl = `${APP_URL}/affiliar-logo-email.svg`;
+  const niceDate = fmtDate(dueDate);
+  const subject = "Final notice — pay now to avoid Affiliar service suspension";
+
+  const bodyHtml = `
+    <p style="color: #334155; font-size: 15px; line-height: 1.6;">Hi ${name || "there"},</p>
+    <p style="color: #334155; font-size: 15px; line-height: 1.6;">Your Affiliar subscription${planName ? ` (${planName})` : ""} has been overdue since <b>${niceDate}</b> and is now <b>10 days past due</b>.</p>
+    <div style="background: #FEE2E2; border-left: 4px solid #B91C1C; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
+      <p style="color: #7F1D1D; font-size: 14px; line-height: 1.5; margin: 0;"><b>This is the final notice.</b> If we don't receive payment, your operator panel access and conversion tracking will be suspended shortly. Your data and affiliates are preserved — paying restores everything.</p>
+    </div>
+  `;
+  const footerHtml = `<p style="color: #94A3B8; font-size: 12px; text-align: center;">Already paid? Provider confirmations can take a few minutes — you can ignore this email if so.</p>`;
+  const htmlBody = billingShell({
+    logoUrl, billingUrl,
+    headline: "Final notice — payment 10 days overdue",
+    headlineColor: "#7F1D1D",
+    bodyHtml,
+    ctaLabel: "Pay now",
+    ctaColor: "#7F1D1D",
+    footerHtml,
+  });
+  const textBody = `Hi ${name || "there"},\n\nFINAL NOTICE: Your Affiliar subscription${planName ? ` (${planName})` : ""} has been overdue since ${niceDate} and is now 10 days past due. If payment isn't received your operator panel access and conversion tracking will be suspended shortly.\n\nPay now: ${billingUrl}\n\nYour data and affiliates are preserved — paying restores everything.`;
+
+  return sendMail({ to, subject, htmlBody, textBody });
+}
+
+module.exports = {
+  sendMail,
+  sendAffiliateInvite,
+  sendPasswordReset,
+  sendBillingPastDue,             // legacy single transition email (kept for safety)
+  sendBillingUpcoming,            // -7d / -3d
+  sendBillingDueToday,            // 0d
+  sendBillingPastDueReminder,     // +1..+9d
+  sendBillingSuspensionWarning,   // +10d
+};

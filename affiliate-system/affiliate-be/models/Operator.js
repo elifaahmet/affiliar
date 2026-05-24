@@ -43,6 +43,46 @@ const operatorSchema = new mongoose.Schema(
       type: Date,
       default: () => new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
     },
+    // When the operator most recently transitioned from `active` to
+    // `past_due`. Cleared on successful payment (next cycle starts fresh).
+    // Used by the billing reminder job to compute "days overdue" for the
+    // suspension-warning copy.
+    pastDueAt: {
+      type: Date,
+      default: null,
+    },
+    // Append-only log of billing reminder emails sent for the current
+    // billing cycle. `cycleAnchor` is the nextBillingDate at the time of
+    // send — once the operator pays and nextBillingDate advances, the old
+    // entries become irrelevant (the new cycle has its own clean log via
+    // the cycleAnchor dedup key).
+    //
+    // `kind` values:
+    //   'upcoming_7d'         — 7 days before due
+    //   'upcoming_3d'         — 3 days before due
+    //   'due_today'           — day of due date, still unpaid
+    //   'past_due_daily'      — daily after due, +1..+9 days overdue
+    //   'suspension_warning'  — final notice at +10 days overdue
+    billingReminders: {
+      type: [
+        {
+          kind: {
+            type: String,
+            enum: [
+              "upcoming_7d",
+              "upcoming_3d",
+              "due_today",
+              "past_due_daily",
+              "suspension_warning",
+            ],
+            required: true,
+          },
+          cycleAnchor: { type: Date, required: true },
+          sentAt:      { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+    },
     // Per-operator feature flag overrides on top of the subscription plan.
     // Used for bespoke deals — e.g. a custom-priced Crew refer-a-friend
     // engagement that doesn't belong on the public pricing ladder. Keys
