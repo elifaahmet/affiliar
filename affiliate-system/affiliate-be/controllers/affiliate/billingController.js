@@ -351,20 +351,31 @@ const billingController = {
   // Sans posts: { action, type?, transactionId, status, amount?,
   //               rejectReason?, extraData?, ... }
   //   - action: "TRANSACTION_STATUS_CHANGE" | "CHANGED_TRANSACTION_AMOUNT" | …
+  //   - type:   "DEPOSIT" | "WITHDRAW"  (case-insensitive — discriminator)
   //   - status: "APPROVED" | "REJECTED"   (case-sensitive on Sans's side)
-  //   - transactionId: Sans's own id (we stored it as providerTxId on create)
+  //   - transactionId: Sans's own id (we stored it as providerTxId on create
+  //                    for deposits, or sansTransactionId for AffiliatePayout)
   //
   // Provider-namespaced (/billing/sans/callback) so future gateways (Stripe,
-  // etc.) can mount alongside without colliding.
+  // etc.) can mount alongside without colliding. Single endpoint —
+  // discriminate on payload.type because Sans only supports one callback URL.
   handleSansCallback: async (req, res) => {
     const body = req.body || {};
-    const { action, transactionId, status, amount, rejectReason, extraData } = body;
+    const { action, type, transactionId, status, amount, rejectReason, extraData } = body;
 
     if (!action || !transactionId) {
       return res.status(400).json({
         success: false,
         message: "Missing required fields: action or transactionId",
       });
+    }
+
+    // Withdraw callbacks land here too — branch before touching BillingTransaction
+    // (which is deposit-only). The handler lives on the payout controller so
+    // both halves of the Sans surface stay close to their respective ledgers.
+    if ((type || "").toString().toUpperCase() === "WITHDRAW") {
+      const payoutCtl = require("./affiliatePayoutController");
+      return payoutCtl.handleSansWithdrawCallback(req, res);
     }
 
     try {
@@ -511,3 +522,8 @@ const billingController = {
 };
 
 module.exports = billingController;
+// Internals exposed for sibling controllers (affiliatePayoutController) that
+// need to drive the same Sans Getirsin merchant session — keeps the token
+// cache shared instead of duplicating /payment/json calls per controller.
+module.exports.getSansToken = getSansToken;
+module.exports.sansProvider = provider;
