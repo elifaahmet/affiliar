@@ -26,7 +26,11 @@ interface AffiliatesResponse {
 interface BillingTransaction {
   _id: string;
   plan: string;
-  amount: number;
+  // Backend writes `amountUsd` (see models/BillingTransaction.js). Older
+  // records on disk may have `amount` from a pre-rename payload; keep
+  // both as optional so formatUsd can fall through gracefully.
+  amountUsd?: number;
+  amount?: number;
   status: string;
   createdAt: string;
   transactionId?: string;
@@ -119,8 +123,9 @@ function formatDate(dateStr: string): string {
   });
 }
 
-function formatUsd(amount: number): string {
-  return `$${amount.toLocaleString('en-US')}`;
+function formatUsd(amount: number | null | undefined): string {
+  if (amount == null || Number.isNaN(amount)) return '—';
+  return `$${Number(amount).toLocaleString('en-US')}`;
 }
 
 /* ── Payment Modal ─────────────────────────────────────────────────── */
@@ -178,7 +183,7 @@ function PaymentModal({
               <div>
                 <p className='text-xs text-gray-700'>Amount</p>
                 <p className='text-sm font-medium text-gray-800'>
-                  {formatUsd(payData.transaction.amount)}
+                  {formatUsd(payData.transaction.amountUsd ?? payData.transaction.amount)}
                 </p>
               </div>
               <div>
@@ -428,7 +433,7 @@ export default function Settings() {
                         {tx.plan.charAt(0).toUpperCase() + tx.plan.slice(1)}
                       </td>
                       <td className='text-xs text-gray-700 py-2 pr-4'>
-                        {formatUsd(tx.amount)}
+                        {formatUsd(tx.amountUsd ?? tx.amount)}
                       </td>
                       <td className='py-2 pr-4'>
                         <TxStatusBadge status={tx.status} />
