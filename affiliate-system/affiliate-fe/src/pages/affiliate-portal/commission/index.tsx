@@ -180,6 +180,8 @@ export default function AffiliateCommission() {
 
 type Direction = 'incoming' | 'outgoing';
 
+type SubPayoutStatus = 'draft' | 'pending' | 'processing' | 'paid' | 'failed' | 'cancelled';
+
 interface SubPayout {
   _id: string;
   direction: Direction;
@@ -197,10 +199,26 @@ interface SubPayout {
   revshareAmountCents: number;
   cpaAmountCents: number;
   payableCents: number;
-  status: 'draft' | 'paid';
+  status: SubPayoutStatus;
   calculatedAt: string | null;
   paidAt: string | null;
 }
+
+interface PayoutBalanceResponse {
+  earnedCents: number;
+  paidToMeCents: number;
+  paidToMySubsCents: number;
+  balanceCents: number;
+}
+
+const SUB_STATUS_TONE: Record<SubPayoutStatus, string> = {
+  draft:      'bg-gray-100 text-gray-600',
+  pending:    'bg-yellow-50 text-yellow-700',
+  processing: 'bg-yellow-100 text-yellow-700',
+  paid:       'bg-green-50 text-green-700',
+  failed:     'bg-red-50 text-red-700',
+  cancelled:  'bg-orange-50 text-orange-700',
+};
 
 interface SubPayoutsResponse {
   payouts: SubPayout[];
@@ -216,6 +234,20 @@ function SubAffiliatePayouts() {
     queryKey: ['affiliate-sub-payouts', tab],
     params: { direction: tab, limit: 50 },
   });
+
+  // Affiliate's internal commission balance — earned − paidToMe − paidToSubs.
+  // Drives the Pay button gating: if balance < amount, payout is blocked at
+  // the server, so we surface the number here to avoid surprise.
+  const { data: balanceData, refetch: refetchBalance } = useBaseQuery<PayoutBalanceResponse>({
+    endpoint: AFFILIATE_PORTAL_API_URLS.PAYOUT_BALANCE(),
+    queryKey: ['affiliate-payout-balance'],
+  });
+  const balance = balanceData?.balanceCents ?? 0;
+
+  const refreshAll = () => {
+    refetch();
+    refetchBalance();
+  };
 
   const calcMutation = useBaseMutation<
     { payoutsCreated: number; payoutsUpdated: number; skipped: number },
@@ -239,7 +271,22 @@ function SubAffiliatePayouts() {
   const rows = data?.payouts ?? [];
 
   return (
-    <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
+    <div className='space-y-4'>
+      {/* Balance summary card — only meaningful for outgoing tab but kept
+          visible always so the affiliate sees how their incoming commission
+          translates to spendable budget. */}
+      {balanceData && (
+        <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-4'>
+          <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
+            <BalanceTile label='Earned'         value={fmt(balanceData.earnedCents)} hint='Approved commissions' />
+            <BalanceTile label='Paid to me'     value={fmt(balanceData.paidToMeCents)} hint='Op → my wallet (paid + reserved)' />
+            <BalanceTile label='Paid to subs'   value={fmt(balanceData.paidToMySubsCents)} hint='Out to my children' />
+            <BalanceTile label='Available'      value={fmt(balance)} hint='Left to spend on sub-payouts' tone={balance > 0 ? 'good' : 'muted'} />
+          </div>
+        </div>
+      )}
+
+      <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
       <div className='px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap'>
         <p className='text-sm font-semibold text-gray-800'>Sub-Affiliate Payouts</p>
         <div className='flex items-center gap-3'>
@@ -328,17 +375,17 @@ function SubAffiliatePayouts() {
                     <td className='px-4 py-3 text-xs text-gray-700 text-right'>{fmt(p.cpaAmountCents ?? 0)}</td>
                     <td className='px-4 py-3 text-xs font-semibold text-gray-800 text-right'>{fmt(p.payableCents ?? 0)}</td>
                     <td className='px-4 py-3'>
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                        p.status === 'paid' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'
-                      }`}>
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${SUB_STATUS_TONE[p.status] ?? 'bg-gray-100 text-gray-600'}`}>
                         {p.status}
                       </span>
                     </td>
                     {tab === 'outgoing' && (
                       <td className='px-4 py-3 text-right'>
-                        {p.status === 'draft' ? (
-                          <MarkPaidButton payoutId={p._id} onPaid={refetch} />
-                        ) : null}
+                        <SubPayoutActions
+                          payout={p}
+                          balanceCents={balance}
+                          onChange={refreshAll}
+                        />
                       </td>
                     )}
                   </tr>
@@ -348,25 +395,109 @@ function SubAffiliatePayouts() {
           </table>
         </div>
       )}
+      </div>
     </div>
   );
 }
 
-function MarkPaidButton({ payoutId, onPaid }: { payoutId: string; onPaid: () => void }) {
-  const mutation = useBaseMutation({
-    endpoint: AFFILIATE_PORTAL_API_URLS.MARK_SUB_PAYOUT_PAID(payoutId),
-    method: 'post',
-    onSuccess: () => onPaid(),
-  });
+function BalanceTile({
+  label, value, hint, tone,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: 'good' | 'muted';
+}) {
+  const valueCls =
+    tone === 'good'  ? 'text-violet-700' :
+    tone === 'muted' ? 'text-gray-400'   :
+                       'text-gray-800';
   return (
-    <button
-      type='button'
-      onClick={() => mutation.mutate({})}
-      disabled={mutation.isPending}
-      className='text-xs font-medium text-primary hover:text-primary-dark disabled:opacity-50'
-    >
-      {mutation.isPending ? 'Marking…' : 'Mark paid'}
-    </button>
+    <div>
+      <p className='text-[10px] font-semibold uppercase tracking-wider text-gray-600'>{label}</p>
+      <p className={`text-base font-semibold mt-0.5 ${valueCls}`}>{value}</p>
+      {hint && <p className='text-[10px] text-gray-500 mt-0.5'>{hint}</p>}
+    </div>
+  );
+}
+
+// Per-row action group. `draft`/`failed` rows can be Paid (Sans dispatch).
+// `pending` rows can be Cancelled. Manual Mark-Paid remains for out-of-band
+// reconciliation across draft/failed.
+function SubPayoutActions({
+  payout, balanceCents, onChange,
+}: {
+  payout: SubPayout;
+  balanceCents: number;
+  onChange: () => void;
+}) {
+  const canDispatch = payout.status === 'draft' || payout.status === 'failed';
+  const canCancel   = payout.status === 'pending';
+  const canMarkPaid = payout.status === 'draft' || payout.status === 'failed';
+  const balanceOk   = balanceCents >= payout.payableCents;
+
+  const dispatchMut = useBaseMutation({
+    endpoint: AFFILIATE_PORTAL_API_URLS.DISPATCH_SUB_PAYOUT(payout._id),
+    method: 'post',
+    onSuccess: onChange,
+    onError: (err: any) =>
+      alert(err?.response?.data?.error || err?.message || 'Dispatch failed'),
+  });
+  const cancelMut = useBaseMutation({
+    endpoint: AFFILIATE_PORTAL_API_URLS.CANCEL_SUB_PAYOUT(payout._id),
+    method: 'post',
+    onSuccess: onChange,
+    onError: (err: any) =>
+      alert(err?.response?.data?.error || err?.message || 'Cancel failed'),
+  });
+  const markMut = useBaseMutation({
+    endpoint: AFFILIATE_PORTAL_API_URLS.MARK_SUB_PAYOUT_PAID(payout._id),
+    method: 'post',
+    onSuccess: onChange,
+  });
+
+  const handlePay = () => {
+    const ok = window.confirm(
+      `Send ${fmt(payout.payableCents)} USDT-TRC20 to ${payout.sub?.username ?? 'sub-affiliate'} via Sans NOW?\n\n` +
+      `This will debit your internal balance and dispatch a real transfer. ` +
+      `Your operator pays out the rest of your commission net of this.`,
+    );
+    if (!ok) return;
+    dispatchMut.mutate({} as any);
+  };
+
+  return (
+    <div className='flex items-center justify-end gap-1.5'>
+      {canDispatch && (
+        <button
+          disabled={dispatchMut.isPending || !balanceOk}
+          onClick={handlePay}
+          title={!balanceOk ? `Balance too low (${fmt(balanceCents)} available)` : ''}
+          className='px-2.5 py-1 text-xs font-medium rounded-md bg-primary text-white hover:bg-primary-dark disabled:opacity-40 disabled:cursor-not-allowed'
+        >
+          {dispatchMut.isPending ? '…' : 'Pay'}
+        </button>
+      )}
+      {canCancel && (
+        <button
+          disabled={cancelMut.isPending}
+          onClick={() => cancelMut.mutate({} as any)}
+          className='px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50'
+        >
+          {cancelMut.isPending ? '…' : 'Cancel'}
+        </button>
+      )}
+      {canMarkPaid && (
+        <button
+          disabled={markMut.isPending}
+          onClick={() => markMut.mutate({} as any)}
+          title='Manual reconciliation (paid off-platform)'
+          className='px-2.5 py-1 text-xs font-medium rounded-md bg-green-50 text-green-700 border border-green-100 hover:bg-green-100 disabled:opacity-50'
+        >
+          {markMut.isPending ? '…' : 'Mark paid'}
+        </button>
+      )}
+    </div>
   );
 }
 

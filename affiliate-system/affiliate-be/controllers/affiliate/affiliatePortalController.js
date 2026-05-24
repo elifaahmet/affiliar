@@ -8,6 +8,8 @@ const AffiliatePayout    = require("../../models/AffiliatePayout");
 const User               = require("../../models/User");
 const Brand              = require("../../models/Brand");
 const { getDescendantIds } = require("../../utils/affiliateHierarchy");
+const { computeBalance } = require("../../utils/affiliateBalance");
+const { logger }         = require("../../middlewares/logger");
 
 // TRC20 wallet addresses are 34 chars, start with "T", base58 alphabet
 // (excludes 0 O I l). This isn't a checksum verification — that lives at the
@@ -541,6 +543,10 @@ exports.listSubPayouts = async (req, res) => {
 // The parent affiliate flips an outgoing payout to paid. Only the parent on
 // that edge can do this — even an operator can't (sub-payouts are internal
 // to the affiliate hierarchy).
+//
+// This is the *manual* path — out-of-band settlement (paid the sub by some
+// other means and just want to close the books). For a real Sans transfer
+// use POST /sub-payouts/:id/dispatch.
 exports.markSubPayoutPaid = async (req, res) => {
   try {
     const affiliate = req.affiliateUser;
@@ -563,6 +569,194 @@ exports.markSubPayoutPaid = async (req, res) => {
     await payout.save();
 
     res.json({ ok: true, payout });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ── Payout balance + Sans dispatch (affiliate → sub) ─────────────────────────
+
+// GET /affiliate-portal/payout-balance
+// Returns the affiliate's internal commission ledger:
+//   earned − paidToMe − paidToMySubs = balance
+// Surfaced on the sub-affiliates page so the affiliate can see at a glance
+// how much they can still spend on outbound sub-payouts.
+exports.getPayoutBalance = async (req, res) => {
+  try {
+    const affiliate = req.affiliateUser;
+    if (affiliate.role !== "affiliate") {
+      return res.status(403).json({ error: "Affiliates only" });
+    }
+    // The affiliate's tenant Operator._id comes from their AffiliateProfile
+    // (each affiliate sits under exactly one operator).
+    const profile = await AffiliateProfile.findOne({ user: affiliate._id })
+      .select("operatorUser")
+      .lean();
+    if (!profile?.operatorUser) {
+      return res.status(404).json({ error: "Affiliate profile not found" });
+    }
+    const operatorUser = await User.findById(profile.operatorUser)
+      .select("operatorId")
+      .lean();
+    if (!operatorUser?.operatorId) {
+      return res.status(500).json({ error: "Operator tenant missing" });
+    }
+
+    const balance = await computeBalance({
+      operatorId: operatorUser.operatorId,
+      affiliateUserId: affiliate._id,
+    });
+    return res.json(balance);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /affiliate-portal/sub-payouts/:payoutId/dispatch
+// Parent affiliate triggers a real USDT-TRC20 transfer to a child via the
+// operator's Sans merchant balance. The sub-affiliate's internal balance
+// debits by `payableCents`, but the *cash* originates from the operator's
+// Sans hesabı — operationally the operator's net to the parent is reduced
+// by anything already paid to the parent's subs (see listPending).
+exports.dispatchSubPayout = async (req, res) => {
+  try {
+    const affiliate = req.affiliateUser;
+    if (affiliate.role !== "affiliate") {
+      return res.status(403).json({ error: "Affiliates only" });
+    }
+
+    const payout = await SubAffiliatePayout.findOne({
+      _id: req.params.payoutId,
+      parentId: affiliate._id,
+    });
+    if (!payout) {
+      return res.status(404).json({ error: "Payout not found among the ones you owe" });
+    }
+    if (!["draft", "failed"].includes(payout.status)) {
+      return res.status(409).json({ error: "not_dispatchable", status: payout.status });
+    }
+    if (!(payout.payableCents > 0)) {
+      return res.status(409).json({ error: "zero_amount" });
+    }
+
+    // Sub must have a wallet on file.
+    const sub = await User.findById(payout.subId)
+      .select("payoutAddress payoutNetwork email username")
+      .lean();
+    if (!sub?.payoutAddress) {
+      return res.status(409).json({ error: "sub_has_no_wallet" });
+    }
+
+    // Balance gate — affiliate can't overdraft the operator's Sans by paying
+    // more to subs than their own commission warrants.
+    const balance = await computeBalance({
+      operatorId: payout.operatorId,
+      affiliateUserId: affiliate._id,
+    });
+    if (balance.balanceCents < payout.payableCents) {
+      return res.status(409).json({
+        error: "insufficient_balance",
+        balanceCents: balance.balanceCents,
+        payableCents: payout.payableCents,
+      });
+    }
+
+    // Resolve an operator user under the same tenant so we can grab a Sans
+    // token through the cached getSansToken machinery.
+    const operatorUser = await User.findOne({
+      operatorId: payout.operatorId,
+      role: "operator",
+      isDeleted: false,
+    });
+    if (!operatorUser) {
+      return res.status(500).json({ error: "operator_user_not_found" });
+    }
+
+    // Snapshot the sub's wallet onto the payout row before the network call —
+    // if the sub edits their wallet later we still have the audit trail of
+    // where the money went.
+    payout.payoutAddress = sub.payoutAddress;
+    payout.payoutNetwork = sub.payoutNetwork || "TRC20";
+    payout.status        = "pending";
+    payout.initiatedAt   = new Date();
+    payout.failureReason = null;
+    await payout.save();
+
+    // Reach into the payout controller's pure Sans helper — shared with the
+    // operator → affiliate flow so the merchant integration stays in one
+    // place.
+    const { executeSansWithdraw } = require("./affiliatePayoutController");
+    const result = await executeSansWithdraw({
+      operator: operatorUser,
+      amountCents:   payout.payableCents,
+      payoutAddress: payout.payoutAddress,
+      payoutNetwork: payout.payoutNetwork,
+      extraData: {
+        subPayoutId: String(payout._id),
+        parentId:    String(payout.parentId),
+        subId:       String(payout.subId),
+        operatorId:  String(payout.operatorId),
+      },
+    });
+
+    if (result.sansRequestPayload) payout.sansRequestPayload = result.sansRequestPayload;
+    if (result.sansResponse)       payout.sansResponse       = result.sansResponse;
+
+    if (result.ok) {
+      payout.status = "processing";
+      payout.dispatchedAt = new Date();
+      payout.sansTransactionId = result.sansTransactionId;
+      await payout.save();
+      logger.info("sub_payout.dispatched", {
+        subPayoutId: String(payout._id),
+        sansTransactionId: result.sansTransactionId,
+        amountCents: payout.payableCents,
+      });
+      return res.json({ payout: payout.toObject() });
+    }
+
+    payout.status = "failed";
+    payout.failedAt = new Date();
+    payout.failureReason = result.failureReason;
+    await payout.save();
+    logger.error("sub_payout.dispatch.failed", {
+      subPayoutId: String(payout._id),
+      reason: result.failureReason,
+    });
+    return res.status(result.httpStatus || 502).json({
+      error: result.failureReason,
+      upstream: result.upstream || null,
+      payout: payout.toObject(),
+    });
+  } catch (err) {
+    logger.error("sub_payout.dispatch.unexpected", {
+      subPayoutId: req.params.payoutId,
+      error: err?.message,
+    });
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /affiliate-portal/sub-payouts/:payoutId/cancel
+// Cancel a pending sub-payout before Sans dispatch (typo on wallet, wrong
+// sub, etc.). Once it's processing/paid/failed it's beyond rollback here.
+exports.cancelSubPayout = async (req, res) => {
+  try {
+    const affiliate = req.affiliateUser;
+    if (affiliate.role !== "affiliate") {
+      return res.status(403).json({ error: "Affiliates only" });
+    }
+    const payout = await SubAffiliatePayout.findOne({
+      _id: req.params.payoutId,
+      parentId: affiliate._id,
+    });
+    if (!payout) return res.status(404).json({ error: "payout_not_found" });
+    if (payout.status !== "pending") {
+      return res.status(409).json({ error: "not_pending", status: payout.status });
+    }
+    payout.status = "cancelled";
+    await payout.save();
+    return res.json({ payout: payout.toObject() });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
