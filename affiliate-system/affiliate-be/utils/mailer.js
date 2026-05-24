@@ -12,6 +12,12 @@ if (POSTMARK_TOKEN) {
   logger.warn("mailer.disabled — POSTMARK_TOKEN not set");
 }
 
+// Cache-buster query string on the email logo URL. Bump this whenever the
+// SVG content changes — Cloudflare caches /affiliar-logo-email.svg for 4h,
+// and a query change forces a fresh fetch on the recipient's email client.
+const LOGO_VERSION = "v2-violet";
+const LOGO_URL = `${APP_URL}/affiliar-logo-email.svg?${LOGO_VERSION}`;
+
 async function sendMail({ to, subject, htmlBody, textBody }) {
   if (!client) {
     logger.warn("mailer.skip", { to, subject });
@@ -36,7 +42,7 @@ async function sendMail({ to, subject, htmlBody, textBody }) {
 
 async function sendAffiliateInvite({ to, name, userId, operatorName }) {
   const activateUrl = `${APP_URL}/activate?userId=${userId}`;
-  const logoUrl = `${APP_URL}/affiliar-logo-email.svg`;
+  const logoUrl = LOGO_URL;
   const subject = `${operatorName || "Affiliar"} invited you to join their affiliate program`;
   const htmlBody = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; padding: 40px 30px;">
@@ -66,7 +72,7 @@ async function sendAffiliateInvite({ to, name, userId, operatorName }) {
 
 async function sendPasswordReset({ to, name, token }) {
   const resetUrl = `${APP_URL}/reset-password?token=${token}`;
-  const logoUrl = `${APP_URL}/affiliar-logo-email.svg`;
+  const logoUrl = LOGO_URL;
   const subject = "Reset your Affiliar password";
   const htmlBody = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; padding: 40px 30px;">
@@ -96,7 +102,7 @@ async function sendPasswordReset({ to, name, token }) {
 
 async function sendBillingPastDue({ to, name, planName, dueDate }) {
   const billingUrl = `${APP_URL}/billing`;
-  const logoUrl = `${APP_URL}/affiliar-logo-email.svg`;
+  const logoUrl = LOGO_URL;
   const niceDate = new Date(dueDate).toLocaleDateString("en-US", {
     year: "numeric", month: "short", day: "numeric",
   });
@@ -171,7 +177,7 @@ function fmtDate(d) {
 // -7d and -3d both use this — `daysUntilDue` differentiates the wording.
 async function sendBillingUpcoming({ to, name, planName, dueDate, daysUntilDue }) {
   const billingUrl = `${APP_URL}/billing`;
-  const logoUrl = `${APP_URL}/affiliar-logo-email.svg`;
+  const logoUrl = LOGO_URL;
   const niceDate = fmtDate(dueDate);
   const subject = `Affiliar subscription payment due in ${daysUntilDue} day${daysUntilDue === 1 ? "" : "s"}`;
 
@@ -199,7 +205,7 @@ async function sendBillingUpcoming({ to, name, planName, dueDate, daysUntilDue }
 // past_due, so the tone is firm but not punitive yet.
 async function sendBillingDueToday({ to, name, planName, dueDate }) {
   const billingUrl = `${APP_URL}/billing`;
-  const logoUrl = `${APP_URL}/affiliar-logo-email.svg`;
+  const logoUrl = LOGO_URL;
   const niceDate = fmtDate(dueDate);
   const subject = "Your Affiliar subscription payment is due today";
 
@@ -226,7 +232,7 @@ async function sendBillingDueToday({ to, name, planName, dueDate }) {
 // days" countdown so the operator knows exactly when the cut-off lands.
 async function sendBillingPastDueReminder({ to, name, planName, dueDate, daysOverdue, daysUntilSuspension }) {
   const billingUrl = `${APP_URL}/billing`;
-  const logoUrl = `${APP_URL}/affiliar-logo-email.svg`;
+  const logoUrl = LOGO_URL;
   const niceDate = fmtDate(dueDate);
   const subject = `Payment overdue — service will be suspended in ${daysUntilSuspension} day${daysUntilSuspension === 1 ? "" : "s"}`;
 
@@ -258,7 +264,7 @@ async function sendBillingPastDueReminder({ to, name, planName, dueDate, daysOve
 // last automated reminder for the cycle.
 async function sendBillingSuspensionWarning({ to, name, planName, dueDate }) {
   const billingUrl = `${APP_URL}/billing`;
-  const logoUrl = `${APP_URL}/affiliar-logo-email.svg`;
+  const logoUrl = LOGO_URL;
   const niceDate = fmtDate(dueDate);
   const subject = "Final notice — pay now to avoid Affiliar service suspension";
 
