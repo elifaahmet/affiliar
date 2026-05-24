@@ -230,10 +230,19 @@ exports.batchCreate = async (req, res) => {
     }).select("affiliateId status").lean();
     const blockedAffiliateIds = new Set(existing.map((p) => String(p.affiliateId)));
 
+    // dispatch defaults to true so 'Pay Selected' on the Commission page is
+    // one click → money on the wire. Pass dispatch=false to only stage
+    // pending rows (used by tests + the operator-confirm flow if we ever
+    // bring it back).
+    const dispatch = req.body?.dispatch !== false;
+
     const stats = {
       created: 0,
+      dispatched: 0,
+      failed: 0,
       skipped: { noWallet: 0, alreadyHasPayout: 0, belowThreshold: 0, zeroAmount: 0 },
       eligible: grouped.length,
+      failures: [], // [{ affiliateId, error }]
     };
     const createdPayouts = [];
 
@@ -257,12 +266,25 @@ exports.batchCreate = async (req, res) => {
       });
       stats.created++;
       createdPayouts.push(payout._id);
+
+      if (dispatch) {
+        const r = await dispatchToSans(payout, operator);
+        if (r.ok) stats.dispatched++;
+        else {
+          stats.failed++;
+          stats.failures.push({
+            affiliateId: String(g._id),
+            error: r.error,
+          });
+        }
+      }
     }
 
     logger.info("affiliate.payout.batch_created", {
       operatorId: String(operatorId),
-      year, month,
-      ...stats,
+      year, month, dispatch,
+      created: stats.created, dispatched: stats.dispatched, failed: stats.failed,
+      skipped: stats.skipped,
     });
 
     return res.status(201).json({ ...stats, payoutIds: createdPayouts });
@@ -298,6 +320,21 @@ exports.createPayout = async (req, res) => {
     }
     if (!affiliate.payoutAddress) {
       return res.status(409).json({ error: "affiliate_has_no_wallet" });
+    }
+
+    // Duplicate guard — an open pending/processing payout for this affiliate
+    // blocks a second one. The operator must cancel or wait for the
+    // outstanding one to settle before creating another.
+    const open = await AffiliatePayout.findOne({
+      operatorId, affiliateId,
+      status: { $in: ["pending", "processing"] },
+    }).select("_id status").lean();
+    if (open) {
+      return res.status(409).json({
+        error: "already_has_payout",
+        existingPayoutId: open._id,
+        existingStatus: open.status,
+      });
     }
 
     // Lock in the approved reports for this affiliate under this operator.
@@ -379,6 +416,133 @@ exports.createPayout = async (req, res) => {
 // Step (1) reuses the cached merchant token from billingController. If the
 // operator has never paid via Sans for their own subscription the token
 // fetch still works — we just call /payment/json on first use.
+// Internal — does the 3-step Sans dance for a single payout doc. Mutates +
+// saves the doc (success: status='processing', sansTransactionId set;
+// failure: status='failed', failureReason + sansResponse stamped). Returns
+// `{ ok, payout, error? }` for the caller; never throws on Sans errors so
+// batch loops can keep going.
+async function dispatchToSans(payout, operator) {
+  // Amount in USDT — AffiliatePayout.amountCents is USD-pegged fiat-cents;
+  // for USDT-TRC20 we assume 1:1 (USDT ≈ USD). If we ever settle in a non-
+  // USD currency we'd need an FX conversion step before the network call.
+  const amountUsdt = Number((payout.amountCents / 100).toFixed(8));
+  if (!(amountUsdt > 0)) {
+    payout.status = "failed";
+    payout.failedAt = new Date();
+    payout.failureReason = "zero_amount";
+    await payout.save();
+    return { ok: false, payout, error: "zero_amount" };
+  }
+
+  let token;
+  try {
+    token = await getSansToken(operator.operatorId, operator);
+  } catch (err) {
+    logger.error("affiliate.payout.dispatch.token_failed", {
+      payoutId: String(payout._id), error: err?.message,
+    });
+    payout.status = "failed";
+    payout.failedAt = new Date();
+    payout.failureReason = `token: ${err?.message || "no token"}`;
+    payout.sansResponse = { stage: "token", upstream: err?.upstream || null };
+    await payout.save();
+    return { ok: false, payout, error: payout.failureReason, status: err?.status || 502 };
+  }
+
+  // STEP 1 — list withdraw accounts for this amount + method.
+  const listResp = await sansProvider.get("/withdraw", {
+    params: { amount: amountUsdt.toFixed(8) },
+    headers: { Authorization: `Bearer ${token}` },
+    validateStatus: () => true,
+  });
+  if (listResp.status < 200 || listResp.status >= 300) {
+    payout.status = "failed";
+    payout.failedAt = new Date();
+    payout.failureReason = `list: HTTP ${listResp.status}`;
+    payout.sansResponse = { stage: "list", upstream: listResp.data };
+    await payout.save();
+    logger.error("affiliate.payout.dispatch.list_failed", {
+      payoutId: String(payout._id), status: listResp.status, body: listResp.data,
+    });
+    return { ok: false, payout, error: payout.failureReason, status: 502, upstream: listResp.data };
+  }
+  const account = listResp?.data?.data?.[0];
+  if (!account?._id) {
+    payout.status = "failed";
+    payout.failedAt = new Date();
+    payout.failureReason = "list: no withdraw account returned";
+    payout.sansResponse = { stage: "list", upstream: listResp.data };
+    await payout.save();
+    return {
+      ok: false, payout, status: 502,
+      error: "Sans returned no withdraw account for this amount",
+    };
+  }
+
+  const networkLabel = SANS_NETWORK_LABEL[payout.payoutNetwork] || payout.payoutNetwork;
+  const fields = (account.withdrawFields || []).map((f) => {
+    const name = f.name;
+    if (name === "Wallet") return { name, value: payout.payoutAddress };
+    if (name === "Chain")  return { name, value: networkLabel };
+    // TRC20 USDT doesn't need memo/tag/wallet-type — leave blank for any
+    // unexpected fields rather than dropping them, so the API doesn't 400
+    // on us about a missing column.
+    return { name, value: "" };
+  });
+
+  // STEP 2 — create withdrawal.
+  const payload = {
+    bank: account._id,
+    amount: amountUsdt,
+    fields,
+    extraData: {
+      payoutId: String(payout._id),
+      operatorId: String(payout.operatorId),
+      affiliateId: String(payout.affiliateId),
+      network: networkLabel,
+    },
+  };
+  const createResp = await sansProvider.post("/withdraw", payload, {
+    headers: { Authorization: `Bearer ${token}` },
+    validateStatus: () => true,
+  });
+
+  payout.sansRequestPayload = payload;
+  payout.sansResponse = { stage: "create", upstream: createResp.data, status: createResp.status };
+
+  if (createResp.status < 200 || createResp.status >= 300) {
+    payout.status = "failed";
+    payout.failedAt = new Date();
+    payout.failureReason = `create: HTTP ${createResp.status}`;
+    await payout.save();
+    logger.error("affiliate.payout.dispatch.create_failed", {
+      payoutId: String(payout._id), status: createResp.status, body: createResp.data,
+    });
+    return { ok: false, payout, error: payout.failureReason, status: 502, upstream: createResp.data };
+  }
+
+  const sansTxId =
+    createResp?.data?.data?.transactionId ||
+    createResp?.data?.transactionId ||
+    createResp?.data?.data?._id ||
+    null;
+
+  payout.status = "processing";
+  payout.dispatchedAt = new Date();
+  payout.sansTransactionId = sansTxId;
+  await payout.save();
+
+  logger.info("affiliate.payout.dispatched", {
+    payoutId: String(payout._id),
+    sansTransactionId: sansTxId,
+    amountUsdt,
+    payoutAddress: payout.payoutAddress,
+  });
+
+  return { ok: true, payout };
+}
+
+// POST /api/affiliate/payouts/:id/dispatch  — single-payout dispatch.
 exports.dispatchPayout = async (req, res) => {
   try {
     const operator = operatorOnly(req, res);
@@ -393,122 +557,13 @@ exports.dispatchPayout = async (req, res) => {
       return res.status(409).json({ error: "not_pending", status: payout.status });
     }
 
-    // Amount in USDT — AffiliatePayout.amountCents is a USD-pegged fiat-cents
-    // representation; for USDT-TRC20 we assume 1:1 (USDT ≈ USD). If we ever
-    // settle commission in a non-USD currency we'd need an FX conversion
-    // step before the network call.
-    const amountUsdt = Number((payout.amountCents / 100).toFixed(8));
-    if (!(amountUsdt > 0)) {
-      return res.status(409).json({ error: "zero_amount" });
-    }
-
-    let token;
-    try {
-      token = await getSansToken(operator.operatorId, operator);
-    } catch (err) {
-      logger.error("affiliate.payout.dispatch.token_failed", {
-        payoutId: String(payout._id),
-        error: err?.message,
-      });
-      payout.status = "failed";
-      payout.failedAt = new Date();
-      payout.failureReason = `token: ${err?.message || "no token"}`;
-      payout.sansResponse = { stage: "token", upstream: err?.upstream || null };
-      await payout.save();
-      return res.status(err.status || 502).json({ error: payout.failureReason });
-    }
-
-    // ── STEP 1: list withdraw accounts ────────────────────────────────────
-    const listResp = await sansProvider.get("/withdraw", {
-      params: { amount: amountUsdt.toFixed(8) },
-      headers: { Authorization: `Bearer ${token}` },
-      validateStatus: () => true,
-    });
-    if (listResp.status < 200 || listResp.status >= 300) {
-      payout.status = "failed";
-      payout.failedAt = new Date();
-      payout.failureReason = `list: HTTP ${listResp.status}`;
-      payout.sansResponse = { stage: "list", upstream: listResp.data };
-      await payout.save();
-      logger.error("affiliate.payout.dispatch.list_failed", {
-        payoutId: String(payout._id), status: listResp.status, body: listResp.data,
-      });
-      return res.status(502).json({ error: payout.failureReason, upstream: listResp.data });
-    }
-
-    const account = listResp?.data?.data?.[0];
-    if (!account?._id) {
-      payout.status = "failed";
-      payout.failedAt = new Date();
-      payout.failureReason = "list: no withdraw account returned";
-      payout.sansResponse = { stage: "list", upstream: listResp.data };
-      await payout.save();
-      return res.status(502).json({
-        error: "Sans returned no withdraw account for this amount",
+    const r = await dispatchToSans(payout, operator);
+    if (!r.ok) {
+      return res.status(r.status || 502).json({
+        error: r.error, upstream: r.upstream || null, payout: r.payout?.toObject?.() || r.payout,
       });
     }
-
-    const networkLabel = SANS_NETWORK_LABEL[payout.payoutNetwork] || payout.payoutNetwork;
-    const fields = (account.withdrawFields || []).map((f) => {
-      const name = f.name;
-      if (name === "Wallet") return { name, value: payout.payoutAddress };
-      if (name === "Chain")  return { name, value: networkLabel };
-      // TRC20 USDT doesn't need memo/tag/wallet-type — leave blank for any
-      // unexpected fields rather than dropping them, so the API doesn't 400
-      // on us about a missing column.
-      return { name, value: "" };
-    });
-
-    // ── STEP 2: create withdrawal ─────────────────────────────────────────
-    const payload = {
-      bank: account._id,
-      amount: amountUsdt,
-      fields,
-      extraData: {
-        payoutId: String(payout._id),
-        operatorId: String(payout.operatorId),
-        affiliateId: String(payout.affiliateId),
-        network: networkLabel,
-      },
-    };
-    const createResp = await sansProvider.post("/withdraw", payload, {
-      headers: { Authorization: `Bearer ${token}` },
-      validateStatus: () => true,
-    });
-
-    payout.sansRequestPayload = payload;
-    payout.sansResponse = { stage: "create", upstream: createResp.data, status: createResp.status };
-
-    if (createResp.status < 200 || createResp.status >= 300) {
-      payout.status = "failed";
-      payout.failedAt = new Date();
-      payout.failureReason = `create: HTTP ${createResp.status}`;
-      await payout.save();
-      logger.error("affiliate.payout.dispatch.create_failed", {
-        payoutId: String(payout._id), status: createResp.status, body: createResp.data,
-      });
-      return res.status(502).json({ error: payout.failureReason, upstream: createResp.data });
-    }
-
-    const sansTxId =
-      createResp?.data?.data?.transactionId ||
-      createResp?.data?.transactionId ||
-      createResp?.data?.data?._id ||
-      null;
-
-    payout.status = "processing";
-    payout.dispatchedAt = new Date();
-    payout.sansTransactionId = sansTxId;
-    await payout.save();
-
-    logger.info("affiliate.payout.dispatched", {
-      payoutId: String(payout._id),
-      sansTransactionId: sansTxId,
-      amountUsdt,
-      payoutAddress: payout.payoutAddress,
-    });
-
-    return res.json({ payout: payout.toObject() });
+    return res.json({ payout: r.payout.toObject() });
   } catch (err) {
     logger.error("affiliate.payout.dispatch.unexpected", {
       payoutId: req.params.id, error: err?.message, stack: err?.stack,

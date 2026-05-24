@@ -865,14 +865,16 @@ function ReportsTab() {
   const handlePaySelected = () => {
     if (selectedAffiliateIds.size === 0) return;
     const ok = window.confirm(
-      `Create payouts for ${selectedAffiliateIds.size} affiliate${selectedAffiliateIds.size === 1 ? '' : 's'} ` +
-      `totaling ${cents(selectedPayableCents)}?\n\n` +
-      `Payouts will be staged in 'pending' status. Dispatch each on the Payouts page to send via Sans Getirsin.`,
+      `Send ${cents(selectedPayableCents)} to ${selectedAffiliateIds.size} affiliate` +
+      `${selectedAffiliateIds.size === 1 ? '' : 's'} via Sans Getirsin (USDT-TRC20) NOW?\n\n` +
+      `Each affiliate's approved commissions will be bundled into one transfer to their wallet. ` +
+      `This is a real money transfer and cannot be undone once confirmed.`,
     );
     if (!ok) return;
     batchPay({
       year, month,
       affiliateIds: Array.from(selectedAffiliateIds),
+      dispatch: true,
     } as any);
   };
 
@@ -958,18 +960,26 @@ function ReportsTab() {
 
       {/* Pay result banner */}
       {payResult && (
-        <div className='bg-violet-50 rounded-lg px-4 py-3 text-xs text-violet-700 flex items-center gap-4 flex-wrap'>
+        <div className={`rounded-lg px-4 py-3 text-xs flex items-center gap-4 flex-wrap ${
+          payResult.failed > 0 ? 'bg-amber-50 text-amber-800' : 'bg-violet-50 text-violet-700'
+        }`}>
           <span>
-            <span className='font-semibold'>{payResult.created}</span> payout{payResult.created === 1 ? '' : 's'} queued
+            <span className='font-semibold'>{payResult.dispatched ?? payResult.created}</span>{' '}
+            of {payResult.created} payout{payResult.created === 1 ? '' : 's'} sent to Sans
           </span>
+          {payResult.failed > 0 && (
+            <span className='text-red-700'>
+              <span className='font-semibold'>{payResult.failed}</span> failed
+            </span>
+          )}
           {payResult.skipped?.noWallet > 0 && (
             <span className='text-amber-700'>
-              <span className='font-semibold'>{payResult.skipped.noWallet}</span> skipped (no wallet set)
+              <span className='font-semibold'>{payResult.skipped.noWallet}</span> skipped (no wallet)
             </span>
           )}
           {payResult.skipped?.alreadyHasPayout > 0 && (
             <span className='text-amber-700'>
-              <span className='font-semibold'>{payResult.skipped.alreadyHasPayout}</span> skipped (already has a pending payout)
+              <span className='font-semibold'>{payResult.skipped.alreadyHasPayout}</span> skipped (already has open payout)
             </span>
           )}
           {payResult.skipped?.belowThreshold > 0 && (
@@ -980,9 +990,9 @@ function ReportsTab() {
           {payResult.created > 0 && (
             <button
               onClick={() => navigate('/payouts')}
-              className='ml-auto text-violet-700 underline underline-offset-2 hover:text-violet-900'
+              className='ml-auto underline underline-offset-2 hover:opacity-80'
             >
-              Review &amp; dispatch →
+              View status on Payouts →
             </button>
           )}
           <button
