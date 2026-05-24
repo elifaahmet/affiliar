@@ -1,7 +1,12 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { useBaseMutation } from 'api/core/useBaseMutation';
-import { COMMISSION_API_URLS, OPERATOR_API_URLS } from 'config/apiUrls';
+import {
+  AFFILIATE_PAYOUT_API_URLS,
+  COMMISSION_API_URLS,
+  OPERATOR_API_URLS,
+} from 'config/apiUrls';
 import axiosInstance from 'config/axiosInstance';
 import UpgradeBanner from '@components/core-components/UpgradeBanner';
 import { useOperatorPlan } from 'hooks/useOperatorPlan';
@@ -742,12 +747,18 @@ function PlansTab() {
 // ── Reports Tab ───────────────────────────────────────────────────────────────
 
 function ReportsTab() {
+  const navigate = useNavigate();
   const def  = currentYearMonth();
   const [year, setYear]   = useState(def.year);
   const [month, setMonth] = useState(def.month);
   const [status, setStatus] = useState('');
   const [page, setPage]   = useState(1);
   const [calcResult, setCalcResult] = useState<any>(null);
+  const [payResult, setPayResult]   = useState<any>(null);
+  // Affiliate IDs selected for batch payout. Server bundles all approved
+  // reports per affiliate into a single AffiliatePayout, so we track the
+  // affiliate granularity here (not per-report rows).
+  const [selectedAffiliateIds, setSelectedAffiliateIds] = useState<Set<string>>(new Set());
 
   const params: Record<string, any> = { year, month, page, limit: 50 };
   if (status) params.status = status;
@@ -786,10 +797,84 @@ function ReportsTab() {
     onError: (e: any) => alert(e?.response?.data?.error ?? e?.message),
   });
 
+  // Batch payout creation. Bundles each selected affiliate's approved
+  // reports into a `pending` AffiliatePayout (no Sans dispatch yet —
+  // operator confirms each one on the /payouts page).
+  const { mutate: batchPay, isPending: batchPaying } = useBaseMutation({
+    endpoint: AFFILIATE_PAYOUT_API_URLS.BATCH_CREATE(),
+    method: 'post',
+    onSuccess: (d: any) => {
+      setPayResult(d);
+      setSelectedAffiliateIds(new Set());
+      refetch();
+    },
+    onError: (e: any) => alert(e?.response?.data?.error ?? e?.message ?? 'Payout creation failed'),
+  });
+
   const reports = data?.reports ?? [];
   const total   = data?.total ?? 0;
 
   const totalCommission = reports.reduce((s, r) => s + r.breakdown.totalCents, 0);
+
+  // Derive the set of affiliate IDs that can actually be paid right now —
+  // only `approved` reports count (Mark Paid covers manual reconciliation
+  // for anything in another status). One affiliate may have multiple
+  // approved reports (different products); collapse to unique IDs.
+  const approvedAffiliateIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const r of reports) {
+      if (r.status === 'approved' && r.affiliateId?._id) {
+        ids.add(String(r.affiliateId._id));
+      }
+    }
+    return ids;
+  }, [reports]);
+
+  // Sum payable across currently-selected affiliates (display in the
+  // "Pay Selected" button + confirm dialog).
+  const selectedPayableCents = useMemo(() => {
+    let sum = 0;
+    for (const r of reports) {
+      if (r.status === 'approved' && r.affiliateId?._id
+          && selectedAffiliateIds.has(String(r.affiliateId._id))) {
+        sum += r.breakdown.totalCents;
+      }
+    }
+    return sum;
+  }, [reports, selectedAffiliateIds]);
+
+  const allApprovedSelected =
+    approvedAffiliateIds.size > 0 &&
+    approvedAffiliateIds.size === selectedAffiliateIds.size &&
+    Array.from(approvedAffiliateIds).every((id) => selectedAffiliateIds.has(id));
+
+  const toggleSelectAll = () => {
+    setSelectedAffiliateIds(
+      allApprovedSelected ? new Set() : new Set(approvedAffiliateIds),
+    );
+  };
+  const toggleOne = (affiliateId: string) => {
+    setSelectedAffiliateIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(affiliateId)) next.delete(affiliateId);
+      else next.add(affiliateId);
+      return next;
+    });
+  };
+
+  const handlePaySelected = () => {
+    if (selectedAffiliateIds.size === 0) return;
+    const ok = window.confirm(
+      `Create payouts for ${selectedAffiliateIds.size} affiliate${selectedAffiliateIds.size === 1 ? '' : 's'} ` +
+      `totaling ${cents(selectedPayableCents)}?\n\n` +
+      `Payouts will be staged in 'pending' status. Dispatch each on the Payouts page to send via Sans Getirsin.`,
+    );
+    if (!ok) return;
+    batchPay({
+      year, month,
+      affiliateIds: Array.from(selectedAffiliateIds),
+    } as any);
+  };
 
   const years = Array.from({ length: 5 }, (_, i) => def.year - i);
 
@@ -844,6 +929,16 @@ function ReportsTab() {
             className='h-9 px-4 text-sm bg-primary text-white rounded-lg font-medium hover:bg-primary-dark disabled:opacity-60'>
             {approving ? '…' : 'Approve All'}
           </button>
+          <button onClick={handlePaySelected}
+            disabled={batchPaying || selectedAffiliateIds.size === 0}
+            title={selectedAffiliateIds.size === 0 ? 'Select approved affiliates first' : ''}
+            className='h-9 px-4 text-sm bg-violet-600 text-white rounded-lg font-medium hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed'>
+            {batchPaying ? '…' : (
+              selectedAffiliateIds.size > 0
+                ? `Pay ${selectedAffiliateIds.size} (${cents(selectedPayableCents)})`
+                : 'Pay Selected'
+            )}
+          </button>
           <button onClick={() => markPaidAll({ year, month } as any)} disabled={paying}
             className='h-9 px-4 text-sm bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-60'>
             {paying ? '…' : 'Mark Paid'}
@@ -858,6 +953,45 @@ function ReportsTab() {
           <span><span className='font-semibold'>{calcResult.updated}</span> updated</span>
           {calcResult.skipped > 0 && <span><span className='font-semibold'>{calcResult.skipped}</span> skipped (locked)</span>}
           {calcResult.failed?.length > 0 && <span className='text-red-600'><span className='font-semibold'>{calcResult.failed.length}</span> failed</span>}
+        </div>
+      )}
+
+      {/* Pay result banner */}
+      {payResult && (
+        <div className='bg-violet-50 rounded-lg px-4 py-3 text-xs text-violet-700 flex items-center gap-4 flex-wrap'>
+          <span>
+            <span className='font-semibold'>{payResult.created}</span> payout{payResult.created === 1 ? '' : 's'} queued
+          </span>
+          {payResult.skipped?.noWallet > 0 && (
+            <span className='text-amber-700'>
+              <span className='font-semibold'>{payResult.skipped.noWallet}</span> skipped (no wallet set)
+            </span>
+          )}
+          {payResult.skipped?.alreadyHasPayout > 0 && (
+            <span className='text-amber-700'>
+              <span className='font-semibold'>{payResult.skipped.alreadyHasPayout}</span> skipped (already has a pending payout)
+            </span>
+          )}
+          {payResult.skipped?.belowThreshold > 0 && (
+            <span className='text-amber-700'>
+              <span className='font-semibold'>{payResult.skipped.belowThreshold}</span> below threshold
+            </span>
+          )}
+          {payResult.created > 0 && (
+            <button
+              onClick={() => navigate('/payouts')}
+              className='ml-auto text-violet-700 underline underline-offset-2 hover:text-violet-900'
+            >
+              Review &amp; dispatch →
+            </button>
+          )}
+          <button
+            onClick={() => setPayResult(null)}
+            className='text-gray-500 hover:text-gray-700'
+            aria-label='Dismiss'
+          >
+            ×
+          </button>
         </div>
       )}
 
@@ -893,6 +1027,16 @@ function ReportsTab() {
               <table className='w-full'>
                 <thead className='bg-gray-50'>
                   <tr>
+                    <th className='px-3 py-3 text-left text-xs font-semibold text-gray-700 border-r border-gray-100'>
+                      <input
+                        type='checkbox'
+                        checked={allApprovedSelected}
+                        disabled={approvedAffiliateIds.size === 0}
+                        onChange={toggleSelectAll}
+                        className='h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer disabled:cursor-not-allowed disabled:opacity-40'
+                        aria-label='Select all approved affiliates'
+                      />
+                    </th>
                     {['Affiliate', 'Product', 'Plan', 'Players', 'FTDs', 'GGR', 'NGR', 'RevShare', 'CPA', 'Total', 'Status'].map((h) => (
                       <th key={h} className='px-4 py-3 text-left text-xs font-semibold text-gray-700 border-r border-gray-100 last:border-r-0 whitespace-nowrap'>
                         {h}
@@ -903,8 +1047,22 @@ function ReportsTab() {
                 <tbody>
                   {reports.map((r, i) => {
                     const badge = statusBadge(r.status);
+                    const affId  = r.affiliateId?._id ? String(r.affiliateId._id) : null;
+                    const canPay = r.status === 'approved' && !!affId;
+                    const isChecked = canPay && selectedAffiliateIds.has(affId!);
                     return (
                       <tr key={r._id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className='px-3 py-2.5 border-r border-gray-100'>
+                          <input
+                            type='checkbox'
+                            checked={isChecked}
+                            disabled={!canPay}
+                            onChange={() => affId && toggleOne(affId)}
+                            title={canPay ? 'Select this affiliate for batch payout' : 'Only approved reports can be paid'}
+                            className='h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer disabled:cursor-not-allowed disabled:opacity-30'
+                            aria-label='Select affiliate'
+                          />
+                        </td>
                         <td className='px-4 py-2.5 border-r border-gray-100'>
                           <div className='text-xs font-medium text-gray-800'>{r.affiliateId?.username ?? '—'}</div>
                           <div className='text-xs text-gray-600'>{r.affiliateCode ?? ''}</div>

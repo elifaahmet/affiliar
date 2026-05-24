@@ -321,6 +321,7 @@ export const AFFILIATE_PAYOUT_API_URLS = {
   PENDING:        () => `${API_BASE_URL}api/affiliate/payouts/pending`,
   LIST:           () => `${API_BASE_URL}api/affiliate/payouts`,
   CREATE:         () => `${API_BASE_URL}api/affiliate/payouts`,
+  BATCH_CREATE:   () => `${API_BASE_URL}api/affiliate/payouts/batch`,
   DETAIL:         (id: string) => `${API_BASE_URL}api/affiliate/payouts/${id}`,
   DISPATCH:       (id: string) => `${API_BASE_URL}api/affiliate/payouts/${id}/dispatch`,
   CANCEL:         (id: string) => `${API_BASE_URL}api/affiliate/payouts/${id}/cancel`,

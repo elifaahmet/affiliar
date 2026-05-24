@@ -19,6 +19,9 @@ router.put ("/settings",                ctrl.updateSettings);
 // Pending payouts surface (what's owed right now)
 router.get ("/pending",                 ctrl.listPending);
 
+// Bulk create from Commission page ("Pay All for period")
+router.post("/batch",                   ctrl.batchCreate);
+
 // Payout CRUD
 router.get ("/",                        ctrl.listPayouts);
 router.post("/",                        ctrl.createPayout);

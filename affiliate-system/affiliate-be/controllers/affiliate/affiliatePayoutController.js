@@ -146,6 +146,131 @@ exports.listPending = async (req, res) => {
   }
 };
 
+// ── Batch create (bulk action from Commission page) ─────────────────────────
+
+// POST /api/affiliate/payouts/batch
+// Body: { year?, month?, affiliateIds?: string[] }
+//
+// For every affiliate with at least one `approved` CommissionReport — scoped
+// by year/month and/or an explicit affiliate-id list from the Commission
+// page's select-all / per-row checkboxes — create one `pending`
+// AffiliatePayout that bundles all of that affiliate's approved reports.
+//
+// Skips affiliates who:
+//   - have no payout wallet set
+//   - have an existing pending OR processing payout (operator should resolve
+//     that one first before creating another)
+//   - have payable below operator threshold
+//
+// Returns a summary so the FE can show "X created, Y skipped, Z need
+// wallet". The operator then reviews and dispatches on /payouts.
+exports.batchCreate = async (req, res) => {
+  try {
+    const operator = operatorOnly(req, res);
+    if (!operator) return;
+
+    const operatorId = operator.operatorId;
+    const { year, month, affiliateIds } = req.body || {};
+
+    const reportMatch = { operatorId, status: "approved" };
+    if (year && month) {
+      reportMatch["period.year"]  = Number(year);
+      reportMatch["period.month"] = Number(month);
+    }
+    if (Array.isArray(affiliateIds) && affiliateIds.length > 0) {
+      reportMatch.affiliateId = {
+        $in: affiliateIds
+          .filter((id) => mongoose.Types.ObjectId.isValid(id))
+          .map((id) => new mongoose.Types.ObjectId(id)),
+      };
+    }
+
+    // Group approved reports per affiliate.
+    const grouped = await CommissionReport.aggregate([
+      {
+        $match: {
+          ...reportMatch,
+          operatorId: new mongoose.Types.ObjectId(String(operatorId)),
+        },
+      },
+      {
+        $group: {
+          _id: "$affiliateId",
+          payableCents: { $sum: "$breakdown.totalCents" },
+          reportIds:    { $push: "$_id" },
+        },
+      },
+    ]);
+
+    if (grouped.length === 0) {
+      return res.json({
+        created: 0,
+        skipped: { noWallet: 0, alreadyHasPayout: 0, belowThreshold: 0, zeroAmount: 0 },
+        eligible: 0,
+        payouts: [],
+      });
+    }
+
+    const settings = await Operator.findById(operatorId)
+      .select("affiliatePayoutSettings")
+      .lean();
+    const minPayoutCents = settings?.affiliatePayoutSettings?.minPayoutCents ?? 0;
+
+    const groupedAffiliateIds = grouped.map((g) => g._id);
+    const affiliates = await User.find({ _id: { $in: groupedAffiliateIds } })
+      .select("payoutAddress payoutNetwork")
+      .lean();
+    const affMap = new Map(affiliates.map((a) => [String(a._id), a]));
+
+    // Pre-find existing pending/processing payouts so we don't double-create.
+    const existing = await AffiliatePayout.find({
+      operatorId,
+      affiliateId: { $in: groupedAffiliateIds },
+      status: { $in: ["pending", "processing"] },
+    }).select("affiliateId status").lean();
+    const blockedAffiliateIds = new Set(existing.map((p) => String(p.affiliateId)));
+
+    const stats = {
+      created: 0,
+      skipped: { noWallet: 0, alreadyHasPayout: 0, belowThreshold: 0, zeroAmount: 0 },
+      eligible: grouped.length,
+    };
+    const createdPayouts = [];
+
+    for (const g of grouped) {
+      const aff = affMap.get(String(g._id));
+      if (!aff?.payoutAddress) { stats.skipped.noWallet++; continue; }
+      if (blockedAffiliateIds.has(String(g._id))) { stats.skipped.alreadyHasPayout++; continue; }
+      if (g.payableCents <= 0) { stats.skipped.zeroAmount++; continue; }
+      if (g.payableCents < minPayoutCents) { stats.skipped.belowThreshold++; continue; }
+
+      const payout = await AffiliatePayout.create({
+        operatorId,
+        affiliateId: g._id,
+        sourceReportIds: g.reportIds,
+        amountCents: g.payableCents,
+        currency: "USDT",
+        payoutAddress: aff.payoutAddress,
+        payoutNetwork: aff.payoutNetwork || "TRC20",
+        status: "pending",
+        initiatedBy: operator._id,
+      });
+      stats.created++;
+      createdPayouts.push(payout._id);
+    }
+
+    logger.info("affiliate.payout.batch_created", {
+      operatorId: String(operatorId),
+      year, month,
+      ...stats,
+    });
+
+    return res.status(201).json({ ...stats, payoutIds: createdPayouts });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // ── Create payout (no dispatch yet) ──────────────────────────────────────────
 
 // POST /api/affiliate/payouts   body: { affiliateId }
