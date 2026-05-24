@@ -311,6 +311,21 @@ export const AFFILIATE_PORTAL_API_URLS = {
   PLAYER_DETAIL:    (playerId: string) => `${API_BASE_URL}api/players/detail/${playerId}`,
   REFERRAL_CODES:   () => `${API_BASE_URL}api/affiliate-portal/referral-codes`,
   FEE_DETAILS:      () => `${API_BASE_URL}api/affiliate-portal/fee-details`,
+  // Affiliate payout wallet + own history
+  PAYOUT_INFO:      () => `${API_BASE_URL}api/affiliate-portal/payout-info`,
+  MY_PAYOUTS:       () => `${API_BASE_URL}api/affiliate-portal/payouts`,
+};
+
+// Operator-side payout endpoints (operators paying their affiliates)
+export const AFFILIATE_PAYOUT_API_URLS = {
+  PENDING:        () => `${API_BASE_URL}api/affiliate/payouts/pending`,
+  LIST:           () => `${API_BASE_URL}api/affiliate/payouts`,
+  CREATE:         () => `${API_BASE_URL}api/affiliate/payouts`,
+  DETAIL:         (id: string) => `${API_BASE_URL}api/affiliate/payouts/${id}`,
+  DISPATCH:       (id: string) => `${API_BASE_URL}api/affiliate/payouts/${id}/dispatch`,
+  CANCEL:         (id: string) => `${API_BASE_URL}api/affiliate/payouts/${id}/cancel`,
+  MARK_PAID:      (id: string) => `${API_BASE_URL}api/affiliate/payouts/${id}/mark-paid`,
+  SETTINGS:       () => `${API_BASE_URL}api/affiliate/payouts/settings`,
 };
 
 export const COMMISSION_API_URLS = {

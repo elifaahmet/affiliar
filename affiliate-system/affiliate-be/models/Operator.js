@@ -51,6 +51,20 @@ const operatorSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Affiliate payout policy. The operator pays affiliates via Sans
+    // Getirsin (USDT-TRC20); these settings shape what shows up on the
+    // "Pending payouts" screen.
+    //
+    //   minPayoutCents   — affiliates whose accrued approved commission is
+    //                      below this threshold are hidden from the
+    //                      operator's pending list (still owed; just not
+    //                      payable yet). 0 = no threshold.
+    //   currency         — display currency for the threshold; actual
+    //                      payout always settles in USDT.
+    affiliatePayoutSettings: {
+      minPayoutCents: { type: Number, default: 0, min: 0 },
+      currency:       { type: String, default: "USD" },
+    },
     // Append-only log of billing reminder emails sent for the current
     // billing cycle. `cycleAnchor` is the nextBillingDate at the time of
     // send — once the operator pays and nextBillingDate advances, the old

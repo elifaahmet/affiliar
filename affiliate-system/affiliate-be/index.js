@@ -84,6 +84,7 @@ app.use(`${prefix}/affiliate-portal`, affiliateRoutes.affiliatePortalRoutes);
 app.use(`${prefix}/billing`, affiliateRoutes.billingRoutes);
 app.use(`${prefix}/fees`, affiliateRoutes.feesRoutes);
 app.use(`${prefix}/refer`, affiliateRoutes.referAFriendRoutes);
+app.use(`${prefix}/affiliate/payouts`, affiliateRoutes.affiliatePayoutRoutes);
 app.use(`${prefix}/integration`, integrationRoutes);
 
 app.get(`${prefix}/health`, (req, res) => {

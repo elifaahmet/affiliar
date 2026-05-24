@@ -18,4 +18,9 @@ router.get("/campaign-reports",    reportCtrl.portalCampaignReport);
 router.post("/referral-codes",     ctrl.generateReferralCode);
 router.get ("/fee-details",        ctrl.feeDetails);
 
+// Payout wallet + history (affiliate-owned, USDT-TRC20)
+router.get ("/payout-info",        ctrl.getPayoutInfo);
+router.put ("/payout-info",        ctrl.updatePayoutInfo);
+router.get ("/payouts",            ctrl.listMyPayouts);
+
 module.exports = router;

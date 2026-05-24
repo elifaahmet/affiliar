@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import { Link, useLocation } from 'react-router-dom';
 import {
   AdjustmentsHorizontalIcon,
+  ArrowUpOnSquareIcon,
   BanknotesIcon,
   BuildingStorefrontIcon,
   ChartBarSquareIcon,
@@ -130,6 +131,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       href: '/commission',
       Icon: BanknotesIcon,
       current: pathname.startsWith('/commission'),
+    },
+    {
+      key: 'payouts',
+      name: t('menuItems.payouts') || 'Affiliate Payouts',
+      href: '/payouts',
+      Icon: ArrowUpOnSquareIcon,
+      current: pathname.startsWith('/payouts'),
     },
     {
       key: 'fees',

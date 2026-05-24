@@ -11,4 +11,5 @@ module.exports = {
   billingRoutes:         require("./billingRoutes.js"),
   feesRoutes:            require("./feesRoutes.js"),
   referAFriendRoutes:    require("./referAFriendRoutes.js"),
+  affiliatePayoutRoutes: require("./affiliatePayoutRoutes.js"),
 };

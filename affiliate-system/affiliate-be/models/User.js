@@ -75,6 +75,34 @@ const userSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+
+    // ── Affiliate payout wallet ──────────────────────────────────────────────
+    //
+    // Only meaningful when role === "affiliate". The operator's payout flow
+    // dispatches USDT-TRC20 transfers via Sans Getirsin to this address.
+    // Captured here (not on AffiliateProfile) so that any auth/identity layer
+    // changes won't strand the wallet — payout is a fundamental account
+    // property, like an email.
+    //
+    // Network is enumerated even though we only support TRC20 today, so the
+    // schema doesn't fight us when we add ERC20/BEP20 later.
+    payoutAddress: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    payoutNetwork: {
+      type: String,
+      enum: ["TRC20"],
+      default: "TRC20",
+    },
+    // Last time the affiliate confirmed / updated the address. We snapshot
+    // this onto each AffiliatePayout row so historical payouts remember which
+    // address they used even if the affiliate edits later.
+    payoutAddressSetAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true },
 );

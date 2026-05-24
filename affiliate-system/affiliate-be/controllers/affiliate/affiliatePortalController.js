@@ -4,9 +4,15 @@ const clickhouse         = require("../../config/clickhouse");
 const AffiliateProfile   = require("../../models/AffiliateProfile");
 const CommissionReport   = require("../../models/CommissionReport");
 const SubAffiliatePayout = require("../../models/SubAffiliatePayout");
+const AffiliatePayout    = require("../../models/AffiliatePayout");
 const User               = require("../../models/User");
 const Brand              = require("../../models/Brand");
 const { getDescendantIds } = require("../../utils/affiliateHierarchy");
+
+// TRC20 wallet addresses are 34 chars, start with "T", base58 alphabet
+// (excludes 0 O I l). This isn't a checksum verification — that lives at the
+// payment provider side. It just catches obvious typos at the form layer.
+const TRC20_RE = /^T[1-9A-HJ-NP-Za-km-z]{33}$/;
 
 async function buildBrandCodes(profile) {
   const brandCodes = profile?.brandCodes ?? [];
@@ -359,13 +365,16 @@ exports.getProfile = async (req, res) => {
 
     res.json({
       user: {
-        _id:               affiliate._id,
-        email:             affiliate.email,
-        username:          affiliate.username,
-        name:              affiliate.name,
-        mobileNumber:      affiliate.mobileNumber,
-        mobileCountryCode: affiliate.mobileCountryCode,
-        status:            affiliate.status,
+        _id:                affiliate._id,
+        email:              affiliate.email,
+        username:           affiliate.username,
+        name:               affiliate.name,
+        mobileNumber:       affiliate.mobileNumber,
+        mobileCountryCode:  affiliate.mobileCountryCode,
+        status:             affiliate.status,
+        payoutAddress:      affiliate.payoutAddress || null,
+        payoutNetwork:      affiliate.payoutNetwork || "TRC20",
+        payoutAddressSetAt: affiliate.payoutAddressSetAt || null,
       },
       referralCodes:    await buildBrandCodes(profile),
       commissionPlan:   profile?.commissionPlanId ?? null,
@@ -782,6 +791,98 @@ exports.generateReferralCode = async (req, res) => {
         brandUrl: brand.url,
       },
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ── Payout wallet ─────────────────────────────────────────────────────────────
+//
+// Affiliate-owned endpoints to set + read the USDT-TRC20 wallet address the
+// operator will dispatch payouts to. Kept separate from /profile so the form
+// state, error handling, and re-fetch cadence can live on its own component.
+
+// GET /api/affiliate-portal/payout-info
+exports.getPayoutInfo = async (req, res) => {
+  try {
+    const affiliate = req.affiliateUser;
+    if (affiliate.role !== "affiliate") {
+      return res.status(403).json({ error: "Affiliates only" });
+    }
+    return res.json({
+      payoutAddress:      affiliate.payoutAddress || null,
+      payoutNetwork:      affiliate.payoutNetwork || "TRC20",
+      payoutAddressSetAt: affiliate.payoutAddressSetAt || null,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// PUT /api/affiliate-portal/payout-info
+// Body: { payoutAddress }  — TRC20 USDT address. payoutNetwork is implicit
+// (only TRC20 supported today); enforced server-side so a misbehaving client
+// can't try to slip in a different network.
+exports.updatePayoutInfo = async (req, res) => {
+  try {
+    const affiliate = req.affiliateUser;
+    if (affiliate.role !== "affiliate") {
+      return res.status(403).json({ error: "Affiliates only" });
+    }
+
+    const raw = (req.body && req.body.payoutAddress) || "";
+    const address = String(raw).trim();
+    if (!address) {
+      return res.status(400).json({ error: "payoutAddress is required" });
+    }
+    if (!TRC20_RE.test(address)) {
+      return res.status(400).json({
+        error: "Invalid TRC20 address — must be 34 chars starting with T",
+      });
+    }
+
+    const updated = await User.findByIdAndUpdate(
+      affiliate._id,
+      {
+        $set: {
+          payoutAddress: address,
+          payoutNetwork: "TRC20",
+          payoutAddressSetAt: new Date(),
+        },
+      },
+      { new: true, select: "payoutAddress payoutNetwork payoutAddressSetAt" },
+    ).lean();
+
+    return res.json({
+      payoutAddress:      updated.payoutAddress,
+      payoutNetwork:      updated.payoutNetwork,
+      payoutAddressSetAt: updated.payoutAddressSetAt,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET /api/affiliate-portal/payouts?limit=&before=
+// Affiliate sees their own payout history (read-only).
+exports.listMyPayouts = async (req, res) => {
+  try {
+    const affiliate = req.affiliateUser;
+    if (affiliate.role !== "affiliate") {
+      return res.status(403).json({ error: "Affiliates only" });
+    }
+    const { limit, before } = req.query || {};
+    const lim = Math.min(Math.max(Number(limit) || 50, 1), 200);
+
+    const match = { affiliateId: affiliate._id };
+    if (before) match.createdAt = { $lt: new Date(before) };
+
+    const payouts = await AffiliatePayout.find(match)
+      .sort({ createdAt: -1 })
+      .limit(lim)
+      .lean();
+
+    return res.json({ payouts, count: payouts.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
