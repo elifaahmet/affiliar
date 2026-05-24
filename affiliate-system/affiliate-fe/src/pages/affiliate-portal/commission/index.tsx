@@ -421,6 +421,44 @@ function BalanceTile({
   );
 }
 
+// Translate the API's machine-readable error codes into a sentence the
+// affiliate can act on. Anything not in the table falls through to the
+// raw string (preserves Sans/network messages we haven't seen yet).
+function friendlySubPayoutError(err: any): string {
+  const data = err?.response?.data;
+  const code: string = data?.error || err?.message || 'Something went wrong.';
+
+  switch (code) {
+    case 'sub_has_no_wallet':
+      return 'This sub-affiliate hasn’t added a USDT-TRC20 wallet yet. Ask them to set one on their Profile page before retrying.';
+    case 'insufficient_balance': {
+      const bal = (data?.balanceCents ?? 0) / 100;
+      const need = (data?.payableCents ?? 0) / 100;
+      return `Not enough internal balance. You can spend ${bal.toFixed(2)} USDT but this payout needs ${need.toFixed(2)}. Wait for the next commission cycle or ask your operator to release more first.`;
+    }
+    case 'zero_amount':
+      return 'This payout has no amount to send.';
+    case 'not_dispatchable':
+      return `This payout can’t be sent right now (status: ${data?.status || 'unknown'}). Refresh and try again.`;
+    case 'not_pending':
+      return `Only payouts that are still pending can be cancelled (current status: ${data?.status || 'unknown'}).`;
+    case 'payout_not_found':
+      return 'Payout not found. It may have been removed — refresh the page.';
+    case 'operator_user_not_found':
+      return 'Couldn’t reach your operator’s payment account. Contact support.';
+  }
+
+  // Sans-side failures bubble up with prefixes like "token: …", "list: …",
+  // "create: HTTP 502". Surface a readable variant.
+  if (typeof code === 'string') {
+    if (code.startsWith('token:')) return 'Payment provider session couldn’t be opened. Try again in a moment.';
+    if (code.startsWith('list:'))  return 'The payment provider returned no withdraw account for this amount. Try a different amount or contact support.';
+    if (code.startsWith('create:')) return 'The payment provider rejected the transfer. Check the sub-affiliate’s wallet address and try again.';
+  }
+
+  return typeof code === 'string' ? code : 'Something went wrong.';
+}
+
 // Per-row action group. `draft`/`failed` rows can be Paid (Sans dispatch).
 // `pending` rows can be Cancelled. Manual Mark-Paid remains for out-of-band
 // reconciliation across draft/failed.
@@ -440,20 +478,19 @@ function SubPayoutActions({
     endpoint: AFFILIATE_PORTAL_API_URLS.DISPATCH_SUB_PAYOUT(payout._id),
     method: 'post',
     onSuccess: onChange,
-    onError: (err: any) =>
-      alert(err?.response?.data?.error || err?.message || 'Dispatch failed'),
+    onError: (err: any) => alert(friendlySubPayoutError(err)),
   });
   const cancelMut = useBaseMutation({
     endpoint: AFFILIATE_PORTAL_API_URLS.CANCEL_SUB_PAYOUT(payout._id),
     method: 'post',
     onSuccess: onChange,
-    onError: (err: any) =>
-      alert(err?.response?.data?.error || err?.message || 'Cancel failed'),
+    onError: (err: any) => alert(friendlySubPayoutError(err)),
   });
   const markMut = useBaseMutation({
     endpoint: AFFILIATE_PORTAL_API_URLS.MARK_SUB_PAYOUT_PAID(payout._id),
     method: 'post',
     onSuccess: onChange,
+    onError: (err: any) => alert(friendlySubPayoutError(err)),
   });
 
   const handlePay = () => {
