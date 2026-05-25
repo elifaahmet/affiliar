@@ -310,6 +310,11 @@ function NumberInput({ label, name, defaultValue, hint, disabled, lockedHint }: 
   label: string; name: string; defaultValue: number; hint?: string;
   disabled?: boolean; lockedHint?: string;
 }) {
+  // When the stored value is 0 we render the field empty (with "0" as a
+  // placeholder hint) so typing a digit replaces nothing — avoids the
+  // "type 5, get 05" pitfall. On focus we also select-all so the same
+  // works for non-zero starting values.
+  const initial = defaultValue === 0 ? '' : String(defaultValue);
   return (
     <label className={`flex flex-col gap-1 ${disabled ? 'opacity-60' : ''}`}>
       <span className='text-xs font-medium text-gray-700'>{label}</span>
@@ -319,8 +324,10 @@ function NumberInput({ label, name, defaultValue, hint, disabled, lockedHint }: 
         min={0}
         max={100}
         step={0.01}
-        defaultValue={defaultValue}
+        defaultValue={initial}
+        placeholder='0'
         disabled={disabled}
+        onFocus={(e) => e.currentTarget.select()}
         className='border border-gray-200 rounded px-3 py-2 text-sm disabled:bg-gray-50 disabled:cursor-not-allowed'
       />
       {disabled && lockedHint ? (
@@ -371,12 +378,15 @@ function GateInput({ label, name, defaultValue, fromCents, step }: {
   fromCents?: boolean;
   step?: number;
 }) {
-  const display =
+  const numeric =
     defaultValue == null
-      ? ''
+      ? null
       : fromCents
-        ? String(defaultValue / 100)
-        : String(defaultValue);
+        ? defaultValue / 100
+        : defaultValue;
+  // Same "0 → blank" trick as NumberInput: lets the user type directly
+  // without having to clear the leading 0 every time.
+  const display = numeric == null || numeric === 0 ? '' : String(numeric);
   return (
     <label className='flex flex-col gap-1'>
       <span className='text-xs font-medium text-gray-700'>{label}</span>
@@ -387,6 +397,7 @@ function GateInput({ label, name, defaultValue, fromCents, step }: {
         step={step ?? 1}
         defaultValue={display}
         placeholder='Disabled'
+        onFocus={(e) => e.currentTarget.select()}
         className='border border-gray-200 rounded px-3 py-2 text-sm'
       />
     </label>
@@ -548,10 +559,17 @@ function ProviderRatesTable({ scope }: { scope: Scope }) {
             <input
               type='number'
               value={editing.feePercent ?? ''}
-              onChange={(e) => setEditing({ ...editing, feePercent: Number(e.target.value) })}
+              onChange={(e) =>
+                setEditing({
+                  ...editing,
+                  feePercent: e.target.value === '' ? undefined : Number(e.target.value),
+                })
+              }
+              onFocus={(e) => e.currentTarget.select()}
               min={0}
               max={100}
               step={0.01}
+              placeholder='0'
               className='border border-gray-200 rounded px-3 py-2 text-sm'
             />
           </label>
