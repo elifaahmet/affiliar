@@ -30,13 +30,30 @@ const providerFeeRateSchema = new mongoose.Schema(
     providerName: { type: String, default: "" },
     feePercent: { type: Number, required: true, min: 0, max: 100 },
     isDeleted: { type: Boolean, default: false },
+
+    // Temporal versioning — mirrors OperatorFinancialSettings. Each fee
+    // change creates a new row; the previous active row gets its
+    // effectiveUntil stamped. The fees job picks the right version for
+    // each historical day. See models/OperatorFinancialSettings.js for
+    // the full rationale.
+    effectiveFrom:  { type: Date, default: Date.now, index: true },
+    effectiveUntil: { type: Date, default: null, index: true },
   },
   { timestamps: true },
 );
 
+// Only one active row per (operator, brand, provider) — historical rows
+// have effectiveUntil set and don't compete for uniqueness.
 providerFeeRateSchema.index(
-  { operatorId: 1, brandId: 1, providerId: 1 },
-  { unique: true },
+  { operatorId: 1, brandId: 1, providerId: 1, effectiveUntil: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { effectiveUntil: null },
+    name: "unique_active_per_operator_brand_provider",
+  },
 );
+providerFeeRateSchema.index({
+  operatorId: 1, brandId: 1, providerId: 1, effectiveFrom: 1, effectiveUntil: 1,
+});
 
 module.exports = mongoose.model("ProviderFeeRate", providerFeeRateSchema);

@@ -4,6 +4,10 @@ const OperatorFinancialSettings = require("../models/OperatorFinancialSettings")
 const ProviderFeeRate = require("../models/ProviderFeeRate");
 const { logger } = require("../middlewares/logger");
 const { computeFeesForBucket } = require("./computeFees");
+const {
+  resolveFinancialsAsOf,
+  resolveProviderRatesAsOf,
+} = require("../utils/feeVersioning");
 
 // Runs at 00:10 UTC daily and computes yesterday's fees per
 // (operator, brand, affiliate, provider) from ClickHouse. Each row's
@@ -64,33 +68,49 @@ function boundsFor(dayOffset = -1) {
   const start = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + dayOffset),
   );
-  const end = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + dayOffset + 1),
-  );
+  return boundsForDate(start);
+}
+
+// Bounds for an explicit UTC day. Pass any Date — it's snapped to the
+// start of its UTC day, and `start` itself becomes the as-of timestamp
+// for the fee resolver.
+function boundsForDate(date) {
+  const start = new Date(Date.UTC(
+    date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(),
+  ));
+  const end = new Date(Date.UTC(
+    start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate() + 1,
+  ));
   const hourBucketStr = start
     .toISOString()
     .replace("T", " ")
     .replace("Z", "")
     .split(".")[0];
   return {
+    asOfDate: start,
     fromTs: start.toISOString().replace("T", " ").split(".")[0],
-    toTs: end.toISOString().replace("T", " ").split(".")[0],
+    toTs:   end.toISOString().replace("T", " ").split(".")[0],
     hourBucket: hourBucketStr,
   };
 }
 
 const yesterdayBounds = () => boundsFor(-1);
 
-async function runForOperator(operator, operatorFinancials, bounds) {
+async function runForOperator(operator, operatorFinancials, bounds, { applyCurrentFees = false } = {}) {
   const tenantId = operator._id.toString();
 
-  // Pull all provider rates for this operator in one query; index by
-  // (brandId|default, providerId) so per-brand lookup + operator-wide
-  // fallback is O(1).
-  const providerRates = await ProviderFeeRate.find({
+  // Pick the fee snapshot for the date being processed. By default that's
+  // the version that was active on `bounds.asOfDate` (frozen-in-time
+  // historical recalc — re-runs are idempotent and don't shift past
+  // numbers). When the operator deliberately opts in via the manual-run
+  // endpoint we fall back to "now" so today's fees retroactively rewrite
+  // the row.
+  const resolveDate = applyCurrentFees ? new Date() : bounds.asOfDate;
+
+  const providerRates = await resolveProviderRatesAsOf({
     operatorId: operator._id,
-    isDeleted: false,
-  }).lean();
+    asOfDate: resolveDate,
+  });
   const providerRateMap = new Map();
   for (const r of providerRates) {
     const bKey = r.brandId ? r.brandId.toString() : "default";
@@ -105,18 +125,23 @@ async function runForOperator(operator, operatorFinancials, bounds) {
     );
   };
 
-  // Same fan-out for financial settings: brand-specific trumps operator-wide.
-  const allFinancials = await OperatorFinancialSettings.find({
-    operatorId: operator._id,
-  }).lean();
-  const financialMap = new Map();
-  for (const f of allFinancials) {
-    financialMap.set(f.brandId ? f.brandId.toString() : "default", f);
-  }
-  const resolveFinancials = (brandId) =>
-    financialMap.get(brandId || "default") ||
-    financialMap.get("default") ||
-    operatorFinancials;
+  // Brand-scoped financial settings come from the same as-of resolver.
+  // We can't pre-load every brand in one query under the new schema, so
+  // memoize per brand id within the run — most deltas share a handful
+  // of brands.
+  const financialCache = new Map();
+  const resolveFinancials = async (brandId) => {
+    const key = brandId || "default";
+    if (financialCache.has(key)) return financialCache.get(key);
+    const row = await resolveFinancialsAsOf({
+      operatorId: operator._id,
+      brandId: brandId || null,
+      asOfDate: resolveDate,
+    });
+    const result = row || operatorFinancials;
+    financialCache.set(key, result);
+    return result;
+  };
 
   // Aggregate yesterday's money movement grouped by attribution dimensions.
   // affiliate_id can be empty (unattributed); we still want those rows so
@@ -159,7 +184,7 @@ async function runForOperator(operator, operatorFinancials, bounds) {
 
   const deltaRows = [];
   for (const r of rows) {
-    const brandFinancials = resolveFinancials(r.brandId);
+    const brandFinancials = await resolveFinancials(r.brandId);
     const { gameProviderFees, depositFees, withdrawalFees, jackpotFees, casinoTaxes } =
       computeFeesForBucket(
         {
@@ -273,28 +298,39 @@ async function runForOperator(operator, operatorFinancials, bounds) {
   });
 }
 
-async function runOnce({ dayOffset = -1 } = {}) {
-  const bounds = boundsFor(dayOffset);
+async function runOnce({
+  dayOffset = -1,
+  forDate = null,
+  applyCurrentFees = false,
+} = {}) {
+  // forDate (explicit Date) wins over dayOffset (relative to now). The
+  // manual-run endpoint uses forDate for date-range loops; the nightly
+  // cron + legacy callers keep using dayOffset.
+  const bounds = forDate ? boundsForDate(forDate) : boundsFor(dayOffset);
+
+  // The fallback used when no version row exists for a given (operator,
+  // brand, day) pair. Use the as-of resolver so the fallback also respects
+  // historical fees when we're recomputing past dates.
+  const resolveDate = applyCurrentFees ? new Date() : bounds.asOfDate;
+
   const operators = await Operator.find({ isDeleted: false })
     .select({ _id: 1 })
     .lean();
   let processed = 0;
   for (const op of operators) {
     try {
-      // Pass the operator-wide (brandId: null) default as the hard fallback.
-      // runForOperator pulls all brand-scoped rows itself and resolves the
-      // right one per delta row.
       const financials =
-        (await OperatorFinancialSettings.findOne({
+        (await resolveFinancialsAsOf({
           operatorId: op._id,
           brandId: null,
-        }).lean()) || {
+          asOfDate: resolveDate,
+        })) || {
           depositFeePercent: 0,
           withdrawalFeePercent: 0,
           jackpotFeePercent: 0,
           casinoTaxPercent: 0,
         };
-      await runForOperator(op, financials, bounds);
+      await runForOperator(op, financials, bounds, { applyCurrentFees });
       processed++;
     } catch (err) {
       logger.error("fees.job.operator.failed", {

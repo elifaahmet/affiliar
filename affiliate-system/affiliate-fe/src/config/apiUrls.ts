@@ -294,6 +294,8 @@ export const FEES_API_URLS = {
   PROVIDER_RATE: (providerId: string) =>
     `${API_BASE_URL}api/fees/provider-rates/${providerId}`,
   SETTINGS: () => `${API_BASE_URL}api/fees/settings`,
+  SETTINGS_HISTORY:        () => `${API_BASE_URL}api/fees/settings/history`,
+  PROVIDER_RATES_HISTORY:  () => `${API_BASE_URL}api/fees/provider-rates/history`,
   RUN: () => `${API_BASE_URL}api/fees/run`,
 };
 

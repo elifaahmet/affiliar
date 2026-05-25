@@ -6,6 +6,10 @@ const {
   resolveOperatorPlan, planError,
 } = require("../../middlewares/planGuard");
 const { firstPlanWith } = require("../../utils/planLimits");
+const {
+  saveFinancialsVersion,
+  saveProviderRateVersion,
+} = require("../../utils/feeVersioning");
 
 function operatorOnly(req, res) {
   const user = req.affiliateUser;
@@ -47,6 +51,10 @@ exports.listBrands = async (req, res) => {
 };
 
 // GET /api/fees/provider-rates?brandId=<id|default>
+//
+// Returns the *currently active* versions only — historical/superseded
+// rows have effectiveUntil set and aren't relevant to the UI. The
+// versioning history surface lives on a separate endpoint.
 exports.listProviderRates = async (req, res) => {
   const operatorId = operatorOnly(req, res);
   if (!operatorId) return;
@@ -56,6 +64,7 @@ exports.listProviderRates = async (req, res) => {
       operatorId,
       brandId,
       isDeleted: false,
+      effectiveUntil: null,
     })
       .sort({ providerName: 1, providerId: 1 })
       .lean();
@@ -83,20 +92,14 @@ exports.upsertProviderRate = async (req, res) => {
         .status(400)
         .json({ error: "feePercent must be between 0 and 100" });
     }
-    const rate = await ProviderFeeRate.findOneAndUpdate(
-      { operatorId, brandId, providerId },
-      {
-        $set: {
-          operatorId,
-          brandId,
-          providerId,
-          providerName,
-          feePercent: pct,
-          isDeleted: false,
-        },
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
-    );
+    const rate = await saveProviderRateVersion({
+      operatorId,
+      brandId,
+      providerId,
+      providerName,
+      feePercent: pct,
+      isDeleted: false,
+    });
     res.json({ rate });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -135,28 +138,26 @@ exports.bulkUpsertProviderRates = async (req, res) => {
       cleaned.push({ providerId, providerName, feePercent: pct });
     }
 
-    const ops = cleaned.map((r) => ({
-      updateOne: {
-        filter: { operatorId, brandId, providerId: r.providerId },
-        update: {
-          $set: {
-            operatorId,
-            brandId,
-            providerId: r.providerId,
-            providerName: r.providerName,
-            feePercent: r.feePercent,
-            isDeleted: false,
-          },
-        },
-        upsert: true,
-      },
-    }));
-
-    const result = await ProviderFeeRate.bulkWrite(ops, { ordered: false });
+    // Versioned writes don't lend themselves to bulkWrite cleanly (each
+    // row needs an effectiveUntil close on the previous version), so we
+    // loop serially. The cron's data volume is per-day so this is fine
+    // — bulk imports are CSV-scale (~tens to low hundreds of providers).
+    let inserted = 0;
+    for (const r of cleaned) {
+      await saveProviderRateVersion({
+        operatorId,
+        brandId,
+        providerId:   r.providerId,
+        providerName: r.providerName,
+        feePercent:   r.feePercent,
+        isDeleted:    false,
+      });
+      inserted++;
+    }
     res.json({
       imported: cleaned.length,
-      inserted: result.upsertedCount ?? 0,
-      updated:  result.modifiedCount ?? 0,
+      inserted,
+      updated: 0, // each save creates a new active version; "updated" is meaningless under versioning
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -164,16 +165,29 @@ exports.bulkUpsertProviderRates = async (req, res) => {
 };
 
 // DELETE /api/fees/provider-rates/:providerId?brandId=<id|default>
+//
+// Soft-delete by writing a new version with isDeleted: true. The
+// historical rows stay readable (so a re-run of a date BEFORE the delete
+// still finds the rate); from `now` forward the rate disappears from the
+// UI + the as-of resolver.
 exports.deleteProviderRate = async (req, res) => {
   const operatorId = operatorOnly(req, res);
   if (!operatorId) return;
   try {
     const { providerId } = req.params;
     const brandId = normalizeBrandId(req.query.brandId);
-    await ProviderFeeRate.updateOne(
-      { operatorId, brandId, providerId },
-      { $set: { isDeleted: true } },
-    );
+    const current = await ProviderFeeRate.findOne({
+      operatorId, brandId, providerId, effectiveUntil: null,
+    }).lean();
+    if (!current) return res.json({ ok: true }); // already gone
+    await saveProviderRateVersion({
+      operatorId,
+      brandId,
+      providerId,
+      providerName: current.providerName,
+      feePercent:   current.feePercent,
+      isDeleted:    true,
+    });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -181,13 +195,18 @@ exports.deleteProviderRate = async (req, res) => {
 };
 
 // GET /api/fees/settings?brandId=<id|default>
+//
+// Returns the currently active version only. Historical versions are
+// hidden — exposed through a dedicated /fees/settings/history endpoint.
 exports.getFinancialSettings = async (req, res) => {
   const operatorId = operatorOnly(req, res);
   if (!operatorId) return;
   try {
     const brandId = normalizeBrandId(req.query.brandId);
     const raw =
-      (await OperatorFinancialSettings.findOne({ operatorId, brandId }).lean()) || {};
+      (await OperatorFinancialSettings.findOne({
+        operatorId, brandId, effectiveUntil: null,
+      }).lean()) || {};
     // Back-fill depositFeePercent from the legacy paymentSystemFeePercent so
     // the FE always sees the split form, even for unmigrated documents.
     const settings = {
@@ -370,26 +389,123 @@ exports.updateFinancialSettings = async (req, res) => {
       }
     }
 
-    const settings = await OperatorFinancialSettings.findOneAndUpdate(
-      { operatorId, brandId },
-      { $set: { operatorId, brandId, ...update } },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
-    );
+    const settings = await saveFinancialsVersion({
+      operatorId,
+      brandId,
+      patch: update,
+    });
     res.json({ settings });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// POST /api/fees/run — manual trigger. Body { dayOffset } lets you pick the
-// day to recompute: -1 (yesterday, default), 0 (today), -2 (2 days ago).
+// POST /api/fees/run — manual trigger.
+//
+// Two shapes accepted:
+//   { dayOffset: number }                 — legacy, picks a single day
+//                                            relative to today. Uses the
+//                                            historical fee version that
+//                                            was active on that day.
+//   { dateFrom: ISO, dateTo: ISO,         — date range (inclusive). Each
+//     applyCurrentFees: boolean }           day in the range gets re-run.
+//                                            applyCurrentFees=true forces
+//                                            today's active fees onto every
+//                                            day (deliberate retroactive
+//                                            recalc); false (default) honors
+//                                            each day's historical version.
 exports.runNow = async (req, res) => {
   if (!operatorOnly(req, res)) return;
   try {
-    const raw = req.body?.dayOffset;
-    const offset = Number.isFinite(Number(raw)) ? Number(raw) : -1;
+    const { dateFrom, dateTo, applyCurrentFees = false, dayOffset } = req.body || {};
+
+    // Date-range mode.
+    if (dateFrom || dateTo) {
+      const from = new Date(dateFrom);
+      const to   = new Date(dateTo || dateFrom);
+      if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+        return res.status(400).json({ error: "dateFrom and dateTo must be ISO dates" });
+      }
+      if (from > to) {
+        return res.status(400).json({ error: "dateFrom must be <= dateTo" });
+      }
+      // Cap the loop at 90 days so a typo doesn't kick off a year-long run
+      // from the UI. Operator can chunk if they need more.
+      const ONE_DAY = 24 * 60 * 60 * 1000;
+      const dayCount = Math.floor((to - from) / ONE_DAY) + 1;
+      if (dayCount > 90) {
+        return res.status(400).json({
+          error: "Date range too large (max 90 days). Run in chunks.",
+        });
+      }
+
+      const days = [];
+      // Walk yyyy-mm-dd in UTC.
+      const cursor = new Date(Date.UTC(
+        from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate(),
+      ));
+      const end = new Date(Date.UTC(
+        to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate(),
+      ));
+      while (cursor <= end) {
+        await runFeesJob({
+          forDate: new Date(cursor),
+          applyCurrentFees: !!applyCurrentFees,
+        });
+        days.push(cursor.toISOString().slice(0, 10));
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+      }
+      return res.json({
+        ok: true,
+        mode: "range",
+        applyCurrentFees: !!applyCurrentFees,
+        days,
+      });
+    }
+
+    // Legacy single-day mode.
+    const offset = Number.isFinite(Number(dayOffset)) ? Number(dayOffset) : -1;
     await runFeesJob({ dayOffset: offset });
-    res.json({ ok: true, dayOffset: offset });
+    res.json({ ok: true, mode: "offset", dayOffset: offset });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET /api/fees/settings/history?brandId=<id|default>&limit=
+//
+// Returns the version chain (most recent first) so the FE can show "what
+// the fee config looked like on date X" alongside the manual-run picker.
+exports.listFinancialHistory = async (req, res) => {
+  const operatorId = operatorOnly(req, res);
+  if (!operatorId) return;
+  try {
+    const brandId = normalizeBrandId(req.query.brandId);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
+    const versions = await OperatorFinancialSettings.find({ operatorId, brandId })
+      .sort({ effectiveFrom: -1 })
+      .limit(limit)
+      .lean();
+    res.json({ versions });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET /api/fees/provider-rates/history?brandId=<id|default>&providerId=&limit=
+exports.listProviderRateHistory = async (req, res) => {
+  const operatorId = operatorOnly(req, res);
+  if (!operatorId) return;
+  try {
+    const brandId = normalizeBrandId(req.query.brandId);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+    const match = { operatorId, brandId };
+    if (req.query.providerId) match.providerId = String(req.query.providerId);
+    const versions = await ProviderFeeRate.find(match)
+      .sort({ effectiveFrom: -1 })
+      .limit(limit)
+      .lean();
+    res.json({ versions });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

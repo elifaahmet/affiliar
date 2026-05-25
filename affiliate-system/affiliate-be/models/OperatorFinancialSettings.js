@@ -24,6 +24,28 @@ const operatorFinancialSettingsSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+
+    // ── Temporal versioning ─────────────────────────────────────────────
+    //
+    // Fees are versioned: each save creates a new doc and closes the
+    // previous one's `effectiveUntil`. The fees job picks the right
+    // version for each historical day so a fee change today doesn't
+    // mutate last week's reports.
+    //
+    //   effectiveFrom  — when this version becomes active (defaults to
+    //                    insertion time).
+    //   effectiveUntil — when superseded by a newer version. `null` means
+    //                    this row is the current active version.
+    effectiveFrom: {
+      type: Date,
+      default: Date.now,
+      index: true,
+    },
+    effectiveUntil: {
+      type: Date,
+      default: null,
+      index: true,
+    },
     depositFeePercent:    { type: Number, default: 0, min: 0, max: 100 },
     withdrawalFeePercent: { type: Number, default: 0, min: 0, max: 100 },
     jackpotFeePercent:    { type: Number, default: 0, min: 0, max: 100 },
@@ -99,10 +121,20 @@ const operatorFinancialSettingsSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+// At most ONE active row per (operator, brand). Historical rows have
+// effectiveUntil set; partial index keeps the uniqueness scoped to current.
 operatorFinancialSettingsSchema.index(
-  { operatorId: 1, brandId: 1 },
-  { unique: true },
+  { operatorId: 1, brandId: 1, effectiveUntil: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { effectiveUntil: null },
+    name: "unique_active_per_operator_brand",
+  },
 );
+// Time-window lookups: "what was the active version on date X?"
+operatorFinancialSettingsSchema.index({
+  operatorId: 1, brandId: 1, effectiveFrom: 1, effectiveUntil: 1,
+});
 
 module.exports = mongoose.model(
   "OperatorFinancialSettings",

@@ -1,4 +1,4 @@
-import { useRef, useState, FormEvent } from 'react';
+import { useMemo, useRef, useState, FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { baseService } from 'api/core/baseService';
@@ -789,41 +789,111 @@ function ProviderFeesSection({ scope }: { scope: Scope }) {
 }
 
 function RunFeesButton() {
+  // Default the range to "yesterday only" — the most common manual case
+  // (fee job choked or operator wants to spot-check). Date is YYYY-MM-DD
+  // local-string for the native input; we send ISO when posting.
+  const yesterdayISO = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0, 10);
+  }, []);
+
+  const [dateFrom, setDateFrom] = useState(yesterdayISO);
+  const [dateTo,   setDateTo]   = useState(yesterdayISO);
+  const [applyCurrentFees, setApplyCurrentFees] = useState(false);
   const [running, setRunning] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const qc = useQueryClient();
 
-  const run = async (dayOffset: number, label: string) => {
+  const dayCount = useMemo(() => {
+    const f = new Date(dateFrom);
+    const t = new Date(dateTo);
+    if (Number.isNaN(f.getTime()) || Number.isNaN(t.getTime()) || f > t) return 0;
+    return Math.floor((t.getTime() - f.getTime()) / 86400000) + 1;
+  }, [dateFrom, dateTo]);
+
+  const run = async () => {
+    if (dayCount <= 0) {
+      setMsg('Pick a valid date range.');
+      return;
+    }
+    if (applyCurrentFees) {
+      const ok = window.confirm(
+        `Apply CURRENT fee rates to ${dayCount} day${dayCount === 1 ? '' : 's'} (${dateFrom} → ${dateTo})?\n\n` +
+        `This will overwrite the historical fee snapshot for that period. ` +
+        `Only do this if you forgot to update fees on time and want past reports to reflect today’s rates.`,
+      );
+      if (!ok) return;
+    }
     setRunning(true);
     setMsg(null);
     try {
-      await baseService.add(FEES_API_URLS.RUN(), { dayOffset });
-      setMsg(`Job triggered for ${label}.`);
+      await baseService.add(FEES_API_URLS.RUN(), {
+        dateFrom, dateTo, applyCurrentFees,
+      });
+      setMsg(
+        `Re-ran ${dayCount} day${dayCount === 1 ? '' : 's'}` +
+        ` using ${applyCurrentFees ? 'current' : 'historical'} fees.`,
+      );
       qc.invalidateQueries();
     } catch (e: any) {
-      setMsg(e?.message ?? 'Failed to run');
+      setMsg(e?.response?.data?.error ?? e?.message ?? 'Failed to run');
     } finally {
       setRunning(false);
     }
   };
 
   return (
-    <div className='flex flex-wrap items-center gap-3'>
-      <button
-        onClick={() => run(-1, 'yesterday')}
-        disabled={running}
-        className='bg-primary text-white px-4 py-2 rounded text-sm font-semibold hover:bg-primary-dark disabled:opacity-50'
-      >
-        {running ? 'Running...' : 'Run for yesterday'}
-      </button>
-      <button
-        onClick={() => run(0, 'today')}
-        disabled={running}
-        className='border border-primary text-primary px-4 py-2 rounded text-sm font-semibold hover:bg-gray-50 disabled:opacity-50'
-      >
-        Run for today (test)
-      </button>
-      {msg && <p className='text-xs text-gray-600'>{msg}</p>}
+    <div className='space-y-3'>
+      <div className='flex flex-wrap items-end gap-3'>
+        <div>
+          <label className='block text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1'>From</label>
+          <input
+            type='date'
+            value={dateFrom}
+            max={dateTo}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className='h-9 text-sm rounded-lg border border-gray-200 px-2 focus:outline-none focus:border-primary bg-white'
+          />
+        </div>
+        <div>
+          <label className='block text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1'>To</label>
+          <input
+            type='date'
+            value={dateTo}
+            min={dateFrom}
+            onChange={(e) => setDateTo(e.target.value)}
+            className='h-9 text-sm rounded-lg border border-gray-200 px-2 focus:outline-none focus:border-primary bg-white'
+          />
+        </div>
+        <button
+          onClick={run}
+          disabled={running || dayCount <= 0}
+          className='h-9 px-4 text-sm bg-primary text-white rounded-lg font-semibold hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed'
+        >
+          {running ? 'Running…' : `Re-run ${dayCount || 0} day${dayCount === 1 ? '' : 's'}`}
+        </button>
+      </div>
+
+      <label className='flex items-start gap-2 cursor-pointer select-none'>
+        <input
+          type='checkbox'
+          checked={applyCurrentFees}
+          onChange={(e) => setApplyCurrentFees(e.target.checked)}
+          className='mt-0.5 h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary'
+        />
+        <span className='text-xs text-gray-700'>
+          <b>Apply current fees retroactively.</b>{' '}
+          <span className='text-gray-600'>
+            Off (default): use the fee snapshot active on each past day — re-run is idempotent and historical reports stay frozen.
+            On: overwrite past-day fee numbers with today’s active rates. Use only when you forgot to update fees on time.
+          </span>
+        </span>
+      </label>
+
+      {msg && (
+        <p className={`text-xs ${msg.startsWith('Re-ran') ? 'text-green-700' : 'text-gray-700'}`}>{msg}</p>
+      )}
     </div>
   );
 }
@@ -909,10 +979,13 @@ export default function FeesPage() {
       <Card title='Provider fees'>
         <ProviderFeesSection scope={scope} />
       </Card>
-      <Card title='Manual run'>
+      <Card title='Manual fees recalculation'>
         <p className='text-xs text-gray-700 mb-3'>
-          Re-runs the fees job for yesterday (idempotent — SummingMergeTree
-          merges duplicates by source_event_id).
+          Replays the fees job for a date range you choose. By default each
+          past day uses the fee rates that were active on that day — so
+          re-running doesn’t change historical reports. Tick the box below
+          to overwrite past-day fees with today’s rates (use only when you
+          forgot to update before a rate change went live).
         </p>
         <RunFeesButton />
       </Card>

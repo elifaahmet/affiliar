@@ -15,6 +15,11 @@ router.delete("/provider-rates/:providerId", feesController.deleteProviderRate);
 router.get("/settings", feesController.getFinancialSettings);
 router.put("/settings", feesController.updateFinancialSettings);
 
+// Version history surface — UI shows operators what their fee config
+// looked like at each effectiveFrom point, alongside the manual-run picker.
+router.get("/settings/history",       feesController.listFinancialHistory);
+router.get("/provider-rates/history", feesController.listProviderRateHistory);
+
 router.post("/run", feesController.runNow);
 
 module.exports = router;
