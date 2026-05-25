@@ -63,7 +63,9 @@
     "referAFriend": "Refer-a-Friend",
     "payouts": "Affiliate Payouts",
     "billing": "Plans & Billing",
-    "settings": "Settings"
+    "settings": "Settings",
+    "new": "New",
+    "edit": "Edit"
   },
   "players": {
     "info": {

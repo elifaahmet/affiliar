@@ -61,7 +61,9 @@
     "referAFriend": "Parrainage",
     "payouts": "Paiements affiliés",
     "billing": "Plans & Facturation",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "new": "Nouveau",
+    "edit": "Modifier"
   }
 }
 

@@ -316,17 +316,12 @@ export function PlanForm({
               {(['casino', 'sportsbook', 'combined'] as ProductScope[]).map((p) => (
                 <button key={p} type='button'
                   onClick={() => setField('product', p)}
-                  className={`py-2 px-3 rounded-lg text-xs font-medium border transition-colors text-left ${
+                  className={`py-2 px-3 rounded-lg text-sm font-medium border transition-colors capitalize ${
                     form.product === p
                       ? 'border-primary bg-primary/5 text-primary'
                       : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                   }`}>
-                  <div className='font-semibold capitalize'>{p}</div>
-                  <div className='text-gray-600 font-normal mt-0.5 text-[11px]'>
-                    {p === 'casino'     && 'Casino NGR only'}
-                    {p === 'sportsbook' && 'Sportsbook NGR only'}
-                    {p === 'combined'   && 'Casino + sportsbook'}
-                  </div>
+                  {p}
                 </button>
               ))}
             </div>
