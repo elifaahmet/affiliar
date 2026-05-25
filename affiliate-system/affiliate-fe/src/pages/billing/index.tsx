@@ -87,7 +87,6 @@ const PLAN_CARDS: PlanCard[] = [
     price: 98,
     tagline: 'Up to 50 affiliates · 3 brands',
     note: 'Open up sub-affiliates and the full commission toolkit.',
-    highlight: true,
     features: [
       'Up to 50 affiliates · 3 brands',
       'Sub-affiliates (2-tier) with revenue cascading',
@@ -101,6 +100,7 @@ const PLAN_CARDS: PlanCard[] = [
     price: 494,
     tagline: 'Up to 100 affiliates · 10 brands',
     note: 'Power features for serious operators — DWY co-management.',
+    highlight: true,
     features: [
       'Everything in 2-Tier',
       'Up to 100 affiliates · 10 brands',
