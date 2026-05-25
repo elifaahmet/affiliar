@@ -353,10 +353,86 @@ After a referral reaches `status: 'rewarded'`, the operator can configure a mont
 
 **Engine wiring:** `engine/referralEngine.js` exposes `enqueueRecurringDelivery(referral, payment, recurringConfig)` and `fetchPlayerMonthlyBase({ operatorId, refereePlayerId, year, month, ngrMetric })`. The job assembles the row + delivery; the worker handles the ack and stamps `paidAt` on the matching ledger entry by `deliveryId`.
 
-### 11.5 Remaining Phase 2 backlog (not yet implemented)
+### 11.5 Crew (tiered) reward shape — shipped
+
+Per-operator opt-in (gated on `crewSystem` plan flag — currently
+Pro-only). When `ReferAFriendConfig.reward.type === "crew_tiered"`, the
+recurring job pays the inviter a percentage of each friend's monthly
+NGR scaled by the inviter's *active referral count*.
+
+Schema additions on `ReferAFriendConfig.reward`:
+
+```js
+type: "crew_tiered",
+crewLevels: [           // editable from the operator UI
+  { activeReferrals: 3,  percent: 3 },
+  { activeReferrals: 5,  percent: 5 },
+  { activeReferrals: 10, percent: 8 },
+  { activeReferrals: 15, percent: 12 },
+  { activeReferrals: 20, percent: 15 },
+  { activeReferrals: 25, percent: 18 },
+],
+crewMetric: "ngr",       // or "ggr"
+crewMonthlyCapCents: null,
+```
+
+Engine strategy: [`engine/raReward/crewTiered.js`](../../affiliate-be/engine/raReward/crewTiered.js)
+— resolves the highest tier whose `activeReferrals` threshold the
+inviter clears, applies `percent × ngrCents / 100`, caps with
+`crewMonthlyCapCents`. The recurring job's `processCrewReferral` branch
+counts active referrals at run time so a referrer who climbs a tier
+mid-month gets the higher rate *next* run, not retroactively.
+
+### 11.6 Crew V1.5 — active-player qualification gates
+
+Three new fields on `ReferAFriendConfig.qualification`:
+
+- `minActiveDeposits` (count) — referee must have completed N
+  qualifying deposits (not amount).
+- `minAccountAgeDays` — days between `AffiliatePlayer.registeredAt` and
+  now.
+- `requirePositiveNgr` — referee's lifetime NGR must be > 0.
+
+Plus fraud-flag persistence: `AffiliatePlayer.fraudFlagged` (indexed,
+default false) set by the `player.flagged` raw event. The qualification
+gate evaluator rejects with reason `fraud_flagged` immediately when
+true.
+
+### 11.7 Crew V2 — player crew endpoint + anti-abuse signals
+
+`GET /api/v1/refer/player/:playerId/crew` — pull-model endpoint
+returning `{ activeReferrals, currentTier, nextTier, earnings,
+qualifiedSince }` so the operator's casino frontend can render a
+player-facing crew widget without webhook plumbing.
+
+Anti-abuse signal capture: `AffiliatePlayer.ipHash` /
+`AffiliatePlayer.deviceHash` / `AffiliatePlayer.walletHash` (all
+indexed, default null) populated by `rawEventIngest` on `player.registered`
+and `wallet.deposit.confirmed`. New qualification gate
+`blockSameSignals: boolean` — when true, `engine.detectSignalCollision`
+rejects signup if any of the three hashes already matches an existing
+account for the same operator.
+
+### 11.8 Crew admin panel — shipped
+
+Operator-side surface at `/refer-a-friend → Crew admin` tab:
+
+- `GET /api/refer/admin/top-referrers` — aggregation over
+  `PlayerReferral` by `referrerPlayerId`. Sort by `active` (rewarded
+  count) or `earnings` (issued + recurring sum). Brand-scoped.
+- `GET /api/refer/admin/fraud-flagged` — `AffiliatePlayer.find({
+  fraudFlagged: true })`, operator-scoped.
+- `POST /api/refer/admin/referrals/:id/approve` — force pending → qualified
+  (skips gates, still respects caps).
+- `POST /api/refer/admin/referrals/:id/reject` — terminal reject with reason.
+- `POST /api/refer/admin/referrals/:id/freeze` — toggle
+  `PlayerReferral.frozen` flag. Both `referralQualificationJob` and
+  `referralRecurringJob` skip frozen rows; flipping back to `frozen:
+  false` resumes the cadence next run.
+
+### 11.9 Remaining Phase 2 backlog (not yet implemented)
 
 - Multi-hop chains (A → B → C with diminishing rewards)
 - Affiliar-managed code generation
-- Referrer leaderboards
-- Device fingerprint / KYC fraud signals
+- Referrer leaderboards (UI for the top-referrers endpoint)
 - Kafka outbound transport (same payload schema, different transport)

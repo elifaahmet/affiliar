@@ -144,6 +144,7 @@
           <a href="#plan-cpa"              class="nav-link">CPA plan</a>
           <a href="#plan-hybrid"           class="nav-link">Hybrid plan</a>
           <a href="#plan-tiered"           class="nav-link">Tiered RevShare</a>
+          <a href="#plan-fixed"            class="nav-link">Fixed (per player)</a>
           <a href="#plan-default"          class="nav-link">Default plan</a>
           <a href="#plan-assign"           class="nav-link">Assign to affiliate</a>
         </div>
@@ -182,6 +183,22 @@
           <a href="#raf-gates"             class="nav-link">Set fraud gates</a>
           <a href="#raf-monitor"           class="nav-link">Monitor referrals</a>
           <a href="#raf-reversals"         class="nav-link">Handling chargebacks</a>
+          <a href="#raf-crew"              class="nav-link">Crew (tiered) rewards</a>
+          <a href="#raf-admin"             class="nav-link">Crew admin panel</a>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Payouts (USDT-TRC20)</p>
+          <a href="#payouts-wallet"        class="nav-link">Affiliate wallet setup</a>
+          <a href="#payouts-operator"      class="nav-link">Pay your affiliates</a>
+          <a href="#payouts-sub"           class="nav-link">Sub-affiliate payouts</a>
+          <a href="#payouts-balance"       class="nav-link">Internal balance</a>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Billing &amp; Fees</p>
+          <a href="#billing-reminders"     class="nav-link">Past-due reminder cadence</a>
+          <a href="#fees-versioning"       class="nav-link">Versioned fees &amp; recalc</a>
         </div>
 
         <div>
@@ -1911,6 +1928,245 @@ maria_g,maria@example.com,Maria Garcia,CPA $50</code></pre>
 
           <div class="callout-tip mt-4">
             <strong>Tip:</strong> Compare traffic reports with commission reports to identify affiliates who drive lots of clicks but few conversions. This can indicate low-quality traffic or targeting issues worth discussing with the affiliate.
+          </div>
+        </section>
+
+        <!-- ═══════════ FIXED (PER-PLAYER) COMMISSION PLAN ═══════════ -->
+
+        <section id="plan-fixed">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">40. Fixed (per player) commission plan</h2>
+          <p class="text-gray-500 mb-6">Pays a fixed amount once per player, in the period that player first
+          crosses every qualification gate you configure. Use this when you want to reward retained players
+          (e.g. <em>$50 once a player has made 3 deposits and earned positive NGR</em>) rather than tie payment
+          to the first deposit alone.</p>
+
+          <h3 class="font-semibold text-gray-900 mb-2">How it differs from CPA</h3>
+          <ul class="list-disc list-inside space-y-1 text-sm text-gray-600 mb-6">
+            <li><strong>CPA</strong>: pays per FTD that passes gates at FTD time. A player who deposits once and disappears can still qualify.</li>
+            <li><strong>Fixed</strong>: pays per <em>qualified player</em>, evaluated against lifetime cumulative state at period end. Lets you require things FTD time can't satisfy (like "3+ deposits" or "positive lifetime NGR").</li>
+            <li>One-time per player: once a player triggers the Fixed payout, future periods won't pay again for the same player.</li>
+          </ul>
+
+          <h3 class="font-semibold text-gray-900 mb-2">Setting it up</h3>
+          <ol class="list-decimal list-inside space-y-1 text-sm text-gray-600 mb-6">
+            <li>Commission &rarr; <strong>+ New Plan</strong> opens a dedicated page (not a modal) so you don't lose work to a stray click.</li>
+            <li>Pick a name, a <strong>product</strong> (casino / sportsbook / combined), and the <strong>Fixed (per player)</strong> type.</li>
+            <li>Set <strong>Amount per qualified player</strong> (e.g. $50).</li>
+            <li>Open the Qualification gates and tick what matters: Min FTD deposit, Min deposits count, Hold days, Min lifetime wager, Min wager × FTD, Min cash retained, Min KYC level, Require positive NGR.</li>
+            <li>Save. The plan slot it occupies depends on the <strong>product</strong> field — an affiliate can have one casino plan, one sportsbook plan, and one combined plan simultaneously.</li>
+          </ol>
+
+          <div class="callout-info">
+            <strong>What "newly qualified" means:</strong> at the end of each Calculate run, the system looks at every player attributed to the affiliate, evaluates all gates against their lifetime metrics, and pays for every player who passes <em>and</em> wasn't already paid in a previous period. The list of paid player IDs is stored on the CommissionReport for cross-period dedupe.
+          </div>
+
+          <div class="callout-tip mt-4">
+            <strong>Available from 2-Tier upwards.</strong> The tier1 ($53) plan offers RevShare + CPA only; Fixed unlocks at $98 alongside Hybrid and Tiered RevShare.
+          </div>
+        </section>
+
+        <!-- ═══════════ CREW (TIERED) REFER-A-FRIEND ═══════════ -->
+
+        <section id="raf-crew">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">41. Crew (tiered) Refer-a-Friend rewards</h2>
+          <p class="text-gray-500 mb-6">The Crew shape turns Refer-a-Friend into a <em>recurring</em> tiered program:
+          the more active referrals an inviter has, the higher percentage of each friend's monthly NGR they earn.
+          Available exclusively on the <strong>Affiliate Pro</strong> plan.</p>
+
+          <h3 class="font-semibold text-gray-900 mb-2">Default tier table</h3>
+          <div class="overflow-x-auto mb-6">
+            <table class="w-full text-sm border border-gray-100 rounded-lg">
+              <thead class="bg-gray-50 text-xs text-gray-700">
+                <tr><th class="px-3 py-2 text-left">Active referrals</th><th class="px-3 py-2 text-left">Reward % of friend's monthly NGR</th></tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 text-gray-700">
+                <tr><td class="px-3 py-1.5">3</td><td class="px-3 py-1.5">3%</td></tr>
+                <tr><td class="px-3 py-1.5">5</td><td class="px-3 py-1.5">5%</td></tr>
+                <tr><td class="px-3 py-1.5">10</td><td class="px-3 py-1.5">8%</td></tr>
+                <tr><td class="px-3 py-1.5">15</td><td class="px-3 py-1.5">12%</td></tr>
+                <tr><td class="px-3 py-1.5">20</td><td class="px-3 py-1.5">15%</td></tr>
+                <tr><td class="px-3 py-1.5">25</td><td class="px-3 py-1.5">18%</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-sm text-gray-600 mb-6">All thresholds and percentages are editable on the Refer-a-Friend configuration page. Tiers are cumulative — the inviter's highest cleared threshold drives this month's rate.</p>
+
+          <h3 class="font-semibold text-gray-900 mb-2">Active-player qualification gates</h3>
+          <ul class="list-disc list-inside space-y-1 text-sm text-gray-600 mb-6">
+            <li><strong>Min active deposits</strong> — the referee must have completed N qualifying deposits.</li>
+            <li><strong>Min account age (days)</strong> — referee account must be older than N days.</li>
+            <li><strong>Require positive NGR</strong> — referee's lifetime NGR must be &gt; 0.</li>
+            <li><strong>Block same signals</strong> — reject signup if IP / device / wallet hash matches another account (anti-abuse).</li>
+          </ul>
+
+          <h3 class="font-semibold text-gray-900 mb-2">Player-facing crew view</h3>
+          <p class="text-sm text-gray-600 mb-6">A pull-model endpoint <code>GET /api/v1/refer/player/:playerId/crew</code> returns the inviter's
+          current tier, active referral count, progress to the next threshold, and the earnings ledger — so your
+          casino frontend can render a "Crew" widget in the player area without webhook plumbing.</p>
+        </section>
+
+        <section id="raf-admin">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">42. Crew admin panel (operator-side)</h2>
+          <p class="text-gray-500 mb-6">A dedicated admin surface inside Refer-a-Friend → Crew admin tab for
+          monitoring crew leaders, fraud-flagged players, and running manual interventions.</p>
+
+          <ul class="list-disc list-inside space-y-1 text-sm text-gray-600 mb-6">
+            <li><strong>Top referrers leaderboard</strong> — sortable by active crew size or total earnings, scoped per brand.</li>
+            <li><strong>Fraud-flagged player list</strong> — populated from the <code>player.flagged</code> event your casino backend ships.</li>
+            <li><strong>Per-referral actions</strong> — manually <em>Approve</em> (skip pending gates), <em>Reject</em> (terminal), or <em>Freeze</em>/<em>Unfreeze</em> (pause without changing status). The qualification + recurring jobs skip frozen referrals.</li>
+            <li><strong>Drilldown modal</strong> — click any top referrer to see their referrals with inline action buttons.</li>
+          </ul>
+
+          <div class="callout-tip">
+            <strong>Available on Affiliate Pro.</strong> Same plan that gates the Crew reward shape — administering a crew system is part of the same feature bundle.
+          </div>
+        </section>
+
+        <!-- ═══════════ AFFILIATE PAYOUTS (USDT-TRC20) ═══════════ -->
+
+        <section id="payouts-wallet">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">43. Affiliate wallet setup</h2>
+          <p class="text-gray-500 mb-6">Before an operator can pay them, each affiliate sets a <strong>USDT-TRC20</strong>
+          wallet address on their profile. Without a wallet, the operator's Pay button stays disabled for that
+          affiliate.</p>
+
+          <h3 class="font-semibold text-gray-900 mb-2">Affiliate-side flow</h3>
+          <ol class="list-decimal list-inside space-y-1 text-sm text-gray-600 mb-6">
+            <li>The affiliate logs into their portal and opens <strong>Profile</strong>.</li>
+            <li>In the <em>Payout Wallet</em> card, they paste a TRC20 address (34 characters, starts with T).</li>
+            <li>Client-side regex + server-side base58 check catch obvious typos before the address sticks.</li>
+            <li>Once saved, the page shows a green <em>Wallet set</em> badge and the last-updated timestamp.</li>
+          </ol>
+
+          <div class="callout-warn">
+            <strong>Double-check the address.</strong> Crypto transfers are irreversible. Sans Getirsin doesn't validate the recipient address against the chain — a typo means the funds land in a wrong wallet (if the address even exists).
+          </div>
+        </section>
+
+        <section id="payouts-operator">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">44. Operator pays affiliates</h2>
+          <p class="text-gray-500 mb-6">All affiliate payouts flow through the operator's Sans Getirsin
+          merchant account as USDT-TRC20 transfers. The platform handles the 3-step dance (token &rarr;
+          list withdraw accounts &rarr; create withdrawal) and matches the callback back to the right payout.</p>
+
+          <h3 class="font-semibold text-gray-900 mb-2">From the Commission page</h3>
+          <ol class="list-decimal list-inside space-y-1 text-sm text-gray-600 mb-6">
+            <li>Calculate &amp; approve commission reports as usual.</li>
+            <li>Each <em>approved</em> row gets a checkbox. Tick individual affiliates or use the header "select all" to mark every approved one.</li>
+            <li>Click <strong>Pay Selected</strong> — a confirmation dialog spells out the total amount and number of affiliates before money moves.</li>
+            <li>On confirm: for each affiliate, the system bundles all their approved reports into one AffiliatePayout, dispatches it to Sans, and records the provider transaction ID.</li>
+          </ol>
+
+          <h3 class="font-semibold text-gray-900 mb-2">From the Payouts page</h3>
+          <p class="text-sm text-gray-600 mb-3">The <strong>Affiliate Payouts</strong> sidebar item gives you three tabs:</p>
+          <ul class="list-disc list-inside space-y-1 text-sm text-gray-600 mb-6">
+            <li><strong>Pending</strong> — per-affiliate net payable (gross commission minus what their own subs have already been paid). Pay buttons are gated on wallet presence + the operator's minimum threshold setting.</li>
+            <li><strong>History</strong> — every dispatched payout with status (<em>pending</em>, <em>processing</em>, <em>paid</em>, <em>failed</em>, <em>cancelled</em>), Sans transaction ID, and per-row Dispatch / Cancel / Mark-paid actions.</li>
+            <li><strong>Settings</strong> — operator-wide minimum payable threshold (affiliates below the floor stay invisible to the Pay flow).</li>
+          </ul>
+
+          <div class="callout-info">
+            <strong>Webhook:</strong> Sans posts the result to <code>/api/billing/sans/callback</code> (a single URL covers both deposits and withdrawals — the payload's <code>type</code> field discriminates). On <em>APPROVED</em> the AffiliatePayout flips to <em>paid</em> and every underlying CommissionReport flips to <em>paid</em> along with it.
+          </div>
+        </section>
+
+        <section id="payouts-sub">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">45. Sub-affiliate payouts</h2>
+          <p class="text-gray-500 mb-6">An affiliate can dispatch USDT-TRC20 payments to their own direct
+          sub-affiliates from the Commission → "To my subs" tab. The transfer is funded by the
+          operator's Sans account but accounted against the parent affiliate's <em>internal balance</em>,
+          so the operator never funds the same dollar twice.</p>
+
+          <h3 class="font-semibold text-gray-900 mb-2">Workflow</h3>
+          <ol class="list-decimal list-inside space-y-1 text-sm text-gray-600 mb-6">
+            <li>Sub-affiliate sets their TRC20 wallet on their own profile (same form as a top-level affiliate).</li>
+            <li>Parent affiliate opens Commission &rarr; Sub-Affiliate Payouts &rarr; "To my subs" tab — each outgoing payout row shows a <strong>Pay</strong> button when status is <em>draft</em> or <em>failed</em>.</li>
+            <li>Clicking Pay opens a confirmation dialog showing the amount and the sub's wallet, then dispatches Sans.</li>
+            <li>The status walks <em>pending</em> &rarr; <em>processing</em> &rarr; <em>paid</em> as Sans webhooks the result.</li>
+            <li>The operator's net to the parent is automatically reduced by every paid/pending sub-payout so they pay only what's left.</li>
+          </ol>
+
+          <div class="callout-tip">
+            <strong>Friendly errors:</strong> the form translates the raw codes Sans returns into actionable English ("Not enough internal balance", "Sub-affiliate hasn't added a wallet yet", "Provider rejected the transfer — check the wallet address"). Unknown errors fall through verbatim so you can still see Sans's raw message.
+          </div>
+        </section>
+
+        <section id="payouts-balance">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">46. Internal balance ledger</h2>
+          <p class="text-gray-500 mb-6">Every affiliate has a derived ledger that tracks:</p>
+
+          <ul class="list-disc list-inside space-y-1 text-sm text-gray-600 mb-6">
+            <li><strong>Earned</strong> — sum of approved CommissionReport.totalCents owed to them.</li>
+            <li><strong>Paid to me</strong> — sum of AffiliatePayouts they've received (pending + processing + paid all reserve funds).</li>
+            <li><strong>Paid to my subs</strong> — sum of SubAffiliatePayouts they've routed downstream.</li>
+            <li><strong>Available</strong> = Earned − Paid to me − Paid to my subs. What they can still spend on sub-payouts (or what the operator still owes them in net).</li>
+          </ul>
+
+          <p class="text-sm text-gray-600 mb-3">A summary card on the Sub-Affiliate Payouts panel displays all four numbers so the affiliate sees their headroom at a glance. Pay buttons gate on <code>Available &ge; amount</code> — the BE rejects with <em>insufficient_balance</em> if you try to overdraft, and the FE pre-emptively disables the button.</p>
+
+          <div class="callout-info">
+            <strong>Why this matters:</strong> without the ledger an operator could pay an affiliate their full commission, then watch the same affiliate also pay subs out of the operator's Sans balance — double-funding the same commission dollar. The balance check ensures every dollar flows through exactly once.
+          </div>
+        </section>
+
+        <!-- ═══════════ BILLING & FEES ═══════════ -->
+
+        <section id="billing-reminders">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">47. Past-due billing reminder cadence</h2>
+          <p class="text-gray-500 mb-6">A daily job walks every operator with a <code>nextBillingDate</code> set and
+          picks the right reminder email based on where they sit on the timeline. Idempotent (re-runs don't
+          double-send) and silent for accounts that don't need a nudge yet.</p>
+
+          <div class="overflow-x-auto mb-6">
+            <table class="w-full text-sm border border-gray-100 rounded-lg">
+              <thead class="bg-gray-50 text-xs text-gray-700">
+                <tr>
+                  <th class="px-3 py-2 text-left">Window</th>
+                  <th class="px-3 py-2 text-left">Email</th>
+                  <th class="px-3 py-2 text-left">Tone</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 text-gray-700">
+                <tr><td class="px-3 py-1.5">7 days before due</td><td class="px-3 py-1.5">Payment coming up — due in 7 days</td><td class="px-3 py-1.5">Heads-up, violet</td></tr>
+                <tr><td class="px-3 py-1.5">3 days before due</td><td class="px-3 py-1.5">Payment coming up — due in 3 days</td><td class="px-3 py-1.5">Heads-up, violet</td></tr>
+                <tr><td class="px-3 py-1.5">Due date</td><td class="px-3 py-1.5">Payment due today</td><td class="px-3 py-1.5">Amber alert</td></tr>
+                <tr><td class="px-3 py-1.5">+1 to +9 days overdue</td><td class="px-3 py-1.5">Payment overdue — service will be suspended in N days</td><td class="px-3 py-1.5">Red, daily</td></tr>
+                <tr><td class="px-3 py-1.5">+10 days overdue</td><td class="px-3 py-1.5">Final notice</td><td class="px-3 py-1.5">Dark red, one-shot</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p class="text-sm text-gray-600 mb-3">Each send is logged on the operator document with a <em>cycleAnchor</em> equal to the billing date at send time. When the operator pays and the next cycle starts, the log automatically becomes irrelevant — the new cycle gets a clean slate of reminders.</p>
+
+          <div class="callout-info">
+            <strong>Status transitions:</strong> the job flips <em>active</em> &rarr; <em>past_due</em> the moment the billing date passes (and stamps <code>pastDueAt</code>). It does NOT auto-flip to <em>suspended</em> at +10 days yet — the final-notice email warns of imminent suspension, but actually limiting panel access is a separate decision your operator team can take when they're ready.
+          </div>
+        </section>
+
+        <section id="fees-versioning">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">48. Versioned fees &amp; manual recalculation</h2>
+          <p class="text-gray-500 mb-6">Fee configuration is <strong>effective-dated</strong>. Every save creates a
+          new version with <code>effectiveFrom: now</code> and closes the previous active version's
+          <code>effectiveUntil</code>. The daily fees job picks the version that was active <em>on the day being
+          processed</em>, so historical reports stay frozen and re-running yesterday doesn't apply today's
+          rates retroactively.</p>
+
+          <h3 class="font-semibold text-gray-900 mb-2">What this fixes</h3>
+          <ul class="list-disc list-inside space-y-1 text-sm text-gray-600 mb-6">
+            <li>Before versioning, bumping a fee from 30% to 35% silently rewrote last month's NGR the next time the cron ran. Operators saw past reports shift after the fact.</li>
+            <li>Now: yesterday is yesterday. A re-run produces identical numbers unless you explicitly opt in to retroactive recalc.</li>
+          </ul>
+
+          <h3 class="font-semibold text-gray-900 mb-2">Manual recalculation page</h3>
+          <p class="text-sm text-gray-600 mb-3">The Fees page's <em>Manual fees recalculation</em> card lets you replay the job for any date range:</p>
+          <ul class="list-disc list-inside space-y-1 text-sm text-gray-600 mb-6">
+            <li><strong>From / To pickers</strong> — pick any window up to 90 days. Default is "yesterday only".</li>
+            <li><strong>Re-run N days</strong> button — fires the job once per day in the range, using each day's historical fee snapshot.</li>
+            <li><strong>Apply current fees retroactively</strong> checkbox — opt-in override that uses today's active fees for past days. Useful when you forgot to update before a rate change went live. A confirmation dialog spells out the trade-off before money numbers move.</li>
+          </ul>
+
+          <div class="callout-tip">
+            <strong>History endpoints:</strong> the API also exposes <code>GET /api/fees/settings/history</code> and <code>GET /api/fees/provider-rates/history</code> so admin tooling (or curious operators) can see the full version chain — every effective-from timestamp paired with the values that were active.
           </div>
         </section>
 

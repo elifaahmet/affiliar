@@ -1,0 +1,19 @@
+<svg width="400" height="400" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="violetGrad" x1="80" y1="60" x2="320" y2="260" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#A78BFA"/>
+      <stop offset="1" stop-color="#6D28D9"/>
+    </linearGradient>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&amp;display=swap');
+      .a-mark, .word-affiliar { font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif; font-style: italic; font-weight: 400; }
+    </style>
+  </defs>
+
+  <rect width="400" height="400" fill="#FFFFFF"/>
+
+  <rect x="100" y="60" width="200" height="200" rx="40" ry="40" fill="url(#violetGrad)"/>
+  <text x="200" y="208" text-anchor="middle" class="a-mark" font-size="160" fill="#FFFFFF">a</text>
+
+  <text x="200" y="340" text-anchor="middle" class="word-affiliar" font-size="64" letter-spacing="-1" fill="#111827">affiliar</text>
+</svg>
