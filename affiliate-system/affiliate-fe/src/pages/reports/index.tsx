@@ -37,10 +37,38 @@ interface MetricSummary {
   chargebacksSumCents: number;
   betsSumCents: number;
   winsSumCents: number;
+  // Casino NGR/GGR — the historical names; live alongside the sb and
+  // combined values so the FE can flip between product tabs without a
+  // re-query.
   computedGgrCents: number;
   computedNgrCents: number;
+  sbGgrCents?: number;
+  sbNgrCents?: number;
+  combinedNgrCents?: number;
   roundsCount: number;
   playerCount: number;
+}
+
+type ProductScope = 'all' | 'casino' | 'sportsbook';
+
+// Resolves which NGR/GGR pair to surface for the selected product. The BE
+// returns both casino and sportsbook columns plus a precomputed
+// combinedNgrCents; combined GGR is just the sum (no merged column).
+function pickMetrics(
+  row: Partial<MetricSummary> | undefined | null,
+  product: ProductScope,
+): { ngrCents: number; ggrCents: number } {
+  const casinoNgr = row?.computedNgrCents ?? 0;
+  const casinoGgr = row?.computedGgrCents ?? 0;
+  const sbNgr     = row?.sbNgrCents ?? 0;
+  const sbGgr     = row?.sbGgrCents ?? 0;
+  if (product === 'casino')     return { ngrCents: casinoNgr, ggrCents: casinoGgr };
+  if (product === 'sportsbook') return { ngrCents: sbNgr,     ggrCents: sbGgr };
+  // All-products: combinedNgrCents is precomputed in CH; sum GGR locally.
+  return {
+    ngrCents: row?.combinedNgrCents ?? (casinoNgr + sbNgr),
+    ggrCents: casinoGgr + sbGgr,
+  };
 }
 
 interface OverviewResponse {
@@ -125,7 +153,7 @@ const TABS: { key: Tab; label: string }[] = [
 
 // ── Overview tab ──────────────────────────────────────────────────────────────
 
-function OverviewTab({ params }: { params: Record<string, string> }) {
+function OverviewTab({ params, product }: { params: Record<string, string>; product: ProductScope }) {
   const { data, isLoading, isError } = useBaseQuery<OverviewResponse>({
     endpoint: REPORTS_API_URLS.OVERVIEW(),
     queryKey: ['reports-overview', params],
@@ -136,12 +164,13 @@ function OverviewTab({ params }: { params: Record<string, string> }) {
   if (isError)   return <p className='text-red-500 text-sm'>Failed to load overview data.</p>;
 
   const s = data?.summary;
+  const totals = pickMetrics(s, product);
 
   return (
     <div className='space-y-6'>
       <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4'>
-        <KpiCard label='NGR' value={`€${centsToEur(s?.computedNgrCents ?? 0)}`} />
-        <KpiCard label='GGR' value={`€${centsToEur(s?.computedGgrCents ?? 0)}`} />
+        <KpiCard label='NGR' value={`€${centsToEur(totals.ngrCents)}`} />
+        <KpiCard label='GGR' value={`€${centsToEur(totals.ggrCents)}`} />
         <KpiCard label='Deposits' value={`€${centsToEur(s?.depositsSumCents ?? 0)}`} sub={`${s?.depositsCount ?? 0} txns`} />
         <KpiCard label='Cashouts' value={`€${centsToEur(s?.cashoutsSumCents ?? 0)}`} sub={`${s?.cashoutsCount ?? 0} txns`} />
         <KpiCard label='FTDs' value={String(s?.ftdCount ?? 0)} sub={`€${centsToEur(s?.ftdSumCents ?? 0)}`} />
@@ -168,18 +197,21 @@ function OverviewTab({ params }: { params: Record<string, string> }) {
                 </tr>
               </thead>
               <tbody className='divide-y divide-gray-100'>
-                {data.byDay.map((row, i) => (
-                  <tr key={row.date} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <Td>{row.date}</Td>
-                    <Td right>{centsToEur(row.computedGgrCents)}</Td>
-                    <Td right>{centsToEur(row.computedNgrCents)}</Td>
-                    <Td right>{centsToEur(row.depositsSumCents)}</Td>
-                    <Td right>{row.ftdCount}</Td>
-                    <Td right>{row.registrations}</Td>
-                    <Td right>{row.roundsCount.toLocaleString()}</Td>
-                    <Td right>{row.playerCount}</Td>
-                  </tr>
-                ))}
+                {data.byDay.map((row, i) => {
+                  const m = pickMetrics(row, product);
+                  return (
+                    <tr key={row.date} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <Td>{row.date}</Td>
+                      <Td right>{centsToEur(m.ggrCents)}</Td>
+                      <Td right>{centsToEur(m.ngrCents)}</Td>
+                      <Td right>{centsToEur(row.depositsSumCents)}</Td>
+                      <Td right>{row.ftdCount}</Td>
+                      <Td right>{row.registrations}</Td>
+                      <Td right>{row.roundsCount.toLocaleString()}</Td>
+                      <Td right>{row.playerCount}</Td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -195,7 +227,7 @@ function OverviewTab({ params }: { params: Record<string, string> }) {
 
 // ── Affiliates tab ────────────────────────────────────────────────────────────
 
-function AffiliatesTab({ params }: { params: Record<string, string> }) {
+function AffiliatesTab({ params, product }: { params: Record<string, string>; product: ProductScope }) {
   const { data, isLoading, isError } = useBaseQuery<AffiliatesResponse>({
     endpoint: REPORTS_API_URLS.AFFILIATES(),
     queryKey: ['reports-affiliates', params],
@@ -228,20 +260,23 @@ function AffiliatesTab({ params }: { params: Record<string, string> }) {
             </tr>
           </thead>
           <tbody className='divide-y divide-gray-100'>
-            {(data?.affiliates ?? []).map((row, i) => (
-              <tr key={`${row.affiliateId}-${i}`} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                <Td>{row.affiliateId || '—'}</Td>
-                <Td>{row.affiliateCode || '—'}</Td>
-                <Td>{row.campaign || '—'}</Td>
-                <Td right>{centsToEur(row.computedNgrCents)}</Td>
-                <Td right>{centsToEur(row.computedGgrCents)}</Td>
-                <Td right>{centsToEur(row.depositsSumCents)}</Td>
-                <Td right>{row.ftdCount}</Td>
-                <Td right>{row.registrations}</Td>
-                <Td right>{row.playerCount}</Td>
-                <Td right>{row.roundsCount.toLocaleString()}</Td>
-              </tr>
-            ))}
+            {(data?.affiliates ?? []).map((row, i) => {
+              const m = pickMetrics(row, product);
+              return (
+                <tr key={`${row.affiliateId}-${i}`} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <Td>{row.affiliateId || '—'}</Td>
+                  <Td>{row.affiliateCode || '—'}</Td>
+                  <Td>{row.campaign || '—'}</Td>
+                  <Td right>{centsToEur(m.ngrCents)}</Td>
+                  <Td right>{centsToEur(m.ggrCents)}</Td>
+                  <Td right>{centsToEur(row.depositsSumCents)}</Td>
+                  <Td right>{row.ftdCount}</Td>
+                  <Td right>{row.registrations}</Td>
+                  <Td right>{row.playerCount}</Td>
+                  <Td right>{row.roundsCount.toLocaleString()}</Td>
+                </tr>
+              );
+            })}
             {(data?.affiliates ?? []).length === 0 && (
               <tr>
                 <td colSpan={10} className='px-3 py-6 text-center text-xs text-gray-600'>
@@ -323,8 +358,6 @@ function TrafficTab({ params }: { params: Record<string, string> }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-type ProductScope = 'all' | 'casino' | 'sportsbook';
-
 export default function Reports() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [dateRange, setDateRange] = useState(defaultRange);
@@ -341,9 +374,11 @@ export default function Reports() {
       from: dateRange.from,
       to:   dateRange.to,
       ...(brandId ? { brandId } : {}),
-      // `product` isn't consumed server-side yet — the overview endpoint
-      // always returns every scope's numbers — but passing it lets child
-      // tabs pick the right column set without prop-drilling.
+      // The server returns both casino + sportsbook + combined columns in
+      // every response — `product` is the client-side picker (handled via
+      // pickMetrics in each tab) for which column set to display. Kept in
+      // params so the queryKey changes when the user flips scopes and the
+      // child tabs trigger a fresh render.
       product,
     }),
     [dateRange.from, dateRange.to, brandId, product],
@@ -423,8 +458,8 @@ export default function Reports() {
         </Link>
       </div>
 
-      {activeTab === 'overview'   && <OverviewTab   params={params} />}
-      {activeTab === 'affiliates' && <AffiliatesTab params={params} />}
+      {activeTab === 'overview'   && <OverviewTab   params={params} product={product} />}
+      {activeTab === 'affiliates' && <AffiliatesTab params={params} product={product} />}
       {activeTab === 'traffic'    && <TrafficTab    params={params} />}
     </div>
   );
