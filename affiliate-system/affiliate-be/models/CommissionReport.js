@@ -91,9 +91,21 @@ const commissionReportSchema = new mongoose.Schema(
     breakdown: {
       revshareAmountCents: { type: Number, default: 0 },
       cpaAmountCents:      { type: Number, default: 0 },
-      directCents:         { type: Number, default: 0 }, // revshare + cpa
+      // Per-player fixed payouts (plan.type === 'fixed'). Folded into
+      // directCents so totalCents stays the sum-of-all source.
+      fixedAmountCents:    { type: Number, default: 0 },
+      directCents:         { type: Number, default: 0 }, // revshare + cpa + fixed
       overrideCents:       { type: Number, default: 0 }, // earned from sub-affiliates
       totalCents:          { type: Number, default: 0 }, // directCents + overrideCents
+    },
+
+    // IDs of players who triggered the fixed payout in this period. Used
+    // by future calcs to dedupe — a player can only earn the fixed
+    // payment for an affiliate once, ever. Stored as plain player_id
+    // strings (the same format ClickHouse uses).
+    fixedPaidPlayerIds: {
+      type: [String],
+      default: [],
     },
 
     // Override breakdown — one entry per sub-affiliate whose NGR contributed

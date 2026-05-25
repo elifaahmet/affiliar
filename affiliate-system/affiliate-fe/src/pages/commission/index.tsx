@@ -26,7 +26,7 @@ interface OperatorPlanResponse {
 
 // ── types ─────────────────────────────────────────────────────────────────────
 
-type PlanType = 'revshare' | 'cpa' | 'hybrid' | 'tiered_revshare';
+type PlanType = 'revshare' | 'cpa' | 'hybrid' | 'tiered_revshare' | 'fixed';
 type ReportStatus = 'draft' | 'pending_approval' | 'approved' | 'paid';
 
 interface Tier { fromCents: number; toCents: number | null; rate: number; }
@@ -58,6 +58,23 @@ interface CommissionPlan {
       holdDays: number | null;
       minCashRetentionCents: number | null;
       minKycLevel: number | null;
+      minDepositsCount?: number | null;
+      requirePositiveNgr?: boolean;
+    };
+  };
+  fixed?: {
+    amountCents: number;
+    currency: string;
+    qualification?: {
+      depositBasis: 'gross' | 'net' | null;
+      minDepositCents: number | null;
+      minWagerMultiple: number | null;
+      minWagerCents: number | null;
+      holdDays: number | null;
+      minCashRetentionCents: number | null;
+      minKycLevel: number | null;
+      minDepositsCount: number | null;
+      requirePositiveNgr: boolean;
     };
   };
   tiers: Tier[];
@@ -103,7 +120,13 @@ function cents(n: number) {
 }
 
 function planTypeLabel(type: PlanType) {
-  return { revshare: 'RevShare', cpa: 'CPA', hybrid: 'Hybrid', tiered_revshare: 'Tiered RevShare' }[type] ?? type;
+  return ({
+    revshare: 'RevShare',
+    cpa: 'CPA',
+    hybrid: 'Hybrid',
+    tiered_revshare: 'Tiered RevShare',
+    fixed: 'Fixed (per player)',
+  } as Record<PlanType, string>)[type] ?? type;
 }
 
 function planTypeBadge(type: PlanType) {
@@ -112,6 +135,7 @@ function planTypeBadge(type: PlanType) {
     cpa:             'bg-green-100 text-green-700',
     hybrid:          'bg-fuchsia-100 text-fuchsia-700',
     tiered_revshare: 'bg-warning-light text-warning',
+    fixed:           'bg-blue-100 text-blue-700',
   };
   return `inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${map[type] ?? 'bg-gray-100 text-gray-600'}`;
 }
@@ -135,6 +159,7 @@ function planSummary(plan: CommissionPlan) {
   if (plan.type === 'cpa')             return `${cents(plan.cpa.amountCents)} / FTD`;
   if (plan.type === 'hybrid')          return `${plan.revshare.rate}% ${metric} + ${cents(plan.cpa.amountCents)}/FTD`;
   if (plan.type === 'tiered_revshare') return `${plan.tiers.length} tier${plan.tiers.length !== 1 ? 's' : ''}`;
+  if (plan.type === 'fixed')           return `${cents(plan.fixed?.amountCents ?? 0)} / qualified player`;
   return '';
 }
 
@@ -173,6 +198,22 @@ const EMPTY_PLAN = {
       holdDays: null as number | null,
       minCashRetentionCents: null as number | null,
       minKycLevel: null as number | null,
+    },
+  },
+  // Fixed (per-player) — pays once per player when they cross all gates.
+  fixed: {
+    amountCents: 5000,
+    currency: 'USD',
+    qualification: {
+      depositBasis: null as 'gross' | 'net' | null,
+      minDepositCents: null as number | null,
+      minWagerMultiple: null as number | null,
+      minWagerCents: null as number | null,
+      holdDays: null as number | null,
+      minCashRetentionCents: null as number | null,
+      minKycLevel: null as number | null,
+      minDepositsCount: null as number | null,
+      requirePositiveNgr: false,
     },
   },
   tiers: [] as Tier[],
@@ -215,10 +256,31 @@ export function PlanForm({
               minKycLevel:           plan.cpa?.qualification?.minKycLevel ?? null,
             },
           },
+          fixed: {
+            amountCents: plan.fixed?.amountCents ?? 0,
+            currency:    plan.fixed?.currency ?? 'USD',
+            qualification: {
+              depositBasis:          plan.fixed?.qualification?.depositBasis ?? null,
+              minDepositCents:       plan.fixed?.qualification?.minDepositCents ?? null,
+              minWagerMultiple:      plan.fixed?.qualification?.minWagerMultiple ?? null,
+              minWagerCents:         plan.fixed?.qualification?.minWagerCents ?? null,
+              holdDays:              plan.fixed?.qualification?.holdDays ?? null,
+              minCashRetentionCents: plan.fixed?.qualification?.minCashRetentionCents ?? null,
+              minKycLevel:           plan.fixed?.qualification?.minKycLevel ?? null,
+              minDepositsCount:      plan.fixed?.qualification?.minDepositsCount ?? null,
+              requirePositiveNgr:    !!plan.fixed?.qualification?.requirePositiveNgr,
+            },
+          },
           tiers: plan.tiers.map((t) => ({ ...t })),
           notes: plan.notes ?? '',
         }
-      : { ...EMPTY_PLAN, revshare: { ...EMPTY_PLAN.revshare }, cpa: { ...EMPTY_PLAN.cpa, qualification: { ...EMPTY_PLAN.cpa.qualification } }, tiers: [] },
+      : {
+          ...EMPTY_PLAN,
+          revshare: { ...EMPTY_PLAN.revshare },
+          cpa:      { ...EMPTY_PLAN.cpa,   qualification: { ...EMPTY_PLAN.cpa.qualification } },
+          fixed:    { ...EMPTY_PLAN.fixed, qualification: { ...EMPTY_PLAN.fixed.qualification } },
+          tiers: [],
+        },
   );
   const [error, setError] = useState('');
   const [upgradeBanner, setUpgradeBanner] = useState<{ message: string; currentPlan: string; requiredPlan: string } | null>(null);
@@ -264,6 +326,18 @@ export function PlanForm({
     }));
   }
 
+  // Fixed plan has its own qualification block (mirrors CPA's set + two
+  // extra gates: minDepositsCount + requirePositiveNgr).
+  function updateFixedQual(key: string, val: number | boolean | null) {
+    setForm((f) => ({
+      ...f,
+      fixed: {
+        ...f.fixed,
+        qualification: { ...(f.fixed?.qualification ?? {}), [key]: val },
+      },
+    }));
+  }
+
   function addTier() {
     const last = form.tiers[form.tiers.length - 1];
     const from = last ? (last.toCents ?? 0) : 0;
@@ -288,7 +362,8 @@ export function PlanForm({
     save({
       ...form,
       revshare: form.revshare,
-      cpa: { ...form.cpa, amountCents: Number(form.cpa.amountCents) },
+      cpa:   { ...form.cpa,   amountCents: Number(form.cpa.amountCents) },
+      fixed: { ...form.fixed, amountCents: Number(form.fixed?.amountCents ?? 0) },
       tiers: form.tiers,
       notes: form.notes || null,
     } as any);
@@ -297,6 +372,7 @@ export function PlanForm({
   const showRevshare = ['revshare', 'hybrid'].includes(form.type);
   const showCpa      = ['cpa', 'hybrid'].includes(form.type);
   const showTiers    = form.type === 'tiered_revshare';
+  const showFixed    = form.type === 'fixed';
 
   return (
     <div className='bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-5 max-w-2xl'>
@@ -331,7 +407,7 @@ export function PlanForm({
           <div>
             <label className='block text-xs font-medium text-gray-600 mb-1'>Type</label>
             <div className='grid grid-cols-2 gap-2'>
-              {(['revshare', 'cpa', 'hybrid', 'tiered_revshare'] as PlanType[]).map((t) => {
+              {(['revshare', 'cpa', 'hybrid', 'tiered_revshare', 'fixed'] as PlanType[]).map((t) => {
                 const isAllowed = allowedTypes.includes(t);
                 return (
                   <button key={t} type='button'
@@ -351,6 +427,7 @@ export function PlanForm({
                       {t === 'cpa' && 'Fixed $ per FTD'}
                       {t === 'hybrid' && 'RevShare + CPA'}
                       {t === 'tiered_revshare' && 'NGR band-based %'}
+                      {t === 'fixed' && 'Fixed $ per qualified player (one-time)'}
                     </div>
                   </button>
                 );
@@ -524,6 +601,128 @@ export function PlanForm({
                       </p>
                     )}
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Fixed (per-player) config */}
+          {showFixed && (
+            <div className='bg-blue-50 rounded-lg p-4 space-y-3'>
+              <p className='text-xs font-semibold text-blue-700'>Fixed Payout</p>
+              <p className='text-[11px] text-blue-700/80 -mt-1'>
+                Pays this amount once per player, the period that player first
+                clears every qualification gate below. A player can only
+                trigger the payout once — once paid, future periods skip them.
+              </p>
+
+              <div className='flex gap-3'>
+                <div className='flex-1'>
+                  <label className='block text-xs text-gray-600 mb-1'>Amount per qualified player ($)</label>
+                  <input type='number' min={0} step={0.01}
+                    value={form.fixed?.amountCents != null ? (form.fixed.amountCents / 100).toString() : ''}
+                    onChange={(e) => setField('fixed', {
+                      ...form.fixed,
+                      amountCents: Math.round(Number(e.target.value || 0) * 100),
+                    })}
+                    onFocus={(e) => e.currentTarget.select()}
+                    placeholder='50.00'
+                    className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary' />
+                </div>
+                <div className='w-28'>
+                  <label className='block text-xs text-gray-600 mb-1'>Currency</label>
+                  <input value={form.fixed?.currency ?? 'USD'}
+                    onChange={(e) => setField('fixed', { ...form.fixed, currency: e.target.value })}
+                    className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary' />
+                </div>
+              </div>
+
+              <div className='pt-2 space-y-3'>
+                <p className='text-xs font-semibold text-blue-700'>Qualification gates</p>
+
+                <div className='grid grid-cols-2 sm:grid-cols-3 gap-3'>
+                  <GateInput
+                    label='Min FTD deposit ($)'
+                    value={form.fixed?.qualification?.minDepositCents ?? null}
+                    onChange={(v) => updateFixedQual('minDepositCents', v)}
+                    step={1}
+                    fromCents
+                  />
+                  <GateInput
+                    label='Min deposits count'
+                    value={form.fixed?.qualification?.minDepositsCount ?? null}
+                    onChange={(v) => updateFixedQual('minDepositsCount', v)}
+                    step={1}
+                  />
+                  <GateInput
+                    label='Hold period (days)'
+                    value={form.fixed?.qualification?.holdDays ?? null}
+                    onChange={(v) => updateFixedQual('holdDays', v)}
+                    step={1}
+                  />
+                  <GateInput
+                    label='Min lifetime wager ($)'
+                    value={form.fixed?.qualification?.minWagerCents ?? null}
+                    onChange={(v) => updateFixedQual('minWagerCents', v)}
+                    step={1}
+                    fromCents
+                  />
+                  <GateInput
+                    label='Min wager × FTD'
+                    value={form.fixed?.qualification?.minWagerMultiple ?? null}
+                    onChange={(v) => updateFixedQual('minWagerMultiple', v)}
+                    step={0.1}
+                  />
+                  <GateInput
+                    label='Min cash retained ($)'
+                    value={form.fixed?.qualification?.minCashRetentionCents ?? null}
+                    onChange={(v) => updateFixedQual('minCashRetentionCents', v)}
+                    step={1}
+                    fromCents
+                  />
+                </div>
+
+                <div className='flex items-start gap-2 pt-1'>
+                  <input
+                    id='fixedRequirePositiveNgr'
+                    type='checkbox'
+                    checked={!!form.fixed?.qualification?.requirePositiveNgr}
+                    onChange={(e) => updateFixedQual('requirePositiveNgr', e.target.checked)}
+                    className='w-4 h-4 mt-0.5 accent-primary' />
+                  <label htmlFor='fixedRequirePositiveNgr' className='text-xs text-gray-700'>
+                    Require positive lifetime NGR — the player must have made
+                    money for the operator before the affiliate gets paid.
+                  </label>
+                </div>
+
+                <div className={kycEnabled ? '' : 'opacity-60'}>
+                  <label className='block text-xs text-gray-600 mb-1'>Min KYC level</label>
+                  <select
+                    value={
+                      form.fixed?.qualification?.minKycLevel === null ||
+                      form.fixed?.qualification?.minKycLevel === undefined
+                        ? ''
+                        : String(form.fixed.qualification.minKycLevel)
+                    }
+                    onChange={(e) =>
+                      updateFixedQual(
+                        'minKycLevel',
+                        e.target.value === '' ? null : Number(e.target.value),
+                      )
+                    }
+                    disabled={!kycEnabled}
+                    className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary bg-white disabled:bg-gray-50 disabled:cursor-not-allowed'>
+                    <option value=''>No KYC requirement</option>
+                    <option value='0'>0 — unverified</option>
+                    <option value='1'>1 — basic</option>
+                    <option value='2'>2 — intermediate</option>
+                    <option value='3'>3 — full</option>
+                  </select>
+                  {!kycEnabled && (
+                    <p className='text-[11px] text-gray-500 mt-1'>
+                      Upgrade to Affiliate Plus to enable the KYC qualification gate.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

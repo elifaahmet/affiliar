@@ -96,4 +96,57 @@ function resolveCommissionSettings(plan, operatorDefaults) {
   };
 }
 
-module.exports = { resolveCommissionSettings, HARD_DEFAULTS };
+/**
+ * Resolve the qualification gates for a `fixed`-type plan. Same merge
+ * priority as the CPA gates above, but reads from `plan.fixed.qualification`
+ * and includes the two extra gates that the fixed plan exposes
+ * (minDepositsCount + requirePositiveNgr — neither is supported by CPA).
+ */
+function resolveFixedSettings(plan, operatorDefaults) {
+  const p = plan || {};
+  const opDefaults = operatorDefaults || {};
+  const fixedQual = (p.fixed && p.fixed.qualification) || {};
+
+  return {
+    depositBasis: pick(
+      fixedQual.depositBasis,
+      opDefaults.depositBasis,
+      HARD_DEFAULTS.depositBasis,
+    ),
+    minDepositCents: pick(
+      fixedQual.minDepositCents,
+      opDefaults.minDepositCents,
+      HARD_DEFAULTS.minDepositCents,
+    ),
+    minWagerMultiple: pick(
+      fixedQual.minWagerMultiple,
+      opDefaults.minWagerMultiple,
+      HARD_DEFAULTS.minWagerMultiple,
+    ),
+    minWagerCents: pick(
+      fixedQual.minWagerCents,
+      opDefaults.minWagerCents,
+      HARD_DEFAULTS.minWagerCents,
+    ),
+    holdDays: pick(
+      fixedQual.holdDays,
+      opDefaults.holdDays,
+      HARD_DEFAULTS.holdDays,
+    ),
+    minCashRetentionCents: pick(
+      fixedQual.minCashRetentionCents,
+      opDefaults.minCashRetentionCents,
+      HARD_DEFAULTS.minCashRetentionCents,
+    ),
+    minKycLevel: pick(
+      fixedQual.minKycLevel,
+      opDefaults.minKycLevel,
+      HARD_DEFAULTS.minKycLevel,
+    ),
+    // Fixed-only gates — no operator-level default today; plan or null.
+    minDepositsCount:    fixedQual.minDepositsCount ?? null,
+    requirePositiveNgr:  !!fixedQual.requirePositiveNgr,
+  };
+}
+
+module.exports = { resolveCommissionSettings, resolveFixedSettings, HARD_DEFAULTS };

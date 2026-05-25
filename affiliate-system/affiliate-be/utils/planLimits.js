@@ -32,7 +32,7 @@ const PLANS = {
     priceUsd: 98,
     maxAffiliates: 50,
     maxBrands: 3,
-    commissionTypes: ["revshare", "cpa", "hybrid", "tiered_revshare"],
+    commissionTypes: ["revshare", "cpa", "hybrid", "tiered_revshare", "fixed"],
     subAffiliates: true,       // 2-tier: sub-affiliates per affiliate
     campaignTracking: true,
     referAFriend: false,
@@ -49,7 +49,7 @@ const PLANS = {
     priceUsd: 494,
     maxAffiliates: 100,
     maxBrands: 10,
-    commissionTypes: ["revshare", "cpa", "hybrid", "tiered_revshare"],
+    commissionTypes: ["revshare", "cpa", "hybrid", "tiered_revshare", "fixed"],
     subAffiliates: true,
     campaignTracking: true,
     referAFriend: false,
@@ -66,7 +66,7 @@ const PLANS = {
     priceUsd: 998,
     maxAffiliates: 500,
     maxBrands: 50,
-    commissionTypes: ["revshare", "cpa", "hybrid", "tiered_revshare"],
+    commissionTypes: ["revshare", "cpa", "hybrid", "tiered_revshare", "fixed"],
     subAffiliates: true,
     campaignTracking: true,
     referAFriend: false,
@@ -83,7 +83,7 @@ const PLANS = {
     priceUsd: 1799,
     maxAffiliates: 999999,     // unlimited
     maxBrands: 999999,
-    commissionTypes: ["revshare", "cpa", "hybrid", "tiered_revshare"],
+    commissionTypes: ["revshare", "cpa", "hybrid", "tiered_revshare", "fixed"],
     subAffiliates: true,
     campaignTracking: true,
     referAFriend: true,        // Refer-a-Friend is Pro-only

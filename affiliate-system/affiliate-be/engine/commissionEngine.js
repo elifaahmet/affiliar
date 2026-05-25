@@ -34,12 +34,19 @@ function calculate(plan, metrics, operatorDefaults = {}) {
 
   let revshareAmountCents = 0;
   let cpaAmountCents = 0;
+  let fixedAmountCents = 0;
 
   // Prefer the qualified count when the caller has already run gates.
   const ftdCountForCpa =
     metrics.qualifiedFtdCount !== undefined
       ? metrics.qualifiedFtdCount
       : metrics.ftdCount || 0;
+
+  // For fixed plans the controller pre-counts players who newly crossed
+  // every gate this period and passes them in as `newlyQualifiedPlayerCount`.
+  // Engine just multiplies — gate evaluation lives in the controller
+  // because it needs DB access (player lifetime context + prior-paid lookup).
+  const fixedQualifiedCount = metrics.newlyQualifiedPlayerCount || 0;
 
   const base = computeRevshareBase(metrics, settings, plan);
 
@@ -65,6 +72,12 @@ function calculate(plan, metrics, operatorDefaults = {}) {
       break;
     }
 
+    case "fixed": {
+      const amount = Number(plan.fixed?.amountCents) || 0;
+      fixedAmountCents = amount * fixedQualifiedCount;
+      break;
+    }
+
     default:
       throw new Error(`Unknown commission plan type: ${plan.type}`);
   }
@@ -72,7 +85,8 @@ function calculate(plan, metrics, operatorDefaults = {}) {
   return {
     revshareAmountCents,
     cpaAmountCents,
-    totalCents: revshareAmountCents + cpaAmountCents,
+    fixedAmountCents,
+    totalCents: revshareAmountCents + cpaAmountCents + fixedAmountCents,
     // Expose the resolved settings so controllers can log/store them
     // on the commission report snapshot.
     resolvedSettings: settings,

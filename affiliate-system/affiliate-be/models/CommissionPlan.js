@@ -5,9 +5,15 @@ const mongoose = require("mongoose");
  *
  * Types:
  *   revshare        — % of NGR or GGR
- *   cpa             — fixed amount per FTD
+ *   cpa             — fixed amount per FTD (one-shot at FTD time)
  *   hybrid          — revshare + cpa simultaneously
  *   tiered_revshare — NGR-band-based variable revshare rate
+ *   fixed           — fixed amount per qualified player, paid the period
+ *                     the player first crosses all qualification gates
+ *                     (one-time per player ever). CPA's older brother:
+ *                     instead of anchoring on the FTD event, it anchors on
+ *                     "now meets gates X/Y/Z" so an operator can require
+ *                     things FTD-time can't satisfy (e.g. minDepositsCount=3).
  *
  * One operator can have many plans; one plan can be the default.
  * Affiliates can be assigned a specific plan via AffiliateProfile.commissionPlanId.
@@ -30,7 +36,7 @@ const commissionPlanSchema = new mongoose.Schema(
 
     type: {
       type: String,
-      enum: ["revshare", "cpa", "hybrid", "tiered_revshare"],
+      enum: ["revshare", "cpa", "hybrid", "tiered_revshare", "fixed"],
       required: true,
     },
 
@@ -140,6 +146,39 @@ const commissionPlanSchema = new mongoose.Schema(
         // qualify. 0=unverified, 1=basic, 2=intermediate, 3=full.
         // null = inherit operator default (which may itself be null = no gate).
         minKycLevel: { type: Number, default: null, min: 0, max: 3 },
+        // Player must have made at least this many lifetime deposits to
+        // qualify. Useful for plans that target retained players rather
+        // than one-and-done FTDs. null = gate not enforced.
+        minDepositsCount: { type: Number, default: null, min: 0 },
+        // Player's lifetime NGR must be strictly positive (i.e. the
+        // operator hasn't lost money on them). null/false → gate off.
+        requirePositiveNgr: { type: Boolean, default: false },
+      },
+    },
+
+    /**
+     * Fixed (per-player) config.
+     * Used by: fixed
+     *
+     * Pays `amountCents` once per player, in the period that player first
+     * crosses every gate in `qualification`. The set of paid playerIds is
+     * persisted onto the CommissionReport (`fixedPaidPlayerIds`) so later
+     * periods skip them. Gates re-use the same shape as CPA's qualification
+     * block, including the new minDepositsCount + requirePositiveNgr fields.
+     */
+    fixed: {
+      amountCents: { type: Number, default: 0, min: 0 },
+      currency:    { type: String, default: "USD" },
+      qualification: {
+        depositBasis:           { type: String, enum: ["gross", "net", null], default: null },
+        minDepositCents:        { type: Number, default: null, min: 0 },
+        minWagerMultiple:       { type: Number, default: null, min: 0 },
+        minWagerCents:          { type: Number, default: null, min: 0 },
+        holdDays:               { type: Number, default: null, min: 0 },
+        minCashRetentionCents:  { type: Number, default: null, min: 0 },
+        minKycLevel:            { type: Number, default: null, min: 0, max: 3 },
+        minDepositsCount:       { type: Number, default: null, min: 0 },
+        requirePositiveNgr:     { type: Boolean, default: false },
       },
     },
 

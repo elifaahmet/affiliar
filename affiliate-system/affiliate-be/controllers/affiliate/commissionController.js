@@ -8,7 +8,8 @@ const OperatorFinancialSettings = require("../../models/OperatorFinancialSetting
 const clickhouse               = require("../../config/clickhouse");
 const { calculate }             = require("../../engine/commissionEngine");
 const { checkCpaQualification } = require("../../engine/cpaQualification");
-const { resolveCommissionSettings } = require("../../engine/commissionSettings");
+const { checkFixedQualification } = require("../../engine/fixedQualification");
+const { resolveCommissionSettings, resolveFixedSettings } = require("../../engine/commissionSettings");
 const { computeSubPayout }      = require("../../engine/subAffiliatePayout");
 const {
   resolveOperatorPlan, planError,
@@ -293,6 +294,90 @@ async function fetchFtdContextRows(tenantId, year, month) {
     depositsTotalCents:    Math.max(0, Number(r.depositsTotalCents) || 0),
     cashoutsTotalCents:    Math.max(0, Number(r.cashoutsTotalCents) || 0),
     kycLevel:              kycMap.get(r.playerId) ?? 0,
+  }));
+}
+
+/**
+ * Per-player cumulative context for `fixed`-type commission plans.
+ *
+ * Unlike fetchFtdContextRows (which scopes FTDs to the calc period for CPA
+ * semantics), this query returns EVERY player who has ever FTD'd under each
+ * affiliate, with their lifetime metrics up to `endTs`. The fixed-plan
+ * qualification evaluator decides which ones have newly crossed all gates
+ * this period and earn the affiliate one fixed payout.
+ */
+async function fetchPlayerCumulativeContext(tenantId, endTs) {
+  const sql = `
+    WITH ftds AS (
+      SELECT
+        affiliate_id,
+        player_id,
+        MIN(hour_bucket)              AS ftd_date,
+        SUM(ftd_sum_cents)            AS first_deposit_cents,
+        SUM(deposit_fees_sum_cents)   AS first_deposit_fees_cents
+      FROM affiliate.activity_hourly_delta
+      WHERE tenant_id = {tenantId:String}
+        AND ftd_count > 0
+        AND hour_bucket <= {endTs:DateTime}
+        AND player_id != '__fees__'
+        AND affiliate_id != ''
+      GROUP BY affiliate_id, player_id
+    )
+    SELECT
+      f.affiliate_id                                            AS affiliateId,
+      f.player_id                                               AS playerId,
+      f.ftd_date                                                AS ftdDate,
+      f.first_deposit_cents                                     AS firstDepositCents,
+      f.first_deposit_fees_cents                                AS depositFeesCents,
+      SUM(toInt64(a.deposits_count))                            AS depositsCount,
+      SUM(toInt64(a.deposits_sum_cents))                        AS depositsTotalCents,
+      SUM(toInt64(a.cashouts_sum_cents))                        AS cashoutsTotalCents,
+      SUM(toInt64(a.bets_sum_cents)
+        - toInt64(a.casino_bets_rollbacks_sum_cents))           AS wagerCents,
+      SUM(toInt64(a.casino_ngr_cents)
+        + toInt64(a.sb_ngr_cents))                              AS ngrCents
+    FROM ftds f
+    LEFT JOIN affiliate.activity_hourly_delta a
+      ON a.tenant_id = {tenantId:String}
+     AND a.player_id = f.player_id
+     AND a.hour_bucket <= {endTs:DateTime}
+     AND a.player_id != '__fees__'
+    GROUP BY f.affiliate_id, f.player_id, f.ftd_date,
+             f.first_deposit_cents, f.first_deposit_fees_cents
+  `;
+
+  const result = await clickhouse.query({
+    query: sql,
+    query_params: { tenantId, endTs },
+    format: "JSONEachRow",
+  });
+  const rows = await result.json();
+
+  // Same KYC enrichment as the FTD context.
+  const playerIds = Array.from(new Set(rows.map((r) => r.playerId).filter(Boolean)));
+  const kycMap = new Map();
+  if (playerIds.length) {
+    const kycRows = await AffiliatePlayer.find({
+      operatorId: tenantId,
+      playerId: { $in: playerIds },
+    })
+      .select({ playerId: 1, kycLevel: 1 })
+      .lean();
+    for (const k of kycRows) kycMap.set(k.playerId, Number(k.kycLevel) || 0);
+  }
+
+  return rows.map((r) => ({
+    affiliateId:        r.affiliateId,
+    playerId:           r.playerId,
+    ftdDate:            r.ftdDate,
+    firstDepositCents:  Number(r.firstDepositCents)  || 0,
+    depositFeesCents:   Number(r.depositFeesCents)   || 0,
+    depositsCount:      Number(r.depositsCount)      || 0,
+    depositsTotalCents: Math.max(0, Number(r.depositsTotalCents) || 0),
+    cashoutsTotalCents: Math.max(0, Number(r.cashoutsTotalCents) || 0),
+    wagerCents:         Math.max(0, Number(r.wagerCents)         || 0),
+    ngrCents:           Number(r.ngrCents) || 0,
+    kycLevel:           kycMap.get(r.playerId) ?? 0,
   }));
 }
 
@@ -599,6 +684,43 @@ const reportController = {
         ftdContextByAffiliate.set(f.affiliateId, list);
       }
 
+      // Per-player cumulative context — needed by `fixed`-type plans so
+      // each player's lifetime metrics can be gate-evaluated against the
+      // plan's qualification thresholds. The end of the calc period acts
+      // as the "as of" anchor.
+      const periodEnd = periodRange(y, m).toTs;
+      const fixedContextRows = await fetchPlayerCumulativeContext(
+        operator.operatorId.toString(),
+        periodEnd,
+      );
+      const fixedContextByAffiliate = new Map();
+      for (const f of fixedContextRows) {
+        const list = fixedContextByAffiliate.get(f.affiliateId) || [];
+        list.push(f);
+        fixedContextByAffiliate.set(f.affiliateId, list);
+      }
+
+      // Prior fixed payouts per (affiliate, product) — the engine pays
+      // each player exactly once ever for a fixed plan, so we have to
+      // exclude players who already triggered the payout in any earlier
+      // CommissionReport. Build the lookup once.
+      const priorFixedPaid = await CommissionReport.find({
+        operatorId: operator.operatorId,
+        fixedPaidPlayerIds: { $exists: true, $ne: [] },
+      })
+        .select({ affiliateId: 1, product: 1, fixedPaidPlayerIds: 1, "period.year": 1, "period.month": 1 })
+        .lean();
+      const priorFixedPaidByKey = new Map(); // `${affiliateUserId}|${product}` → Set<playerId>
+      for (const r of priorFixedPaid) {
+        // Skip the period we're recalculating — those player IDs are
+        // about to be overwritten by this calc.
+        if (r.period?.year === y && r.period?.month === m) continue;
+        const key = `${String(r.affiliateId)}|${r.product || "casino"}`;
+        const set = priorFixedPaidByKey.get(key) || new Set();
+        for (const pid of r.fixedPaidPlayerIds || []) set.add(pid);
+        priorFixedPaidByKey.set(key, set);
+      }
+
       // Resolve User IDs from ClickHouse affiliateId strings
       const affiliateProfiles = await AffiliateProfile.find({
         operatorUser: operator._id,
@@ -665,6 +787,18 @@ const reportController = {
         ftdRowsByUserId.get(key).push(f);
       }
 
+      // Per-player cumulative rows for fixed-plan qualification, bucketed
+      // by direct attribution. Subtree roll-up happens in the calc loop
+      // the same way CPA's FTD rows do.
+      const fixedRowsByUserId = new Map();
+      for (const f of fixedContextRows) {
+        const userId = idMap.get(f.affiliateId);
+        if (!userId) continue;
+        const key = String(userId);
+        if (!fixedRowsByUserId.has(key)) fixedRowsByUserId.set(key, []);
+        fixedRowsByUserId.get(key).push(f);
+      }
+
       function getSubtreeIds(rootId) {
         const out = [rootId];
         const queue = [rootId];
@@ -699,6 +833,9 @@ const reportController = {
           const subtreeFtdRows = subtreeIds.flatMap(
             (uid) => ftdRowsByUserId.get(uid) || [],
           );
+          const subtreeFixedRows = subtreeIds.flatMap(
+            (uid) => fixedRowsByUserId.get(uid) || [],
+          );
           const topCode = profile?.referralCodes?.[0] ?? "";
 
           for (const product of ["casino", "sportsbook", "combined"]) {
@@ -721,9 +858,30 @@ const reportController = {
             const resolvedSettings = resolveCommissionSettings(plan, operatorDefaults);
             const qualification = checkCpaQualification(subtreeFtdRows, resolvedSettings);
 
+            // Fixed-plan qualification — runs the per-player gate evaluator
+            // against the subtree's cumulative-state rows, filtered to those
+            // not already paid in a prior period.
+            let fixedQual = { newlyQualified: 0, newlyQualifiedRows: [] };
+            let fixedNewlyPaidPlayerIds = [];
+            if (plan.type === "fixed") {
+              const priorPaidSet =
+                priorFixedPaidByKey.get(`${topUserId}|${product}`) || new Set();
+              const fixedGates = resolveFixedSettings(plan, operatorDefaults);
+              fixedQual = checkFixedQualification(
+                subtreeFixedRows,
+                fixedGates,
+                priorPaidSet,
+              );
+              fixedNewlyPaidPlayerIds = fixedQual.newlyQualifiedRows.map((r) => r.playerId);
+            }
+
             const breakdown = calculate(
               plan,
-              { ...subtreeRow, qualifiedFtdCount: qualification.qualified },
+              {
+                ...subtreeRow,
+                qualifiedFtdCount: qualification.qualified,
+                newlyQualifiedPlayerCount: fixedQual.newlyQualified,
+              },
               operatorDefaults,
             );
             const planSnap = {
@@ -733,10 +891,14 @@ const reportController = {
               product:  plan.product,
               revshare: plan.revshare,
               cpa:      plan.cpa,
+              fixed:    plan.fixed,
               tiers:    plan.tiers,
               resolvedSettings: breakdown.resolvedSettings,
             };
-            const directCents = breakdown.revshareAmountCents + breakdown.cpaAmountCents;
+            const directCents =
+              breakdown.revshareAmountCents +
+              breakdown.cpaAmountCents +
+              (breakdown.fixedAmountCents || 0);
             const { ngr: productNgr, ggr: productGgr } = pickProductPair(subtreeRow, product);
 
             const metrics = {
@@ -746,6 +908,7 @@ const reportController = {
               qualifiedFtdCount: qualification.qualified,
               pendingFtdCount:   qualification.pending,
               rejectedFtdCount:  qualification.rejected,
+              newlyQualifiedPlayerCount: fixedQual.newlyQualified,
               depositsCount:     subtreeRow.depositsCount,
               depositsCents:     subtreeRow.depositsCents,
               playerCount:       subtreeRow.playerCount,
@@ -782,6 +945,7 @@ const reportController = {
                     ftdQualification,
                     breakdown:        fullBreakdown,
                     overrideFromSubs: [],
+                    fixedPaidPlayerIds: fixedNewlyPaidPlayerIds,
                     status:        "draft",
                     calculatedAt:  new Date(),
                     approvedAt:    null,
@@ -804,6 +968,7 @@ const reportController = {
                 ftdQualification,
                 breakdown:        fullBreakdown,
                 overrideFromSubs: [],
+                fixedPaidPlayerIds: fixedNewlyPaidPlayerIds,
                 status:        "draft",
                 calculatedAt:  new Date(),
               });
