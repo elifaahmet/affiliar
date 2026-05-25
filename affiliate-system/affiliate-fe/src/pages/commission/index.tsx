@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { useBaseMutation } from 'api/core/useBaseMutation';
 import {
@@ -147,7 +147,11 @@ function currentYearMonth() {
   return { year: d.getFullYear(), month: d.getMonth() + 1 };
 }
 
-// ── Plan Form Modal ───────────────────────────────────────────────────────────
+// ── Plan Form ─────────────────────────────────────────────────────────────────
+//
+// Used by the dedicated /commission/new and /commission/:id/edit pages
+// (Commission plans are critical config — modal felt risky, the
+// full-page surface protects from accidental dismissal).
 
 const EMPTY_PLAN = {
   name: '', type: 'revshare' as PlanType, product: 'casino' as ProductScope, isDefault: false,
@@ -175,9 +179,9 @@ const EMPTY_PLAN = {
   notes: '',
 };
 
-function PlanModal({
-  plan, onClose, onSaved,
-}: { plan?: CommissionPlan; onClose: () => void; onSaved: () => void }) {
+export function PlanForm({
+  plan, onCancel, onSaved,
+}: { plan?: CommissionPlan; onCancel: () => void; onSaved: () => void }) {
   const isEdit = !!plan;
   const { limits } = useOperatorPlan();
   // minKycLevel input is only meaningful for plans where kycGate is on; lock
@@ -229,7 +233,7 @@ function PlanModal({
   const { mutate: save, isPending } = useBaseMutation({
     endpoint: isEdit ? COMMISSION_API_URLS.PLAN(plan!._id) : COMMISSION_API_URLS.PLANS(),
     method: isEdit ? 'patch' : 'post',
-    onSuccess: () => { setUpgradeBanner(null); onSaved(); onClose(); },
+    onSuccess: () => { setUpgradeBanner(null); onSaved(); },
     onError: (e: any) => {
       const respData = e?.response?.data;
       if (respData?.upgrade) {
@@ -295,11 +299,8 @@ function PlanModal({
   const showTiers    = form.type === 'tiered_revshare';
 
   return (
-    <div className='fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto p-4'>
-      <div className='bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-5 m-auto'>
-        <h2 className='text-base font-semibold text-gray-800'>{isEdit ? 'Edit Plan' : 'New Commission Plan'}</h2>
-
-        <form onSubmit={handleSubmit} className='space-y-4'>
+    <div className='bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-5 max-w-2xl'>
+      <form onSubmit={handleSubmit} className='space-y-4'>
           {/* Name */}
           <div>
             <label className='block text-xs font-medium text-gray-600 mb-1'>Name</label>
@@ -598,8 +599,8 @@ function PlanModal({
 
           {error && <p className='text-xs text-red-500'>{error}</p>}
 
-          <div className='flex justify-end gap-2 pt-1'>
-            <button type='button' onClick={onClose}
+          <div className='flex justify-end gap-2 border-t border-gray-100 mt-6 pt-4'>
+            <button type='button' onClick={onCancel}
               className='px-4 py-2 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50'>
               Cancel
             </button>
@@ -609,7 +610,6 @@ function PlanModal({
             </button>
           </div>
         </form>
-      </div>
     </div>
   );
 }
@@ -652,7 +652,7 @@ function GateInput({
 // ── Plans Tab ─────────────────────────────────────────────────────────────────
 
 function PlansTab() {
-  const [modal, setModal] = useState<'new' | CommissionPlan | null>(null);
+  const navigate = useNavigate();
 
   const { data: plans = [], isLoading, refetch } = useBaseQuery<CommissionPlan[]>({
     endpoint: COMMISSION_API_URLS.PLANS(),
@@ -672,7 +672,7 @@ function PlansTab() {
   return (
     <div className='space-y-4'>
       <div className='flex justify-end'>
-        <button onClick={() => setModal('new')}
+        <button onClick={() => navigate('/commission/new')}
           className='px-4 py-2 text-sm bg-primary text-white rounded-lg font-medium hover:bg-primary/90'>
           + New Plan
         </button>
@@ -724,7 +724,7 @@ function PlansTab() {
                   </td>
                   <td className='px-5 py-3 w-24'>
                     <div className='flex gap-3'>
-                      <button onClick={() => setModal(p)} className='text-xs text-primary hover:underline'>Edit</button>
+                      <button onClick={() => navigate(`/commission/${p._id}/edit`)} className='text-xs text-primary hover:underline'>Edit</button>
                       {!p.isDefault && (
                         <button onClick={() => handleDelete(p._id)}
                           className='text-xs text-red-400 hover:underline'>Delete</button>
@@ -738,8 +738,58 @@ function PlansTab() {
         )}
       </div>
 
-      {modal === 'new' && <PlanModal onClose={() => setModal(null)} onSaved={() => { refetch(); setModal(null); }} />}
-      {modal && modal !== 'new' && <PlanModal plan={modal as CommissionPlan} onClose={() => setModal(null)} onSaved={() => { refetch(); setModal(null); }} />}
+    </div>
+  );
+}
+
+// ── Plan Form Page (route-mounted) ────────────────────────────────────────────
+//
+// Used by both /commission/new and /commission/:id/edit. Loads the plan
+// when the route has an :id param so the same PlanForm renders for create
+// + edit. After Save (or Cancel), navigates back to the Commission listing.
+
+export function PlanFormPage() {
+  const navigate = useNavigate();
+  const { id } = useParams<{ id?: string }>();
+  const isEdit = !!id;
+
+  // No GET /plans/:id endpoint exists yet — pull the list (cheap, max a
+  // few rows) and find by id. The list query is also what PlansTab uses,
+  // so this is usually a cache hit when the user clicked 'Edit'.
+  const { data: plans = [], isLoading } = useBaseQuery<CommissionPlan[]>({
+    endpoint: COMMISSION_API_URLS.PLANS(),
+    queryKey: ['commission-plans'],
+  });
+  const plan = isEdit ? plans.find((p) => p._id === id) : undefined;
+
+  const goBack = () => navigate('/commission');
+
+  return (
+    <div className='h-full overflow-auto p-6 pb-24 space-y-4'>
+      <div className='flex items-center gap-3'>
+        <button
+          onClick={goBack}
+          className='text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1'
+          aria-label='Back to commission plans'
+        >
+          ← Back
+        </button>
+        <h1 className='text-xl font-semibold text-gray-800'>
+          {isEdit ? 'Edit Commission Plan' : 'New Commission Plan'}
+        </h1>
+      </div>
+
+      {isEdit && isLoading ? (
+        <p className='text-sm text-gray-600'>Loading plan…</p>
+      ) : isEdit && !plan ? (
+        <p className='text-sm text-red-600'>Plan not found.</p>
+      ) : (
+        <PlanForm
+          plan={isEdit ? plan : undefined}
+          onCancel={goBack}
+          onSaved={goBack}
+        />
+      )}
     </div>
   );
 }
