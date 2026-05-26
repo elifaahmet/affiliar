@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { useBaseMutation } from 'api/core/useBaseMutation';
 import {
@@ -944,6 +945,7 @@ function PlansTab() {
 
 export function PlanFormPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { id } = useParams<{ id?: string }>();
   const isEdit = !!id;
 
@@ -957,6 +959,13 @@ export function PlanFormPage() {
   const plan = isEdit ? plans.find((p) => p._id === id) : undefined;
 
   const goBack = () => navigate('/commission');
+  // After Save: invalidate the list so the listing page shows the new /
+  // updated plan immediately (without invalidation it would render the
+  // pre-save cache for a beat until react-query's staleTime kicked in).
+  const goBackAfterSave = () => {
+    queryClient.invalidateQueries({ queryKey: ['commission-plans'] });
+    goBack();
+  };
 
   return (
     <div className='h-full overflow-auto p-6 pb-24 space-y-4'>
@@ -981,7 +990,7 @@ export function PlanFormPage() {
         <PlanForm
           plan={isEdit ? plan : undefined}
           onCancel={goBack}
-          onSaved={goBack}
+          onSaved={goBackAfterSave}
         />
       )}
     </div>
