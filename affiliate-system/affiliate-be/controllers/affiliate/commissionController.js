@@ -1255,6 +1255,21 @@ const affiliatePlanController = {
       }).lean();
       if (!existingProfile) return res.status(404).json({ error: "Affiliate profile not found" });
 
+      // Sub-affiliates earn via the share-of-parent-commission cascade
+      // (their parent's CommissionPlan applied to the sub's subtree
+      // metrics, scaled by `subPlan.revshareRate` / `cpaSharePercent`
+      // configured by the parent). Operators don't assign separate plans
+      // to sub-affiliates — that would double-count or contradict the
+      // cascade. Plan editing for subs lives on the parent's
+      // /affiliate/sub-affiliates page.
+      if (existingProfile.parentAffiliate) {
+        return res.status(403).json({
+          error: "sub_affiliate_plans_managed_by_parent",
+          message:
+            "Sub-affiliates are paid via the parent's commission plan + share rate. Their parent affiliate edits this on the Sub-Affiliates page.",
+        });
+      }
+
       const update = {};
 
       // Legacy single-plan payload

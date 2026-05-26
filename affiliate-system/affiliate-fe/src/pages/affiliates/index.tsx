@@ -490,21 +490,33 @@ function AffiliatesTab() {
                           plan: a.commissionPlanId,
                         });
                       }
+                      // Sub-affiliates earn through the parent's plan + the
+                      // parent-set share rate (subPlan). Operators can't
+                      // assign separate plans here — surface that explicitly
+                      // instead of showing a Change button that the BE
+                      // would reject.
+                      const isSubAffiliate = !!a.parentAffiliate;
                       return (
                         <div className='flex flex-col gap-1'>
-                          {populated.length === 0 && <span className='text-gray-600'>Default</span>}
+                          {populated.length === 0 && !isSubAffiliate && <span className='text-gray-600'>Default</span>}
                           {populated.map(({ slot, plan }) => (
                             <div key={slot} className='flex items-center gap-1'>
                               <span className='text-[10px] text-gray-600 uppercase tracking-wide w-14'>{slot}</span>
                               <span className={planTypeBadgeCls(plan.type)}>{plan.name}</span>
                             </div>
                           ))}
-                          <button
-                            onClick={() => setAssigningAffiliate(a)}
-                            className='text-xs text-primary hover:underline text-left mt-0.5'
-                          >
-                            Change
-                          </button>
+                          {isSubAffiliate ? (
+                            <span className='text-[11px] text-gray-500 italic mt-0.5' title="Sub-affiliates are paid via the parent's commission plan and share rate.">
+                              Managed by parent
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => setAssigningAffiliate(a)}
+                              className='text-xs text-primary hover:underline text-left mt-0.5'
+                            >
+                              Change
+                            </button>
+                          )}
                         </div>
                       );
                     })()}
