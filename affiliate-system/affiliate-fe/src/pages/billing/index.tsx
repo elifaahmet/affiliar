@@ -12,6 +12,7 @@ interface BillingStatus {
   trialEndsAt: string | null;
   nextBillingDate: string | null;
   billingCycle: string;
+  activeDiscountCode?: string;
 }
 
 interface PayResponse {
@@ -47,10 +48,29 @@ interface WalletsResponse {
 
 interface DiscountResult {
   valid: boolean;
+  kind?: 'fixed_usd' | 'fixed_fx';
   code?: string;
+  // fixed_usd
   amountUsd?: number;
+  // fixed_fx
+  baseAmountCents?: number;
+  baseCurrency?: string;
+  finalAmountUsd?: number;
+  fxRate?: number;
+  fxDate?: string;
   error?: string;
 }
+
+type AppliedDiscount =
+  | { kind: 'fixed_usd'; code: string; amountUsd: number }
+  | {
+      kind: 'fixed_fx';
+      code: string;
+      finalAmountUsd: number;
+      baseAmountCents: number;
+      baseCurrency: string;
+      fxRate: number;
+    };
 
 /* ── Plan catalogue (mirrors affiliate-be/utils/planLimits.js) ──────────
    Feature copy is marketing content and intentionally lives here so the
@@ -141,6 +161,18 @@ const PLAN_CARDS: PlanCard[] = [
   },
 ];
 
+// Render a base-currency amount the way it'd appear on a contract: €200,
+// £150, ₺2,500, $… — the symbol map covers what we serve today. Anything
+// else falls back to "200 XYZ".
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: '$', EUR: '€', GBP: '£', TRY: '₺', INR: '₹', JPY: '¥',
+};
+function formatBase(amountCents: number, currency: string): string {
+  const amount = (amountCents / 100).toLocaleString('en-US');
+  const sym = CURRENCY_SYMBOLS[currency.toUpperCase()];
+  return sym ? `${sym}${amount}` : `${amount} ${currency}`;
+}
+
 /* ── Page ───────────────────────────────────────────────────────────── */
 
 export default function Billing() {
@@ -187,7 +219,7 @@ export default function Billing() {
   >(null);
   const [pickError, setPickError] = useState<string | null>(null);
   const [codeInput, setCodeInput] = useState('');
-  const [discount, setDiscount] = useState<{ code: string; amountUsd: number } | null>(null);
+  const [discount, setDiscount] = useState<AppliedDiscount | null>(null);
   const [discountError, setDiscountError] = useState<string | null>(null);
 
   const currentPlan = billing?.plan?.toLowerCase() ?? null;
@@ -210,13 +242,34 @@ export default function Billing() {
       { code },
       {
         onSuccess: (r) => {
-          if (r.valid && r.amountUsd != null) {
-            setDiscount({ code: r.code ?? code.toUpperCase(), amountUsd: r.amountUsd });
-            setDiscountError(null);
-          } else {
+          if (!r.valid) {
             setDiscount(null);
             setDiscountError(r.error ?? 'Invalid discount code');
+            return;
           }
+          if (r.kind === 'fixed_fx' && r.finalAmountUsd != null) {
+            setDiscount({
+              kind: 'fixed_fx',
+              code: r.code ?? code.toUpperCase(),
+              finalAmountUsd: r.finalAmountUsd,
+              baseAmountCents: r.baseAmountCents ?? 0,
+              baseCurrency:    r.baseCurrency ?? '',
+              fxRate:          r.fxRate ?? 0,
+            });
+            setDiscountError(null);
+            return;
+          }
+          if (r.amountUsd != null) {
+            setDiscount({
+              kind: 'fixed_usd',
+              code: r.code ?? code.toUpperCase(),
+              amountUsd: r.amountUsd,
+            });
+            setDiscountError(null);
+            return;
+          }
+          setDiscount(null);
+          setDiscountError(r.error ?? 'Invalid discount code');
         },
         onError: () => {
           setDiscount(null);
@@ -252,6 +305,41 @@ export default function Billing() {
       },
     );
   };
+
+  // Pre-fill + auto-apply the operator's negotiated discount code (set by
+  // billingController when a deal was applied at last checkout). Runs once
+  // on first billing load; if the operator removes the code manually we
+  // don't keep re-applying.
+  const stickyAppliedRef = useRef(false);
+  useEffect(() => {
+    if (stickyAppliedRef.current) return;
+    const code = billing?.activeDiscountCode;
+    if (!code) return;
+    stickyAppliedRef.current = true;
+    setCodeInput(code);
+    discountMutation.mutate({ code }, {
+      onSuccess: (r) => {
+        if (!r.valid) return;
+        if (r.kind === 'fixed_fx' && r.finalAmountUsd != null) {
+          setDiscount({
+            kind: 'fixed_fx',
+            code: r.code ?? code,
+            finalAmountUsd: r.finalAmountUsd,
+            baseAmountCents: r.baseAmountCents ?? 0,
+            baseCurrency:    r.baseCurrency ?? '',
+            fxRate:          r.fxRate ?? 0,
+          });
+        } else if (r.amountUsd != null) {
+          setDiscount({
+            kind: 'fixed_usd',
+            code: r.code ?? code,
+            amountUsd: r.amountUsd,
+          });
+        }
+      },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [billing?.activeDiscountCode]);
 
   // ?renew=1 from the past-due banner — auto-open the wallet picker for the
   // operator's current plan so they don't have to scroll-find-click.
@@ -366,7 +454,9 @@ export default function Billing() {
               {discount.code}
             </span>
             <span className='text-sm text-gray-700'>
-              −${discount.amountUsd.toLocaleString('en-US')} applied to every plan below.
+              {discount.kind === 'fixed_fx'
+                ? `Locked at ${formatBase(discount.baseAmountCents, discount.baseCurrency)} → ≈$${discount.finalAmountUsd.toLocaleString('en-US')}/mo, applies to every plan (current FX).`
+                : `−$${discount.amountUsd.toLocaleString('en-US')} applied to every plan below.`}
             </span>
             <button
               type='button'
@@ -411,9 +501,11 @@ export default function Billing() {
           // Card button reflects step 1 (fetching wallets). Step 2's spinner
           // lives inside the picker modal's Continue button.
           const isPending = pendingKey === plan.key && walletsMutation.isPending;
-          const netPrice = discount
-            ? Math.max(0, plan.price - discount.amountUsd)
-            : plan.price;
+          const netPrice = !discount
+            ? plan.price
+            : discount.kind === 'fixed_fx'
+              ? discount.finalAmountUsd
+              : Math.max(0, plan.price - discount.amountUsd);
           const discounted = discount != null && netPrice !== plan.price;
           return (
             <div
@@ -443,7 +535,9 @@ export default function Billing() {
                     ${plan.price.toLocaleString('en-US')}
                   </span>{' '}
                   <span className='text-violet-700 font-medium'>
-                    −${discount!.amountUsd.toLocaleString('en-US')}
+                    {discount!.kind === 'fixed_fx'
+                      ? `flat ${formatBase(discount!.baseAmountCents, discount!.baseCurrency)}`
+                      : `−$${discount!.amountUsd.toLocaleString('en-US')}`}
                   </span>
                 </p>
               )}

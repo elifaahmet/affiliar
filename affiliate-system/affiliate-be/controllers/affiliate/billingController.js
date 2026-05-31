@@ -555,17 +555,42 @@ const billingController = {
 
   // POST /billing/discount/validate — body { code }
   // Read-only preview of a discount code so the billing page can show the
-  // adjusted price before the operator commits to a payment.
+  // adjusted price before the operator commits to a payment. Returns the
+  // shape needed to render both styles:
+  //   fixed_usd → { valid, kind:'fixed_usd', code, amountUsd }
+  //   fixed_fx  → { valid, kind:'fixed_fx',  code, baseAmountCents,
+  //                  baseCurrency, finalAmountUsd, fxRate, fxDate }
   validateDiscount: async (req, res) => {
     try {
       const resolved = await DiscountCode.resolve(req.body.code);
       if (!resolved.ok) {
         return res.status(200).json({ valid: false, error: resolved.error });
       }
+      const c = resolved.code;
+      if (c.kind === "fixed_fx") {
+        const fx = await fetchFxToUsd(c.priceCurrency);
+        if (!fx) {
+          return res.status(200).json({
+            valid: false,
+            error: `FX rate ${c.priceCurrency}→USD not available — try again shortly`,
+          });
+        }
+        return res.json({
+          valid: true,
+          kind: "fixed_fx",
+          code: c.code,
+          baseAmountCents: c.priceAmountCents,
+          baseCurrency:    c.priceCurrency,
+          finalAmountUsd:  Math.round((c.priceAmountCents / 100) * fx.value),
+          fxRate:          fx.value,
+          fxDate:          fx.date,
+        });
+      }
       return res.json({
         valid: true,
-        code: resolved.code.code,
-        amountUsd: resolved.code.amountUsd,
+        kind: "fixed_usd",
+        code: c.code,
+        amountUsd: c.amountUsd,
       });
     } catch (err) {
       return res.status(500).json({ error: err.message });
