@@ -117,6 +117,11 @@ export default function PlatformOperatorsNew() {
             Creates the operator account, owner user (pending until activation), one default brand,
             and seeds operator-default fee settings. Owner receives an activation email.
           </p>
+          <p className='text-xs text-amber-700 mt-2 bg-amber-50 border border-amber-200 rounded px-2 py-1.5'>
+            No trial period — the operator starts in <code>past_due</code> and must pay before
+            their status becomes <code>active</code>. If a discount code is set above, it auto-
+            applies on first checkout.
+          </p>
         </div>
 
         <form onSubmit={onSubmit} className='space-y-5 bg-white rounded-xl border border-violet-100 p-6'>

@@ -69,11 +69,20 @@ exports.createOperator = async (req, res) => {
     const last = await Operator.findOne({}).sort({ id: -1 }).select({ id: 1 }).lean();
     const nextId = (last?.id ?? 0) + 1;
 
+    // Platform-admin onboarding skips the self-signup trial — the operator
+    // has a deal in place and needs to pay before they're 'active'. Start
+    // them in past_due with nextBillingDate=now so the billing banner shows
+    // a "Pay now" CTA on first login. The callback flips them to active on
+    // the first successful charge.
+    const now = new Date();
     const operator = await Operator.create({
       id: nextId,
       name: name.trim(),
       plan,
-      billingStatus: "trial",
+      billingStatus: "past_due",
+      pastDueAt: now,
+      nextBillingDate: now,
+      trialEndsAt: null,
       activeDiscountCode: resolvedDiscountCode,
     });
 
