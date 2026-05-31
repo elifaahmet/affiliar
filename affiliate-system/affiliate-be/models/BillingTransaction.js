@@ -32,6 +32,17 @@ const billingTransactionSchema = new mongoose.Schema({
     default: 0,
     min: 0,
   },
+  // Snapshot of a fixed-FX discount code's resolution at this charge. Stored
+  // so historical transactions show the exact rate that produced amountUsd,
+  // even after the FX feed rolls forward. Empty for fixed_usd codes.
+  discountFx: {
+    kind:             { type: String, default: "" },        // 'fixed_fx' when used
+    baseAmountCents:  { type: Number, default: 0 },         // e.g. 20000
+    baseCurrency:     { type: String, default: "" },        // 'EUR'
+    fxRate:           { type: Number, default: 0 },         // USD per 1 unit baseCurrency
+    fxDate:           { type: Date,   default: null },      // when the rate was fetched
+    _id: false,
+  },
   providerTxId: {
     type: String,
     default: "",

@@ -20,12 +20,36 @@ const discountCodeSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
-    // Fixed discount in whole USD. Clamped to the plan price at redemption
-    // so the charged amount never goes negative.
+    // 'fixed_usd' — subtract `amountUsd` from the plan price (legacy).
+    // 'fixed_fx'  — override the plan price to `priceAmountCents` in
+    //               `priceCurrency`, converted to USD at redemption time
+    //               via the daily FX feed. Used for negotiated flat-fee
+    //               deals (e.g. "€200/month regardless of listed tier").
+    kind: {
+      type: String,
+      enum: ["fixed_usd", "fixed_fx"],
+      default: "fixed_usd",
+      required: true,
+    },
+    // fixed_usd only. Whole USD. Clamped to plan price at redemption so the
+    // charged amount never goes negative.
     amountUsd: {
       type: Number,
-      required: true,
+      default: 0,
       min: 0,
+    },
+    // fixed_fx only. Override amount in `priceCurrency`, e.g. 20000 + "EUR"
+    // for €200. Stored in cents to avoid float quirks.
+    priceAmountCents: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    priceCurrency: {
+      type: String,
+      default: "",
+      uppercase: true,
+      trim: true,
     },
     active: {
       type: Boolean,

@@ -1,10 +1,31 @@
 const axios = require("axios");
+const mongoose = require("mongoose");
 const Operator = require("../../models/Operator");
 const User = require("../../models/User");
 const BillingTransaction = require("../../models/BillingTransaction");
 const DiscountCode = require("../../models/DiscountCode");
 const { PLAN_PRICES_USD } = require("../../utils/planLimits");
 const { logger } = require("../../middlewares/logger");
+
+// Read a USD-per-{currency} rate from the daily FX feed (jobs/fxRatesJob.js).
+// Rates are keyed `{CCY}_USD`; value is USD-equivalent of one unit of CCY.
+// Returns null if the rate isn't loaded so the caller can surface a 400 rather
+// than silently charge zero.
+async function fetchFxToUsd(currency) {
+  const code = `${String(currency || "").toUpperCase()}_USD`;
+  const doc = await mongoose.connection.db
+    .collection("exchangeRates")
+    .findOne({ exchange_rate_code: code });
+  if (!doc) return null;
+  // value may be a Decimal128 or a double depending on which writer touched it.
+  const raw = doc.value;
+  const value =
+    typeof raw === "object" && raw !== null && typeof raw.toString === "function"
+      ? Number(raw.toString())
+      : Number(raw);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return { value, date: doc.exchange_rate_date || null };
+}
 
 // Sans Getirsin payment gateway — mirrors the player-side dance:
 //   1) POST /payment/json   { username, apiKey, additionalData }  → { token }
@@ -92,6 +113,12 @@ async function getSansToken(operatorId, operatorUser) {
 // Net price for a plan after an optional discount code (same rules as the
 // checkout flow). Throws on invalid plan or bad code so the caller can
 // return a clean 400.
+//
+// Two discount shapes:
+//   fixed_usd → amount = max(0, planPrice − amountUsd)
+//   fixed_fx  → amount = round(priceAmountCents/100 × FX(priceCurrency→USD));
+//               planPrice is ignored entirely. A snapshot of the rate is
+//               returned so the caller can persist it on the transaction.
 async function resolvePlanAmount({ plan, discountCode }) {
   const planPrice = PLAN_PRICES_USD[plan];
   if (!planPrice) {
@@ -101,20 +128,54 @@ async function resolvePlanAmount({ plan, discountCode }) {
     err.status = 400;
     throw err;
   }
-  let discountUsd = 0;
-  let resolvedCode = "";
-  if (discountCode) {
-    const resolved = await DiscountCode.resolve(discountCode);
-    if (!resolved.ok) {
-      const err = new Error(resolved.error);
-      err.status = 400;
+
+  if (!discountCode) {
+    return { planPrice, discountUsd: 0, amount: planPrice, resolvedCode: "", discountFx: null };
+  }
+
+  const resolved = await DiscountCode.resolve(discountCode);
+  if (!resolved.ok) {
+    const err = new Error(resolved.error);
+    err.status = 400;
+    throw err;
+  }
+  const codeDoc = resolved.code;
+
+  if (codeDoc.kind === "fixed_fx") {
+    if (!codeDoc.priceCurrency || !codeDoc.priceAmountCents) {
+      const err = new Error("Discount code is misconfigured");
+      err.status = 500;
       throw err;
     }
-    resolvedCode = resolved.code.code;
-    discountUsd = Math.min(resolved.code.amountUsd, planPrice);
+    const fx = await fetchFxToUsd(codeDoc.priceCurrency);
+    if (!fx) {
+      const err = new Error(
+        `FX rate ${codeDoc.priceCurrency}→USD not available — try again shortly`,
+      );
+      err.status = 503;
+      throw err;
+    }
+    // Whole-dollar rounding keeps the Sans payment amount integer-friendly.
+    const amount = Math.round((codeDoc.priceAmountCents / 100) * fx.value);
+    return {
+      planPrice,
+      discountUsd: 0,
+      amount,
+      resolvedCode: codeDoc.code,
+      discountFx: {
+        kind: "fixed_fx",
+        baseAmountCents: codeDoc.priceAmountCents,
+        baseCurrency: codeDoc.priceCurrency,
+        fxRate: fx.value,
+        fxDate: fx.date,
+      },
+    };
   }
+
+  // fixed_usd (default)
+  const discountUsd = Math.min(codeDoc.amountUsd, planPrice);
   const amount = Math.max(0, planPrice - discountUsd);
-  return { planPrice, discountUsd, amount, resolvedCode };
+  return { planPrice, discountUsd, amount, resolvedCode: codeDoc.code, discountFx: null };
 }
 
 const billingController = {
@@ -144,6 +205,7 @@ const billingController = {
         trialEndsAt: operator.trialEndsAt,
         nextBillingDate: operator.nextBillingDate,
         billingCycle: operator.billingCycle,
+        activeDiscountCode: operator.activeDiscountCode || "",
         transactions: recentTransactions,
       });
     } catch (err) {
@@ -258,7 +320,7 @@ const billingController = {
         return res.status(400).json({ error: "walletId is required — pick a wallet first" });
       }
 
-      const { amount, discountUsd, resolvedCode } = await resolvePlanAmount({
+      const { amount, discountUsd, resolvedCode, discountFx } = await resolvePlanAmount({
         plan, discountCode,
       });
 
@@ -322,6 +384,7 @@ const billingController = {
         amountUsd:      amount,
         discountCode:   resolvedCode,
         discountUsd,
+        discountFx:     discountFx || undefined,
         providerTxId:   externalId,
         referenceId,
         walletId,
@@ -332,6 +395,15 @@ const billingController = {
         qrCode:         providerResp.data?.data?.qrCode || "",
         status:         "pending",
       });
+
+      // Sticky for the next cycle's pre-fill. Cleared on the day the deal
+      // ends (manual operation, or by an admin endpoint we can add later).
+      if (resolvedCode) {
+        await Operator.updateOne(
+          { _id: user.operatorId },
+          { $set: { activeDiscountCode: resolvedCode } },
+        );
+      }
 
       return res.json({
         transaction,

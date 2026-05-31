@@ -31,6 +31,16 @@ const operatorSchema = new mongoose.Schema(
       enum: ["trial", "active", "past_due", "cancelled"],
       default: "trial",
     },
+    // Sticky discount code: when set, the billing modal pre-fills it on every
+    // cycle so a negotiated long-term deal (e.g. €200 fixed-FX flat) re-applies
+    // automatically without the operator re-typing each month. Cleared by the
+    // operator (or admin) when the deal ends.
+    activeDiscountCode: {
+      type: String,
+      default: "",
+      uppercase: true,
+      trim: true,
+    },
     billingCycle: {
       type: Date,
       default: null,
