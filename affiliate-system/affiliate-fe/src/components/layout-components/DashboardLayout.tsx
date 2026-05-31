@@ -10,6 +10,7 @@ import {
   Cog6ToothIcon,
   CreditCardIcon,
   HeartIcon,
+  ShieldCheckIcon,
   Squares2X2Icon,
   UserGroupIcon,
   UsersIcon,
@@ -168,6 +169,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       current: pathname.startsWith('/settings'),
     },
   ];
+
+  // Hexium-internal entry. Only the platform admin flag opens it; regular
+  // operators never see it in the sidebar.
+  const userInfo = storageHelper.getStoreWithDecryption('user_information') as
+    | { isPlatformAdmin?: boolean }
+    | null;
+  if (userInfo?.isPlatformAdmin) {
+    navigation.push({
+      key: 'platform',
+      name: 'Platform Admin',
+      href: '/platform/operators',
+      Icon: ShieldCheckIcon,
+      current: pathname.startsWith('/platform'),
+    });
+  }
 
   // Frosted violet glass sidebar — translucent so the body bg tints
   // through, with a soft right border to separate from the main area.

@@ -375,3 +375,11 @@ export const AFFILIATE_PLAYERS_API_URLS = {
   BULK_REGISTER:     () => `${API_BASE_URL}api/integration/player/bulk`,
   AFFILIATES_SELECT: () => `${API_BASE_URL}api/players/affiliates-select`,
 };
+
+// Hexium-internal platform admin endpoints — guarded server-side by
+// `isPlatformAdmin: true` on the calling user. The sidebar entry is also
+// hidden unless the flag is set.
+export const PLATFORM_ADMIN_API_URLS = {
+  LIST_OPERATORS:   () => `${API_BASE_URL}api/admin/operators`,
+  CREATE_OPERATOR:  () => `${API_BASE_URL}api/admin/operators`,
+};

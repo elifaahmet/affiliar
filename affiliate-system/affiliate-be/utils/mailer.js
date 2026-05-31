@@ -70,6 +70,35 @@ async function sendAffiliateInvite({ to, name, userId, operatorName }) {
   return sendMail({ to, subject, htmlBody, textBody });
 }
 
+async function sendOperatorInvite({ to, name, userId, operatorName, planName }) {
+  const activateUrl = `${APP_URL}/activate?userId=${userId}`;
+  const logoUrl = LOGO_URL;
+  const subject = `Welcome to Affiliar — set up your ${operatorName || "operator"} account`;
+  const htmlBody = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; padding: 40px 30px;">
+      <div style="text-align: center; margin-bottom: 32px;">
+        <img src="${logoUrl}" alt="Affiliar" width="160" style="display: inline-block;" />
+      </div>
+      <h2 style="color: #1E3A5F; margin-top: 0;">Welcome aboard!</h2>
+      <p style="color: #334155; font-size: 15px; line-height: 1.6;">Hi ${name || "there"},</p>
+      <p style="color: #334155; font-size: 15px; line-height: 1.6;">Your <b>${operatorName || "operator"}</b> account is ready${planName ? ` on the <b>${planName}</b> plan` : ""}. Click below to set your password and start configuring your brands, fees, and commission plans.</p>
+      <p style="margin: 32px 0; text-align: center;">
+        <a href="${activateUrl}"
+           style="background: #7C3AED; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">
+          Activate Account
+        </a>
+      </p>
+      <p style="color: #64748B; font-size: 13px; line-height: 1.5;">Or copy this link into your browser:<br/>
+      <a href="${activateUrl}" style="color: #7C3AED; word-break: break-all;">${activateUrl}</a></p>
+      <hr style="border: none; border-top: 1px solid #E2E8F0; margin: 32px 0;" />
+      <p style="color: #94A3B8; font-size: 12px; text-align: center;">If you didn't expect this email, please ignore it or let us know.</p>
+    </div>
+  `;
+  const textBody = `Hi ${name || "there"},\n\nYour ${operatorName || "operator"} account is ready${planName ? ` on the ${planName} plan` : ""}. Activate it here:\n${activateUrl}\n\nIf you didn't expect this email, please ignore it.`;
+
+  return sendMail({ to, subject, htmlBody, textBody });
+}
+
 async function sendPasswordReset({ to, name, token }) {
   const resetUrl = `${APP_URL}/reset-password?token=${token}`;
   const logoUrl = LOGO_URL;
@@ -293,6 +322,7 @@ async function sendBillingSuspensionWarning({ to, name, planName, dueDate }) {
 module.exports = {
   sendMail,
   sendAffiliateInvite,
+  sendOperatorInvite,
   sendPasswordReset,
   sendBillingPastDue,             // legacy single transition email (kept for safety)
   sendBillingUpcoming,            // -7d / -3d

@@ -20,6 +20,7 @@ import { referAFriendRoutes } from './refer-a-friend/routes';
 import { billingRoutes } from './billing/routes';
 import { payoutsRoutes } from './payouts/routes';
 import { settingsRoutes } from './settings/routes';
+import { platformRoutes } from './platform/routes';
 import { registerRoutes } from './register/routes';
 import { activateRoutes } from './activate/routes';
 import { resetPasswordRoutes } from './reset-password/routes';
@@ -53,6 +54,7 @@ export default function Router() {
         ...payoutsRoutes,
         ...billingRoutes,
         ...settingsRoutes,
+        ...platformRoutes,
       ],
     },
     // Auth-flow pages always render through the editorial auth shell,

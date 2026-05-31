@@ -36,6 +36,7 @@ const authService = {
             storageHelper.setStoreWithEncryption(STORAGE_KEYS.USER_INFO, {
               permissions: responseData?.user?.permissions,
               email: responseData?.user?.email,
+              isPlatformAdmin: !!responseData?.user?.isPlatformAdmin,
             });
           } catch (error) {
             console.error('Invalid token format after direct login:', error);
@@ -75,6 +76,7 @@ const authService = {
           storageHelper.setStoreWithEncryption(STORAGE_KEYS.USER_INFO, {
             permissions: responseData?.user?.permissions,
             email: responseData?.user?.email,
+            isPlatformAdmin: !!responseData?.user?.isPlatformAdmin,
           });
         } catch (error) {
           console.error('Invalid token format after 2FA verification:', error);
@@ -126,6 +128,7 @@ const authService = {
         storageHelper.setStoreWithEncryption(STORAGE_KEYS.USER_INFO, {
           permissions: response.data.user.permissions,
           email: response.data.user.email,
+          isPlatformAdmin: !!response.data.user.isPlatformAdmin,
         });
       }
 

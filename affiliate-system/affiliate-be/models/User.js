@@ -24,6 +24,14 @@ const userSchema = new mongoose.Schema(
       enum: ["affiliate", "operator"],
       required: true,
     },
+    // Hexium-internal flag: when true, the user can access /platform admin
+    // routes (create operators, etc.) on top of whatever their `role` lets
+    // them do. Orthogonal to role so a regular operator account can also
+    // hold this flag without losing their normal operator privileges.
+    isPlatformAdmin: {
+      type: Boolean,
+      default: false,
+    },
     status: {
       type: String,
       enum: ["active", "inactive", "pending"],

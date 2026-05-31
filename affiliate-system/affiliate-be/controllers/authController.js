@@ -167,6 +167,7 @@ exports.refresh = async (req, res) => {
       user: {
         email: user.email,
         role: role?.roleName || user.role,
+        isPlatformAdmin: !!user.isPlatformAdmin,
         permissions: groupPermissions(role?.permissions || []),
         name: user.name || null,
         mobileNumber: user.mobileNumber || null,
@@ -299,6 +300,7 @@ exports.verifyTwoFactor = async (req, res) => {
       user: {
         email: user.email,
         role: role?.roleName || user.role,
+        isPlatformAdmin: !!user.isPlatformAdmin,
         permissions: groupPermissions(role?.permissions || []),
         name: user.name || null,
         mobileNumber: user.mobileNumber || null,
