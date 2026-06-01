@@ -9,6 +9,7 @@ const Operator = require("../models/Operator");
 const AffiliateProfile = require("../models/AffiliateProfile");
 const PasswordResetToken = require("../models/PasswordResetToken");
 const { sendPasswordReset } = require("../utils/mailer");
+const { isPlatformAdminUser } = require("../utils/platformAdmin");
 
 const findUserByCredential = async (identifier) => {
   return User.findOne({
@@ -167,7 +168,7 @@ exports.refresh = async (req, res) => {
       user: {
         email: user.email,
         role: role?.roleName || user.role,
-        isPlatformAdmin: !!user.isPlatformAdmin,
+        isPlatformAdmin: isPlatformAdminUser(user),
         permissions: groupPermissions(role?.permissions || []),
         name: user.name || null,
         mobileNumber: user.mobileNumber || null,
@@ -300,7 +301,7 @@ exports.verifyTwoFactor = async (req, res) => {
       user: {
         email: user.email,
         role: role?.roleName || user.role,
-        isPlatformAdmin: !!user.isPlatformAdmin,
+        isPlatformAdmin: isPlatformAdminUser(user),
         permissions: groupPermissions(role?.permissions || []),
         name: user.name || null,
         mobileNumber: user.mobileNumber || null,
