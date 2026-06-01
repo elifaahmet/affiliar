@@ -62,6 +62,8 @@
     "payouts": "Paiements affiliés",
     "billing": "Plans & Facturation",
     "settings": "Paramètres",
+    "platform": "Administration Plateforme",
+    "operators": "Opérateurs",
     "new": "Nouveau",
     "edit": "Modifier"
   }

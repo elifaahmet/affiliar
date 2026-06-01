@@ -64,6 +64,8 @@
     "payouts": "Affiliate Payouts",
     "billing": "Plans & Billing",
     "settings": "Settings",
+    "platform": "Platform Admin",
+    "operators": "Operators",
     "new": "New",
     "edit": "Edit"
   },

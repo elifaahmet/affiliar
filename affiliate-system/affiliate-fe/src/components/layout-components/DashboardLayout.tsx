@@ -178,7 +178,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   if (userInfo?.isPlatformAdmin) {
     navigation.push({
       key: 'platform',
-      name: 'Platform Admin',
+      name: t('menuItems.platform') || 'Platform Admin',
       href: '/platform/operators',
       Icon: ShieldCheckIcon,
       current: pathname.startsWith('/platform'),
