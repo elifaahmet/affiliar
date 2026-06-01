@@ -5,17 +5,22 @@ const User                      = require("../models/User");
 const Brand                     = require("../models/Brand");
 const OperatorFinancialSettings = require("../models/OperatorFinancialSettings");
 const DiscountCode              = require("../models/DiscountCode");
+const BillingTransaction        = require("../models/BillingTransaction");
+const CommissionPlan            = require("../models/CommissionPlan");
 const { PLAN_ORDER }            = require("../utils/planLimits");
 const { sendOperatorInvite }    = require("../utils/mailer");
 const { logger }                = require("../middlewares/logger");
 
 // POST /admin/operators
 // Hexium-internal onboarding. Creates the Operator doc, an owner User in
-// `pending` status (activates via /auth/activate to set their password), one
-// default Brand, and an empty OperatorFinancialSettings row so the fees UI
-// renders without zeros on the first visit. Optionally pre-attaches a
-// discount code (e.g. negotiated BETAMERICANO200) so first checkout already
-// has the deal applied.
+// `pending` status (activates via /auth/activate to set their password),
+// and an empty OperatorFinancialSettings row so the fees UI renders without
+// zeros on the first visit. Brands and additional users are attached
+// afterwards via the per-operator admin sub-endpoints — keeping the create
+// step minimal avoids the half-created orphan failure mode where one
+// dependent insert blows up the whole flow. Optionally pre-attaches a
+// discount code (e.g. negotiated BETAMERICANO200) so first checkout
+// already has the deal applied.
 exports.createOperator = async (req, res) => {
   try {
     const {
@@ -25,14 +30,12 @@ exports.createOperator = async (req, res) => {
       ownerUsername,
       plan = "tier1",
       activeDiscountCode = "",
-      brandName,
-      brandUrl,
       mode = "pay_now",
     } = req.body || {};
 
-    if (!name || !ownerEmail || !ownerName || !ownerUsername || !brandName) {
+    if (!name || !ownerEmail || !ownerName || !ownerUsername) {
       return res.status(400).json({
-        error: "name, ownerEmail, ownerName, ownerUsername, brandName are required",
+        error: "name, ownerEmail, ownerName, ownerUsername are required",
       });
     }
     if (!PLAN_ORDER.includes(plan)) {
@@ -109,19 +112,6 @@ exports.createOperator = async (req, res) => {
       isDeleted: false,
     });
 
-    // Brand.id has a global unique index, so pick max + 1 across all brands
-    // (not per-operator) — otherwise the second operator's first brand
-    // collides on id=1.
-    const lastBrand = await Brand.findOne({}).sort({ id: -1 }).select({ id: 1 }).lean();
-    const nextBrandId = (lastBrand?.id ?? 0) + 1;
-    const brand = await Brand.create({
-      id: nextBrandId,
-      name: brandName.trim(),
-      url: brandUrl?.trim() || null,
-      enabled: true,
-      operatorId: ownerUser._id, // Brand.operatorId is the OPERATOR USER's _id
-    });
-
     // Empty defaults row so the Fees admin page renders with real values
     // (zeros, until the operator edits) rather than no document at all.
     // Brand-clone helper will copy this onto any future brand.
@@ -156,11 +146,6 @@ exports.createOperator = async (req, res) => {
         name: ownerUser.name,
         status: ownerUser.status,
       },
-      brand: {
-        _id: String(brand._id),
-        name: brand.name,
-        url: brand.url,
-      },
       activationUrl: `${process.env.APP_URL || ""}/activate?userId=${ownerUser._id}`,
     });
   } catch (err) {
@@ -168,12 +153,38 @@ exports.createOperator = async (req, res) => {
   }
 };
 
-// GET /admin/operators
+// GET /admin/operators?q=<text>
 // Hexium-internal list. Returns every operator + their owner user(s) so the
-// admin UI can show a quick directory.
+// admin UI can show a quick directory. Optional `q` filters by operator
+// name OR any owner-user email/username/name (case-insensitive substring).
 exports.listOperators = async (req, res) => {
   try {
-    const operators = await Operator.find({ isDeleted: { $ne: true } })
+    const q = String(req.query.q || "").trim();
+
+    // Build the base operator query, then narrow with an owner-side OR if
+    // there's a search term. We resolve the owner match first so we can OR
+    // operator-name with operator-id-in-owner-hits in a single Operator
+    // query (cheap, even with hundreds of operators).
+    const baseFilter = { isDeleted: { $ne: true } };
+    let filter = baseFilter;
+    if (q) {
+      const safe = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const rx = new RegExp(safe, "i");
+      const matchedOwners = await User.find({
+        role: "operator",
+        isDeleted: { $ne: true },
+        $or: [{ email: rx }, { username: rx }, { name: rx }],
+      })
+        .select({ operatorId: 1 })
+        .lean();
+      const ownerOperatorIds = matchedOwners.map((u) => u.operatorId).filter(Boolean);
+      filter = {
+        ...baseFilter,
+        $or: [{ name: rx }, { _id: { $in: ownerOperatorIds } }],
+      };
+    }
+
+    const operators = await Operator.find(filter)
       .sort({ createdAt: -1 })
       .lean();
 
@@ -205,6 +216,491 @@ exports.listOperators = async (req, res) => {
         owners: ownersByOp.get(String(o._id)) || [],
         createdAt: o.createdAt,
       })),
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+// Brand.operatorId historically references the OWNER USER's _id (not the
+// Operator doc). To list all brands for an operator we first collect the
+// operator's owner-user _ids, then query brands by that set.
+async function getOwnerUserIds(operatorId) {
+  const owners = await User.find({
+    operatorId,
+    role: "operator",
+    isDeleted: { $ne: true },
+  })
+    .select({ _id: 1 })
+    .lean();
+  return owners.map((u) => u._id);
+}
+
+async function loadOperatorOr404(req, res) {
+  const op = await Operator.findById(req.params.id).lean();
+  if (!op || op.isDeleted) {
+    res.status(404).json({ error: "Operator not found" });
+    return null;
+  }
+  return op;
+}
+
+// ── Operator detail / update ─────────────────────────────────────────────────
+
+// GET /admin/operators/:id
+// Single operator + owner users + brands + a few aggregate counts so the
+// detail page can render its header in one fetch.
+exports.getOperator = async (req, res) => {
+  try {
+    const operator = await loadOperatorOr404(req, res);
+    if (!operator) return;
+
+    const owners = await User.find({
+      operatorId: operator._id,
+      role: "operator",
+      isDeleted: { $ne: true },
+    })
+      .select("email name username status createdAt")
+      .lean();
+
+    const ownerIds = owners.map((u) => u._id);
+    const brands = await Brand.find({ operatorId: { $in: ownerIds } })
+      .select("id name url enabled createdAt operatorId")
+      .sort({ id: 1 })
+      .lean();
+
+    const [affiliateCount, transactionCount] = await Promise.all([
+      User.countDocuments({
+        operatorId: operator._id,
+        role: "affiliate",
+        isDeleted: { $ne: true },
+      }),
+      BillingTransaction.countDocuments({ operatorId: operator._id }),
+    ]);
+
+    return res.json({
+      operator: {
+        _id: String(operator._id),
+        id: operator.id,
+        name: operator.name,
+        plan: operator.plan,
+        billingStatus: operator.billingStatus,
+        activeDiscountCode: operator.activeDiscountCode || "",
+        billingCycle: operator.billingCycle,
+        nextBillingDate: operator.nextBillingDate,
+        trialEndsAt: operator.trialEndsAt,
+        pastDueAt: operator.pastDueAt,
+        affiliatePayoutSettings: operator.affiliatePayoutSettings || {
+          minPayoutCents: 0,
+          currency: "USD",
+        },
+        featureOverrides: operator.featureOverrides || {},
+        createdAt: operator.createdAt,
+        updatedAt: operator.updatedAt,
+      },
+      owners: owners.map((u) => ({
+        _id: String(u._id),
+        email: u.email,
+        name: u.name,
+        username: u.username,
+        status: u.status,
+        createdAt: u.createdAt,
+      })),
+      brands: brands.map((b) => ({
+        _id: String(b._id),
+        id: b.id,
+        name: b.name,
+        url: b.url,
+        enabled: b.enabled,
+        ownerUserId: String(b.operatorId),
+        createdAt: b.createdAt,
+      })),
+      counts: { affiliates: affiliateCount, transactions: transactionCount },
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// PATCH /admin/operators/:id
+// Whitelisted update: name, plan, activeDiscountCode, billingStatus,
+// featureOverrides, affiliatePayoutSettings, nextBillingDate. The platform
+// admin uses this to flip plans, attach/remove sticky discount codes,
+// suspend/restore, and grant per-operator feature flag overrides.
+exports.updateOperator = async (req, res) => {
+  try {
+    const operator = await loadOperatorOr404(req, res);
+    if (!operator) return;
+
+    const allowed = [
+      "name",
+      "plan",
+      "activeDiscountCode",
+      "billingStatus",
+      "featureOverrides",
+      "affiliatePayoutSettings",
+      "nextBillingDate",
+    ];
+    const updates = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    }
+
+    if (updates.plan && !PLAN_ORDER.includes(updates.plan)) {
+      return res.status(400).json({
+        error: `plan must be one of: ${PLAN_ORDER.join(", ")}`,
+      });
+    }
+    if (
+      updates.billingStatus &&
+      !["trial", "active", "past_due", "suspended", "cancelled"].includes(
+        updates.billingStatus,
+      )
+    ) {
+      return res.status(400).json({ error: "Invalid billingStatus" });
+    }
+    // Resolve discount code if changed — same validation as the create
+    // flow so a typoed code can't be saved.
+    if (
+      typeof updates.activeDiscountCode === "string" &&
+      updates.activeDiscountCode.trim() !== ""
+    ) {
+      const resolved = await DiscountCode.resolve(updates.activeDiscountCode);
+      if (!resolved.ok) {
+        return res.status(400).json({ error: `Discount code: ${resolved.error}` });
+      }
+      updates.activeDiscountCode = resolved.code.code;
+    }
+    if (updates.name) updates.name = String(updates.name).trim();
+    if (updates.nextBillingDate) {
+      const d = new Date(updates.nextBillingDate);
+      if (Number.isNaN(d.getTime())) {
+        return res.status(400).json({ error: "Invalid nextBillingDate" });
+      }
+      updates.nextBillingDate = d;
+    }
+
+    const next = await Operator.findByIdAndUpdate(operator._id, updates, {
+      new: true,
+    }).lean();
+    logger.info("platform_admin.operator.updated", {
+      operatorId: String(operator._id),
+      keys: Object.keys(updates),
+      by: String(req.affiliateUser?._id || ""),
+    });
+    return res.json({ operator: next });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// ── Brand sub-endpoints ──────────────────────────────────────────────────────
+
+// GET /admin/operators/:id/brands
+exports.listOperatorBrands = async (req, res) => {
+  try {
+    const operator = await loadOperatorOr404(req, res);
+    if (!operator) return;
+    const ownerIds = await getOwnerUserIds(operator._id);
+    const brands = await Brand.find({ operatorId: { $in: ownerIds } })
+      .sort({ id: 1 })
+      .lean();
+    return res.json({ brands });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /admin/operators/:id/brands
+exports.createOperatorBrand = async (req, res) => {
+  try {
+    const operator = await loadOperatorOr404(req, res);
+    if (!operator) return;
+
+    const { name, url } = req.body || {};
+    if (!name) return res.status(400).json({ error: "name is required" });
+
+    const ownerIds = await getOwnerUserIds(operator._id);
+    if (ownerIds.length === 0) {
+      return res.status(400).json({
+        error: "Operator has no owner users to attribute the brand to",
+      });
+    }
+
+    // Brand.id is GLOBALLY unique.
+    const last = await Brand.findOne({}).sort({ id: -1 }).select({ id: 1 }).lean();
+    const nextId = (last?.id ?? 0) + 1;
+
+    const brand = await Brand.create({
+      id: nextId,
+      name: String(name).trim(),
+      url: url ? String(url).trim() : null,
+      enabled: true,
+      // Brand.operatorId references the OWNER USER (legacy convention).
+      // Attribute to the first/primary owner user.
+      operatorId: ownerIds[0],
+    });
+    return res.status(201).json({ brand });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// PATCH /admin/operators/:id/brands/:brandId
+exports.updateOperatorBrand = async (req, res) => {
+  try {
+    const operator = await loadOperatorOr404(req, res);
+    if (!operator) return;
+    const ownerIds = await getOwnerUserIds(operator._id);
+
+    const brand = await Brand.findOne({
+      _id: req.params.brandId,
+      operatorId: { $in: ownerIds },
+    });
+    if (!brand) return res.status(404).json({ error: "Brand not found" });
+
+    const allowed = ["name", "url", "enabled"];
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) brand[key] = req.body[key];
+    }
+    if (typeof brand.name === "string") brand.name = brand.name.trim();
+    if (typeof brand.url === "string") brand.url = brand.url.trim() || null;
+    await brand.save();
+    return res.json({ brand });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// ── User sub-endpoints ───────────────────────────────────────────────────────
+
+// GET /admin/operators/:id/users
+exports.listOperatorUsers = async (req, res) => {
+  try {
+    const operator = await loadOperatorOr404(req, res);
+    if (!operator) return;
+    const users = await User.find({
+      operatorId: operator._id,
+      role: "operator",
+      isDeleted: { $ne: true },
+    })
+      .select("email name username status createdAt")
+      .sort({ createdAt: 1 })
+      .lean();
+    return res.json({ users });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /admin/operators/:id/users
+// Add an additional operator-role user under this operator. Same pending →
+// activation-email flow as the original owner so the new account holder
+// can set their own password.
+exports.createOperatorUser = async (req, res) => {
+  try {
+    const operator = await loadOperatorOr404(req, res);
+    if (!operator) return;
+
+    const { email, name, username } = req.body || {};
+    if (!email || !name || !username) {
+      return res.status(400).json({ error: "email, name, username are required" });
+    }
+
+    const existing = await User.findOne({
+      $or: [{ email: email.toLowerCase().trim() }, { username: username.trim() }],
+      isDeleted: false,
+    });
+    if (existing) {
+      return res.status(409).json({ error: "Email or username already taken" });
+    }
+
+    const newUser = await User.create({
+      email: email.toLowerCase().trim(),
+      username: username.trim(),
+      name: name.trim(),
+      password: "PENDING",
+      role: "operator",
+      status: "pending",
+      operatorId: operator._id,
+      isDeleted: false,
+    });
+
+    sendOperatorInvite({
+      to: newUser.email,
+      name: newUser.name,
+      userId: newUser._id.toString(),
+      operatorName: operator.name,
+      planName: operator.plan,
+    }).catch((err) => {
+      logger.error("platform_admin.operator_user_invite.mail_failed", {
+        error: err?.message,
+      });
+    });
+
+    return res.status(201).json({
+      user: {
+        _id: String(newUser._id),
+        email: newUser.email,
+        username: newUser.username,
+        name: newUser.name,
+        status: newUser.status,
+      },
+      activationUrl: `${process.env.APP_URL || ""}/activate?userId=${newUser._id}`,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// ── Read-only operator-side mirrors ──────────────────────────────────────────
+
+// GET /admin/operators/:id/affiliates
+// Read-only list of all affiliate-role users under this operator, with
+// parent + sub-affiliate counts for the directory view.
+exports.listOperatorAffiliates = async (req, res) => {
+  try {
+    const operator = await loadOperatorOr404(req, res);
+    if (!operator) return;
+    const affiliates = await User.find({
+      operatorId: operator._id,
+      role: "affiliate",
+      isDeleted: { $ne: true },
+    })
+      .select("email name username status parentAffiliateId createdAt")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Cheap sub-affiliate counts so the directory can show a "+N subs" badge.
+    const subCounts = await User.aggregate([
+      {
+        $match: {
+          operatorId: operator._id,
+          role: "affiliate",
+          isDeleted: { $ne: true },
+          parentAffiliateId: { $ne: null },
+        },
+      },
+      { $group: { _id: "$parentAffiliateId", n: { $sum: 1 } } },
+    ]);
+    const subCountByParent = new Map(
+      subCounts.map((row) => [String(row._id), row.n]),
+    );
+
+    return res.json({
+      affiliates: affiliates.map((a) => ({
+        _id: String(a._id),
+        email: a.email,
+        name: a.name,
+        username: a.username,
+        status: a.status,
+        parentAffiliateId: a.parentAffiliateId ? String(a.parentAffiliateId) : null,
+        subAffiliateCount: subCountByParent.get(String(a._id)) || 0,
+        createdAt: a.createdAt,
+      })),
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// GET /admin/operators/:id/billing
+// Recent billing transactions + the operator's current billing snapshot.
+// Mirrors what the operator sees on their own /billing page so the admin
+// can debug payment issues without having to log in as them.
+exports.getOperatorBilling = async (req, res) => {
+  try {
+    const operator = await loadOperatorOr404(req, res);
+    if (!operator) return;
+
+    const transactions = await BillingTransaction.find({
+      operatorId: operator._id,
+    })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+
+    return res.json({
+      billingStatus: operator.billingStatus,
+      plan: operator.plan,
+      billingCycle: operator.billingCycle,
+      nextBillingDate: operator.nextBillingDate,
+      trialEndsAt: operator.trialEndsAt,
+      pastDueAt: operator.pastDueAt,
+      activeDiscountCode: operator.activeDiscountCode || "",
+      transactions,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// GET /admin/operators/:id/commission-plans
+exports.listOperatorCommissionPlans = async (req, res) => {
+  try {
+    const operator = await loadOperatorOr404(req, res);
+    if (!operator) return;
+    const plans = await CommissionPlan.find({ operatorId: operator._id })
+      .sort({ isDefault: -1, createdAt: -1 })
+      .lean();
+    return res.json({ plans });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// ── Cross-operator brand directory ───────────────────────────────────────────
+
+// GET /admin/brands?q=<text>
+// Flat list of every brand across operators with an optional name/url
+// filter. Joins each brand back to its operator so the directory shows
+// which tenant a brand belongs to.
+exports.listAllBrands = async (req, res) => {
+  try {
+    const q = String(req.query.q || "").trim();
+    const brandFilter = {};
+    if (q) {
+      const safe = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const rx = new RegExp(safe, "i");
+      brandFilter.$or = [{ name: rx }, { url: rx }];
+    }
+
+    const brands = await Brand.find(brandFilter).sort({ createdAt: -1 }).lean();
+
+    // Resolve Brand → owner User → Operator. Brand.operatorId references
+    // the owner user historically, so two hops to get the tenant.
+    const ownerIds = [...new Set(brands.map((b) => String(b.operatorId)))];
+    const owners = await User.find({ _id: { $in: ownerIds } })
+      .select({ _id: 1, operatorId: 1 })
+      .lean();
+    const ownerToOperator = new Map(
+      owners.map((u) => [String(u._id), u.operatorId]),
+    );
+
+    const operatorIds = [...new Set(owners.map((u) => String(u.operatorId)))];
+    const operators = await Operator.find({ _id: { $in: operatorIds } })
+      .select({ _id: 1, id: 1, name: 1 })
+      .lean();
+    const operatorById = new Map(operators.map((o) => [String(o._id), o]));
+
+    return res.json({
+      brands: brands.map((b) => {
+        const opId = ownerToOperator.get(String(b.operatorId));
+        const op = opId ? operatorById.get(String(opId)) : null;
+        return {
+          _id: String(b._id),
+          id: b.id,
+          name: b.name,
+          url: b.url,
+          enabled: b.enabled,
+          createdAt: b.createdAt,
+          operator: op
+            ? { _id: String(op._id), id: op.id, name: op.name }
+            : null,
+        };
+      }),
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });

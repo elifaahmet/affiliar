@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { PLATFORM_ADMIN_API_URLS } from 'config/apiUrls';
@@ -35,9 +36,15 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function PlatformOperators() {
+  // Local input for typing; `applied` is what the request key uses so each
+  // keystroke doesn't fire its own fetch. Enter or the Search button copies
+  // it across; clearing the input also clears the applied filter.
+  const [filter, setFilter] = useState('');
+  const [applied, setApplied] = useState('');
+
   const { data, isLoading, isError } = useBaseQuery<OperatorsResponse>({
-    endpoint: PLATFORM_ADMIN_API_URLS.LIST_OPERATORS(),
-    queryKey: ['platform-operators'],
+    endpoint: PLATFORM_ADMIN_API_URLS.LIST_OPERATORS(applied || undefined),
+    queryKey: ['platform-operators', applied],
   });
 
   const operators = data?.operators ?? [];
@@ -59,6 +66,37 @@ export default function PlatformOperators() {
         </Link>
       </div>
 
+      <form
+        onSubmit={(e) => { e.preventDefault(); setApplied(filter.trim()); }}
+        className='flex items-center gap-2'
+      >
+        <input
+          type='search'
+          value={filter}
+          onChange={(e) => {
+            setFilter(e.target.value);
+            if (e.target.value === '') setApplied('');
+          }}
+          placeholder='Search operator name, owner email or username…'
+          className='flex-1 max-w-md text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary bg-white'
+        />
+        <button
+          type='submit'
+          className='rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50'
+        >
+          Search
+        </button>
+        {applied && (
+          <button
+            type='button'
+            onClick={() => { setFilter(''); setApplied(''); }}
+            className='text-xs text-gray-500 hover:text-gray-700'
+          >
+            Clear
+          </button>
+        )}
+      </form>
+
       <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
         {isLoading && (
           <div className='p-8 text-center text-sm text-gray-600'>Loading…</div>
@@ -68,7 +106,9 @@ export default function PlatformOperators() {
         )}
         {!isLoading && !isError && operators.length === 0 && (
           <div className='p-8 text-center text-sm text-gray-600'>
-            No operators yet. Use “+ New operator” to onboard the first one.
+            {applied
+              ? <>No operators match "<b>{applied}</b>".</>
+              : <>No operators yet. Use "+ New operator" to onboard the first one.</>}
           </div>
         )}
         {!isLoading && !isError && operators.length > 0 && (
@@ -83,13 +123,16 @@ export default function PlatformOperators() {
                   <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Owner</th>
                   <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Next billing</th>
                   <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Created</th>
+                  <th className='px-4 py-3'></th>
                 </tr>
               </thead>
               <tbody className='divide-y divide-gray-100'>
                 {operators.map((op, i) => (
                   <tr key={op._id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                     <td className='px-4 py-3 text-xs text-gray-800 font-medium whitespace-nowrap'>
-                      {op.name}
+                      <Link to={`/platform/operators/${op._id}`} className='hover:text-primary hover:underline'>
+                        {op.name}
+                      </Link>
                     </td>
                     <td className='px-4 py-3 text-xs text-gray-700 capitalize'>{op.plan}</td>
                     <td className='px-4 py-3'>
@@ -106,6 +149,9 @@ export default function PlatformOperators() {
                       {op.owners[0]
                         ? <span>{op.owners[0].name} <span className='text-gray-500'>· {op.owners[0].email}</span></span>
                         : <span className='text-gray-500'>—</span>}
+                      {op.owners.length > 1 && (
+                        <span className='ml-1 text-gray-500'>+{op.owners.length - 1}</span>
+                      )}
                     </td>
                     <td className='px-4 py-3 text-xs text-gray-700'>
                       {op.nextBillingDate
@@ -116,6 +162,11 @@ export default function PlatformOperators() {
                     </td>
                     <td className='px-4 py-3 text-xs text-gray-700'>
                       {op.createdAt ? new Date(op.createdAt).toLocaleDateString('en-GB') : '—'}
+                    </td>
+                    <td className='px-4 py-3 text-xs text-right'>
+                      <Link to={`/platform/operators/${op._id}`} className='text-primary hover:underline'>
+                        Manage →
+                      </Link>
                     </td>
                   </tr>
                 ))}

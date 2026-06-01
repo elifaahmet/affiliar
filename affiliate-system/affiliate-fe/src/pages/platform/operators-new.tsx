@@ -19,7 +19,6 @@ interface CreateOperatorResponse {
     activeDiscountCode: string;
   };
   owner: { _id: string; email: string };
-  brand: { _id: string; name: string };
   activationUrl: string;
 }
 
@@ -31,8 +30,6 @@ export default function PlatformOperatorsNew() {
   const [ownerUsername, setOwnerUsername]         = useState('');
   const [plan, setPlan]                           = useState('tier1');
   const [activeDiscountCode, setActiveDiscountCode] = useState('');
-  const [brandName, setBrandName]                 = useState('');
-  const [brandUrl, setBrandUrl]                   = useState('');
   const [mode, setMode]                           = useState<'pay_now' | 'trial'>('pay_now');
   const [error, setError]                         = useState<string | null>(null);
   const [result, setResult]                       = useState<CreateOperatorResponse | null>(null);
@@ -56,8 +53,6 @@ export default function PlatformOperatorsNew() {
       ownerUsername: ownerUsername.trim(),
       plan,
       activeDiscountCode: activeDiscountCode.trim() || undefined,
-      brandName: brandName.trim(),
-      brandUrl: brandUrl.trim() || undefined,
       mode,
     });
   };
@@ -80,7 +75,9 @@ export default function PlatformOperatorsNew() {
             {result.operator.activeDiscountCode && (
               <div><span className='text-gray-600'>Discount:</span> <code className='bg-violet-50 px-1 rounded'>{result.operator.activeDiscountCode}</code></div>
             )}
-            <div><span className='text-gray-600'>First brand:</span> {result.brand.name}</div>
+            <div className='text-xs text-gray-600 pt-1'>
+              Brands and additional accounts are attached from the operator detail page after activation.
+            </div>
             <div className='pt-2 border-t border-gray-100'>
               <span className='text-gray-600'>Activation URL:</span>
               <p className='font-mono text-xs break-all text-violet-700 mt-1'>{result.activationUrl}</p>
@@ -156,11 +153,9 @@ export default function PlatformOperatorsNew() {
             <Field label='Name *' value={ownerName} onChange={setOwnerName} placeholder='Jane Doe' required />
             <Field label='Email *' value={ownerEmail} onChange={setOwnerEmail} placeholder='jane@betamericano.com' type='email' required />
             <Field label='Username *' value={ownerUsername} onChange={setOwnerUsername} placeholder='janedoe' required />
-          </Section>
-
-          <Section title='First brand'>
-            <Field label='Brand name *' value={brandName} onChange={setBrandName} placeholder='Betamericano' required />
-            <Field label='Brand URL (optional)' value={brandUrl} onChange={setBrandUrl} placeholder='https://betamericano.com' />
+            <p className='text-xs text-gray-600 pt-1'>
+              Additional accounts can be added from the operator detail page once this one's activated.
+            </p>
           </Section>
 
           {error && <p className='text-sm text-red-600'>{error}</p>}

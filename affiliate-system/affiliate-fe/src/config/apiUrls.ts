@@ -380,6 +380,22 @@ export const AFFILIATE_PLAYERS_API_URLS = {
 // `isPlatformAdmin: true` on the calling user. The sidebar entry is also
 // hidden unless the flag is set.
 export const PLATFORM_ADMIN_API_URLS = {
-  LIST_OPERATORS:   () => `${API_BASE_URL}api/admin/operators`,
-  CREATE_OPERATOR:  () => `${API_BASE_URL}api/admin/operators`,
+  LIST_OPERATORS:    (q?: string) =>
+    `${API_BASE_URL}api/admin/operators${q ? `?q=${encodeURIComponent(q)}` : ""}`,
+  CREATE_OPERATOR:   () => `${API_BASE_URL}api/admin/operators`,
+  GET_OPERATOR:      (id: string) => `${API_BASE_URL}api/admin/operators/${id}`,
+  UPDATE_OPERATOR:   (id: string) => `${API_BASE_URL}api/admin/operators/${id}`,
+  LIST_BRANDS_FOR:   (id: string) => `${API_BASE_URL}api/admin/operators/${id}/brands`,
+  CREATE_BRAND_FOR:  (id: string) => `${API_BASE_URL}api/admin/operators/${id}/brands`,
+  UPDATE_BRAND_FOR:  (id: string, brandId: string) =>
+    `${API_BASE_URL}api/admin/operators/${id}/brands/${brandId}`,
+  LIST_USERS_FOR:    (id: string) => `${API_BASE_URL}api/admin/operators/${id}/users`,
+  CREATE_USER_FOR:   (id: string) => `${API_BASE_URL}api/admin/operators/${id}/users`,
+  LIST_AFFILIATES_FOR: (id: string) =>
+    `${API_BASE_URL}api/admin/operators/${id}/affiliates`,
+  GET_BILLING_FOR:   (id: string) => `${API_BASE_URL}api/admin/operators/${id}/billing`,
+  LIST_COMMISSION_PLANS_FOR: (id: string) =>
+    `${API_BASE_URL}api/admin/operators/${id}/commission-plans`,
+  LIST_ALL_BRANDS:   (q?: string) =>
+    `${API_BASE_URL}api/admin/brands${q ? `?q=${encodeURIComponent(q)}` : ""}`,
 };
