@@ -391,6 +391,10 @@ export const PLATFORM_ADMIN_API_URLS = {
     `${API_BASE_URL}api/admin/operators/${id}/brands/${brandId}`,
   LIST_USERS_FOR:    (id: string) => `${API_BASE_URL}api/admin/operators/${id}/users`,
   CREATE_USER_FOR:   (id: string) => `${API_BASE_URL}api/admin/operators/${id}/users`,
+  REMOVE_USER_FOR:   (id: string, userId: string) =>
+    `${API_BASE_URL}api/admin/operators/${id}/users/${userId}`,
+  RESTORE_USER_FOR:  (id: string, userId: string) =>
+    `${API_BASE_URL}api/admin/operators/${id}/users/${userId}/restore`,
   LIST_AFFILIATES_FOR: (id: string) =>
     `${API_BASE_URL}api/admin/operators/${id}/affiliates`,
   GET_BILLING_FOR:   (id: string) => `${API_BASE_URL}api/admin/operators/${id}/billing`,

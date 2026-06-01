@@ -25,6 +25,8 @@ router.patch("/operators/:id/brands/:brandId", ctrl.updateOperatorBrand);
 // User sub-endpoints (operator-role users only — owner + later additions)
 router.get("/operators/:id/users",  ctrl.listOperatorUsers);
 router.post("/operators/:id/users", ctrl.createOperatorUser);
+router.delete("/operators/:id/users/:userId",         ctrl.removeOperatorUser);
+router.post("/operators/:id/users/:userId/restore",   ctrl.restoreOperatorUser);
 
 // Read-only mirrors of what the operator sees on their own panel
 router.get("/operators/:id/affiliates",        ctrl.listOperatorAffiliates);

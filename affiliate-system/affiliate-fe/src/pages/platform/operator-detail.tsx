@@ -13,6 +13,7 @@ interface OperatorOwner {
   username: string;
   status: string;
   createdAt: string;
+  isDeleted?: boolean;
 }
 interface OperatorBrand {
   _id: string;
@@ -424,6 +425,27 @@ function BrandModal({ id, brand, onClose, onSaved }: { id: string; brand?: Opera
 
 function UsersTab({ id, owners, onChange }: { id: string; owners: OperatorOwner[]; onChange: () => void }) {
   const [showAdd, setShowAdd] = useState(false);
+  // Confirm dialog state — null = no dialog, otherwise the row we'd act on.
+  const [confirm, setConfirm] = useState<{ user: OperatorOwner; action: 'remove' | 'restore' } | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const removeMutation = useBaseMutation({
+    endpoint: confirm?.user ? PLATFORM_ADMIN_API_URLS.REMOVE_USER_FOR(id, confirm.user._id) : '',
+    method: 'delete',
+    invalidateKeys: ['platform-operator', id],
+    onSuccess: () => { setConfirm(null); onChange(); },
+    onError: (e: any) => setActionError(e?.response?.data?.error ?? 'Remove failed'),
+  });
+  const restoreMutation = useBaseMutation({
+    endpoint: confirm?.user ? PLATFORM_ADMIN_API_URLS.RESTORE_USER_FOR(id, confirm.user._id) : '',
+    method: 'post',
+    invalidateKeys: ['platform-operator', id],
+    onSuccess: () => { setConfirm(null); onChange(); },
+    onError: (e: any) => setActionError(e?.response?.data?.error ?? 'Restore failed'),
+  });
+
+  const activeCount = owners.filter((u) => !u.isDeleted).length;
+  const sorted = [...owners].sort((a, b) => Number(!!a.isDeleted) - Number(!!b.isDeleted));
 
   return (
     <div className='space-y-4'>
@@ -446,20 +468,49 @@ function UsersTab({ id, owners, onChange }: { id: string; owners: OperatorOwner[
               <th className='px-4 py-2 text-left'>Username</th>
               <th className='px-4 py-2 text-left'>Status</th>
               <th className='px-4 py-2 text-left'>Joined</th>
+              <th className='px-4 py-2 text-right'></th>
             </tr>
           </thead>
           <tbody className='divide-y divide-gray-100 text-xs text-gray-700'>
-            {owners.map((u) => (
-              <tr key={u._id}>
-                <td className='px-4 py-2 font-medium'>{u.name}</td>
-                <td className='px-4 py-2'>{u.email}</td>
-                <td className='px-4 py-2 font-mono'>{u.username}</td>
+            {sorted.map((u) => (
+              <tr key={u._id} className={u.isDeleted ? 'bg-gray-50/60 text-gray-500' : ''}>
+                <td className='px-4 py-2 font-medium'>
+                  <span className={u.isDeleted ? 'line-through' : ''}>{u.name}</span>
+                  {u.isDeleted && (
+                    <span className='ml-2 inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 not-italic no-underline'>
+                      Deleted
+                    </span>
+                  )}
+                </td>
+                <td className={`px-4 py-2 ${u.isDeleted ? 'line-through' : ''}`}>{u.email}</td>
+                <td className={`px-4 py-2 font-mono ${u.isDeleted ? 'line-through' : ''}`}>{u.username}</td>
                 <td className='px-4 py-2'>
-                  <span className={u.status === 'pending' ? 'text-amber-700' : 'text-green-700'}>
-                    {u.status}
-                  </span>
+                  {u.isDeleted
+                    ? <span className='text-gray-500'>—</span>
+                    : <span className={u.status === 'pending' ? 'text-amber-700' : 'text-green-700'}>{u.status}</span>}
                 </td>
                 <td className='px-4 py-2'>{new Date(u.createdAt).toLocaleDateString('en-GB')}</td>
+                <td className='px-4 py-2 text-right'>
+                  {u.isDeleted ? (
+                    <button
+                      type='button'
+                      onClick={() => { setActionError(null); setConfirm({ user: u, action: 'restore' }); }}
+                      className='text-xs font-medium text-primary hover:underline'
+                    >
+                      Restore
+                    </button>
+                  ) : (
+                    <button
+                      type='button'
+                      onClick={() => { setActionError(null); setConfirm({ user: u, action: 'remove' }); }}
+                      disabled={activeCount <= 1}
+                      title={activeCount <= 1 ? 'Last active account — invite a replacement first.' : ''}
+                      className='text-xs font-medium text-red-600 hover:underline disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed'
+                    >
+                      Remove
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -472,6 +523,52 @@ function UsersTab({ id, owners, onChange }: { id: string; owners: OperatorOwner[
           onClose={() => setShowAdd(false)}
           onSaved={() => { setShowAdd(false); onChange(); }}
         />
+      )}
+
+      {confirm && (
+        <Modal
+          title={confirm.action === 'remove' ? 'Remove account?' : 'Restore account?'}
+          onClose={() => setConfirm(null)}
+        >
+          <div className='space-y-4 text-sm text-gray-700'>
+            {confirm.action === 'remove' ? (
+              <p>
+                <b>{confirm.user.name}</b> ({confirm.user.email}) hesabını kaldıracaksın. Login engellenir
+                ama veriler korunur — istediğinde Restore'la geri açabilirsin.
+              </p>
+            ) : (
+              <p>
+                <b>{confirm.user.name}</b> ({confirm.user.email}) hesabını tekrar aktifleştirecek. Eski şifresiyle
+                login edebilir.
+              </p>
+            )}
+            {actionError && <p className='text-sm text-red-600'>{actionError}</p>}
+            <div className='flex justify-end gap-2'>
+              <button
+                type='button'
+                onClick={() => setConfirm(null)}
+                className='rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50'
+              >
+                Cancel
+              </button>
+              <button
+                type='button'
+                disabled={removeMutation.isPending || restoreMutation.isPending}
+                onClick={() => {
+                  if (confirm.action === 'remove') removeMutation.mutate({});
+                  else restoreMutation.mutate({});
+                }}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 ${
+                  confirm.action === 'remove' ? 'bg-red-600 hover:bg-red-700' : 'bg-primary hover:bg-primary-dark'
+                }`}
+              >
+                {removeMutation.isPending || restoreMutation.isPending
+                  ? 'Working…'
+                  : confirm.action === 'remove' ? 'Remove' : 'Restore'}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

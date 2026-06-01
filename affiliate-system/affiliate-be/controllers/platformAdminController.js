@@ -243,12 +243,14 @@ exports.getOperator = async (req, res) => {
     const operator = await loadOperatorOr404(req, res);
     if (!operator) return;
 
+    // Return both active and soft-deleted accounts so the detail header
+    // counts match the Users tab (which lists removed accounts inline with
+    // a Deleted badge).
     const owners = await User.find({
       operatorId: operator._id,
       role: "operator",
-      isDeleted: { $ne: true },
     })
-      .select("email name username status createdAt")
+      .select("email name username status createdAt isDeleted")
       .lean();
 
     const brands = await Brand.find({ operatorId: operator._id })
@@ -292,6 +294,7 @@ exports.getOperator = async (req, res) => {
         username: u.username,
         status: u.status,
         createdAt: u.createdAt,
+        isDeleted: !!u.isDeleted,
       })),
       brands: brands.map((b) => ({
         _id: String(b._id),
@@ -450,6 +453,10 @@ exports.updateOperatorBrand = async (req, res) => {
 // ── User sub-endpoints ───────────────────────────────────────────────────────
 
 // GET /admin/operators/:id/users
+// Returns operator-role accounts both active and soft-deleted, so the FE
+// can render removed accounts with a "Deleted" badge and offer a restore
+// action. The list/detail callers in the operator-side panel still filter
+// `isDeleted: { $ne: true }`; this endpoint is admin-only.
 exports.listOperatorUsers = async (req, res) => {
   try {
     const operator = await loadOperatorOr404(req, res);
@@ -457,10 +464,9 @@ exports.listOperatorUsers = async (req, res) => {
     const users = await User.find({
       operatorId: operator._id,
       role: "operator",
-      isDeleted: { $ne: true },
     })
-      .select("email name username status createdAt")
-      .sort({ createdAt: 1 })
+      .select("email name username status createdAt isDeleted")
+      .sort({ isDeleted: 1, createdAt: 1 })
       .lean();
     return res.json({ users });
   } catch (err) {
@@ -522,6 +528,114 @@ exports.createOperatorUser = async (req, res) => {
         status: newUser.status,
       },
       activationUrl: `${process.env.APP_URL || ""}/activate?userId=${newUser._id}`,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// Loads an operator-role user (any status, including soft-deleted) and
+// asserts it belongs to the operator in the URL. 404 otherwise. Both the
+// remove and restore endpoints share this so the cross-operator check
+// can't drift.
+async function loadOperatorUserOr404(req, res, operator) {
+  const user = await User.findOne({
+    _id: req.params.userId,
+    operatorId: operator._id,
+    role: "operator",
+  });
+  if (!user) {
+    res.status(404).json({ error: "User not found under this operator" });
+    return null;
+  }
+  return user;
+}
+
+// DELETE /admin/operators/:id/users/:userId
+// Soft-delete. Won't remove the last remaining active owner so the
+// operator never ends up locked out — restore another account first or
+// invite a replacement, then delete.
+exports.removeOperatorUser = async (req, res) => {
+  try {
+    const operator = await loadOperatorOr404(req, res);
+    if (!operator) return;
+
+    const user = await loadOperatorUserOr404(req, res, operator);
+    if (!user) return;
+
+    if (user.isDeleted) {
+      return res.status(409).json({ error: "User is already removed" });
+    }
+
+    const activeCount = await User.countDocuments({
+      operatorId: operator._id,
+      role: "operator",
+      isDeleted: { $ne: true },
+    });
+    if (activeCount <= 1) {
+      return res.status(400).json({
+        error:
+          "Can't remove the last active operator account — invite a replacement first.",
+      });
+    }
+
+    user.isDeleted = true;
+    await user.save();
+
+    logger.info("platform_admin.operator_user.removed", {
+      operatorId: String(operator._id),
+      userId: String(user._id),
+      by: String(req.affiliateUser?._id || ""),
+    });
+
+    return res.json({
+      user: {
+        _id: String(user._id),
+        email: user.email,
+        name: user.name,
+        username: user.username,
+        status: user.status,
+        isDeleted: true,
+      },
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /admin/operators/:id/users/:userId/restore
+// Re-activates a soft-deleted operator account. Doesn't touch their
+// password / activation state — same login behaviour they had before.
+exports.restoreOperatorUser = async (req, res) => {
+  try {
+    const operator = await loadOperatorOr404(req, res);
+    if (!operator) return;
+
+    const user = await loadOperatorUserOr404(req, res, operator);
+    if (!user) return;
+
+    if (!user.isDeleted) {
+      return res.status(409).json({ error: "User is already active" });
+    }
+
+    user.isDeleted = false;
+    await user.save();
+
+    logger.info("platform_admin.operator_user.restored", {
+      operatorId: String(operator._id),
+      userId: String(user._id),
+      by: String(req.affiliateUser?._id || ""),
+    });
+
+    return res.json({
+      user: {
+        _id: String(user._id),
+        email: user.email,
+        name: user.name,
+        username: user.username,
+        status: user.status,
+        isDeleted: false,
+      },
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
