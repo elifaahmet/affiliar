@@ -4,7 +4,15 @@ const Operator = require("../../models/Operator");
 const User = require("../../models/User");
 const BillingTransaction = require("../../models/BillingTransaction");
 const DiscountCode = require("../../models/DiscountCode");
-const { PLAN_PRICES_USD } = require("../../utils/planLimits");
+const { PLAN_PRICES_USD, PLAN_ORDER } = require("../../utils/planLimits");
+
+// fixed_fx discount codes are negotiated top-tier deals (e.g. "€800 flat for
+// Pro"). Applying them to lower plans would either reverse-discount (pro
+// $1799 → €800 ≈ $932 is genuine savings, but plus $494 → $932 would be a
+// price *hike*) or look like a steal across the whole pricing ladder. Lock
+// them to the most expensive plan; lower plans transparently fall back to
+// list price.
+const FIXED_FX_PLAN = PLAN_ORDER[PLAN_ORDER.length - 1];
 const { logger } = require("../../middlewares/logger");
 
 // Read a USD-per-{currency} rate from the daily FX feed (jobs/fxRatesJob.js).
@@ -115,10 +123,10 @@ async function getSansToken(operatorId, operatorUser) {
 // return a clean 400.
 //
 // Two discount shapes:
-//   fixed_usd → amount = max(0, planPrice − amountUsd)
-//   fixed_fx  → amount = round(priceAmountCents/100 × FX(priceCurrency→USD));
-//               planPrice is ignored entirely. A snapshot of the rate is
-//               returned so the caller can persist it on the transaction.
+//   fixed_usd → amount = max(0, planPrice − amountUsd) on every plan.
+//   fixed_fx  → amount = round(priceAmountCents/100 × FX(priceCurrency→USD))
+//               but ONLY on FIXED_FX_PLAN (the top tier). On any other plan
+//               the code is a transparent no-op — list price stands.
 async function resolvePlanAmount({ plan, discountCode }) {
   const planPrice = PLAN_PRICES_USD[plan];
   if (!planPrice) {
@@ -146,6 +154,16 @@ async function resolvePlanAmount({ plan, discountCode }) {
       const err = new Error("Discount code is misconfigured");
       err.status = 500;
       throw err;
+    }
+    // Lower-tier plans transparently fall through to list price.
+    if (plan !== FIXED_FX_PLAN) {
+      return {
+        planPrice,
+        discountUsd: 0,
+        amount: planPrice,
+        resolvedCode: "",
+        discountFx: null,
+      };
     }
     const fx = await fetchFxToUsd(codeDoc.priceCurrency);
     if (!fx) {
@@ -562,9 +580,14 @@ const billingController = {
   // Read-only preview of a discount code so the billing page can show the
   // adjusted price before the operator commits to a payment. Returns the
   // shape needed to render both styles:
-  //   fixed_usd → { valid, kind:'fixed_usd', code, amountUsd }
+  //   fixed_usd → { valid, kind:'fixed_usd', code, amountUsd, applicablePlans }
   //   fixed_fx  → { valid, kind:'fixed_fx',  code, baseAmountCents,
-  //                  baseCurrency, finalAmountUsd, fxRate, fxDate }
+  //                  baseCurrency, finalAmountUsd, fxRate, fxDate,
+  //                  applicablePlans }
+  // `applicablePlans` is the closed list of plan keys the code actually
+  // discounts. Empty/missing means "all plans" (legacy fixed_usd behaviour);
+  // fixed_fx codes always restrict to the top tier so the FE can render the
+  // sticker / strikethrough on the right card only.
   validateDiscount: async (req, res) => {
     try {
       const resolved = await DiscountCode.resolve(req.body.code);
@@ -589,6 +612,7 @@ const billingController = {
           finalAmountUsd:  Math.round((c.priceAmountCents / 100) * fx.value),
           fxRate:          fx.value,
           fxDate:          fx.date,
+          applicablePlans: [FIXED_FX_PLAN],
         });
       }
       return res.json({
@@ -596,6 +620,7 @@ const billingController = {
         kind: "fixed_usd",
         code: c.code,
         amountUsd: c.amountUsd,
+        applicablePlans: [],
       });
     } catch (err) {
       return res.status(500).json({ error: err.message });

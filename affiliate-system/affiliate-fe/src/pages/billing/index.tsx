@@ -58,11 +58,13 @@ interface DiscountResult {
   finalAmountUsd?: number;
   fxRate?: number;
   fxDate?: string;
+  // Closed list of plan keys the code discounts. Empty / missing = all plans.
+  applicablePlans?: string[];
   error?: string;
 }
 
 type AppliedDiscount =
-  | { kind: 'fixed_usd'; code: string; amountUsd: number }
+  | { kind: 'fixed_usd'; code: string; amountUsd: number; applicablePlans: string[] }
   | {
       kind: 'fixed_fx';
       code: string;
@@ -70,7 +72,14 @@ type AppliedDiscount =
       baseAmountCents: number;
       baseCurrency: string;
       fxRate: number;
+      applicablePlans: string[];
     };
+
+// True when the discount can be applied to this plan key. An empty list
+// means "all plans" (the legacy fixed_usd behaviour).
+function discountAppliesTo(d: AppliedDiscount, planKey: string): boolean {
+  return d.applicablePlans.length === 0 || d.applicablePlans.includes(planKey);
+}
 
 /* ── Plan catalogue (mirrors affiliate-be/utils/planLimits.js) ──────────
    Feature copy is marketing content and intentionally lives here so the
@@ -255,6 +264,7 @@ export default function Billing() {
               baseAmountCents: r.baseAmountCents ?? 0,
               baseCurrency:    r.baseCurrency ?? '',
               fxRate:          r.fxRate ?? 0,
+              applicablePlans: r.applicablePlans ?? [],
             });
             setDiscountError(null);
             return;
@@ -264,6 +274,7 @@ export default function Billing() {
               kind: 'fixed_usd',
               code: r.code ?? code.toUpperCase(),
               amountUsd: r.amountUsd,
+              applicablePlans: r.applicablePlans ?? [],
             });
             setDiscountError(null);
             return;
@@ -328,12 +339,14 @@ export default function Billing() {
             baseAmountCents: r.baseAmountCents ?? 0,
             baseCurrency:    r.baseCurrency ?? '',
             fxRate:          r.fxRate ?? 0,
+            applicablePlans: r.applicablePlans ?? [],
           });
         } else if (r.amountUsd != null) {
           setDiscount({
             kind: 'fixed_usd',
             code: r.code ?? code,
             amountUsd: r.amountUsd,
+            applicablePlans: r.applicablePlans ?? [],
           });
         }
       },
@@ -455,8 +468,15 @@ export default function Billing() {
             </span>
             <span className='text-sm text-gray-700'>
               {discount.kind === 'fixed_fx'
-                ? `Locked at ${formatBase(discount.baseAmountCents, discount.baseCurrency)} → ≈$${discount.finalAmountUsd.toLocaleString('en-US')}/mo, applies to every plan (current FX).`
-                : `−$${discount.amountUsd.toLocaleString('en-US')} applied to every plan below.`}
+                ? (() => {
+                    const target = PLAN_CARDS.find(
+                      (p) => discount.applicablePlans.includes(p.key),
+                    );
+                    return `Locked at ${formatBase(discount.baseAmountCents, discount.baseCurrency)} → ≈$${discount.finalAmountUsd.toLocaleString('en-US')}/mo on ${target?.name ?? 'the top plan'} (current FX). Other plans charge list price.`;
+                  })()
+                : discount.applicablePlans.length === 0
+                  ? `−$${discount.amountUsd.toLocaleString('en-US')} applied to every plan below.`
+                  : `−$${discount.amountUsd.toLocaleString('en-US')} on ${discount.applicablePlans.join(', ')}.`}
             </span>
             <button
               type='button'
@@ -501,12 +521,17 @@ export default function Billing() {
           // Card button reflects step 1 (fetching wallets). Step 2's spinner
           // lives inside the picker modal's Continue button.
           const isPending = pendingKey === plan.key && walletsMutation.isPending;
-          const netPrice = !discount
+          // Only apply the discount on plans it actually covers — fixed_fx
+          // codes restrict to the top tier (BE: FIXED_FX_PLAN), and
+          // applicablePlans on the validate response carries that allow-
+          // list. Empty list = applies everywhere (legacy fixed_usd).
+          const applies = !!discount && discountAppliesTo(discount, plan.key);
+          const netPrice = !applies || !discount
             ? plan.price
             : discount.kind === 'fixed_fx'
               ? discount.finalAmountUsd
               : Math.max(0, plan.price - discount.amountUsd);
-          const discounted = discount != null && netPrice !== plan.price;
+          const discounted = applies && netPrice !== plan.price;
           return (
             <div
               key={plan.key}
