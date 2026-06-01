@@ -1171,6 +1171,10 @@ exports.adminListPlatformBilling = async (req, res) => {
     // query per operator. lastPaid + lifetime paid in one pass.
     const txAgg = await BillingTransaction.aggregate([
       { $match: { status: "paid" } },
+      // Sort ASC before $group so $last is the chronologically newest paid
+      // txn — without this it would depend on input order and could surface
+      // a stale amount for the "last amount" column.
+      { $sort: { paidAt: 1 } },
       {
         $group: {
           _id: "$operatorId",
