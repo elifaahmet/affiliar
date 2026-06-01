@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import {
   AdjustmentsHorizontalIcon,
   ArrowUpOnSquareIcon,
@@ -66,6 +66,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       logout();
     }
   }, [isAuthenticated, logout, userId]);
+
+  // Detached platform admins (no operatorId — e.g. the elifaahmet "general
+  // admin" account) have no tenant context, so every operator-side endpoint
+  // 4xx's for them. Push any non-/platform route over to /platform/reports;
+  // the sidebar already hides the operator-side entries in this state.
+  const userInfoForGuard = storageHelper.getStoreWithDecryption('user_information') as
+    | { isPlatformAdmin?: boolean; operatorId?: string | null }
+    | null;
+  if (
+    userInfoForGuard?.isPlatformAdmin &&
+    !userInfoForGuard.operatorId &&
+    !pathname.startsWith('/platform')
+  ) {
+    return <Navigate to='/platform/reports' replace />;
+  }
 
   const handleMouseEnter = () => {
     if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
