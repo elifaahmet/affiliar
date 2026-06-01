@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { Link, Navigate, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   AdjustmentsHorizontalIcon,
   ArrowUpOnSquareIcon,
@@ -71,16 +71,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   // admin" account) have no tenant context, so every operator-side endpoint
   // 4xx's for them. Push any non-/platform route over to /platform/reports;
   // the sidebar already hides the operator-side entries in this state.
-  const userInfoForGuard = storageHelper.getStoreWithDecryption('user_information') as
-    | { isPlatformAdmin?: boolean; operatorId?: string | null }
-    | null;
-  if (
-    userInfoForGuard?.isPlatformAdmin &&
-    !userInfoForGuard.operatorId &&
-    !pathname.startsWith('/platform')
-  ) {
-    return <Navigate to='/platform/reports' replace />;
-  }
+  // MUST go through useEffect: returning <Navigate> directly above the
+  // other hooks in this component breaks the rules-of-hooks (#310).
+  const navigate = useNavigate();
+  useEffect(() => {
+    const userInfoForGuard = storageHelper.getStoreWithDecryption('user_information') as
+      | { isPlatformAdmin?: boolean; operatorId?: string | null }
+      | null;
+    if (
+      userInfoForGuard?.isPlatformAdmin &&
+      !userInfoForGuard.operatorId &&
+      !pathname.startsWith('/platform')
+    ) {
+      navigate('/platform/reports', { replace: true });
+    }
+  }, [pathname, navigate]);
 
   const handleMouseEnter = () => {
     if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
