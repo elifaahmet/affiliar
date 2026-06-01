@@ -224,6 +224,7 @@ const billingController = {
         nextBillingDate: operator.nextBillingDate,
         billingCycle: operator.billingCycle,
         activeDiscountCode: operator.activeDiscountCode || "",
+        lifetimeFree: !!operator.lifetimeFree,
         transactions: recentTransactions,
       });
     } catch (err) {

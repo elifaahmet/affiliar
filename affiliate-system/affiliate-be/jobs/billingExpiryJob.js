@@ -263,10 +263,13 @@ async function runOnce({ now = new Date() } = {}) {
   // Pull trial + active + past_due. Trial operators carry a `nextBillingDate
   // = trialEndsAt` so they flow through the same pipeline; suspended
   // operators have already been cut off and don't need further reminders.
+  // Lifetime-free operators (e.g. our own Hexora tenant) bypass billing
+  // entirely — no reminders, no past_due flip, no suspend.
   const cursor = Operator.find({
     isDeleted: false,
     billingStatus: { $in: ["trial", "active", "past_due"] },
     nextBillingDate: { $ne: null },
+    lifetimeFree: { $ne: true },
   }).cursor();
 
   for await (const operator of cursor) {

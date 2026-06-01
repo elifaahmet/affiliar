@@ -39,9 +39,12 @@ async function blockSuspendedOperator(req, res, next) {
     if (isAllowedPath(req.path)) return next();
 
     const operator = await Operator.findById(user.operatorId)
-      .select({ billingStatus: 1 })
+      .select({ billingStatus: 1, lifetimeFree: 1 })
       .lean();
-    if (!operator || operator.billingStatus !== "suspended") return next();
+    if (!operator) return next();
+    // Lifetime-free tenants are never blocked, regardless of status.
+    if (operator.lifetimeFree) return next();
+    if (operator.billingStatus !== "suspended") return next();
 
     return res.status(402).json({
       error:

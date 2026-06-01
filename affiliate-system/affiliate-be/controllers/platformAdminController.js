@@ -286,6 +286,7 @@ exports.getOperator = async (req, res) => {
           currency: "USD",
         },
         featureOverrides: operator.featureOverrides || {},
+        lifetimeFree: !!operator.lifetimeFree,
         createdAt: operator.createdAt,
         updatedAt: operator.updatedAt,
       },
@@ -334,6 +335,7 @@ exports.updateOperator = async (req, res) => {
       "featureOverrides",
       "affiliatePayoutSettings",
       "nextBillingDate",
+      "lifetimeFree",
     ];
     const updates = {};
     for (const key of allowed) {
@@ -372,6 +374,9 @@ exports.updateOperator = async (req, res) => {
         return res.status(400).json({ error: "Invalid nextBillingDate" });
       }
       updates.nextBillingDate = d;
+    }
+    if (updates.lifetimeFree !== undefined) {
+      updates.lifetimeFree = !!updates.lifetimeFree;
     }
 
     const next = await Operator.findByIdAndUpdate(operator._id, updates, {
@@ -1157,7 +1162,7 @@ exports.adminListPlatformBilling = async (req, res) => {
 
     const operators = await Operator.find(filter)
       .select(
-        "id name plan billingStatus billingCycle nextBillingDate trialEndsAt pastDueAt activeDiscountCode createdAt",
+        "id name plan billingStatus billingCycle nextBillingDate trialEndsAt pastDueAt activeDiscountCode lifetimeFree createdAt",
       )
       .sort({ createdAt: -1 })
       .lean();
@@ -1214,6 +1219,7 @@ exports.adminListPlatformBilling = async (req, res) => {
         plan: o.plan,
         billingStatus: o.billingStatus,
         activeDiscountCode: o.activeDiscountCode || "",
+        lifetimeFree: !!o.lifetimeFree,
         billingCycle: o.billingCycle,
         nextBillingDate: o.nextBillingDate,
         trialEndsAt: o.trialEndsAt,

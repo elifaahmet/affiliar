@@ -10,6 +10,7 @@ interface OperatorBillingRow {
   plan: string;
   billingStatus: 'trial' | 'active' | 'past_due' | 'suspended' | 'cancelled';
   activeDiscountCode: string;
+  lifetimeFree?: boolean;
   billingCycle: string | null;
   nextBillingDate: string | null;
   trialEndsAt: string | null;
@@ -140,9 +141,15 @@ export default function PlatformBilling() {
                   </td>
                   <td className='px-3 py-2 capitalize'>{op.plan}</td>
                   <td className='px-3 py-2'>
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[op.billingStatus] ?? 'bg-gray-100 text-gray-700'}`}>
-                      {op.billingStatus.replace('_', ' ')}
-                    </span>
+                    {op.lifetimeFree ? (
+                      <span className='inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-800'>
+                        lifetime free
+                      </span>
+                    ) : (
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[op.billingStatus] ?? 'bg-gray-100 text-gray-700'}`}>
+                        {op.billingStatus.replace('_', ' ')}
+                      </span>
+                    )}
                   </td>
                   <td className='px-3 py-2 whitespace-nowrap'>
                     {op.lastPaidAt
@@ -217,6 +224,9 @@ function Tile({ label, count, amountUsd, highlight, accent }: {
 }
 
 function Lateness({ row }: { row: OperatorBillingRow }) {
+  if (row.lifetimeFree) {
+    return <span className='text-violet-700'>—</span>;
+  }
   const next = row.nextBillingDate ? new Date(row.nextBillingDate).toLocaleDateString('en-GB') : null;
   if (row.billingStatus === 'suspended') {
     return (

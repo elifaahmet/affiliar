@@ -6,6 +6,7 @@ interface BillingStatusLite {
   plan?: string;
   billingStatus?: 'trial' | 'active' | 'past_due' | 'suspended' | 'cancelled';
   nextBillingDate?: string | null;
+  lifetimeFree?: boolean;
 }
 
 /**
@@ -27,6 +28,10 @@ export default function BillingBanner() {
   const navigate = useNavigate();
 
   if (!data) return null;
+
+  // Lifetime-free operators (e.g. our own Hexora tenant) bypass billing
+  // entirely — no banner, no past-due nudge, regardless of status.
+  if (data.lifetimeFree) return null;
 
   const next = data.nextBillingDate ? new Date(data.nextBillingDate) : null;
   const overdueByDate =

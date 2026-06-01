@@ -31,6 +31,14 @@ const operatorSchema = new mongoose.Schema(
       enum: ["trial", "active", "past_due", "suspended", "cancelled"],
       default: "trial",
     },
+    // Carved-out operator (e.g. our own Hexora tenant) — the billing job,
+    // the past-due gate, and the operator-side billing banner all treat
+    // them as if subscription rules don't apply. Set via the admin's
+    // operator detail edit panel.
+    lifetimeFree: {
+      type: Boolean,
+      default: false,
+    },
     // Sticky discount code: when set, the billing modal pre-fills it on every
     // cycle so a negotiated long-term deal (e.g. €200 fixed-FX flat) re-applies
     // automatically without the operator re-typing each month. Cleared by the

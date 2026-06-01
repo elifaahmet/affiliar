@@ -37,6 +37,7 @@ interface OperatorDetail {
   pastDueAt: string | null;
   affiliatePayoutSettings: { minPayoutCents: number; currency: string };
   featureOverrides: Record<string, unknown>;
+  lifetimeFree?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -132,11 +133,17 @@ export default function PlatformOperatorDetail() {
         </Link>
         <div className='flex items-center gap-3 flex-wrap'>
           <h1 className='text-lg font-semibold text-gray-900'>{op.name}</h1>
-          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-            STATUS_STYLES[op.billingStatus] ?? 'bg-gray-100 text-gray-700'
-          }`}>
-            {op.billingStatus.replace('_', ' ')}
-          </span>
+          {op.lifetimeFree ? (
+            <span className='inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-800'>
+              lifetime free
+            </span>
+          ) : (
+            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+              STATUS_STYLES[op.billingStatus] ?? 'bg-gray-100 text-gray-700'
+            }`}>
+              {op.billingStatus.replace('_', ' ')}
+            </span>
+          )}
           <span className='text-xs text-gray-500'>Plan: <b>{op.plan}</b></span>
           {op.activeDiscountCode && (
             <span className='text-xs text-gray-500'>Discount: <code className='bg-violet-50 px-1 rounded text-violet-700'>{op.activeDiscountCode}</code></span>
@@ -199,6 +206,7 @@ function OverviewTab({ op, onSaved }: { op: OperatorDetail; onSaved: () => void 
     op.nextBillingDate ? new Date(op.nextBillingDate).toISOString().slice(0, 10) : '',
   );
   const [minPayoutCents, setMinPayoutCents] = useState(String(op.affiliatePayoutSettings?.minPayoutCents ?? 0));
+  const [lifetimeFree, setLifetimeFree] = useState(!!op.lifetimeFree);
   const [featureOverridesJson, setFeatureOverridesJson] = useState(
     JSON.stringify(op.featureOverrides ?? {}, null, 2),
   );
@@ -225,6 +233,7 @@ function OverviewTab({ op, onSaved }: { op: OperatorDetail; onSaved: () => void 
       activeDiscountCode: discount.trim(),
       billingStatus: status,
       nextBillingDate: nextBillingDate || undefined,
+      lifetimeFree,
       affiliatePayoutSettings: {
         minPayoutCents: Number(minPayoutCents) || 0,
         currency: op.affiliatePayoutSettings?.currency || 'USD',
@@ -276,6 +285,24 @@ function OverviewTab({ op, onSaved }: { op: OperatorDetail; onSaved: () => void 
           className={`${inputCx} font-mono text-xs`}
         />
       </FormField>
+
+      <div className='rounded-lg bg-violet-50/60 border border-violet-100 p-3'>
+        <label className='flex items-start gap-2 text-sm text-gray-800 cursor-pointer'>
+          <input
+            type='checkbox'
+            checked={lifetimeFree}
+            onChange={(e) => setLifetimeFree(e.target.checked)}
+            className='mt-0.5'
+          />
+          <div>
+            <div className='font-medium'>Lifetime free</div>
+            <div className='text-xs text-gray-600'>
+              Billing job, past-due gate, ve operatör panelinin billing banner'ı tamamen atlanır.
+              Hexora gibi platformun kendi tenant'larında işaretle.
+            </div>
+          </div>
+        </label>
+      </div>
 
       {error && <p className='text-sm text-red-600'>{error}</p>}
       {ok && <p className='text-sm text-green-600'>Saved.</p>}
