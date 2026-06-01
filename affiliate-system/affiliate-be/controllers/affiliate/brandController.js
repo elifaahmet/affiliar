@@ -1,6 +1,20 @@
 const Brand = require("../../models/Brand");
 const { cloneOperatorDefaultsForBrand } = require("../../utils/brandDefaults");
 
+// Whitelist a brand-products array against the model's enum so a stray
+// value can't sneak into Mongo. Returns null when the input wasn't
+// provided so callers can leave the field untouched in PATCH paths.
+function sanitizeProducts(input) {
+  if (input === undefined) return null;
+  if (!Array.isArray(input)) return [];
+  const set = new Set(
+    input
+      .map((p) => String(p).trim().toLowerCase())
+      .filter((p) => p === "casino" || p === "sportsbook"),
+  );
+  return [...set];
+}
+
 /**
  * GET /api/brands
  * Returns all brands belonging to the authenticated operator.
@@ -13,7 +27,7 @@ exports.list = async (req, res) => {
 
   try {
     const brands = await Brand.find({ operatorId: operator.operatorId })
-      .select("id name url enabled")
+      .select("id name url enabled products")
       .sort({ id: 1 })
       .lean();
 
@@ -39,6 +53,11 @@ exports.create = async (req, res) => {
     return res.status(400).json({ error: "name is required" });
   }
 
+  const products = sanitizeProducts(req.body?.products);
+  if (products && products.length === 0) {
+    return res.status(400).json({ error: "products must include at least one of: casino, sportsbook" });
+  }
+
   try {
     // Brand.id is globally unique — sequence against the whole collection.
     const last = await Brand.findOne({}).sort({ id: -1 }).select({ id: 1 }).lean();
@@ -50,6 +69,7 @@ exports.create = async (req, res) => {
       url: url?.trim() || null,
       enabled: enabled !== undefined ? Boolean(enabled) : true,
       operatorId: operator.operatorId,
+      ...(products ? { products } : {}),
     });
 
     // Seed the new brand with the operator-default financial settings +
@@ -79,6 +99,14 @@ exports.update = async (req, res) => {
   if (url !== undefined)     updates.url     = url.trim() || null;
   if (enabled !== undefined) updates.enabled = Boolean(enabled);
 
+  const products = sanitizeProducts(req.body?.products);
+  if (products) {
+    if (products.length === 0) {
+      return res.status(400).json({ error: "products must include at least one of: casino, sportsbook" });
+    }
+    updates.products = products;
+  }
+
   if (Object.keys(updates).length === 0) {
     return res.status(400).json({ error: "No fields to update" });
   }
@@ -88,7 +116,7 @@ exports.update = async (req, res) => {
       { _id: req.params.id, operatorId: operator.operatorId },
       updates,
       { new: true }
-    ).select("id name url enabled");
+    ).select("id name url enabled products");
 
     if (!brand) return res.status(404).json({ error: "Brand not found" });
 

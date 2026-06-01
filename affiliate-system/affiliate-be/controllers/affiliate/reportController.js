@@ -1,4 +1,24 @@
 const clickhouse = require("../../config/clickhouse");
+const Brand = require("../../models/Brand");
+
+// Union the product flags across the brands in the report's filter scope.
+// FE uses this to hide tiles/columns for products no brand actually
+// offers (e.g. a casino-only operator never sees Sportsbook NGR=0).
+async function productScopeForReport(operator, query) {
+  const filter = { operatorId: operator.operatorId };
+  if (query.brandId) filter._id = query.brandId;
+  const brands = await Brand.find(filter).select({ products: 1 }).lean();
+  if (brands.length === 0) return { casino: true, sportsbook: true };
+  const scope = { casino: false, sportsbook: false };
+  for (const b of brands) {
+    const list = Array.isArray(b.products) && b.products.length
+      ? b.products
+      : ["casino", "sportsbook"];
+    if (list.includes("casino")) scope.casino = true;
+    if (list.includes("sportsbook")) scope.sportsbook = true;
+  }
+  return scope;
+}
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -153,8 +173,11 @@ exports.overview = async (req, res) => {
       }
     );
 
+    const productScope = await productScopeForReport(operator, req.query);
+
     return res.json({
       period: { from: req.query.from, to: req.query.to },
+      productScope,
       summary,
       byDay: byDayRows.map(coerce),
     });

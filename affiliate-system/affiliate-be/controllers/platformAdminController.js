@@ -256,7 +256,7 @@ exports.getOperator = async (req, res) => {
       .lean();
 
     const brands = await Brand.find({ operatorId: operator._id })
-      .select("id name url enabled createdAt operatorId")
+      .select("id name url enabled products createdAt operatorId")
       .sort({ id: 1 })
       .lean();
 
@@ -304,6 +304,9 @@ exports.getOperator = async (req, res) => {
         name: b.name,
         url: b.url,
         enabled: b.enabled,
+        products: Array.isArray(b.products) && b.products.length
+          ? b.products
+          : ["casino", "sportsbook"],
         createdAt: b.createdAt,
       })),
       counts: { affiliates: affiliateCount, transactions: transactionCount },
@@ -401,6 +404,20 @@ exports.listOperatorBrands = async (req, res) => {
   }
 };
 
+// Whitelist a brand-products array against the model's enum so a stray
+// value can't sneak into Mongo. Returns null when the input wasn't
+// provided so callers can leave the field untouched in PATCH paths.
+function sanitizeProducts(input) {
+  if (input === undefined) return null;
+  if (!Array.isArray(input)) return [];
+  const set = new Set(
+    input
+      .map((p) => String(p).trim().toLowerCase())
+      .filter((p) => p === "casino" || p === "sportsbook"),
+  );
+  return [...set];
+}
+
 // POST /admin/operators/:id/brands
 exports.createOperatorBrand = async (req, res) => {
   try {
@@ -409,6 +426,11 @@ exports.createOperatorBrand = async (req, res) => {
 
     const { name, url } = req.body || {};
     if (!name) return res.status(400).json({ error: "name is required" });
+
+    const products = sanitizeProducts(req.body?.products);
+    if (products && products.length === 0) {
+      return res.status(400).json({ error: "products must include at least one of: casino, sportsbook" });
+    }
 
     // Brand.id is GLOBALLY unique.
     const last = await Brand.findOne({}).sort({ id: -1 }).select({ id: 1 }).lean();
@@ -420,6 +442,7 @@ exports.createOperatorBrand = async (req, res) => {
       url: url ? String(url).trim() : null,
       enabled: true,
       operatorId: operator._id,
+      ...(products ? { products } : {}),
     });
     return res.status(201).json({ brand });
   } catch (err) {
@@ -445,6 +468,16 @@ exports.updateOperatorBrand = async (req, res) => {
     }
     if (typeof brand.name === "string") brand.name = brand.name.trim();
     if (typeof brand.url === "string") brand.url = brand.url.trim() || null;
+
+    const products = sanitizeProducts(req.body?.products);
+    if (products) {
+      if (products.length === 0) {
+        return res.status(400).json({
+          error: "products must include at least one of: casino, sportsbook",
+        });
+      }
+      brand.products = products;
+    }
     await brand.save();
     return res.json({ brand });
   } catch (err) {
@@ -773,6 +806,9 @@ exports.listAllBrands = async (req, res) => {
           name: b.name,
           url: b.url,
           enabled: b.enabled,
+          products: Array.isArray(b.products) && b.products.length
+            ? b.products
+            : ["casino", "sportsbook"],
           createdAt: b.createdAt,
           operator: op
             ? { _id: String(op._id), id: op.id, name: op.name }
@@ -852,6 +888,31 @@ function coerceCh(row) {
   );
 }
 
+// Union the product flags across whatever brands fall inside the report
+// filter. The FE uses this to hide tiles/columns for products no brand
+// in scope actually offers (e.g. an operator with a casino-only brand
+// shouldn't see Sportsbook NGR=0 noise).
+async function computeProductScope({ operatorId, brandId }) {
+  const filter = {};
+  if (brandId) filter._id = brandId;
+  if (operatorId) filter.operatorId = operatorId;
+  const brands = await Brand.find(filter).select({ products: 1 }).lean();
+  if (brands.length === 0) {
+    // No brand matched — fall back to "both" so the FE doesn't blank out
+    // the report header when filters narrow past anything we know about.
+    return { casino: true, sportsbook: true };
+  }
+  const scope = { casino: false, sportsbook: false };
+  for (const b of brands) {
+    const list = Array.isArray(b.products) && b.products.length
+      ? b.products
+      : ["casino", "sportsbook"];
+    if (list.includes("casino")) scope.casino = true;
+    if (list.includes("sportsbook")) scope.sportsbook = true;
+  }
+  return scope;
+}
+
 // GET /admin/reports/overview?from=&to=&operatorId=&brandId=
 // Cross-operator metric rollup. Filters are optional:
 //   - operatorId  → narrow to one tenant (mirrors what that operator's own
@@ -886,6 +947,11 @@ exports.adminReportsOverview = async (req, res) => {
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const productScope = await computeProductScope({
+      operatorId: req.query.operatorId,
+      brandId: req.query.brandId,
+    });
 
     const [summaryRows, byDayRows, byOperatorRows] = await Promise.all([
       clickhouse
@@ -946,6 +1012,7 @@ exports.adminReportsOverview = async (req, res) => {
 
     return res.json({
       period: { from: req.query.from || null, to: req.query.to || null },
+      productScope,
       summary: coerceCh(summaryRows[0] ?? ADMIN_REPORT_DEFAULT_SUMMARY),
       byDay: byDayRows.map(coerceCh),
       byOperator: byOperatorRows.map((r) => ({

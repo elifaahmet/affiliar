@@ -1,10 +1,15 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { BRANDS_API_URLS, REPORTS_API_URLS } from 'config/apiUrls';
 import BSelectWithSearch from '@components/core-components/selectWithInput/BSelectWithSearch';
 
-interface Brand { id: number; name: string; _id: string; }
+interface Brand {
+  id: number;
+  name: string;
+  _id: string;
+  products?: ('casino' | 'sportsbook')[];
+}
 interface BrandsResponse { brands: Brand[]; }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -73,6 +78,7 @@ function pickMetrics(
 
 interface OverviewResponse {
   period: { from: string; to: string };
+  productScope?: { casino: boolean; sportsbook: boolean };
   summary: MetricSummary;
   byDay: Array<{ date: string } & MetricSummary>;
 }
@@ -369,6 +375,36 @@ export default function Reports() {
     queryKey: ['brands'],
   });
 
+  // Union of products across the brands in the report's filter scope. A
+  // casino-only operator (or a brand-narrowed report on a casino-only
+  // brand) collapses the product picker to just Casino.
+  const productScope = useMemo(() => {
+    const brands = brandsData?.brands ?? [];
+    const inScope = brandId ? brands.filter((b) => b._id === brandId) : brands;
+    const out = { casino: false, sportsbook: false };
+    for (const b of inScope) {
+      const list = b.products && b.products.length ? b.products : ['casino', 'sportsbook'];
+      if (list.includes('casino')) out.casino = true;
+      if (list.includes('sportsbook')) out.sportsbook = true;
+    }
+    // Fall back to "both" when we have no brand info yet so the UI doesn't
+    // collapse to nothing during the initial fetch.
+    if (!out.casino && !out.sportsbook) {
+      out.casino = true; out.sportsbook = true;
+    }
+    return out;
+  }, [brandsData, brandId]);
+
+  // Keep the product picker honest: when the scope drops a product, the
+  // selected tab is forced back into the allowed set.
+  useEffect(() => {
+    const hasBoth = productScope.casino && productScope.sportsbook;
+    if (!hasBoth) {
+      const only = productScope.casino ? 'casino' : 'sportsbook';
+      if (product !== only) setProduct(only);
+    }
+  }, [productScope, product]);
+
   const params = useMemo(
     () => ({
       from: dateRange.from,
@@ -415,22 +451,26 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* Product scope */}
-      <div className='flex gap-1 bg-white p-1 rounded-lg border border-gray-200 shadow-sm w-fit'>
-        {(['all', 'casino', 'sportsbook'] as const).map((p) => (
-          <button
-            key={p}
-            onClick={() => setProduct(p)}
-            className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-colors capitalize ${
-              product === p
-                ? 'bg-primary text-white'
-                : 'text-gray-700 hover:text-gray-700'
-            }`}
-          >
-            {p === 'all' ? 'All products' : p}
-          </button>
-        ))}
-      </div>
+      {/* Product scope — drop tabs the scope doesn't offer (e.g. a
+          casino-only brand shouldn't surface a Sportsbook tab). Hide the
+          whole picker when only one product is available. */}
+      {(productScope.casino && productScope.sportsbook) && (
+        <div className='flex gap-1 bg-white p-1 rounded-lg border border-gray-200 shadow-sm w-fit'>
+          {(['all', 'casino', 'sportsbook'] as const).map((p) => (
+            <button
+              key={p}
+              onClick={() => setProduct(p)}
+              className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-colors capitalize ${
+                product === p
+                  ? 'bg-primary text-white'
+                  : 'text-gray-700 hover:text-gray-700'
+              }`}
+            >
+              {p === 'all' ? 'All products' : p}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className='flex gap-1 bg-white p-1 rounded-lg w-full border border-gray-200 shadow-sm'>

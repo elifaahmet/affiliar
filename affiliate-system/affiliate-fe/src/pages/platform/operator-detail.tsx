@@ -21,7 +21,7 @@ interface OperatorBrand {
   name: string;
   url: string | null;
   enabled: boolean;
-  ownerUserId: string;
+  products: ('casino' | 'sportsbook')[];
   createdAt: string;
 }
 interface OperatorDetail {
@@ -323,6 +323,7 @@ function BrandsTab({ id, brands, onChange }: { id: string; brands: OperatorBrand
                 <th className='px-4 py-2 text-left'>#</th>
                 <th className='px-4 py-2 text-left'>Name</th>
                 <th className='px-4 py-2 text-left'>URL</th>
+                <th className='px-4 py-2 text-left'>Products</th>
                 <th className='px-4 py-2 text-left'>Status</th>
                 <th className='px-4 py-2 text-right'></th>
               </tr>
@@ -333,6 +334,13 @@ function BrandsTab({ id, brands, onChange }: { id: string; brands: OperatorBrand
                   <td className='px-4 py-2'>{b.id}</td>
                   <td className='px-4 py-2 font-medium'>{b.name}</td>
                   <td className='px-4 py-2 font-mono text-gray-600'>{b.url || '—'}</td>
+                  <td className='px-4 py-2'>
+                    <div className='flex gap-1'>
+                      {(b.products && b.products.length ? b.products : ['casino', 'sportsbook']).map((p) => (
+                        <span key={p} className='inline-flex rounded-full bg-violet-50 text-violet-700 px-2 py-0.5 text-xs capitalize'>{p}</span>
+                      ))}
+                    </div>
+                  </td>
                   <td className='px-4 py-2'>
                     {b.enabled
                       ? <span className='text-green-700'>Enabled</span>
@@ -371,6 +379,11 @@ function BrandModal({ id, brand, onClose, onSaved }: { id: string; brand?: Opera
   const [name, setName] = useState(brand?.name || '');
   const [url, setUrl] = useState(brand?.url || '');
   const [enabled, setEnabled] = useState(brand?.enabled ?? true);
+  const initialProducts = brand?.products && brand.products.length
+    ? brand.products
+    : (['casino', 'sportsbook'] as Array<'casino' | 'sportsbook'>);
+  const [hasCasino, setHasCasino] = useState(initialProducts.includes('casino'));
+  const [hasSportsbook, setHasSportsbook] = useState(initialProducts.includes('sportsbook'));
   const [error, setError] = useState<string | null>(null);
 
   const create = useBaseMutation({
@@ -391,8 +404,15 @@ function BrandModal({ id, brand, onClose, onSaved }: { id: string; brand?: Opera
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (brand) update.mutate({ name: name.trim(), url: url.trim() || null, enabled });
-    else create.mutate({ name: name.trim(), url: url.trim() || undefined });
+    const products: Array<'casino' | 'sportsbook'> = [];
+    if (hasCasino) products.push('casino');
+    if (hasSportsbook) products.push('sportsbook');
+    if (products.length === 0) {
+      setError('Pick at least one product.');
+      return;
+    }
+    if (brand) update.mutate({ name: name.trim(), url: url.trim() || null, enabled, products });
+    else create.mutate({ name: name.trim(), url: url.trim() || undefined, products });
   };
 
   return (
@@ -403,6 +423,18 @@ function BrandModal({ id, brand, onClose, onSaved }: { id: string; brand?: Opera
         </FormField>
         <FormField label='URL'>
           <input type='text' value={url || ''} onChange={(e) => setUrl(e.target.value)} placeholder='https://…' className={inputCx} />
+        </FormField>
+        <FormField label='Products' hint='Reports için kullanılan ürün listesi — kapatılan ürünün column/tile’ları gizlenir.'>
+          <div className='flex items-center gap-4 pt-1'>
+            <label className='flex items-center gap-2 text-sm text-gray-700'>
+              <input type='checkbox' checked={hasCasino} onChange={(e) => setHasCasino(e.target.checked)} />
+              Casino
+            </label>
+            <label className='flex items-center gap-2 text-sm text-gray-700'>
+              <input type='checkbox' checked={hasSportsbook} onChange={(e) => setHasSportsbook(e.target.checked)} />
+              Sportsbook
+            </label>
+          </div>
         </FormField>
         {brand && (
           <label className='flex items-center gap-2 text-sm text-gray-700'>
