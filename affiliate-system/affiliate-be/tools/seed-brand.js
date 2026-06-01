@@ -10,14 +10,14 @@ const run = async () => {
   await connectDB();
 
   const operatorUser = await User.findOne({ role: "operator", isDeleted: false });
-  if (!operatorUser) {
-    console.error("No operator user found. Run seed-operator.js first.");
+  if (!operatorUser || !operatorUser.operatorId) {
+    console.error("No operator user found (or user not linked to an Operator). Run seed-operator.js first.");
     process.exit(1);
   }
 
   const brand = await Brand.findOneAndUpdate(
-    { operatorId: operatorUser._id, name: "Pixup Play" },
-    { operatorId: operatorUser._id, name: "Pixup Play", id: 1 },
+    { operatorId: operatorUser.operatorId, name: "Pixup Play" },
+    { operatorId: operatorUser.operatorId, name: "Pixup Play", id: 1 },
     { upsert: true, new: true }
   );
 

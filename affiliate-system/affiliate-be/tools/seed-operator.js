@@ -29,8 +29,8 @@ const run = async () => {
 
   // Every operator must have at least one brand
   const brand = await Brand.findOneAndUpdate(
-    { operatorId: user._id, id: 1 },
-    { operatorId: user._id, id: 1, name: DEFAULT_BRAND },
+    { operatorId: operator._id, id: 1 },
+    { operatorId: operator._id, id: 1, name: DEFAULT_BRAND },
     { upsert: true, new: true },
   );
   console.log("Default brand:", brand.name, brand._id.toString());

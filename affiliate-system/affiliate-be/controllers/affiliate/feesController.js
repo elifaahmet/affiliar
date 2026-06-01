@@ -35,10 +35,10 @@ function normalizeBrandId(raw) {
 exports.listBrands = async (req, res) => {
   if (!operatorOnly(req, res)) return;
   try {
-    // Brand.operatorId is a ref to the operator *user* (not the tenant),
-    // so use the session user's _id.
+    // Brand.operatorId references the Operator tenant (not the owner user),
+    // so scope by the session user's operatorId.
     const brands = await Brand.find({
-      operatorId: req.affiliateUser._id,
+      operatorId: req.affiliateUser.operatorId,
       enabled: true,
     })
       .select({ _id: 1, name: 1 })

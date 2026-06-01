@@ -862,7 +862,7 @@ exports.feeDetails = async (req, res) => {
     const [allFinancials, providerRates, brands] = await Promise.all([
       OperatorFinancialSettings.find({ operatorId }).lean(),
       ProviderFeeRate.find({ operatorId, isDeleted: false }).lean(),
-      Brand.find({ operatorId: profile.operatorUser, enabled: true })
+      Brand.find({ operatorId, enabled: true })
         .select("_id name")
         .lean(),
     ]);
@@ -955,11 +955,11 @@ exports.generateReferralCode = async (req, res) => {
       return res.status(404).json({ error: "Affiliate profile not found" });
     }
 
-    // Only allow generating for brands the operator owns; defends against
-    // an affiliate POSTing a foreign brand id.
+    // Only allow generating for brands the affiliate's operator owns;
+    // defends against an affiliate POSTing a foreign brand id.
     const brand = await Brand.findOne({
       _id: brandId,
-      operatorId: profile.operatorUser,
+      operatorId: affiliate.operatorId,
       enabled: true,
     })
       .select("_id name url")

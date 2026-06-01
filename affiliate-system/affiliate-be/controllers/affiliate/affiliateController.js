@@ -41,7 +41,7 @@ async function createAffiliate(operatorUser, body) {
 
   // Operator must have at least one brand before creating affiliates
   const allBrands = await Brand.find({
-    operatorId: operatorUser._id,
+    operatorId: operatorUser.operatorId,
     enabled: true,
   }).lean();
   if (allBrands.length === 0) {
@@ -234,7 +234,7 @@ const affiliateController = {
         return res.status(403).json({ error: "Only operators can list brands" });
       }
 
-      const brands = await Brand.find({ operatorId: operator._id })
+      const brands = await Brand.find({ operatorId: operator.operatorId })
         .sort({ createdAt: -1 })
         .lean();
 
@@ -320,8 +320,8 @@ const affiliateController = {
       const last = await Brand.findOne({}).sort({ id: -1 }).select({ id: 1 }).lean();
       const nextId = (last?.id ?? 0) + 1;
 
-      const brand = await Brand.create({ id: nextId, name, operatorId: operator._id });
-      await cloneOperatorDefaultsForBrand(operator._id, brand._id);
+      const brand = await Brand.create({ id: nextId, name, operatorId: operator.operatorId });
+      await cloneOperatorDefaultsForBrand(operator.operatorId, brand._id);
       res.status(201).json(brand);
     } catch (err) {
       res.status(500).json({ error: err.message });

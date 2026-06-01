@@ -224,20 +224,6 @@ exports.listOperators = async (req, res) => {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-// Brand.operatorId historically references the OWNER USER's _id (not the
-// Operator doc). To list all brands for an operator we first collect the
-// operator's owner-user _ids, then query brands by that set.
-async function getOwnerUserIds(operatorId) {
-  const owners = await User.find({
-    operatorId,
-    role: "operator",
-    isDeleted: { $ne: true },
-  })
-    .select({ _id: 1 })
-    .lean();
-  return owners.map((u) => u._id);
-}
-
 async function loadOperatorOr404(req, res) {
   const op = await Operator.findById(req.params.id).lean();
   if (!op || op.isDeleted) {
@@ -265,8 +251,7 @@ exports.getOperator = async (req, res) => {
       .select("email name username status createdAt")
       .lean();
 
-    const ownerIds = owners.map((u) => u._id);
-    const brands = await Brand.find({ operatorId: { $in: ownerIds } })
+    const brands = await Brand.find({ operatorId: operator._id })
       .select("id name url enabled createdAt operatorId")
       .sort({ id: 1 })
       .lean();
@@ -314,7 +299,6 @@ exports.getOperator = async (req, res) => {
         name: b.name,
         url: b.url,
         enabled: b.enabled,
-        ownerUserId: String(b.operatorId),
         createdAt: b.createdAt,
       })),
       counts: { affiliates: affiliateCount, transactions: transactionCount },
@@ -403,8 +387,7 @@ exports.listOperatorBrands = async (req, res) => {
   try {
     const operator = await loadOperatorOr404(req, res);
     if (!operator) return;
-    const ownerIds = await getOwnerUserIds(operator._id);
-    const brands = await Brand.find({ operatorId: { $in: ownerIds } })
+    const brands = await Brand.find({ operatorId: operator._id })
       .sort({ id: 1 })
       .lean();
     return res.json({ brands });
@@ -422,13 +405,6 @@ exports.createOperatorBrand = async (req, res) => {
     const { name, url } = req.body || {};
     if (!name) return res.status(400).json({ error: "name is required" });
 
-    const ownerIds = await getOwnerUserIds(operator._id);
-    if (ownerIds.length === 0) {
-      return res.status(400).json({
-        error: "Operator has no owner users to attribute the brand to",
-      });
-    }
-
     // Brand.id is GLOBALLY unique.
     const last = await Brand.findOne({}).sort({ id: -1 }).select({ id: 1 }).lean();
     const nextId = (last?.id ?? 0) + 1;
@@ -438,9 +414,7 @@ exports.createOperatorBrand = async (req, res) => {
       name: String(name).trim(),
       url: url ? String(url).trim() : null,
       enabled: true,
-      // Brand.operatorId references the OWNER USER (legacy convention).
-      // Attribute to the first/primary owner user.
-      operatorId: ownerIds[0],
+      operatorId: operator._id,
     });
     return res.status(201).json({ brand });
   } catch (err) {
@@ -453,11 +427,10 @@ exports.updateOperatorBrand = async (req, res) => {
   try {
     const operator = await loadOperatorOr404(req, res);
     if (!operator) return;
-    const ownerIds = await getOwnerUserIds(operator._id);
 
     const brand = await Brand.findOne({
       _id: req.params.brandId,
-      operatorId: { $in: ownerIds },
+      operatorId: operator._id,
     });
     if (!brand) return res.status(404).json({ error: "Brand not found" });
 
@@ -655,8 +628,8 @@ exports.listOperatorCommissionPlans = async (req, res) => {
 
 // GET /admin/brands?q=<text>
 // Flat list of every brand across operators with an optional name/url
-// filter. Joins each brand back to its operator so the directory shows
-// which tenant a brand belongs to.
+// filter. Brand.operatorId now references Operator._id directly, so the
+// tenant lookup is a single hop.
 exports.listAllBrands = async (req, res) => {
   try {
     const q = String(req.query.q || "").trim();
@@ -669,17 +642,7 @@ exports.listAllBrands = async (req, res) => {
 
     const brands = await Brand.find(brandFilter).sort({ createdAt: -1 }).lean();
 
-    // Resolve Brand → owner User → Operator. Brand.operatorId references
-    // the owner user historically, so two hops to get the tenant.
-    const ownerIds = [...new Set(brands.map((b) => String(b.operatorId)))];
-    const owners = await User.find({ _id: { $in: ownerIds } })
-      .select({ _id: 1, operatorId: 1 })
-      .lean();
-    const ownerToOperator = new Map(
-      owners.map((u) => [String(u._id), u.operatorId]),
-    );
-
-    const operatorIds = [...new Set(owners.map((u) => String(u.operatorId)))];
+    const operatorIds = [...new Set(brands.map((b) => String(b.operatorId)))];
     const operators = await Operator.find({ _id: { $in: operatorIds } })
       .select({ _id: 1, id: 1, name: 1 })
       .lean();
@@ -687,8 +650,7 @@ exports.listAllBrands = async (req, res) => {
 
     return res.json({
       brands: brands.map((b) => {
-        const opId = ownerToOperator.get(String(b.operatorId));
-        const op = opId ? operatorById.get(String(opId)) : null;
+        const op = operatorById.get(String(b.operatorId));
         return {
           _id: String(b._id),
           id: b.id,

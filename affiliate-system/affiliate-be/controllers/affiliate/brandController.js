@@ -12,7 +12,7 @@ exports.list = async (req, res) => {
   }
 
   try {
-    const brands = await Brand.find({ operatorId: operator._id })
+    const brands = await Brand.find({ operatorId: operator.operatorId })
       .select("id name url enabled")
       .sort({ id: 1 })
       .lean();
@@ -40,8 +40,8 @@ exports.create = async (req, res) => {
   }
 
   try {
-    // Auto-increment id within this operator's brands
-    const last = await Brand.findOne({ operatorId: operator._id }).sort({ id: -1 }).lean();
+    // Brand.id is globally unique — sequence against the whole collection.
+    const last = await Brand.findOne({}).sort({ id: -1 }).select({ id: 1 }).lean();
     const nextId = (last?.id ?? 0) + 1;
 
     const brand = await Brand.create({
@@ -49,13 +49,13 @@ exports.create = async (req, res) => {
       name: name.trim(),
       url: url?.trim() || null,
       enabled: enabled !== undefined ? Boolean(enabled) : true,
-      operatorId: operator._id,
+      operatorId: operator.operatorId,
     });
 
     // Seed the new brand with the operator-default financial settings +
     // provider fee rates so the fees admin shows real values from day one
     // (and an "untouched" Save can't wipe them with zeros).
-    await cloneOperatorDefaultsForBrand(operator._id, brand._id);
+    await cloneOperatorDefaultsForBrand(operator.operatorId, brand._id);
 
     return res.status(201).json({ brand });
   } catch (err) {
@@ -85,7 +85,7 @@ exports.update = async (req, res) => {
 
   try {
     const brand = await Brand.findOneAndUpdate(
-      { _id: req.params.id, operatorId: operator._id },
+      { _id: req.params.id, operatorId: operator.operatorId },
       updates,
       { new: true }
     ).select("id name url enabled");
