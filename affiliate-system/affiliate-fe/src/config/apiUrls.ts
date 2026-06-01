@@ -421,6 +421,13 @@ export const PLATFORM_ADMIN_API_URLS = {
     const s = qs.toString();
     return `${API_BASE_URL}api/admin/affiliates${s ? `?${s}` : ""}`;
   },
+  LIST_PLATFORM_BILLING: (params?: { status?: string; q?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.q)      qs.set('q', params.q);
+    const s = qs.toString();
+    return `${API_BASE_URL}api/admin/billing${s ? `?${s}` : ""}`;
+  },
   LIST_PAYOUTS_ALL: (params?: { operatorId?: string; status?: string; from?: string; to?: string; page?: number; limit?: number }) => {
     const qs = new URLSearchParams();
     if (params?.operatorId) qs.set('operatorId', params.operatorId);

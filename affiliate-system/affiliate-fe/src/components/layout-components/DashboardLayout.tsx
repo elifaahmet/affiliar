@@ -229,6 +229,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       Icon: ArrowUpOnSquareIcon,
       current: pathname.startsWith('/platform/payouts'),
     });
+    navigation.push({
+      key: 'platform-billing',
+      name: t('menuItems.platformBilling') || 'Operator Billing',
+      href: '/platform/billing',
+      Icon: CreditCardIcon,
+      current: pathname.startsWith('/platform/billing'),
+    });
   }
 
   // Frosted violet glass sidebar — translucent so the body bg tints

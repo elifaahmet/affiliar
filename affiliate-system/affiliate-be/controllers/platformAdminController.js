@@ -1134,6 +1134,122 @@ exports.adminListAffiliates = async (req, res) => {
   }
 };
 
+// ── Cross-operator platform billing (operators paying us) ───────────────────
+
+// GET /admin/billing?status=&q=
+// Operator subscription health: one row per operator with snapshot fields
+// (billingStatus / plan / nextBillingDate / pastDueAt / trialEndsAt /
+// activeDiscountCode) plus an aggregate over BillingTransaction (last paid
+// timestamp + amount + lifetime total) so the platform admin can spot who
+// hasn't paid in a while at a glance.
+//
+// Filters:
+//   status — billingStatus value (active / past_due / suspended / trial / cancelled)
+//   q      — substring match on operator name (case-insensitive)
+exports.adminListPlatformBilling = async (req, res) => {
+  try {
+    const filter = { isDeleted: { $ne: true } };
+    if (req.query.status) filter.billingStatus = req.query.status;
+    if (req.query.q) {
+      const safe = String(req.query.q).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      filter.name = new RegExp(safe, "i");
+    }
+
+    const operators = await Operator.find(filter)
+      .select(
+        "id name plan billingStatus billingCycle nextBillingDate trialEndsAt pastDueAt activeDiscountCode createdAt",
+      )
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Single aggregation across BillingTransaction so we don't fan out a
+    // query per operator. lastPaid + lifetime paid in one pass.
+    const txAgg = await BillingTransaction.aggregate([
+      { $match: { status: "paid" } },
+      {
+        $group: {
+          _id: "$operatorId",
+          lastPaidAt: { $max: "$paidAt" },
+          lastPaidAmountUsd: { $last: "$amountUsd" },
+          lifetimePaidUsd: { $sum: "$amountUsd" },
+          paidCount: { $sum: 1 },
+        },
+      },
+    ]);
+    const txByOp = new Map(txAgg.map((row) => [String(row._id), row]));
+
+    const now = Date.now();
+    const ONE_DAY = 24 * 60 * 60 * 1000;
+    const daysBetween = (a, b) =>
+      a && b ? Math.floor((b - a) / ONE_DAY) : null;
+
+    const rows = operators.map((o) => {
+      const tx = txByOp.get(String(o._id)) || null;
+      const lastPaidAt = tx?.lastPaidAt || null;
+
+      // "Lateness" is the integer day delta on the dimension that matters
+      // for the operator's current state.
+      let daysSincePaid = null;
+      if (lastPaidAt) daysSincePaid = daysBetween(new Date(lastPaidAt).getTime(), now);
+      let daysOverdue = null;
+      if (
+        (o.billingStatus === "past_due" || o.billingStatus === "suspended") &&
+        o.nextBillingDate
+      ) {
+        daysOverdue = daysBetween(new Date(o.nextBillingDate).getTime(), now);
+      }
+      let daysUntilDue = null;
+      if (o.billingStatus === "active" && o.nextBillingDate) {
+        daysUntilDue = daysBetween(now, new Date(o.nextBillingDate).getTime());
+      }
+      let daysUntilTrialEnds = null;
+      if (o.billingStatus === "trial" && o.trialEndsAt) {
+        daysUntilTrialEnds = daysBetween(now, new Date(o.trialEndsAt).getTime());
+      }
+
+      return {
+        _id: String(o._id),
+        id: o.id,
+        name: o.name,
+        plan: o.plan,
+        billingStatus: o.billingStatus,
+        activeDiscountCode: o.activeDiscountCode || "",
+        billingCycle: o.billingCycle,
+        nextBillingDate: o.nextBillingDate,
+        trialEndsAt: o.trialEndsAt,
+        pastDueAt: o.pastDueAt,
+        createdAt: o.createdAt,
+        lastPaidAt,
+        lastPaidAmountUsd: tx?.lastPaidAmountUsd ?? 0,
+        lifetimePaidUsd: tx?.lifetimePaidUsd ?? 0,
+        paidCount: tx?.paidCount ?? 0,
+        daysSincePaid,
+        daysOverdue,
+        daysUntilDue,
+        daysUntilTrialEnds,
+      };
+    });
+
+    // Aggregate counters across the (filtered) result set so the FE can
+    // render status tiles without a second roundtrip.
+    const summary = {
+      total: rows.length,
+      lifetimePaidUsd: rows.reduce((s, r) => s + r.lifetimePaidUsd, 0),
+      byStatus: {},
+    };
+    for (const r of rows) {
+      const s = summary.byStatus[r.billingStatus] || { count: 0, lifetimePaidUsd: 0 };
+      s.count += 1;
+      s.lifetimePaidUsd += r.lifetimePaidUsd;
+      summary.byStatus[r.billingStatus] = s;
+    }
+
+    return res.json({ summary, operators: rows });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
 // ── Cross-operator payouts directory ────────────────────────────────────────
 
 // GET /admin/payouts?operatorId=&status=&from=&to=&page=&limit=
