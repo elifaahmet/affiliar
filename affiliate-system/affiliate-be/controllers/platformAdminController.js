@@ -27,6 +27,7 @@ exports.createOperator = async (req, res) => {
       activeDiscountCode = "",
       brandName,
       brandUrl,
+      mode = "pay_now",
     } = req.body || {};
 
     if (!name || !ownerEmail || !ownerName || !ownerUsername || !brandName) {
@@ -38,6 +39,9 @@ exports.createOperator = async (req, res) => {
       return res.status(400).json({
         error: `plan must be one of: ${PLAN_ORDER.join(", ")}`,
       });
+    }
+    if (mode !== "pay_now" && mode !== "trial") {
+      return res.status(400).json({ error: "mode must be 'pay_now' or 'trial'" });
     }
 
     // Reject duplicate owner accounts early so we don't half-create the
@@ -69,20 +73,28 @@ exports.createOperator = async (req, res) => {
     const last = await Operator.findOne({}).sort({ id: -1 }).select({ id: 1 }).lean();
     const nextId = (last?.id ?? 0) + 1;
 
-    // Platform-admin onboarding skips the self-signup trial — the operator
-    // has a deal in place and needs to pay before they're 'active'. Start
-    // them in past_due with nextBillingDate=now so the billing banner shows
-    // a "Pay now" CTA on first login. The callback flips them to active on
-    // the first successful charge.
+    // Two onboarding flavours:
+    //   pay_now (default) — operator has a deal in place, starts in
+    //                       past_due with nextBillingDate=now so the
+    //                       billing banner shows "Pay now" on first login.
+    //   trial             — 3-day grace: nextBillingDate=trialEndsAt so the
+    //                       billing job fires due_today on day 3, +2/+4
+    //                       overdue reminders on days 5/7, and suspends on
+    //                       day 10. The first successful charge flips to
+    //                       active either way.
     const now = new Date();
+    const trialMode = mode === "trial";
+    const trialEndsAt = trialMode
+      ? new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000)
+      : null;
     const operator = await Operator.create({
       id: nextId,
       name: name.trim(),
       plan,
-      billingStatus: "past_due",
-      pastDueAt: now,
-      nextBillingDate: now,
-      trialEndsAt: null,
+      billingStatus: trialMode ? "trial" : "past_due",
+      pastDueAt: trialMode ? null : now,
+      nextBillingDate: trialMode ? trialEndsAt : now,
+      trialEndsAt,
       activeDiscountCode: resolvedDiscountCode,
     });
 

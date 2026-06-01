@@ -38,7 +38,7 @@ interface BillingTransaction {
 
 interface BillingStatus {
   plan: string;
-  billingStatus: 'trial' | 'active' | 'past_due' | 'cancelled';
+  billingStatus: 'trial' | 'active' | 'past_due' | 'suspended' | 'cancelled';
   trialEndsAt: string | null;
   nextBillingDate: string | null;
   billingCycle: string;
@@ -64,6 +64,7 @@ const STATUS_BADGE: Record<string, string> = {
   trial: 'bg-violet-100 text-violet-700',
   active: 'bg-green-100 text-green-700',
   past_due: 'bg-red-100 text-red-700',
+  suspended: 'bg-red-200 text-red-900',
   cancelled: 'bg-gray-100 text-gray-700',
 };
 

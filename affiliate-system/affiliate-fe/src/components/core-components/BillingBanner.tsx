@@ -4,16 +4,16 @@ import { BILLING_API_URLS } from 'config/apiUrls';
 
 interface BillingStatusLite {
   plan?: string;
-  billingStatus?: 'trial' | 'active' | 'past_due' | 'cancelled';
+  billingStatus?: 'trial' | 'active' | 'past_due' | 'suspended' | 'cancelled';
   nextBillingDate?: string | null;
 }
 
 /**
- * Slim banner the operator dashboard pins above the main content. Shows
- * only when there's something the operator needs to act on:
- *   - billingStatus === 'past_due'  — the daily job already flipped them
- *   - billingStatus === 'active'    + nextBillingDate is in the past
- *     (the job hasn't run yet — same message, just earlier in the cycle)
+ * Slim banner the operator dashboard pins above the main content. Behaviour
+ * by status:
+ *   - 'past_due'                       → red banner with Pay now button
+ *   - 'active' + nextBillingDate past  → same red banner (job hasn't flipped yet)
+ *   - 'suspended'                      → full-screen blocking overlay
  *
  * Auto-hides while the query is loading or for affiliates (the endpoint
  * is operator-scoped and 4xxs for affiliate role, which `useBaseQuery`
@@ -31,23 +31,48 @@ export default function BillingBanner() {
   const next = data.nextBillingDate ? new Date(data.nextBillingDate) : null;
   const overdueByDate =
     next != null && next.getTime() < Date.now() && data.billingStatus === 'active';
+  const suspended = data.billingStatus === 'suspended';
   const pastDue = data.billingStatus === 'past_due' || overdueByDate;
-  if (!pastDue) return null;
+  if (!suspended && !pastDue) return null;
 
   // Push the operator straight into the renewal flow. /billing reads ?renew=1
   // and auto-triggers the wallet picker for their current plan, so they
   // don't have to find the right card and click Subscribe themselves.
   const onPayNow = () => {
     navigate({ pathname: '/billing', search: '?renew=1' }, { replace: false });
-    // Path-only navigations on the same route don't reset scroll; nudge the
-    // plan grid into view too in case the picker fetch fails and the
-    // operator falls back to picking manually.
     setTimeout(() => {
       document
         .getElementById('billing-plans')
         ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 80);
   };
+
+  if (suspended) {
+    return (
+      <div className='fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4'>
+        <div className='max-w-md w-full bg-white rounded-lg shadow-xl border border-red-200 p-6 text-center'>
+          <div className='inline-flex items-center justify-center h-12 w-12 rounded-full bg-red-100 text-red-700 text-2xl font-bold mb-3'>!</div>
+          <h2 className='text-lg font-semibold text-red-800 mb-1'>Service suspended</h2>
+          <p className='text-sm text-gray-700 mb-4'>
+            Your subscription
+            {next ? (
+              <> has been overdue since{' '}
+                {next.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+              </>
+            ) : null}
+            . Operator panel access is paused until payment is received. Your data and affiliates are preserved — paying restores everything.
+          </p>
+          <button
+            type='button'
+            onClick={onPayNow}
+            className='inline-flex items-center justify-center w-full rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700'
+          >
+            Pay now to restore access →
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className='bg-red-50 border-b border-red-200 px-4 py-2 flex items-center gap-3'>

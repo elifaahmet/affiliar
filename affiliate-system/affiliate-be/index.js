@@ -10,6 +10,7 @@ const authRoutes = require("./routes/authRoutes");
 const affiliateRoutes = require("./routes/affiliate");
 const integrationRoutes = require("./routes/integrationRoutes");
 const authorize = require("./middlewares/auth");
+const { blockSuspendedOperator } = require("./middlewares/billingGate");
 
 const connectDB = require("./config/db");
 const swaggerOptions = require("./config/swaggerOptions");
@@ -70,6 +71,11 @@ app.use((req, res, next) => {
   if (publicAuthPaths.has(req.path)) return next();
   return authorize()(req, res, next);
 });
+
+// Hard cut-off for `suspended` operators on every authed route except the
+// pay-to-restore loop (/auth, /billing, /admin). Runs after authorize() so
+// req.affiliateUser is populated.
+app.use(blockSuspendedOperator);
 
 app.use(`${prefix}/auth`, authRoutes);
 app.use(`${prefix}/dashboard`, affiliateRoutes.dashboardRoutes);

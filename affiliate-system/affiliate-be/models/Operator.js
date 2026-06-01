@@ -28,7 +28,7 @@ const operatorSchema = new mongoose.Schema(
     },
     billingStatus: {
       type: String,
-      enum: ["trial", "active", "past_due", "cancelled"],
+      enum: ["trial", "active", "past_due", "suspended", "cancelled"],
       default: "trial",
     },
     // Sticky discount code: when set, the billing modal pre-fills it on every
@@ -51,7 +51,7 @@ const operatorSchema = new mongoose.Schema(
     },
     trialEndsAt: {
       type: Date,
-      default: () => new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      default: () => new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
     },
     // When the operator most recently transitioned from `active` to
     // `past_due`. Cleared on successful payment (next cycle starts fresh).
@@ -82,11 +82,12 @@ const operatorSchema = new mongoose.Schema(
     // the cycleAnchor dedup key).
     //
     // `kind` values:
-    //   'upcoming_7d'         — 7 days before due
-    //   'upcoming_3d'         — 3 days before due
+    //   'upcoming_7d'         — 7 days before due (monthly cycle only)
+    //   'upcoming_3d'         — 3 days before due (monthly cycle only)
     //   'due_today'           — day of due date, still unpaid
-    //   'past_due_daily'      — daily after due, +1..+9 days overdue
-    //   'suspension_warning'  — final notice at +10 days overdue
+    //   'past_due_2d'         — +2 days overdue
+    //   'past_due_4d'         — +4 days overdue
+    //   'suspended'           — +7 days overdue: hard panel cut-off
     billingReminders: {
       type: [
         {
@@ -96,8 +97,9 @@ const operatorSchema = new mongoose.Schema(
               "upcoming_7d",
               "upcoming_3d",
               "due_today",
-              "past_due_daily",
-              "suspension_warning",
+              "past_due_2d",
+              "past_due_4d",
+              "suspended",
             ],
             required: true,
           },

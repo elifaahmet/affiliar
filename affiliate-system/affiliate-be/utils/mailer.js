@@ -166,10 +166,10 @@ async function sendBillingPastDue({ to, name, planName, dueDate }) {
 // The billingExpiryJob walks operators daily and picks the right reminder for
 // where they sit on the timeline:
 //
-//   -7d / -3d   →  sendBillingUpcoming          (heads-up before due)
-//    0d         →  sendBillingDueToday          (paid grace expires today)
-//   +1..+9d     →  sendBillingPastDueReminder   (daily, with countdown)
-//   +10d       →  sendBillingSuspensionWarning (final notice)
+//   -7d / -3d   →  sendBillingUpcoming         (heads-up before due, monthly only)
+//    0d         →  sendBillingDueToday         (trial end / paid grace expires today)
+//   +2d / +4d   →  sendBillingPastDueReminder  (sparse reminders, with countdown)
+//   +7d         →  sendBillingSuspendedNotice  (after the hard cut-off flip)
 //
 // All four share the same shell (logo, button, text body) so the operator
 // sees a consistent thread of messages; only the headline + body copy + CTA
@@ -257,8 +257,8 @@ async function sendBillingDueToday({ to, name, planName, dueDate }) {
   return sendMail({ to, subject, htmlBody, textBody });
 }
 
-// +1..+9 days overdue. We always include a "service will be suspended in N
-// days" countdown so the operator knows exactly when the cut-off lands.
+// Sparse post-due reminders at +2 / +4 days overdue. The "service will be
+// suspended in N days" countdown anchors against SUSPEND_AFTER_DAYS (+7d).
 async function sendBillingPastDueReminder({ to, name, planName, dueDate, daysOverdue, daysUntilSuspension }) {
   const billingUrl = `${APP_URL}/billing`;
   const logoUrl = LOGO_URL;
@@ -287,34 +287,34 @@ async function sendBillingPastDueReminder({ to, name, planName, dueDate, daysOve
   return sendMail({ to, subject, htmlBody, textBody });
 }
 
-// +10 days overdue — the final notice. The job doesn't actually flip to a
-// `suspended` status yet (that's a planGuard / access-control decision for
-// later); this email is the strongest warning the operator gets and is the
-// last automated reminder for the cycle.
-async function sendBillingSuspensionWarning({ to, name, planName, dueDate }) {
+// +7 days overdue — the suspended-notice email. By the time this fires
+// the operator has already been flipped to `billingStatus: 'suspended'`
+// and the panel gate is blocking their requests; this email tells them
+// what happened and how to restore service.
+async function sendBillingSuspendedNotice({ to, name, planName, dueDate }) {
   const billingUrl = `${APP_URL}/billing`;
   const logoUrl = LOGO_URL;
   const niceDate = fmtDate(dueDate);
-  const subject = "Final notice — pay now to avoid Affiliar service suspension";
+  const subject = "Affiliar service suspended — pay to restore";
 
   const bodyHtml = `
     <p style="color: #334155; font-size: 15px; line-height: 1.6;">Hi ${name || "there"},</p>
-    <p style="color: #334155; font-size: 15px; line-height: 1.6;">Your Affiliar subscription${planName ? ` (${planName})` : ""} has been overdue since <b>${niceDate}</b> and is now <b>10 days past due</b>.</p>
+    <p style="color: #334155; font-size: 15px; line-height: 1.6;">Your Affiliar subscription${planName ? ` (${planName})` : ""} has been overdue since <b>${niceDate}</b> and is now 7 days past due, so we've suspended your operator panel.</p>
     <div style="background: #FEE2E2; border-left: 4px solid #B91C1C; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
-      <p style="color: #7F1D1D; font-size: 14px; line-height: 1.5; margin: 0;"><b>This is the final notice.</b> If we don't receive payment, your operator panel access and conversion tracking will be suspended shortly. Your data and affiliates are preserved — paying restores everything.</p>
+      <p style="color: #7F1D1D; font-size: 14px; line-height: 1.5; margin: 0;"><b>Your data and affiliates are preserved.</b> Pay now to restore full access — the suspension lifts immediately once the payment is confirmed.</p>
     </div>
   `;
-  const footerHtml = `<p style="color: #94A3B8; font-size: 12px; text-align: center;">Already paid? Provider confirmations can take a few minutes — you can ignore this email if so.</p>`;
+  const footerHtml = `<p style="color: #94A3B8; font-size: 12px; text-align: center;">Already paid? Provider confirmations can take a few minutes — access restores as soon as we receive the callback.</p>`;
   const htmlBody = billingShell({
     logoUrl, billingUrl,
-    headline: "Final notice — payment 10 days overdue",
+    headline: "Service suspended — pay to restore",
     headlineColor: "#7F1D1D",
     bodyHtml,
     ctaLabel: "Pay now",
     ctaColor: "#7F1D1D",
     footerHtml,
   });
-  const textBody = `Hi ${name || "there"},\n\nFINAL NOTICE: Your Affiliar subscription${planName ? ` (${planName})` : ""} has been overdue since ${niceDate} and is now 10 days past due. If payment isn't received your operator panel access and conversion tracking will be suspended shortly.\n\nPay now: ${billingUrl}\n\nYour data and affiliates are preserved — paying restores everything.`;
+  const textBody = `Hi ${name || "there"},\n\nYour Affiliar subscription${planName ? ` (${planName})` : ""} has been overdue since ${niceDate} and is now 7 days past due, so we've suspended your operator panel. Your data and affiliates are preserved — pay now to restore full access.\n\nPay now: ${billingUrl}`;
 
   return sendMail({ to, subject, htmlBody, textBody });
 }
@@ -326,7 +326,7 @@ module.exports = {
   sendPasswordReset,
   sendBillingPastDue,             // legacy single transition email (kept for safety)
   sendBillingUpcoming,            // -7d / -3d
-  sendBillingDueToday,            // 0d
-  sendBillingPastDueReminder,     // +1..+9d
-  sendBillingSuspensionWarning,   // +10d
+  sendBillingDueToday,            // 0d (trial end / monthly due)
+  sendBillingPastDueReminder,     // +2d / +4d
+  sendBillingSuspendedNotice,     // +7d, after the hard cut-off flip
 };

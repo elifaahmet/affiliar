@@ -3,32 +3,34 @@
 /**
  * Daily billing reminder sweep.
  *
- * Walks every operator with a `nextBillingDate` set (active or past_due) and
- * picks the right reminder for where they sit on the timeline:
+ * Walks every operator with a `nextBillingDate` set (trial, active, or
+ * past_due) and picks the right reminder for where they sit on the
+ * timeline:
  *
- *   -7d / -3d   →  upcoming           (heads-up before due, one-shot each)
- *    0d         →  due_today          (paid grace expires today)
- *   +1..+9d     →  past_due_daily     (daily, with suspension countdown)
- *   +10d       →  suspension_warning (final notice, one-shot)
+ *   -7d / -3d   →  upcoming     (monthly cycle heads-up, one-shot each)
+ *    0d         →  due_today    (trial end / paid grace expires today)
+ *   +2d         →  past_due_2d  (one-shot)
+ *   +4d         →  past_due_4d  (one-shot)
+ *   +7d         →  suspended    (one-shot, flips status to 'suspended')
+ *
+ * Trial flow: at signup we set `nextBillingDate = trialEndsAt`, so a
+ * 3-day trial maps to: signup → due on day 3 → reminders on day 5/7 →
+ * suspended on day 10.
  *
  * Idempotency
  * -----------
  * Each send is logged into `Operator.billingReminders` with a `cycleAnchor`
- * equal to the operator's `nextBillingDate` at the time of send. One-shot
- * stages dedupe on `(kind, cycleAnchor)`; the daily stage additionally
- * dedupes on "sent within the same UTC day". When the operator pays, the
+ * equal to the operator's `nextBillingDate` at the time of send. All
+ * stages dedupe on `(kind, cycleAnchor)`. When the operator pays, the
  * billing controller advances `nextBillingDate` — the old log entries no
  * longer match the new cycleAnchor, so the next cycle starts with a clean
  * slate of reminders.
  *
  * Status transitions
  * ------------------
- * - active → past_due  when `nextBillingDate < now` (sets `pastDueAt`).
- * - past_due → active  is owned by the billing controller (on payment).
- *
- * We do NOT auto-flip to `suspended` at +10d — the +10d email is a final
- * warning; actually cutting off panel access is a separate planGuard
- * decision we'll wire when the operator side is ready for it.
+ * - trial/active → past_due  when `nextBillingDate < now` (sets `pastDueAt`).
+ * - past_due → suspended     when ≥ SUSPEND_AFTER_DAYS overdue.
+ * - {past_due,suspended} → active  is owned by the billing controller (on payment).
  */
 
 const Operator = require("../models/Operator");
@@ -38,7 +40,7 @@ const {
   sendBillingUpcoming,
   sendBillingDueToday,
   sendBillingPastDueReminder,
-  sendBillingSuspensionWarning,
+  sendBillingSuspendedNotice,
 } = require("../utils/mailer");
 const { logger } = require("../middlewares/logger");
 
@@ -51,9 +53,9 @@ const INITIAL_DELAY_MS = parseInt(
   10,
 );
 
-// Suspension countdown anchor — used in past_due_daily email copy and as the
-// cut-off threshold for the suspension_warning stage.
-const SUSPEND_AFTER_DAYS = 10;
+// Cut-off threshold: at +N days overdue the operator flips to 'suspended'
+// and panel access is blocked until they pay.
+const SUSPEND_AFTER_DAYS = 7;
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -64,12 +66,17 @@ let scheduledTimer = null;
 // Given an operator's billing date and the current time, returns either a
 // stage descriptor `{ kind, daysUntilDue?, daysOverdue?, daysUntilSuspension? }`
 // or null when nothing should fire. Pure function — no I/O.
+//
+// Trial signups use the same machinery: at signup, nextBillingDate is set
+// to trialEndsAt (= signup + 3d), so a trial maps to due_today on day 3,
+// past_due_2d on day 5, past_due_4d on day 7, suspended on day 10.
 function pickStage(nextBillingDate, now) {
   const deltaMs = nextBillingDate.getTime() - now.getTime();
   const deltaDays = deltaMs / ONE_DAY_MS;
 
   // ── Pre-due reminders. We use ±0.5-day windows so the daily job fires
-  // exactly once per stage regardless of when in the day it runs.
+  // exactly once per stage regardless of when in the day it runs. These
+  // only fire on monthly cycles — a 3-day trial doesn't reach -7/-3d.
   if (deltaDays > 6.5 && deltaDays <= 7.5) {
     return { kind: "upcoming_7d", daysUntilDue: 7 };
   }
@@ -80,21 +87,29 @@ function pickStage(nextBillingDate, now) {
     return { kind: "due_today", daysUntilDue: 0 };
   }
 
-  // ── Post-due reminders.
-  if (deltaDays <= -0.5) {
-    // daysOverdue = 1 the day after due, 2 the day after, …
-    const daysOverdue = Math.max(1, Math.ceil(-deltaDays));
-    if (daysOverdue >= SUSPEND_AFTER_DAYS) {
-      return { kind: "suspension_warning", daysOverdue };
-    }
+  // ── Post-due reminders: sparse one-shots at +2 / +4, suspend at +7.
+  // Use ±0.5-day windows mirroring the pre-due logic so the daily job
+  // catches each stage exactly once.
+  if (deltaDays <= -6.5) {
+    const daysOverdue = Math.max(SUSPEND_AFTER_DAYS, Math.ceil(-deltaDays));
+    return { kind: "suspended", daysOverdue };
+  }
+  if (deltaDays > -4.5 && deltaDays <= -3.5) {
     return {
-      kind: "past_due_daily",
-      daysOverdue,
-      daysUntilSuspension: SUSPEND_AFTER_DAYS - daysOverdue,
+      kind: "past_due_4d",
+      daysOverdue: 4,
+      daysUntilSuspension: SUSPEND_AFTER_DAYS - 4,
+    };
+  }
+  if (deltaDays > -2.5 && deltaDays <= -1.5) {
+    return {
+      kind: "past_due_2d",
+      daysOverdue: 2,
+      daysUntilSuspension: SUSPEND_AFTER_DAYS - 2,
     };
   }
 
-  return null; // nothing to send today
+  return null; // overdue but not on a reminder day (e.g. +1, +3, +5, +6)
 }
 
 // Cycle dedup: an `entry.cycleAnchor` matches when it equals the operator's
@@ -105,27 +120,11 @@ function sameCycle(entry, nextBillingDate) {
   return new Date(entry.cycleAnchor).getTime() === nextBillingDate.getTime();
 }
 
-function sameUtcDay(date, now) {
-  if (!date) return false;
-  return Math.floor(new Date(date).getTime() / ONE_DAY_MS)
-       === Math.floor(now.getTime() / ONE_DAY_MS);
-}
-
 // Returns true if the operator was already reminded for this stage in the
-// current cycle (and, for past_due_daily, today specifically).
-function alreadySent(operator, stage, now) {
+// current cycle. All stages are one-shot per cycleAnchor.
+function alreadySent(operator, stage) {
   const log = operator.billingReminders || [];
   const nextBillingDate = operator.nextBillingDate;
-
-  if (stage.kind === "past_due_daily") {
-    return log.some(
-      (e) =>
-        e.kind === "past_due_daily" &&
-        sameCycle(e, nextBillingDate) &&
-        sameUtcDay(e.sentAt, now),
-    );
-  }
-  // one-shot stages: any matching kind for this cycleAnchor blocks
   return log.some(
     (e) => e.kind === stage.kind && sameCycle(e, nextBillingDate),
   );
@@ -139,21 +138,44 @@ async function processOperator(operator, now) {
   const stage = pickStage(new Date(operator.nextBillingDate), now);
   if (!stage) return { skipped: "outside_window" };
 
-  // If the operator is still `active` but we're past due, flip first so the
-  // suspension countdown anchor is recorded (pastDueAt).
-  if (operator.billingStatus === "active"
-      && stage.kind !== "upcoming_7d"
-      && stage.kind !== "upcoming_3d"
-      && stage.kind !== "due_today") {
+  // Suppress the monthly-cycle pre-due reminders for trial operators —
+  // they just signed up and don't need "renewing soon" emails. They'll get
+  // due_today on day 3 and the post-due cadence after that.
+  if (operator.billingStatus === "trial"
+      && (stage.kind === "upcoming_7d" || stage.kind === "upcoming_3d")) {
+    return { skipped: "trial_pre_due_suppressed" };
+  }
+
+  // If still `trial` or `active` but we're past due, flip to past_due
+  // first so the suspension countdown anchor is recorded (pastDueAt).
+  // Pre-due stages (upcoming/due_today) don't trigger the flip.
+  const isPostDue =
+    stage.kind === "past_due_2d" ||
+    stage.kind === "past_due_4d" ||
+    stage.kind === "suspended";
+  if (isPostDue
+      && (operator.billingStatus === "active" || operator.billingStatus === "trial")) {
+    const fromStatus = operator.billingStatus;
     await Operator.updateOne(
-      { _id: operator._id, billingStatus: "active" },
+      { _id: operator._id, billingStatus: fromStatus },
       { $set: { billingStatus: "past_due", pastDueAt: now } },
     );
     operator.billingStatus = "past_due";
     operator.pastDueAt = now;
   }
 
-  if (alreadySent(operator, stage, now)) {
+  // Hard cut-off: flip to 'suspended' before sending so the user's next
+  // request hits the suspended-panel gate. One-shot per cycle thanks to
+  // alreadySent() — re-runs after suspension just no-op.
+  if (stage.kind === "suspended" && operator.billingStatus !== "suspended") {
+    await Operator.updateOne(
+      { _id: operator._id },
+      { $set: { billingStatus: "suspended" } },
+    );
+    operator.billingStatus = "suspended";
+  }
+
+  if (alreadySent(operator, stage)) {
     return { skipped: "already_sent", kind: stage.kind };
   }
 
@@ -185,15 +207,16 @@ async function processOperator(operator, now) {
         case "due_today":
           await sendBillingDueToday(args);
           break;
-        case "past_due_daily":
+        case "past_due_2d":
+        case "past_due_4d":
           await sendBillingPastDueReminder({
             ...args,
             daysOverdue: stage.daysOverdue,
             daysUntilSuspension: stage.daysUntilSuspension,
           });
           break;
-        case "suspension_warning":
-          await sendBillingSuspensionWarning(args);
+        case "suspended":
+          await sendBillingSuspendedNotice(args);
           break;
       }
       emailed++;
@@ -230,18 +253,19 @@ async function processOperator(operator, now) {
 async function runOnce({ now = new Date() } = {}) {
   const stats = {
     candidates: 0,
-    sent: { upcoming_7d: 0, upcoming_3d: 0, due_today: 0, past_due_daily: 0, suspension_warning: 0 },
+    sent: { upcoming_7d: 0, upcoming_3d: 0, due_today: 0, past_due_2d: 0, past_due_4d: 0, suspended: 0 },
     flipped: 0,
+    suspended: 0,
     skipped: 0,
     errors: 0,
   };
 
-  // Pull both active and past_due — pre-due reminders fire on active, the
-  // post-due cadence on past_due. Operators without a nextBillingDate yet
-  // (still on trial) are filtered out at the query.
+  // Pull trial + active + past_due. Trial operators carry a `nextBillingDate
+  // = trialEndsAt` so they flow through the same pipeline; suspended
+  // operators have already been cut off and don't need further reminders.
   const cursor = Operator.find({
     isDeleted: false,
-    billingStatus: { $in: ["active", "past_due"] },
+    billingStatus: { $in: ["trial", "active", "past_due"] },
     nextBillingDate: { $ne: null },
   }).cursor();
 
@@ -250,7 +274,8 @@ async function runOnce({ now = new Date() } = {}) {
     try {
       const before = operator.billingStatus;
       const result = await processOperator(operator, now);
-      if (before === "active" && operator.billingStatus === "past_due") stats.flipped++;
+      if (before !== "past_due" && operator.billingStatus === "past_due") stats.flipped++;
+      if (before !== "suspended" && operator.billingStatus === "suspended") stats.suspended++;
       if (result?.kind) stats.sent[result.kind] = (stats.sent[result.kind] || 0) + 1;
       else stats.skipped++;
     } catch (err) {

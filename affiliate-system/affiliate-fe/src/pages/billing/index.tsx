@@ -8,7 +8,7 @@ import { BILLING_API_URLS } from 'config/apiUrls';
 
 interface BillingStatus {
   plan: string;
-  billingStatus: 'trial' | 'active' | 'past_due' | 'cancelled';
+  billingStatus: 'trial' | 'active' | 'past_due' | 'suspended' | 'cancelled';
   trialEndsAt: string | null;
   nextBillingDate: string | null;
   billingCycle: string;

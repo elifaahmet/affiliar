@@ -511,11 +511,16 @@ const billingController = {
         const now = new Date();
         const next = new Date(now);
         next.setMonth(next.getMonth() + 1);
+        // Payment also lifts a `suspended` operator back to `active` — the
+        // suspended-panel middleware reads billingStatus on every request,
+        // so the panel unlocks immediately. Clear pastDueAt so the next
+        // cycle starts with a clean overdue anchor.
         await Operator.findByIdAndUpdate(transaction.operatorId, {
           plan: transaction.plan,
           billingStatus: "active",
           billingCycle: now,
           nextBillingDate: next,
+          pastDueAt: null,
         });
 
         logger.info("billing.sans.callback.approved", {

@@ -30,6 +30,7 @@ const STATUS_STYLES: Record<string, string> = {
   trial:     'bg-violet-50 text-violet-700',
   active:    'bg-green-50 text-green-700',
   past_due:  'bg-yellow-50 text-yellow-800',
+  suspended: 'bg-red-100 text-red-800',
   cancelled: 'bg-gray-100 text-gray-600',
 };
 

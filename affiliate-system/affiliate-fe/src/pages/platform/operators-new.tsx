@@ -33,6 +33,7 @@ export default function PlatformOperatorsNew() {
   const [activeDiscountCode, setActiveDiscountCode] = useState('');
   const [brandName, setBrandName]                 = useState('');
   const [brandUrl, setBrandUrl]                   = useState('');
+  const [mode, setMode]                           = useState<'pay_now' | 'trial'>('pay_now');
   const [error, setError]                         = useState<string | null>(null);
   const [result, setResult]                       = useState<CreateOperatorResponse | null>(null);
 
@@ -57,6 +58,7 @@ export default function PlatformOperatorsNew() {
       activeDiscountCode: activeDiscountCode.trim() || undefined,
       brandName: brandName.trim(),
       brandUrl: brandUrl.trim() || undefined,
+      mode,
     });
   };
 
@@ -117,11 +119,6 @@ export default function PlatformOperatorsNew() {
             Creates the operator account, owner user (pending until activation), one default brand,
             and seeds operator-default fee settings. Owner receives an activation email.
           </p>
-          <p className='text-xs text-amber-700 mt-2 bg-amber-50 border border-amber-200 rounded px-2 py-1.5'>
-            No trial period — the operator starts in <code>past_due</code> and must pay before
-            their status becomes <code>active</code>. If a discount code is set above, it auto-
-            applies on first checkout.
-          </p>
         </div>
 
         <form onSubmit={onSubmit} className='space-y-5 bg-white rounded-xl border border-violet-100 p-6'>
@@ -136,6 +133,23 @@ export default function PlatformOperatorsNew() {
               hint='Saved on the operator. Auto-applied on every billing cycle until removed.'
               monospace
             />
+            <div>
+              <span className='block text-xs font-medium text-gray-700 mb-1'>Billing start</span>
+              <div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
+                <ModeOption
+                  selected={mode === 'pay_now'}
+                  onClick={() => setMode('pay_now')}
+                  title='Require payment now'
+                  body={<>Starts in <code>past_due</code>. Owner sees a Pay-now CTA on first login; status flips to <code>active</code> after the first successful charge.</>}
+                />
+                <ModeOption
+                  selected={mode === 'trial'}
+                  onClick={() => setMode('trial')}
+                  title='3-day trial'
+                  body={<>Full panel access for 3 days. Reminders fire on day&nbsp;3 (due), 5 and 7; <b>suspended on day&nbsp;10</b> if unpaid.</>}
+                />
+              </div>
+            </div>
           </Section>
 
           <Section title='Owner user'>
@@ -203,6 +217,30 @@ function Field({
       />
       {hint && <span className='block text-xs text-gray-600 mt-1'>{hint}</span>}
     </label>
+  );
+}
+
+function ModeOption({
+  selected, onClick, title, body,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  title: string;
+  body: React.ReactNode;
+}) {
+  return (
+    <button
+      type='button'
+      onClick={onClick}
+      className={`text-left rounded-lg border px-3 py-2.5 transition-colors ${
+        selected
+          ? 'border-primary bg-violet-50 ring-1 ring-primary'
+          : 'border-gray-200 bg-white hover:border-gray-300'
+      }`}
+    >
+      <div className='text-sm font-semibold text-gray-900'>{title}</div>
+      <div className='text-xs text-gray-600 mt-1 leading-relaxed'>{body}</div>
+    </button>
   );
 }
 
