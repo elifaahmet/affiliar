@@ -210,6 +210,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       Icon: ChartBarSquareIcon,
       current: pathname.startsWith('/platform/reports'),
     });
+    navigation.push({
+      key: 'platform-affiliates',
+      name: t('menuItems.platformAffiliates') || 'Platform Affiliates',
+      href: '/platform/affiliates',
+      Icon: UserGroupIcon,
+      current: pathname.startsWith('/platform/affiliates'),
+    });
+    navigation.push({
+      key: 'platform-payouts',
+      name: t('menuItems.platformPayouts') || 'Platform Payouts',
+      href: '/platform/payouts',
+      Icon: ArrowUpOnSquareIcon,
+      current: pathname.startsWith('/platform/payouts'),
+    });
   }
 
   // Frosted violet glass sidebar — translucent so the body bg tints

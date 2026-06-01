@@ -16,6 +16,10 @@ router.get("/brands", ctrl.listAllBrands);
 // Cross-operator reports rollup (admin-only)
 router.get("/reports/overview", ctrl.adminReportsOverview);
 
+// Cross-operator affiliates + payouts directories
+router.get("/affiliates", ctrl.adminListAffiliates);
+router.get("/payouts",    ctrl.adminListPayouts);
+
 // Single-operator detail + update
 router.get("/operators/:id",   ctrl.getOperator);
 router.patch("/operators/:id", ctrl.updateOperator);

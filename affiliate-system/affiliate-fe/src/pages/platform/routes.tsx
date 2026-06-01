@@ -4,6 +4,8 @@ import PlatformOperators from './operators';
 import PlatformOperatorsNew from './operators-new';
 import PlatformOperatorDetail from './operator-detail';
 import PlatformReports from './reports';
+import PlatformAffiliates from './affiliates';
+import PlatformPayouts from './payouts';
 
 export const platformRoutes: AppRouteProps[] = [
   {
@@ -15,6 +17,8 @@ export const platformRoutes: AppRouteProps[] = [
       { path: 'operators/new', element: <PlatformOperatorsNew /> },
       { path: 'operators/:id', element: <PlatformOperatorDetail /> },
       { path: 'reports', element: <PlatformReports /> },
+      { path: 'affiliates', element: <PlatformAffiliates /> },
+      { path: 'payouts', element: <PlatformPayouts /> },
     ],
   },
 ];

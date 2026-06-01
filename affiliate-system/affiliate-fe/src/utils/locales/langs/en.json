@@ -66,6 +66,8 @@
     "settings": "Settings",
     "platform": "Platform Admin",
     "platformReports": "Platform Reports",
+    "platformAffiliates": "Platform Affiliates",
+    "platformPayouts": "Platform Payouts",
     "operators": "Operators",
     "new": "New",
     "edit": "Edit"

@@ -411,4 +411,25 @@ export const PLATFORM_ADMIN_API_URLS = {
     const s = qs.toString();
     return `${API_BASE_URL}api/admin/reports/overview${s ? `?${s}` : ""}`;
   },
+  LIST_AFFILIATES_ALL: (params?: { operatorId?: string; status?: string; q?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.operatorId) qs.set('operatorId', params.operatorId);
+    if (params?.status)     qs.set('status', params.status);
+    if (params?.q)          qs.set('q', params.q);
+    if (params?.page)       qs.set('page', String(params.page));
+    if (params?.limit)      qs.set('limit', String(params.limit));
+    const s = qs.toString();
+    return `${API_BASE_URL}api/admin/affiliates${s ? `?${s}` : ""}`;
+  },
+  LIST_PAYOUTS_ALL: (params?: { operatorId?: string; status?: string; from?: string; to?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.operatorId) qs.set('operatorId', params.operatorId);
+    if (params?.status)     qs.set('status', params.status);
+    if (params?.from)       qs.set('from', params.from);
+    if (params?.to)         qs.set('to', params.to);
+    if (params?.page)       qs.set('page', String(params.page));
+    if (params?.limit)      qs.set('limit', String(params.limit));
+    const s = qs.toString();
+    return `${API_BASE_URL}api/admin/payouts${s ? `?${s}` : ""}`;
+  },
 };

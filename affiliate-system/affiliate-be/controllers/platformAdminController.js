@@ -7,6 +7,7 @@ const OperatorFinancialSettings = require("../models/OperatorFinancialSettings")
 const DiscountCode              = require("../models/DiscountCode");
 const BillingTransaction        = require("../models/BillingTransaction");
 const CommissionPlan            = require("../models/CommissionPlan");
+const AffiliatePayout           = require("../models/AffiliatePayout");
 const clickhouse                = require("../config/clickhouse");
 const { PLAN_ORDER }            = require("../utils/planLimits");
 const { sendOperatorInvite }    = require("../utils/mailer");
@@ -950,6 +951,180 @@ exports.adminReportsOverview = async (req, res) => {
       byOperator: byOperatorRows.map((r) => ({
         ...coerceCh(r),
         operator: operatorMeta.get(String(r.operatorId)) || null,
+      })),
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// ── Cross-operator affiliates directory ─────────────────────────────────────
+
+// Attach { _id, id, name } meta for every operatorId surfacing in the rows.
+// Pulled here as a helper because affiliates/payouts both lean on it.
+async function attachOperatorMeta(rows, getOperatorId) {
+  const ids = [...new Set(rows.map((r) => String(getOperatorId(r) || "")).filter(Boolean))];
+  if (ids.length === 0) return new Map();
+  const ops = await Operator.find({ _id: { $in: ids } })
+    .select({ _id: 1, id: 1, name: 1 })
+    .lean();
+  return new Map(
+    ops.map((o) => [String(o._id), { _id: String(o._id), id: o.id, name: o.name }]),
+  );
+}
+
+// GET /admin/affiliates?operatorId=&status=&q=&page=&limit=
+// Paginated directory across every operator. Filters all optional:
+//   operatorId — narrow to one tenant
+//   status     — User.status (active, pending, …)
+//   q          — substring match on email / username / name (case-insensitive)
+//   page/limit — defaults 1 / 50; limit capped at 200
+exports.adminListAffiliates = async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page || "1", 10));
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit || "50", 10)));
+
+    const filter = { role: "affiliate", isDeleted: { $ne: true } };
+    if (req.query.operatorId) filter.operatorId = req.query.operatorId;
+    if (req.query.status) filter.status = req.query.status;
+    if (req.query.q) {
+      const safe = String(req.query.q).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const rx = new RegExp(safe, "i");
+      filter.$or = [{ email: rx }, { username: rx }, { name: rx }];
+    }
+
+    const [total, rows] = await Promise.all([
+      User.countDocuments(filter),
+      User.find(filter)
+        .select("email name username status parentAffiliateId operatorId createdAt")
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+    ]);
+
+    const operatorMeta = await attachOperatorMeta(rows, (r) => r.operatorId);
+
+    // Sub-affiliate counts only for the visible page so the query stays
+    // bounded — the directory shows "+N subs" badges.
+    const visibleIds = rows.map((r) => r._id);
+    const subCounts = visibleIds.length
+      ? await User.aggregate([
+          {
+            $match: {
+              role: "affiliate",
+              isDeleted: { $ne: true },
+              parentAffiliateId: { $in: visibleIds },
+            },
+          },
+          { $group: { _id: "$parentAffiliateId", n: { $sum: 1 } } },
+        ])
+      : [];
+    const subCountByParent = new Map(subCounts.map((row) => [String(row._id), row.n]));
+
+    return res.json({
+      page,
+      limit,
+      total,
+      affiliates: rows.map((a) => ({
+        _id: String(a._id),
+        email: a.email,
+        name: a.name,
+        username: a.username,
+        status: a.status,
+        parentAffiliateId: a.parentAffiliateId ? String(a.parentAffiliateId) : null,
+        subAffiliateCount: subCountByParent.get(String(a._id)) || 0,
+        createdAt: a.createdAt,
+        operator: operatorMeta.get(String(a.operatorId)) || null,
+      })),
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// ── Cross-operator payouts directory ────────────────────────────────────────
+
+// GET /admin/payouts?operatorId=&status=&from=&to=&page=&limit=
+// Adds an aggregate summary across the filter scope so the FE can show
+// totals/counts at the top without a second roundtrip.
+exports.adminListPayouts = async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page || "1", 10));
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit || "50", 10)));
+
+    const filter = {};
+    if (req.query.operatorId) filter.operatorId = req.query.operatorId;
+    if (req.query.status) filter.status = req.query.status;
+    if (req.query.from || req.query.to) {
+      filter.createdAt = {};
+      if (req.query.from) filter.createdAt.$gte = new Date(`${req.query.from}T00:00:00Z`);
+      if (req.query.to)   filter.createdAt.$lte = new Date(`${req.query.to}T23:59:59Z`);
+    }
+
+    const [total, rows, summaryRows] = await Promise.all([
+      AffiliatePayout.countDocuments(filter),
+      AffiliatePayout.find(filter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+      AffiliatePayout.aggregate([
+        { $match: filter },
+        {
+          $group: {
+            _id: "$status",
+            count: { $sum: 1 },
+            amountCents: { $sum: "$amountCents" },
+          },
+        },
+      ]),
+    ]);
+
+    const summary = {
+      total,
+      byStatus: Object.fromEntries(
+        summaryRows.map((r) => [r._id, { count: r.count, amountCents: r.amountCents }]),
+      ),
+    };
+
+    const operatorMeta = await attachOperatorMeta(rows, (r) => r.operatorId);
+
+    // Resolve affiliate user meta for the visible page.
+    const affiliateIds = [...new Set(rows.map((r) => String(r.affiliateId)).filter(Boolean))];
+    const affiliates = affiliateIds.length
+      ? await User.find({ _id: { $in: affiliateIds } })
+          .select({ _id: 1, email: 1, name: 1, username: 1 })
+          .lean()
+      : [];
+    const affiliateById = new Map(
+      affiliates.map((u) => [
+        String(u._id),
+        { _id: String(u._id), email: u.email, name: u.name, username: u.username },
+      ]),
+    );
+
+    return res.json({
+      page,
+      limit,
+      total,
+      summary,
+      payouts: rows.map((p) => ({
+        _id: String(p._id),
+        operator: operatorMeta.get(String(p.operatorId)) || null,
+        affiliate: affiliateById.get(String(p.affiliateId)) || null,
+        amountCents: p.amountCents,
+        currency: p.currency,
+        payoutAddress: p.payoutAddress,
+        payoutNetwork: p.payoutNetwork,
+        status: p.status,
+        failureReason: p.failureReason,
+        sansTransactionId: p.sansTransactionId,
+        initiatedAt: p.initiatedAt,
+        dispatchedAt: p.dispatchedAt,
+        paidAt: p.paidAt,
+        failedAt: p.failedAt,
+        createdAt: p.createdAt,
       })),
     });
   } catch (err) {
