@@ -24,6 +24,7 @@ interface ByDayRow extends SummaryRow { date: string }
 type ByOperatorRow = SummaryRow & {
   operatorId: string;
   operator: { _id: string; id: number; name: string } | null;
+  productScope: { casino: boolean; sportsbook: boolean };
 };
 
 interface OverviewResponse {
@@ -212,23 +213,45 @@ export default function PlatformReports() {
                       {overview.data.byOperator.length === 0 && (
                         <tr><td colSpan={colCount} className='px-3 py-6 text-center text-gray-500'>No activity in the selected window.</td></tr>
                       )}
-                      {overview.data.byOperator.map((row) => (
-                        <tr key={row.operatorId || 'unknown'}>
-                          <td className='px-3 py-2 font-medium'>
-                            {row.operator
-                              ? <Link to={`/platform/operators/${row.operator._id}`} className='hover:text-primary hover:underline'>{row.operator.name}</Link>
-                              : <span className='text-gray-500 italic'>unknown ({row.operatorId})</span>}
-                          </td>
-                          <td className='px-3 py-2 text-right'>{fmtCount(row.registrations)}</td>
-                          <td className='px-3 py-2 text-right'>{fmtCount(row.ftdCount)}</td>
-                          <td className='px-3 py-2 text-right'>{fmtMoney(row.depositsSumCents)}</td>
-                          <td className='px-3 py-2 text-right'>{fmtMoney(row.cashoutsSumCents)}</td>
-                          {showCasino && <td className='px-3 py-2 text-right'>{fmtMoney(row.computedNgrCents)}</td>}
-                          {showSb && <td className='px-3 py-2 text-right'>{fmtMoney(row.sbNgrCents)}</td>}
-                          {showCombined && <td className='px-3 py-2 text-right font-semibold'>{fmtMoney(row.combinedNgrCents)}</td>}
-                          <td className='px-3 py-2 text-right'>{fmtCount(row.playerCount)}</td>
-                        </tr>
-                      ))}
+                      {overview.data.byOperator.map((row) => {
+                        // Per-row product scope: when the global scope keeps
+                        // a column visible (because some other operator has
+                        // the product), this operator's cell still shows
+                        // "—" if they don't offer it.
+                        const rowCasino = row.productScope?.casino ?? true;
+                        const rowSb = row.productScope?.sportsbook ?? true;
+                        return (
+                          <tr key={row.operatorId || 'unknown'}>
+                            <td className='px-3 py-2 font-medium'>
+                              {row.operator
+                                ? <Link to={`/platform/operators/${row.operator._id}`} className='hover:text-primary hover:underline'>{row.operator.name}</Link>
+                                : <span className='text-gray-500 italic'>unknown ({row.operatorId})</span>}
+                            </td>
+                            <td className='px-3 py-2 text-right'>{fmtCount(row.registrations)}</td>
+                            <td className='px-3 py-2 text-right'>{fmtCount(row.ftdCount)}</td>
+                            <td className='px-3 py-2 text-right'>{fmtMoney(row.depositsSumCents)}</td>
+                            <td className='px-3 py-2 text-right'>{fmtMoney(row.cashoutsSumCents)}</td>
+                            {showCasino && (
+                              <td className='px-3 py-2 text-right'>
+                                {rowCasino ? fmtMoney(row.computedNgrCents) : <span className='text-gray-400'>—</span>}
+                              </td>
+                            )}
+                            {showSb && (
+                              <td className='px-3 py-2 text-right'>
+                                {rowSb ? fmtMoney(row.sbNgrCents) : <span className='text-gray-400'>—</span>}
+                              </td>
+                            )}
+                            {showCombined && (
+                              <td className='px-3 py-2 text-right font-semibold'>
+                                {rowCasino && rowSb
+                                  ? fmtMoney(row.combinedNgrCents)
+                                  : <span className='text-gray-400'>—</span>}
+                              </td>
+                            )}
+                            <td className='px-3 py-2 text-right'>{fmtCount(row.playerCount)}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

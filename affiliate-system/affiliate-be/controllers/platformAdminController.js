@@ -1010,6 +1010,26 @@ exports.adminReportsOverview = async (req, res) => {
       ]),
     );
 
+    // Per-operator product scope so the FE can render "—" instead of "0"
+    // in cells whose product the row's operator doesn't actually offer
+    // (e.g. SB NGR on a casino-only tenant in the unfiltered view).
+    const brandsForByOp = operatorIds.length
+      ? await Brand.find({ operatorId: { $in: operatorIds } })
+          .select({ operatorId: 1, products: 1 })
+          .lean()
+      : [];
+    const productsByOp = new Map();
+    for (const b of brandsForByOp) {
+      const key = String(b.operatorId);
+      const scope = productsByOp.get(key) || { casino: false, sportsbook: false };
+      const list = Array.isArray(b.products) && b.products.length
+        ? b.products
+        : ["casino", "sportsbook"];
+      if (list.includes("casino")) scope.casino = true;
+      if (list.includes("sportsbook")) scope.sportsbook = true;
+      productsByOp.set(key, scope);
+    }
+
     return res.json({
       period: { from: req.query.from || null, to: req.query.to || null },
       productScope,
@@ -1018,6 +1038,10 @@ exports.adminReportsOverview = async (req, res) => {
       byOperator: byOperatorRows.map((r) => ({
         ...coerceCh(r),
         operator: operatorMeta.get(String(r.operatorId)) || null,
+        productScope: productsByOp.get(String(r.operatorId)) || {
+          casino: true,
+          sportsbook: true,
+        },
       })),
     });
   } catch (err) {
