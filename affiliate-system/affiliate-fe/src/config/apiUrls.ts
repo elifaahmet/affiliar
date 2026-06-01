@@ -402,4 +402,13 @@ export const PLATFORM_ADMIN_API_URLS = {
     `${API_BASE_URL}api/admin/operators/${id}/commission-plans`,
   LIST_ALL_BRANDS:   (q?: string) =>
     `${API_BASE_URL}api/admin/brands${q ? `?q=${encodeURIComponent(q)}` : ""}`,
+  REPORTS_OVERVIEW:  (params?: { from?: string; to?: string; operatorId?: string; brandId?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.from)       qs.set('from', params.from);
+    if (params?.to)         qs.set('to', params.to);
+    if (params?.operatorId) qs.set('operatorId', params.operatorId);
+    if (params?.brandId)    qs.set('brandId', params.brandId);
+    const s = qs.toString();
+    return `${API_BASE_URL}api/admin/reports/overview${s ? `?${s}` : ""}`;
+  },
 };

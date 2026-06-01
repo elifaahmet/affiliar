@@ -90,7 +90,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const navigation: NavigationItem[] = [
+  // Hexium-internal entry. Only the platform admin flag opens it; regular
+  // operators never see it in the sidebar. Detached general admins (no
+  // operatorId) skip the operator-side items entirely below — they only
+  // see the Platform Admin section.
+  const userInfo = storageHelper.getStoreWithDecryption('user_information') as
+    | { isPlatformAdmin?: boolean; operatorId?: string | null }
+    | null;
+  const hasOperator = !!userInfo?.operatorId;
+  const isPlatformAdmin = !!userInfo?.isPlatformAdmin;
+
+  const navigation: NavigationItem[] = hasOperator ? [
     {
       key: 'dashboard',
       name: t('menuItems.dashboard') || 'Dashboard',
@@ -168,20 +178,22 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       Icon: Cog6ToothIcon,
       current: pathname.startsWith('/settings'),
     },
-  ];
+  ] : [];
 
-  // Hexium-internal entry. Only the platform admin flag opens it; regular
-  // operators never see it in the sidebar.
-  const userInfo = storageHelper.getStoreWithDecryption('user_information') as
-    | { isPlatformAdmin?: boolean }
-    | null;
-  if (userInfo?.isPlatformAdmin) {
+  if (isPlatformAdmin) {
     navigation.push({
       key: 'platform',
       name: t('menuItems.platform') || 'Platform Admin',
       href: '/platform/operators',
       Icon: ShieldCheckIcon,
-      current: pathname.startsWith('/platform'),
+      current: pathname === '/platform' || pathname.startsWith('/platform/operators') || pathname.startsWith('/platform/brands'),
+    });
+    navigation.push({
+      key: 'platform-reports',
+      name: t('menuItems.platformReports') || 'Platform Reports',
+      href: '/platform/reports',
+      Icon: ChartBarSquareIcon,
+      current: pathname.startsWith('/platform/reports'),
     });
   }
 

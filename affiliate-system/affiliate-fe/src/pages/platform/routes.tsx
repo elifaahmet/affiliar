@@ -3,6 +3,7 @@ import { AppRouteProps } from '../../components/router/AppRoute';
 import PlatformOperators from './operators';
 import PlatformOperatorsNew from './operators-new';
 import PlatformOperatorDetail from './operator-detail';
+import PlatformReports from './reports';
 
 export const platformRoutes: AppRouteProps[] = [
   {
@@ -13,6 +14,7 @@ export const platformRoutes: AppRouteProps[] = [
       { path: 'operators', element: <PlatformOperators /> },
       { path: 'operators/new', element: <PlatformOperatorsNew /> },
       { path: 'operators/:id', element: <PlatformOperatorDetail /> },
+      { path: 'reports', element: <PlatformReports /> },
     ],
   },
 ];

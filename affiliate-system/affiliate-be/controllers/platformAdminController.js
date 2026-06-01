@@ -7,6 +7,7 @@ const OperatorFinancialSettings = require("../models/OperatorFinancialSettings")
 const DiscountCode              = require("../models/DiscountCode");
 const BillingTransaction        = require("../models/BillingTransaction");
 const CommissionPlan            = require("../models/CommissionPlan");
+const clickhouse                = require("../config/clickhouse");
 const { PLAN_ORDER }            = require("../utils/planLimits");
 const { sendOperatorInvite }    = require("../utils/mailer");
 const { logger }                = require("../middlewares/logger");
@@ -777,6 +778,179 @@ exports.listAllBrands = async (req, res) => {
             : null,
         };
       }),
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// ── Cross-operator reports ──────────────────────────────────────────────────
+
+// Same metric set as operator-side reportController so the FE can show the
+// platform admin a 1:1 mirror of what one operator sees, just summed over
+// many tenants. Kept in sync manually for now; if the shape diverges this
+// is the second spot to update.
+const ADMIN_REPORT_METRIC_COLS = `
+  SUM(registrations)                      AS registrations,
+  SUM(ftd_count)                          AS ftdCount,
+  SUM(ftd_sum_cents)                      AS ftdSumCents,
+  SUM(deposits_count)                     AS depositsCount,
+  SUM(deposits_sum_cents)                 AS depositsSumCents,
+  SUM(cashouts_count)                     AS cashoutsCount,
+  SUM(cashouts_sum_cents)                 AS cashoutsSumCents,
+  SUM(chargebacks_count)                  AS chargebacksCount,
+  SUM(chargebacks_sum_cents)              AS chargebacksSumCents,
+  SUM(bets_sum_cents)                     AS betsSumCents,
+  SUM(wins_sum_cents)                     AS winsSumCents,
+  SUM(casino_bets_rollbacks_sum_cents)    AS casinoBetsRollbacksSumCents,
+  SUM(casino_wins_rollbacks_sum_cents)    AS casinoWinsRollbacksSumCents,
+  SUM(bonus_issues_sum_cents)             AS bonusIssuesSumCents,
+  SUM(additional_deductions_sum_cents)    AS additionalDeductionsSumCents,
+  SUM(payment_system_fees_sum_cents)      AS paymentSystemFeesSumCents,
+  SUM(jackpot_fees_sum_cents)             AS jackpotFeesSumCents,
+  SUM(game_provider_fees_sum_cents)       AS gameProviderFeesSumCents,
+  SUM(casino_taxes_sum_cents)             AS casinoTaxesSumCents,
+  SUM(rounds_count)                       AS roundsCount,
+  SUM(wager_cents)                        AS wagerCents,
+  SUM(casino_ggr_cents)                   AS computedGgrCents,
+  SUM(casino_ngr_cents)                   AS computedNgrCents,
+  SUM(sb_bets_sum_cents)                  AS sbBetsSumCents,
+  SUM(sb_cancelled_bets_sum_cents)        AS sbCancelledBetsSumCents,
+  SUM(sb_rejected_bets_sum_cents)         AS sbRejectedBetsSumCents,
+  SUM(sb_wins_sum_cents)                  AS sbWinsSumCents,
+  SUM(sb_win_rollbacks_sum_cents)         AS sbWinRollbacksSumCents,
+  SUM(sb_settled_bets_sum_cents)          AS sbSettledBetsSumCents,
+  SUM(sb_bonus_issues_sum_cents)          AS sbBonusIssuesSumCents,
+  SUM(sb_balance_corrections_sum_cents)   AS sbBalanceCorrectionsSumCents,
+  SUM(sb_third_party_fees_sum_cents)      AS sbThirdPartyFeesSumCents,
+  SUM(sb_ggr_cents)                       AS sbGgrCents,
+  SUM(sb_ngr_cents)                       AS sbNgrCents,
+  SUM(combined_ngr_cents)                 AS combinedNgrCents,
+  uniqExactIf(player_id, player_id != '__fees__')                    AS playerCount
+`.trim();
+
+const ADMIN_REPORT_DEFAULT_SUMMARY = {
+  registrations: 0, ftdCount: 0, ftdSumCents: 0,
+  depositsCount: 0, depositsSumCents: 0, cashoutsCount: 0, cashoutsSumCents: 0,
+  chargebacksCount: 0, chargebacksSumCents: 0, betsSumCents: 0, winsSumCents: 0,
+  casinoBetsRollbacksSumCents: 0, casinoWinsRollbacksSumCents: 0,
+  bonusIssuesSumCents: 0, additionalDeductionsSumCents: 0,
+  paymentSystemFeesSumCents: 0, jackpotFeesSumCents: 0,
+  gameProviderFeesSumCents: 0, casinoTaxesSumCents: 0,
+  roundsCount: 0, wagerCents: 0, computedGgrCents: 0, computedNgrCents: 0,
+  sbBetsSumCents: 0, sbCancelledBetsSumCents: 0, sbRejectedBetsSumCents: 0,
+  sbWinsSumCents: 0, sbWinRollbacksSumCents: 0, sbSettledBetsSumCents: 0,
+  sbBonusIssuesSumCents: 0, sbBalanceCorrectionsSumCents: 0,
+  sbThirdPartyFeesSumCents: 0, sbGgrCents: 0, sbNgrCents: 0, combinedNgrCents: 0,
+  playerCount: 0,
+};
+
+function coerceCh(row) {
+  return Object.fromEntries(
+    Object.entries(row).map(([k, v]) => [k, isNaN(Number(v)) ? v : Number(v)]),
+  );
+}
+
+// GET /admin/reports/overview?from=&to=&operatorId=&brandId=
+// Cross-operator metric rollup. Filters are optional:
+//   - operatorId  → narrow to one tenant (mirrors what that operator's own
+//                   /reports/overview would show)
+//   - brandId     → narrow to one brand within (operatorId required for
+//                   semantic clarity, but ClickHouse doesn't care)
+//   - from/to     → ISO YYYY-MM-DD; default = no time bound
+//
+// Returns { period, summary, byDay, byOperator } — `byOperator` is the
+// platform-admin's extra view: one row per tenant with the same metric
+// set so the page can sort operators by NGR/deposits/etc.
+exports.adminReportsOverview = async (req, res) => {
+  try {
+    const conditions = [];
+    const params = {};
+
+    if (req.query.operatorId) {
+      conditions.push("tenant_id = {tenantId:String}");
+      params.tenantId = String(req.query.operatorId);
+    }
+    if (req.query.brandId) {
+      conditions.push("brand_id = {brandId:String}");
+      params.brandId = String(req.query.brandId);
+    }
+    if (req.query.from) {
+      conditions.push("from_ts >= {fromTs:DateTime}");
+      params.fromTs = `${req.query.from} 00:00:00`;
+    }
+    if (req.query.to) {
+      conditions.push("from_ts <= {toTs:DateTime}");
+      params.toTs = `${req.query.to} 23:59:59`;
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const [summaryRows, byDayRows, byOperatorRows] = await Promise.all([
+      clickhouse
+        .query({
+          query: `SELECT ${ADMIN_REPORT_METRIC_COLS} FROM affiliate.activity ${where}`,
+          query_params: params,
+          format: "JSONEachRow",
+        })
+        .then((r) => r.json()),
+      clickhouse
+        .query({
+          query: `
+            SELECT
+              formatDateTime(from_ts, '%Y-%m-%d', 'UTC') AS date,
+              ${ADMIN_REPORT_METRIC_COLS}
+            FROM affiliate.activity
+            ${where}
+            GROUP BY date
+            ORDER BY date ASC
+          `,
+          query_params: params,
+          format: "JSONEachRow",
+        })
+        .then((r) => r.json()),
+      clickhouse
+        .query({
+          query: `
+            SELECT
+              tenant_id AS operatorId,
+              ${ADMIN_REPORT_METRIC_COLS}
+            FROM affiliate.activity
+            ${where}
+            GROUP BY tenant_id
+            ORDER BY computedNgrCents DESC
+          `,
+          query_params: params,
+          format: "JSONEachRow",
+        })
+        .then((r) => r.json()),
+    ]);
+
+    // Resolve operator names for the byOperator rows so the FE doesn't have
+    // to fan out lookups per row.
+    const operatorIds = byOperatorRows
+      .map((r) => String(r.operatorId || ""))
+      .filter(Boolean);
+    const operators = operatorIds.length
+      ? await Operator.find({ _id: { $in: operatorIds } })
+          .select({ _id: 1, id: 1, name: 1 })
+          .lean()
+      : [];
+    const operatorMeta = new Map(
+      operators.map((o) => [
+        String(o._id),
+        { _id: String(o._id), id: o.id, name: o.name },
+      ]),
+    );
+
+    return res.json({
+      period: { from: req.query.from || null, to: req.query.to || null },
+      summary: coerceCh(summaryRows[0] ?? ADMIN_REPORT_DEFAULT_SUMMARY),
+      byDay: byDayRows.map(coerceCh),
+      byOperator: byOperatorRows.map((r) => ({
+        ...coerceCh(r),
+        operator: operatorMeta.get(String(r.operatorId)) || null,
+      })),
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });

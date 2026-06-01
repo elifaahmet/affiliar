@@ -13,6 +13,9 @@ router.post("/operators", ctrl.createOperator);
 // doesn't get shadowed by the param route.
 router.get("/brands", ctrl.listAllBrands);
 
+// Cross-operator reports rollup (admin-only)
+router.get("/reports/overview", ctrl.adminReportsOverview);
+
 // Single-operator detail + update
 router.get("/operators/:id",   ctrl.getOperator);
 router.patch("/operators/:id", ctrl.updateOperator);
