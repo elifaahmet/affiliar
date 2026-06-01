@@ -6,7 +6,12 @@ import { useBaseQuery } from 'api/core/useBaseQuery';
 import { BRANDS_API_URLS, REPORTS_API_URLS } from 'config/apiUrls';
 import BSelectWithSearch from '@components/core-components/selectWithInput/BSelectWithSearch';
 
-interface Brand { id: number; name: string; _id: string; }
+interface Brand {
+  id: number;
+  name: string;
+  _id: string;
+  products?: ('casino' | 'sportsbook')[];
+}
 interface BrandsResponse { brands: Brand[]; }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -502,6 +507,36 @@ export default function Dashboard() {
     queryKey: ['brands'],
   });
 
+  // Union of products across the brands in the dashboard's filter scope.
+  // A casino-only operator (or a brand-narrowed view on a casino-only
+  // brand) collapses the product picker to just Casino.
+  const productScope = useMemo(() => {
+    const brands = brandsData?.brands ?? [];
+    const inScope = brandId ? brands.filter((b) => b._id === brandId) : brands;
+    const out = { casino: false, sportsbook: false };
+    for (const b of inScope) {
+      const list = b.products && b.products.length ? b.products : ['casino', 'sportsbook'];
+      if (list.includes('casino')) out.casino = true;
+      if (list.includes('sportsbook')) out.sportsbook = true;
+    }
+    // Default to "both" until brands load so the picker doesn't flash empty.
+    if (!out.casino && !out.sportsbook) {
+      out.casino = true; out.sportsbook = true;
+    }
+    return out;
+  }, [brandsData, brandId]);
+
+  // When the scope drops a product, force the selected tab back into the
+  // allowed set — otherwise a stale 'sportsbook' selection would render
+  // zeroed SB cards on a casino-only brand.
+  useEffect(() => {
+    const hasBoth = productScope.casino && productScope.sportsbook;
+    if (!hasBoth) {
+      const only = productScope.casino ? 'casino' : 'sportsbook';
+      if (product !== only) setProduct(only);
+    }
+  }, [productScope, product]);
+
   const { data, isLoading, isError } = useBaseQuery<OverviewResponse>({
     endpoint: REPORTS_API_URLS.OVERVIEW(),
     queryKey: ['dashboard-overview', params],
@@ -574,7 +609,11 @@ export default function Dashboard() {
 
       {!isLoading && !isError && (
         <>
-          {/* Product tabs — swap KPI set + inner-tab data based on scope */}
+          {/* Product tabs — hidden entirely when only one product is in
+              scope (the picker would just expose tabs that render zeros).
+              Cards below already auto-collapse to the only available
+              product via the productScope useEffect. */}
+          {(productScope.casino && productScope.sportsbook) && (
           <div className='flex gap-1 bg-white p-1 rounded-lg border border-gray-200 shadow-sm w-fit'>
             {(['all', 'casino', 'sportsbook'] as ProductScope[]).map((p) => (
               <button
@@ -590,6 +629,7 @@ export default function Dashboard() {
               </button>
             ))}
           </div>
+          )}
 
           {product === 'casino' && (
             <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4'>
