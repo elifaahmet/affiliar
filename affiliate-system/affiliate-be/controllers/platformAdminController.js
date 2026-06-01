@@ -109,8 +109,13 @@ exports.createOperator = async (req, res) => {
       isDeleted: false,
     });
 
+    // Brand.id has a global unique index, so pick max + 1 across all brands
+    // (not per-operator) — otherwise the second operator's first brand
+    // collides on id=1.
+    const lastBrand = await Brand.findOne({}).sort({ id: -1 }).select({ id: 1 }).lean();
+    const nextBrandId = (lastBrand?.id ?? 0) + 1;
     const brand = await Brand.create({
-      id: 1,
+      id: nextBrandId,
       name: brandName.trim(),
       url: brandUrl?.trim() || null,
       enabled: true,

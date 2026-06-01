@@ -314,7 +314,10 @@ const affiliateController = {
       const { name } = req.body;
       if (!name) return res.status(400).json({ error: "name is required" });
 
-      const last = await Brand.findOne({ operatorId: operator._id }).sort({ id: -1 }).lean();
+      // Brand.id is GLOBALLY unique — picking max + 1 per-operator would
+      // eventually collide with another operator's brand. Sequence against
+      // the whole collection instead.
+      const last = await Brand.findOne({}).sort({ id: -1 }).select({ id: 1 }).lean();
       const nextId = (last?.id ?? 0) + 1;
 
       const brand = await Brand.create({ id: nextId, name, operatorId: operator._id });
