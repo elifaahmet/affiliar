@@ -22,7 +22,7 @@ const CustomPhoneInput: React.FC<CustomPhoneInputProps> = ({
     <div className={`custom-phone-input flex items-center w-full`}>
       <div className={`flag-selector w-full ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
         <PhoneInput
-          country={'in'}
+          country={'gb'}
           value={phone}
           disabled={disabled}
           onChange={(value: string, countryData: any) => {
