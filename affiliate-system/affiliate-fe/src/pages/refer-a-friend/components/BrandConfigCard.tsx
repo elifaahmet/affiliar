@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useBaseMutation } from 'api/core/useBaseMutation';
 import { useQueryClient } from '@tanstack/react-query';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import { REFER_API_URLS } from 'config/apiUrls';
 
 import StyledSelect from '@components/core-components/StyledSelect';
+import NumberField from '@components/core-components/number-field';
 import type { Brand, ReferConfig, CrewLevel } from '../types';
 import DeliveriesPanel from './DeliveriesPanel';
 import { useOperatorPlan } from 'hooks/useOperatorPlan';
@@ -604,11 +605,23 @@ function CrewTierEditor({
   onMetricChange: (metric: 'ngr' | 'ggr') => void;
   onCapChange: (capCents: number | null) => void;
 }) {
+  // NumberField is uncontrolled, so each row needs a stable React key —
+  // otherwise removing a middle row would leave its typed value behind in the
+  // row that shifts up into its place. Keys are kept aligned with `levels` as
+  // rows are added/removed; the length guard re-seeds them if `levels` changes
+  // from the outside (e.g. switching the reward type).
+  const idSeq = useRef(0);
+  const rowIds = useRef<number[]>([]);
+  if (rowIds.current.length !== levels.length) {
+    rowIds.current = levels.map((_, i) => rowIds.current[i] ?? idSeq.current++);
+  }
+
   const updateRow = (idx: number, patch: Partial<CrewLevel>) => {
     onLevelsChange(levels.map((lvl, i) => (i === idx ? { ...lvl, ...patch } : lvl)));
   };
   const addRow = () => {
     const last = levels[levels.length - 1];
+    rowIds.current = [...rowIds.current, idSeq.current++];
     onLevelsChange([
       ...levels,
       {
@@ -618,6 +631,7 @@ function CrewTierEditor({
     ]);
   };
   const removeRow = (idx: number) => {
+    rowIds.current = rowIds.current.filter((_, i) => i !== idx);
     onLevelsChange(levels.filter((_, i) => i !== idx));
   };
   return (
@@ -638,6 +652,8 @@ function CrewTierEditor({
             type='number'
             min={0}
             value={monthlyCapCents ?? ''}
+            placeholder='0'
+            onFocus={(e) => e.currentTarget.select()}
             onChange={(e) =>
               onCapChange(e.target.value === '' ? null : Number(e.target.value) || 0)
             }
@@ -665,24 +681,22 @@ function CrewTierEditor({
             </thead>
             <tbody>
               {levels.map((lvl, idx) => (
-                <tr key={idx} className='border-b border-gray-50 last:border-0'>
+                <tr key={rowIds.current[idx]} className='border-b border-gray-50 last:border-0'>
                   <td className='py-1.5 pr-3'>
-                    <input
-                      type='number'
+                    <NumberField
                       min={0}
                       value={lvl.activeReferrals}
-                      onChange={(e) => updateRow(idx, { activeReferrals: Number(e.target.value) || 0 })}
+                      onChange={(n) => updateRow(idx, { activeReferrals: n })}
                       className='w-28 text-sm rounded-md px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary'
                     />
                   </td>
                   <td className='py-1.5 pr-3'>
-                    <input
-                      type='number'
+                    <NumberField
                       min={0}
                       max={100}
                       step={0.5}
                       value={lvl.percent}
-                      onChange={(e) => updateRow(idx, { percent: Number(e.target.value) || 0 })}
+                      onChange={(n) => updateRow(idx, { percent: n })}
                       className='w-24 text-sm rounded-md px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary'
                     />
                     <span className='text-xs text-gray-600 ml-1'>%</span>
