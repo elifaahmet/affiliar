@@ -684,6 +684,9 @@ function serializeReward(row) {
     // Recurring period info, when present.
     period: data.period || null,
     ngrCents: data.ngrCents || null,
+    // Crew (tiered) rewards carry the referrer's current level so the
+    // operator can show the tier alongside the amount. null otherwise.
+    crew: data.crew || null,
     createdAt: row.createdAt,
     deliveredAt: row.deliveredAt || null,
   };

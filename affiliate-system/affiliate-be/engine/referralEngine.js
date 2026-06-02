@@ -697,6 +697,12 @@ async function enqueueRecurringDelivery(referral, payment, recurringConfig) {
       rewardCurrency: payment.rewardCurrency,
       rewardKind: (recurringConfig && recurringConfig.rewardKind) || "cash",
       qualifiedAt: referral.qualifiedAt && referral.qualifiedAt.toISOString(),
+      // Crew (tiered) payouts ride along the referrer's current level so
+      // the operator can show "reached level N" next to the amount. Absent
+      // for the legacy flat-percent recurring reward.
+      ...(recurringConfig && recurringConfig.crew
+        ? { crew: recurringConfig.crew }
+        : {}),
     },
   };
 

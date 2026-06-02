@@ -251,17 +251,52 @@ async function processCrewReferral(referral, { year, month, rewardCfg }) {
   });
   await referral.save();
 
+  // Resolve which tier the referrer is on so the payout can ship the
+  // referrer's current Crew level (not just the amount). Levels are 1-based:
+  // level 1 = the lowest threshold cleared. Below the first threshold there
+  // is no payout, so a delivery always carries level >= 1.
+  const sortedLevels = [...(rewardCfg.crewLevels || [])].sort(
+    (a, b) => (Number(a.activeReferrals) || 0) - (Number(b.activeReferrals) || 0),
+  );
+  let crewLevel = 0;
+  let crewThreshold = 0;
+  let crewPercent = 0;
+  let crewNextLevel = null;
+  for (let i = 0; i < sortedLevels.length; i++) {
+    const lvl = sortedLevels[i];
+    if (activeReferralsCount >= (Number(lvl.activeReferrals) || 0)) {
+      crewLevel = i + 1;
+      crewThreshold = Number(lvl.activeReferrals) || 0;
+      crewPercent = Number(lvl.percent) || 0;
+    } else {
+      crewNextLevel = {
+        level: i + 1,
+        activeReferrals: Number(lvl.activeReferrals) || 0,
+        percent: Number(lvl.percent) || 0,
+      };
+      break;
+    }
+  }
+
   // The delivery enqueue helper expects the legacy `recurring` shape
   // (percent / ngrMetric / monthlyCapCents / rewardKind) — synthesize a
   // surface for it from the Crew config so downstream auditing stays
-  // consistent.
+  // consistent. `crew` rides along so the pull API can surface the
+  // referrer's current level alongside the amount.
   const recurringShim = {
-    percent: 0,                              // dynamic — surfaced via activeReferralsCount instead
+    percent: 0,                              // dynamic — surfaced via crew.percent instead
     ngrMetric: rewardCfg.crewMetric || "ngr",
     monthlyCapCents: rewardCfg.crewMonthlyCapCents || null,
     rewardKind: rewardCfg.rewardKind || "cash",
     rewardShape: "crew_tiered",
-    activeReferralsCount,
+    crew: {
+      level: crewLevel,
+      activeReferrals: activeReferralsCount,
+      threshold: crewThreshold,
+      percent: crewPercent,
+      metric: rewardCfg.crewMetric || "ngr",
+      nextLevel: crewNextLevel,
+    },
   };
   const delivery = await engine.enqueueRecurringDelivery(
     referral,
