@@ -343,7 +343,12 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
             )}
           </Section>
 
-          {/* Recurring referrer reward (Phase 2 Step 4) */}
+          {/* Recurring referrer reward (Phase 2 Step 4). Hidden when the main
+              reward is Crew (tiered): the tiers already define a recurring
+              monthly % of NGR/GGR, and the recurring job pays via the crew
+              branch and ignores recurringReward when reward.type ===
+              'crew_tiered'. */}
+          {form.reward.type !== 'crew_tiered' && (
           <Section title='Recurring referrer reward' hint='Optional ongoing % of the friend’s monthly NGR/GGR. Pays once per calendar month for as long as the referral stays active.'>
             <div className='flex items-center justify-between gap-4 p-3 rounded-lg bg-violet-50/40'>
               <div>
@@ -418,6 +423,7 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
               </>
             )}
           </Section>
+          )}
 
           {/* Qualification */}
           <Section title='Qualification gates'>
