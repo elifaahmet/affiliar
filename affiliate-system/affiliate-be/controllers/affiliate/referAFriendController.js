@@ -25,21 +25,21 @@ const {
 
 // ── Auth helpers ──────────────────────────────────────────────────────────────
 
-// We scope refer-a-friend by the operator user's own _id, NOT
-// user.operatorId (a tenant pointer in this codebase). Brand.operatorId
-// already points at the user — brandController and feesController
-// follow the same convention.
+// We scope refer-a-friend by the session user's operatorId (the Operator
+// tenant pointer). Brand.operatorId references that tenant, NOT the owner
+// user's _id — brandController and feesController follow the same convention,
+// so scoping by _id here wrongly rejected operators whose _id != operatorId.
 function operatorOnly(req, res) {
   const user = req.affiliateUser;
   if (!user || user.role !== "operator") {
     res.status(403).json({ error: "Operator authentication required" });
     return null;
   }
-  if (!user._id) {
+  if (!user.operatorId) {
     res.status(403).json({ error: "No operator linked to account" });
     return null;
   }
-  return String(user._id);
+  return String(user.operatorId);
 }
 
 async function loadOwnedBrand(brandId, operatorId) {

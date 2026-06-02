@@ -14,12 +14,12 @@ const RewardDelivery = require("../../models/RewardDelivery");
 const engine         = require("../../engine/referralEngine");
 
 /**
- * Resolve the operator scope from the JWT. We use the operator user's
- * own _id, NOT user.operatorId (which is a tenant pointer in this
- * codebase). Brand.operatorId — and therefore everything we scope by
- * "operator" in refer-a-friend (PlayerReferral, ReferAFriendConfig,
- * RewardDelivery) — references the user. brandController + fees
- * controller follow the same convention.
+ * Resolve the operator scope from the JWT. We use the session user's
+ * operatorId (the Operator tenant pointer), NOT the user's own _id.
+ * Brand.operatorId — and therefore everything we scope by "operator" in
+ * refer-a-friend (PlayerReferral, ReferAFriendConfig, RewardDelivery) —
+ * references that tenant. brandController + fees controller follow the same
+ * convention; scoping by _id wrongly rejected operators whose _id != operatorId.
  *
  * Returns null + writes the response on failure.
  */
@@ -29,11 +29,11 @@ function operatorOnly(req, res) {
     res.status(403).json({ error: "Operator authentication required" });
     return null;
   }
-  if (!user._id) {
+  if (!user.operatorId) {
     res.status(403).json({ error: "No operator linked to account" });
     return null;
   }
-  return String(user._id);
+  return String(user.operatorId);
 }
 
 /**
