@@ -220,11 +220,11 @@ async function processReferral(referral, { year, month }) {
  * delivery enqueued second, deliveryId back-filled — same as the legacy path.
  */
 async function processCrewReferral(referral, { year, month, rewardCfg }) {
-  // Crew pays the referrer ONE amount per month on the TOTAL netted NGR of
-  // their whole active crew — not per referee. The monthly cursor visits each
-  // crew member, so we aggregate exactly once per referrer by anchoring on the
-  // lowest-_id member; the rest short-circuit. Active crew = rewarded,
-  // non-frozen referrals (operator-scoped, same as the qualify-time count).
+  // Crew pays the referrer ONE netted amount per month, but recorded as a
+  // per-referee breakdown (each member's NGR × tier%, summing to the payout).
+  // The monthly cursor visits each crew member, so we do the work exactly once
+  // per referrer by anchoring on the lowest-_id member; the rest short-circuit.
+  // Active crew = rewarded, non-frozen referrals (operator-scoped).
   const crew = await PlayerReferral.find({
     operatorId: referral.operatorId,
     referrerPlayerId: referral.referrerPlayerId,
@@ -249,42 +249,10 @@ async function processCrewReferral(referral, { year, month, rewardCfg }) {
   if (alreadyPaid) return { skipped: "already_paid" };
 
   const activeReferralsCount = crew.length;
-
-  // Total crew base for the month — netted across members in one query (a
-  // member who beat the house reduces the pool). Floored at 0 only AFTER
-  // aggregation, so a net-negative crew month simply pays nothing.
-  const ngrCents = await engine.fetchCrewMonthlyBase({
-    operatorId: referral.operatorId,
-    refereePlayerIds: crew.map((c) => c.refereePlayerId),
-    year,
-    month,
-    ngrMetric: rewardCfg.crewMetric || "ngr",
-  });
-  if (ngrCents <= 0) return { skipped: "zero_base" };
-
-  const rewardCents = raReward.compute(rewardCfg, {
-    activeReferralsCount,
-    ngrCents,
-  });
-  if (rewardCents <= 0) return { skipped: "zero_reward" };
-
   const rewardCurrency = referral.rewardCurrency || rewardCfg.currency || "EUR";
 
-  referral.recurringPayments = referral.recurringPayments || [];
-  referral.recurringPayments.push({
-    year,
-    month,
-    ngrCents,
-    rewardCents,
-    rewardCurrency,
-    enqueuedAt: new Date(),
-  });
-  await referral.save();
-
-  // Resolve which tier the referrer is on so the payout can ship the
-  // referrer's current Crew level (not just the amount). Levels are 1-based:
-  // level 1 = the lowest threshold cleared. Below the first threshold there
-  // is no payout, so a delivery always carries level >= 1.
+  // Resolve the referrer's current Crew tier from the live table. Levels are
+  // 1-based; below the lowest threshold percent = 0.
   const sortedLevels = [...(rewardCfg.crewLevels || [])].sort(
     (a, b) => (Number(a.activeReferrals) || 0) - (Number(b.activeReferrals) || 0),
   );
@@ -308,13 +276,64 @@ async function processCrewReferral(referral, { year, month, rewardCfg }) {
     }
   }
 
-  // The delivery enqueue helper expects the legacy `recurring` shape
-  // (percent / ngrMetric / monthlyCapCents / rewardKind) — synthesize a
-  // surface for it from the Crew config so downstream auditing stays
-  // consistent. `crew` rides along so the pull API can surface the
-  // referrer's current level alongside the amount.
+  // Per-referee signed NGR so each member's own NGR × tier% breakdown is
+  // recorded (and the activity view can show it). The rows sum to the
+  // referrer's netted payout: a member who beat the house contributes a
+  // negative row and shrinks the total.
+  const perRefMap = await engine.fetchCrewMonthlyBasePerReferee({
+    operatorId: referral.operatorId,
+    refereePlayerIds: crew.map((c) => c.refereePlayerId),
+    year,
+    month,
+    ngrMetric: rewardCfg.crewMetric || "ngr",
+  });
+
+  const enqueuedAt = new Date();
+  const perReferee = crew.map((c) => {
+    const ngr = perRefMap.get(String(c.refereePlayerId)) || 0;
+    return {
+      referralId: c._id,
+      ngrCents: ngr,
+      rewardCents: Math.floor((ngr * crewPercent) / 100), // signed; per-referee share
+    };
+  });
+
+  const totalNgr = perReferee.reduce((s, r) => s + r.ngrCents, 0);
+  if (totalNgr <= 0) return { skipped: "zero_base" };
+
+  let totalReward = perReferee.reduce((s, r) => s + r.rewardCents, 0);
+  const cap = rewardCfg.crewMonthlyCapCents;
+  if (cap && cap > 0 && totalReward > cap) totalReward = cap; // per-referrer monthly cap
+  if (totalReward <= 0) return { skipped: "zero_reward" };
+
+  // Record the per-referee breakdown on each crew referral so the activity
+  // view shows "this referee: NGR × tier% = reward". deliveryId is back-filled
+  // after the single aggregate delivery is enqueued.
+  await PlayerReferral.bulkWrite(
+    perReferee.map((r) => ({
+      updateOne: {
+        filter: { _id: r.referralId },
+        update: {
+          $push: {
+            recurringPayments: {
+              year,
+              month,
+              ngrCents: r.ngrCents,
+              rewardCents: r.rewardCents,
+              percent: crewPercent,
+              rewardCurrency,
+              enqueuedAt,
+            },
+          },
+        },
+      },
+    })),
+  );
+
+  // ONE aggregate delivery to the referrer for the netted total. The crew
+  // block rides along so the pull API can show the referrer's current level.
   const recurringShim = {
-    percent: 0,                              // dynamic — surfaced via crew.percent instead
+    percent: 0, // dynamic — surfaced via crew.percent instead
     ngrMetric: rewardCfg.crewMetric || "ngr",
     monthlyCapCents: rewardCfg.crewMonthlyCapCents || null,
     rewardKind: rewardCfg.rewardKind || "cash",
@@ -330,13 +349,20 @@ async function processCrewReferral(referral, { year, month, rewardCfg }) {
   };
   const delivery = await engine.enqueueRecurringDelivery(
     referral,
-    { year, month, ngrCents, rewardCents, rewardCurrency },
+    { year, month, ngrCents: totalNgr, rewardCents: totalReward, rewardCurrency },
     recurringShim,
   );
 
-  const last = referral.recurringPayments[referral.recurringPayments.length - 1];
-  last.deliveryId = delivery._id;
-  await referral.save();
+  // Back-fill the deliveryId on the rows we just pushed for this period.
+  await PlayerReferral.bulkWrite(
+    perReferee.map((r) => ({
+      updateOne: {
+        filter: { _id: r.referralId },
+        update: { $set: { "recurringPayments.$[e].deliveryId": delivery._id } },
+        arrayFilters: [{ "e.year": year, "e.month": month }],
+      },
+    })),
+  );
 
   return { paid: true };
 }

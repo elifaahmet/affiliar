@@ -888,6 +888,60 @@ async function fetchCrewMonthlyBase({ operatorId, refereePlayerIds, year, month,
 }
 
 /**
+ * Per-referee breakdown of a crew's monthly NGR (or GGR). Same query as
+ * fetchCrewMonthlyBase but GROUP BY player_id, so the caller can attribute
+ * each referee's signed NGR (winners come back negative) and show the
+ * per-referee × tier% breakdown that sums to the crew payout. Returns a
+ * Map<playerId, ngrCents>; players with no activity that month are absent
+ * (treat as 0).
+ */
+async function fetchCrewMonthlyBasePerReferee({ operatorId, refereePlayerIds, year, month, ngrMetric = "ngr" }) {
+  const out = new Map();
+  if (!Array.isArray(refereePlayerIds) || refereePlayerIds.length === 0) return out;
+  let clickhouse;
+  try {
+    clickhouse = require("../config/clickhouse");
+  } catch (_e) {
+    return out;
+  }
+
+  const pad = (n) => String(n).padStart(2, "0");
+  const lastDay = new Date(year, month, 0).getDate();
+  const fromTs = `${year}-${pad(month)}-01 00:00:00`;
+  const toTs   = `${year}-${pad(month)}-${pad(lastDay)} 23:59:59`;
+
+  const baseExpr = ngrMetric === "ggr"
+    ? "toInt64(bets_sum_cents) - toInt64(wins_sum_cents)"
+    : "toInt64(bets_sum_cents) - toInt64(wins_sum_cents) - toInt64(bonus_issues_sum_cents)";
+
+  const sql = `SELECT player_id AS pid, toInt64(SUM(${baseExpr})) AS baseCents
+       FROM affiliate.activity_hourly_delta
+       WHERE tenant_id = {tenantId:String}
+         AND player_id IN {playerIds:Array(String)}
+         AND hour_bucket >= {fromTs:DateTime}
+         AND hour_bucket <= {toTs:DateTime}
+       GROUP BY player_id`;
+
+  try {
+    const result = await clickhouse.query({
+      query: sql,
+      query_params: {
+        tenantId: String(operatorId),
+        playerIds: refereePlayerIds.map(String),
+        fromTs,
+        toTs,
+      },
+      format: "JSONEachRow",
+    });
+    const rows = await result.json();
+    for (const r of rows) out.set(String(r.pid), Number(r.baseCents) || 0);
+  } catch (_e) {
+    /* leave empty */
+  }
+  return out;
+}
+
+/**
  * Wager-since-FTD lookup via ClickHouse. Mirrors the activity_hourly_delta
  * query the affiliate engine uses, narrowed to a single (operator, player)
  * pair. Kept inside the engine so the integration / qualification flow has
@@ -1132,6 +1186,7 @@ module.exports = {
   enqueueRecurringDelivery,
   fetchPlayerMonthlyBase,
   fetchCrewMonthlyBase,
+  fetchCrewMonthlyBasePerReferee,
   applyDeliveryAck,
   ReferralEngineError,
   // exposed for testing

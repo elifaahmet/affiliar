@@ -130,8 +130,13 @@ const playerReferralSchema = new mongoose.Schema(
       {
         year:           { type: Number, required: true },
         month:          { type: Number, required: true, min: 1, max: 12 },
-        ngrCents:       { type: Number, required: true, min: 0 },
-        rewardCents:    { type: Number, required: true, min: 0 },
+        // Signed (no min:0): under crew netting a per-referee row can be
+        // negative when that member beat the house — the rows sum to the
+        // referrer's netted monthly payout.
+        ngrCents:       { type: Number, required: true },
+        rewardCents:    { type: Number, required: true },
+        // Tier % applied for crew_tiered rows (null for flat recurringReward).
+        percent:        { type: Number, default: null },
         rewardCurrency: { type: String, default: null },
         deliveryId: {
           type: mongoose.Schema.Types.ObjectId,

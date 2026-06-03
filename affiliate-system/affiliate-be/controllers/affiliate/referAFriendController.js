@@ -151,10 +151,35 @@ exports.listReferrals = async (req, res) => {
   if (status) match.status = status;
   if (before) match.createdAt = { $lt: new Date(before) };
 
-  const referrals = await PlayerReferral.find(match)
+  const rows = await PlayerReferral.find(match)
     .sort({ createdAt: -1 })
     .limit(lim)
     .lean();
+
+  // Surface the recurring (crew) earnings breakdown per row so the activity
+  // table can show NGR × tier% = reward for each referee. For crew the
+  // per-referral one-shot rewardCents is 0 by design; the real money is the
+  // sum of this referee's recurringPayments. `recurringLatest` is the most
+  // recent month's row (NGR + percent + reward); the totals are lifetime.
+  const referrals = rows.map((r) => {
+    const rp = Array.isArray(r.recurringPayments) ? r.recurringPayments : [];
+    const latest = rp.length ? rp[rp.length - 1] : null;
+    return {
+      ...r,
+      recurringNgrCents: rp.reduce((s, p) => s + (Number(p.ngrCents) || 0), 0),
+      recurringRewardCents: rp.reduce((s, p) => s + (Number(p.rewardCents) || 0), 0),
+      recurringPercent: latest ? (latest.percent ?? null) : null,
+      recurringLatest: latest
+        ? {
+            year: latest.year,
+            month: latest.month,
+            ngrCents: latest.ngrCents,
+            percent: latest.percent ?? null,
+            rewardCents: latest.rewardCents,
+          }
+        : null,
+    };
+  });
 
   return res.status(200).json({ referrals, count: referrals.length });
 };
