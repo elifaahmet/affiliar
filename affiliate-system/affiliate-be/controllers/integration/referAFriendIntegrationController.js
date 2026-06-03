@@ -345,6 +345,7 @@ exports.listPlayerReferrals = async (req, res) => {
       rewardedAt: 1,
       reversedAt: 1,
       configSnapshot: 1,
+      recurringPayments: 1,
       createdAt: 1,
     })
     .lean();
@@ -378,6 +379,10 @@ exports.listPlayerReferrals = async (req, res) => {
 
   const rows = referrals.map((r) => {
     const pending = pendingByReferral.get(String(r._id));
+    // Crew recurring breakdown: this referee's NGR × tier% accrued monthly.
+    // For crew the one-shot rewardCents is 0, so the FE should show these.
+    const rp = Array.isArray(r.recurringPayments) ? r.recurringPayments : [];
+    const latest = rp.length ? rp[rp.length - 1] : null;
     return {
       referralId: String(r._id),
       refereePlayerId: r.refereePlayerId,
@@ -394,6 +399,9 @@ exports.listPlayerReferrals = async (req, res) => {
           r.configSnapshot.reward &&
           r.configSnapshot.reward.rewardKind) ||
         null,
+      recurringNgrCents: rp.reduce((s, p) => s + (Number(p.ngrCents) || 0), 0),
+      recurringRewardCents: rp.reduce((s, p) => s + (Number(p.rewardCents) || 0), 0),
+      recurringPercent: latest ? (latest.percent ?? null) : null,
       pendingDeliveryId: pending ? String(pending._id) : null,
       createdAt: r.createdAt,
     };
