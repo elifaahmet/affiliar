@@ -102,18 +102,30 @@ async function runForMonth({ year, month }) {
  *   { skipped: '<reason>' } when nothing to do
  */
 async function processReferral(referral, { year, month }) {
-  // Crew (tiered) reward branch — when the referee's qualifying config
-  // chose reward.type === "crew_tiered", the monthly payout uses the
-  // referrer's current active-crew count, not a static percent. Detect
-  // first; if not Crew, fall through to the legacy recurringReward path.
+  // Crew (tiered) reward branch — when the referee's qualifying config chose
+  // reward.type === "crew_tiered", the monthly payout uses the referrer's
+  // current active-crew count, not a static percent. Unlike the flat
+  // recurringReward path below (pinned to the qualify-time snapshot so plan
+  // changes aren't retroactive), Crew tiers/caps follow the LIVE config: the
+  // tier mechanic is already "current state" (the active-crew count is live)
+  // and the operator dashboard shows live tiers, so a threshold/percent change
+  // applies to the whole crew on the next run.
   const snapReward = referral.configSnapshot && referral.configSnapshot.reward;
-  let rewardCfg = snapReward;
-  if (!rewardCfg || !rewardCfg.type) {
-    const live = await ReferAFriendConfig.findOne({ brandId: referral.brandId });
-    rewardCfg = live && live.reward;
-  }
-  if (rewardCfg && rewardCfg.type === "crew_tiered") {
-    return processCrewReferral(referral, { year, month, rewardCfg });
+  const liveConfig = await ReferAFriendConfig.findOne({ brandId: referral.brandId });
+  const liveReward = liveConfig && liveConfig.reward;
+
+  // A referral "is crew" if it qualified under crew_tiered (its snapshot), or
+  // — for old referrals with no snapshot — the live config is crew.
+  const isCrew =
+    (snapReward && snapReward.type === "crew_tiered") ||
+    ((!snapReward || !snapReward.type) && liveReward && liveReward.type === "crew_tiered");
+
+  if (isCrew) {
+    // Prefer live crew config; fall back to the snapshot only if the operator
+    // has since deleted or re-typed the config away from crew_tiered.
+    const rewardCfg =
+      liveReward && liveReward.type === "crew_tiered" ? liveReward : snapReward;
+    if (rewardCfg) return processCrewReferral(referral, { year, month, rewardCfg });
   }
 
   // Resolve the recurring config. Prefer the snapshot taken at
