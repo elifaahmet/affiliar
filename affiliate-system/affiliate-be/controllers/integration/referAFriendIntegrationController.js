@@ -8,6 +8,7 @@
  * for the wiring. All endpoints require an authenticated operator JWT.
  */
 
+const mongoose           = require("mongoose");
 const Brand              = require("../../models/Brand");
 const PlayerReferral     = require("../../models/PlayerReferral");
 const RewardDelivery     = require("../../models/RewardDelivery");
@@ -191,8 +192,14 @@ exports.getStats = async (req, res) => {
     if (!ownership.ok) return res.status(ownership.status).json({ error: ownership.error });
   }
 
-  const referrerMatch = { operatorId, referrerPlayerId: playerId };
-  if (brandId) referrerMatch.brandId = brandId;
+  // operatorId/brandId are ObjectId columns and aggregate $match does NOT
+  // cast strings — pass real ObjectIds. (find/distinct below cast on their own,
+  // and they accept ObjectIds just as well.)
+  const referrerMatch = {
+    operatorId: new mongoose.Types.ObjectId(operatorId),
+    referrerPlayerId: playerId,
+  };
+  if (brandId) referrerMatch.brandId = new mongoose.Types.ObjectId(brandId);
 
   // Aggregation: one pass to bucket everything by status + sum rewards.
   // Cheaper than running multiple count queries; the
@@ -533,7 +540,8 @@ exports.getPlayerCrew = async (req, res) => {
   // Reversals subtract from lifetime so a clawed-back FTD doesn't pad
   // a referrer's "lifetime" history.
   const baseMatch = {
-    operatorId,
+    // aggregate $match does not cast — operatorId is an ObjectId column.
+    operatorId: new mongoose.Types.ObjectId(operatorId),
     brandId: config.brandId,
     "payload.data.referrerPlayerId": playerId,
   };

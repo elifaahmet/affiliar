@@ -13,6 +13,7 @@
  * cross-operator access is blocked at every read and write.
  */
 
+const mongoose           = require("mongoose");
 const Brand              = require("../../models/Brand");
 const ReferAFriendConfig = require("../../models/ReferAFriendConfig");
 const PlayerReferral     = require("../../models/PlayerReferral");
@@ -217,11 +218,12 @@ exports.listTopReferrers = async (req, res) => {
   const { brandId, limit, sort = "active" } = req.query || {};
   const lim = Math.min(Math.max(Number(limit) || 20, 1), 100);
 
-  const match = { operatorId };
+  // aggregate $match does not cast — operatorId/brandId are ObjectId columns.
+  const match = { operatorId: new mongoose.Types.ObjectId(operatorId) };
   if (brandId) {
     const ownership = await loadOwnedBrand(brandId, operatorId);
     if (!ownership.ok) return res.status(ownership.status).json({ error: ownership.error });
-    match.brandId = brandId;
+    match.brandId = new mongoose.Types.ObjectId(brandId);
   }
 
   const rows = await PlayerReferral.aggregate([
