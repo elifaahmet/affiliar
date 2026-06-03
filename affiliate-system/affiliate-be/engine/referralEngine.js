@@ -345,6 +345,55 @@ async function evaluateQualification(referralId, { now } = {}) {
     return referral;
   }
 
+  // Crew (tiered) has no one-shot payout — its value is ongoing crew
+  // membership plus monthly recurring payouts (referralRecurringJob). The
+  // one-shot reward therefore computes to 0, which must NOT reject the
+  // referral as reward_zero. Instead, once gates clear the referee becomes
+  // an active crew member straight away (status 'rewarded' — that's what the
+  // crew count and the recurring job key off), and the recurring job pays it
+  // month by month. The referee's two-sided welcome bonus, if enabled, still
+  // applies.
+  if (config.reward && config.reward.type === "crew_tiered") {
+    const crewRefereeRewardCents =
+      config.refereeReward && config.refereeReward.enabled
+        ? computeReward(config.refereeReward, referral.ftdCents)
+        : 0;
+
+    const crewCapCheck = await checkMonthlyCaps({
+      operatorId: referral.operatorId,
+      brandId: referral.brandId,
+      referrerPlayerId: referral.referrerPlayerId,
+      rewardCents: crewRefereeRewardCents,
+      caps: config.caps || {},
+      now: now || new Date(),
+    });
+    if (!crewCapCheck.ok) {
+      referral.status = "rejected";
+      referral.rejectionReason = crewCapCheck.reason;
+      await referral.save();
+      return referral;
+    }
+
+    const crewRewardCurrency = config.reward.currency || "EUR";
+    const crewAt = new Date();
+    referral.status         = "rewarded";
+    referral.qualifiedAt    = crewAt;
+    referral.rewardedAt     = crewAt;
+    referral.rewardCents    = 0; // no one-shot for crew — recurring job pays monthly
+    referral.rewardCurrency = crewRewardCurrency;
+    if (crewRefereeRewardCents > 0) {
+      referral.refereeRewardCents    = crewRefereeRewardCents;
+      referral.refereeRewardCurrency = crewRewardCurrency;
+    }
+    referral.configSnapshot = snapshotConfig(config);
+    await referral.save();
+
+    if (crewRefereeRewardCents > 0) {
+      await enqueueRefereeIssuedDelivery(referral, config);
+    }
+    return referral;
+  }
+
   // Gates clear — but we still must check monthly caps before paying out.
   const referrerRewardCents = computeReward(config.reward, referral.ftdCents);
   if (referrerRewardCents <= 0) {
