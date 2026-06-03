@@ -116,6 +116,19 @@ export interface PlayerReferral {
   reversedAmountCents: number | null;
   reversalReason: string | null;
   createdAt: string;
+  // Crew recurring breakdown (added by listReferrals). For crew_tiered the
+  // per-referral one-shot rewardCents is 0; the real earning is this referee's
+  // NGR × tier% accrued monthly. Null/0 for non-crew referrals.
+  recurringNgrCents?: number;
+  recurringRewardCents?: number;
+  recurringPercent?: number | null;
+  recurringLatest?: {
+    year: number;
+    month: number;
+    ngrCents: number;
+    percent: number | null;
+    rewardCents: number;
+  } | null;
 }
 
 export interface ReferralsResponse {

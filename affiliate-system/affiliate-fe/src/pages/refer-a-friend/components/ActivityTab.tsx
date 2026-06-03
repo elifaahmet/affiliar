@@ -126,6 +126,8 @@ export default function ActivityTab({ brands }: Props) {
                 <th className='px-4 py-2.5 font-semibold'>Referee</th>
                 <th className='px-4 py-2.5 font-semibold'>Status</th>
                 <th className='px-4 py-2.5 font-semibold text-right'>FTD</th>
+                <th className='px-4 py-2.5 font-semibold text-right'>NGR</th>
+                <th className='px-4 py-2.5 font-semibold text-right'>%</th>
                 <th className='px-4 py-2.5 font-semibold text-right'>Reward</th>
                 <th className='px-4 py-2.5 font-semibold'>FTD date</th>
               </tr>
@@ -148,8 +150,19 @@ export default function ActivityTab({ brands }: Props) {
                   <td className='px-4 py-2.5 text-right tabular-nums text-gray-700'>
                     {fmtCents(r.ftdCents, r.ftdCurrency)}
                   </td>
+                  <td className='px-4 py-2.5 text-right tabular-nums text-gray-700'>
+                    {r.recurringNgrCents != null
+                      ? fmtCents(r.recurringNgrCents, r.rewardCurrency)
+                      : '—'}
+                  </td>
+                  <td className='px-4 py-2.5 text-right tabular-nums text-gray-700'>
+                    {r.recurringPercent != null ? `${r.recurringPercent}%` : '—'}
+                  </td>
                   <td className='px-4 py-2.5 text-right tabular-nums font-semibold text-gray-900'>
-                    {fmtCents(r.rewardCents, r.rewardCurrency)}
+                    {fmtCents(
+                      r.recurringRewardCents ? r.recurringRewardCents : r.rewardCents,
+                      r.rewardCurrency,
+                    )}
                   </td>
                   <td className='px-4 py-2.5 text-gray-700 text-xs'>{fmtDate(r.ftdAt)}</td>
                 </tr>
