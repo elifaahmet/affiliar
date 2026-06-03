@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import authService from 'api/auth/AuthService';
+import queryClient from 'config/queryClient';
 import { jwtDecode } from 'jwt-decode';
 import { STORAGE_KEYS } from 'utils/common/constants';
 import { storageHelper } from 'utils/storage/StorageHelper';
@@ -20,6 +21,11 @@ export const verifyTwoFactor = createAsyncThunk(
     try {
       const response = await authService.verifyTwoFactor(userId, otpCode, setupComplete);
       const decodedToken = decodeToken(response.token);
+
+      // New operator session — drop any cached queries from a previous
+      // operator so operator-agnostic keys (e.g. ['refer-brands']) don't
+      // surface the prior tenant's data.
+      queryClient.clear();
 
       return { response, adminId: decodedToken.sub };
     } catch (error) {
@@ -62,6 +68,9 @@ export const authenticationLogin = createAsyncThunk(
         };
       } else {
         const decodedToken = decodeToken(response.token);
+
+        // New operator session — see verifyTwoFactor.
+        queryClient.clear();
 
         return {
           twoFactorRequired: false,
@@ -108,6 +117,9 @@ export const checkAuthStatus = createAsyncThunk(
 export const logoutUser = createAsyncThunk('auth/logout', async (_, { rejectWithValue }) => {
   try {
     await authService.logout();
+    // Wipe cached queries so the next operator to log in on this browser
+    // starts from a clean cache.
+    queryClient.clear();
     return true;
   } catch (error) {
     if (error instanceof Error) {
