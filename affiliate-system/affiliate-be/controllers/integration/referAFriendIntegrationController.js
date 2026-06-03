@@ -8,10 +8,11 @@
  * for the wiring. All endpoints require an authenticated operator JWT.
  */
 
-const Brand          = require("../../models/Brand");
-const PlayerReferral = require("../../models/PlayerReferral");
-const RewardDelivery = require("../../models/RewardDelivery");
-const engine         = require("../../engine/referralEngine");
+const Brand              = require("../../models/Brand");
+const PlayerReferral     = require("../../models/PlayerReferral");
+const RewardDelivery     = require("../../models/RewardDelivery");
+const ReferAFriendConfig = require("../../models/ReferAFriendConfig");
+const engine             = require("../../engine/referralEngine");
 
 /**
  * Resolve the operator scope from the JWT. We use the session user's
@@ -578,6 +579,79 @@ exports.getPlayerCrew = async (req, res) => {
       lifetimeCents:  Math.max(0, deliveredCents - reversedCents) + pendingCents, // total ever earned (net of reversals)
       currency: config.reward?.currency ?? "EUR",
     },
+  });
+};
+
+// GET /api/v1/refer/settings?brandId=<optional>
+//
+// Player-facing "plan" for a brand: the reward shape the operator's player
+// frontend renders on its refer-a-friend page (reward type, percent/amount,
+// tier ladder, two-sided + recurring rewards). The casino backend proxies
+// this to its players, so it deliberately omits operator-internal config —
+// qualification gates, anti-abuse signals, and spend caps never leave Affiliar.
+//
+// Operator-auth (same as the other integration endpoints). With no brandId
+// the first enabled config for the operator is returned (single-brand case).
+exports.getSettings = async (req, res) => {
+  const operatorId = operatorOnly(req, res);
+  if (!operatorId) return;
+
+  const brandId = req.query && req.query.brandId;
+  const cfgFilter = { operatorId };
+  if (brandId) cfgFilter.brandId = brandId;
+
+  const config = await ReferAFriendConfig.findOne(cfgFilter)
+    .sort({ enabled: -1, updatedAt: -1 })
+    .lean();
+  if (!config) return res.status(404).json({ error: "config_not_found" });
+
+  const reward = config.reward || {};
+  const refereeReward = config.refereeReward || {};
+  const recurringReward = config.recurringReward || {};
+
+  return res.status(200).json({
+    brandId: String(config.brandId),
+    enabled: !!config.enabled,
+    reward: {
+      type: reward.type ?? null,
+      amountCents: reward.amountCents ?? 0,
+      percent: reward.percent ?? 0,
+      capCents: reward.capCents ?? null,
+      currency: reward.currency ?? "EUR",
+      rewardKind: reward.rewardKind ?? null,
+      // Tier ladder + metric only carry meaning for crew_tiered, but we
+      // always send them so the frontend can render the full ladder.
+      crewLevels: Array.isArray(reward.crewLevels)
+        ? reward.crewLevels.map((l) => ({
+            activeReferrals: l.activeReferrals,
+            percent: l.percent,
+          }))
+        : [],
+      crewMetric: reward.crewMetric ?? null,
+      crewMonthlyCapCents: reward.crewMonthlyCapCents ?? null,
+    },
+    // Only surface the friend's welcome bonus when the operator turned it on.
+    refereeReward: refereeReward.enabled
+      ? {
+          enabled: true,
+          type: refereeReward.type ?? null,
+          amountCents: refereeReward.amountCents ?? 0,
+          percent: refereeReward.percent ?? 0,
+          capCents: refereeReward.capCents ?? null,
+          rewardKind: refereeReward.rewardKind ?? null,
+        }
+      : { enabled: false },
+    // Recurring %-of-NGR share, when enabled.
+    recurringReward: recurringReward.enabled
+      ? {
+          enabled: true,
+          percent: recurringReward.percent ?? 0,
+          ngrMetric: recurringReward.ngrMetric ?? null,
+          durationMonths: recurringReward.durationMonths ?? null,
+          monthlyCapCents: recurringReward.monthlyCapCents ?? null,
+          rewardKind: recurringReward.rewardKind ?? null,
+        }
+      : { enabled: false },
   });
 };
 
