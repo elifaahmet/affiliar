@@ -802,7 +802,7 @@ async function fetchPlayerMonthlyBase({ operatorId, refereePlayerId, year, month
   const fromTs = `${year}-${pad(month)}-01 00:00:00`;
   const toTs   = `${year}-${pad(month)}-${pad(lastDay)} 23:59:59`;
 
-  // Casino bonuses live in `casino_bonuses_sum_cents` on the delta.
+  // Casino bonuses live in `bonus_issues_sum_cents` on the delta.
   // For sportsbook the same column is reused (operators that need a
   // different sb base should use 'ggr').
   const sql = ngrMetric === "ggr"
@@ -815,7 +815,7 @@ async function fetchPlayerMonthlyBase({ operatorId, refereePlayerId, year, month
     : `SELECT toInt64(SUM(
            toInt64(bets_sum_cents)
          - toInt64(wins_sum_cents)
-         - toInt64(casino_bonuses_sum_cents)
+         - toInt64(bonus_issues_sum_cents)
        )) AS baseCents
        FROM affiliate.activity_hourly_delta
        WHERE tenant_id = {tenantId:String}
@@ -860,7 +860,7 @@ async function fetchCrewMonthlyBase({ operatorId, refereePlayerIds, year, month,
 
   const baseExpr = ngrMetric === "ggr"
     ? "toInt64(bets_sum_cents) - toInt64(wins_sum_cents)"
-    : "toInt64(bets_sum_cents) - toInt64(wins_sum_cents) - toInt64(casino_bonuses_sum_cents)";
+    : "toInt64(bets_sum_cents) - toInt64(wins_sum_cents) - toInt64(bonus_issues_sum_cents)";
 
   const sql = `SELECT toInt64(SUM(${baseExpr})) AS baseCents
        FROM affiliate.activity_hourly_delta
