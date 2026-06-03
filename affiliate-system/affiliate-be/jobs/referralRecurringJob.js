@@ -193,44 +193,62 @@ async function processReferral(referral, { year, month }) {
 }
 
 /**
- * Crew (tiered) variant of processReferral. The referrer's current active-
- * crew count drives the percent (via crewLevels), the referee's monthly
- * NGR is the base, and the strategy module decides the exact cents. Same
- * idempotency + ledger semantics as the legacy path — payment row is
- * written first, delivery is enqueued second, then the deliveryId is
- * back-filled.
+ * Crew (tiered) variant of processReferral. Crew is an AGGREGATE game: the
+ * referrer is paid once per month on the TOTAL netted NGR of their whole
+ * active crew (winners net against losers), with the percent set by how many
+ * active crew members they have (via crewLevels). This is NOT per-referee —
+ * the monthly cursor visits each member, but only the lowest-_id member (the
+ * "anchor") runs the aggregation and enqueues the single payout; the rest
+ * short-circuit. Idempotency is per-referrer-per-month (checked across the
+ * whole crew, since the anchor can shift as the crew changes).
  *
- * Active count = referrer's `status: 'rewarded'` referrals on the same
- * operator. Counted at run time (cheap with the index on
- * { operatorId, referrerPlayerId, status }) so a referrer who climbs a
- * level mid-month gets the higher rate next run, not retroactively.
+ * Active crew = referrer's rewarded, non-frozen referrals (operator-scoped).
+ * Counted at run time so a referrer who climbs a level mid-month gets the
+ * higher rate next run, not retroactively. Payment row is written first,
+ * delivery enqueued second, deliveryId back-filled — same as the legacy path.
  */
 async function processCrewReferral(referral, { year, month, rewardCfg }) {
-  // Duration (Crew has no built-in duration cap yet — runs as long as
-  // referral is rewarded) and idempotency mirror the legacy path.
-  const already = (referral.recurringPayments || []).some(
-    (p) => p.year === year && p.month === month,
-  );
-  if (already) return { skipped: "already_paid" };
-
-  // Referee's monthly base (NGR or GGR per cfg).
-  const ngrCents = await engine.fetchPlayerMonthlyBase({
+  // Crew pays the referrer ONE amount per month on the TOTAL netted NGR of
+  // their whole active crew — not per referee. The monthly cursor visits each
+  // crew member, so we aggregate exactly once per referrer by anchoring on the
+  // lowest-_id member; the rest short-circuit. Active crew = rewarded,
+  // non-frozen referrals (operator-scoped, same as the qualify-time count).
+  const crew = await PlayerReferral.find({
     operatorId: referral.operatorId,
-    refereePlayerId: referral.refereePlayerId,
+    referrerPlayerId: referral.referrerPlayerId,
+    status: "rewarded",
+    $or: [{ frozen: false }, { frozen: { $exists: false } }],
+  })
+    .sort({ _id: 1 })
+    .lean();
+  if (!crew.length) return { skipped: "no_crew" };
+  if (String(crew[0]._id) !== String(referral._id)) {
+    return { skipped: "aggregated_under_anchor" };
+  }
+
+  // Idempotency is per-referrer-per-month. The aggregate payment row lives on
+  // whichever member is the anchor that run, and the anchor can shift as the
+  // crew changes — so check across the whole crew, not just this referral.
+  const alreadyPaid = await PlayerReferral.exists({
+    operatorId: referral.operatorId,
+    referrerPlayerId: referral.referrerPlayerId,
+    recurringPayments: { $elemMatch: { year, month } },
+  });
+  if (alreadyPaid) return { skipped: "already_paid" };
+
+  const activeReferralsCount = crew.length;
+
+  // Total crew base for the month — netted across members in one query (a
+  // member who beat the house reduces the pool). Floored at 0 only AFTER
+  // aggregation, so a net-negative crew month simply pays nothing.
+  const ngrCents = await engine.fetchCrewMonthlyBase({
+    operatorId: referral.operatorId,
+    refereePlayerIds: crew.map((c) => c.refereePlayerId),
     year,
     month,
     ngrMetric: rewardCfg.crewMetric || "ngr",
   });
   if (ngrCents <= 0) return { skipped: "zero_base" };
-
-  // Referrer's active-crew count = sibling rewarded referrals for the
-  // same operator. Includes the referral we're processing — that's
-  // intentional, it counts itself once it became rewarded.
-  const activeReferralsCount = await PlayerReferral.countDocuments({
-    operatorId: referral.operatorId,
-    referrerPlayerId: referral.referrerPlayerId,
-    status: "rewarded",
-  });
 
   const rewardCents = raReward.compute(rewardCfg, {
     activeReferralsCount,

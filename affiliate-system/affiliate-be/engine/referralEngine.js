@@ -327,10 +327,21 @@ async function evaluateQualification(referralId, { now } = {}) {
       : Promise.resolve(null),
   ]);
 
+  // Crew is an aggregate game: the referrer is paid on the TOTAL netted NGR
+  // of their whole crew, so an individual referee need not be NGR-positive to
+  // belong to the crew (a losing month for one member nets against winning
+  // months of others). Drop the per-referee requirePositiveNgr gate for
+  // crew_tiered; all other gates (deposit, wager, active deposits, age,
+  // signals) still apply. Other reward shapes keep the gate as configured.
+  const gates =
+    config.reward && config.reward.type === "crew_tiered"
+      ? { ...(config.qualification || {}), requirePositiveNgr: false }
+      : config.qualification || {};
+
   const decision = evaluateGates({
     ftdCents: referral.ftdCents,
     ftdAt: referral.ftdAt,
-    gates: config.qualification || {},
+    gates,
     wagerSinceFtdCents,
     refereeSnapshot,
     now: now || new Date(),
@@ -826,6 +837,57 @@ async function fetchPlayerMonthlyBase({ operatorId, refereePlayerId, year, month
 }
 
 /**
+ * Sum a crew's monthly NGR (or GGR) across ALL the referrer's active referees
+ * in one query. Unlike fetchPlayerMonthlyBase this does NOT floor per player —
+ * the SUM nets winners against losers, so a member who beat the house that
+ * month reduces the pool. The SIGNED total is returned (can be negative);
+ * callers floor it, so a net-negative crew month pays nothing. Returns 0 if
+ * ClickHouse isn't wired up or there was no activity.
+ */
+async function fetchCrewMonthlyBase({ operatorId, refereePlayerIds, year, month, ngrMetric = "ngr" }) {
+  if (!Array.isArray(refereePlayerIds) || refereePlayerIds.length === 0) return 0;
+  let clickhouse;
+  try {
+    clickhouse = require("../config/clickhouse");
+  } catch (_e) {
+    return 0;
+  }
+
+  const pad = (n) => String(n).padStart(2, "0");
+  const lastDay = new Date(year, month, 0).getDate(); // month is 1-based
+  const fromTs = `${year}-${pad(month)}-01 00:00:00`;
+  const toTs   = `${year}-${pad(month)}-${pad(lastDay)} 23:59:59`;
+
+  const baseExpr = ngrMetric === "ggr"
+    ? "toInt64(bets_sum_cents) - toInt64(wins_sum_cents)"
+    : "toInt64(bets_sum_cents) - toInt64(wins_sum_cents) - toInt64(casino_bonuses_sum_cents)";
+
+  const sql = `SELECT toInt64(SUM(${baseExpr})) AS baseCents
+       FROM affiliate.activity_hourly_delta
+       WHERE tenant_id = {tenantId:String}
+         AND player_id IN {playerIds:Array(String)}
+         AND hour_bucket >= {fromTs:DateTime}
+         AND hour_bucket <= {toTs:DateTime}`;
+
+  try {
+    const result = await clickhouse.query({
+      query: sql,
+      query_params: {
+        tenantId: String(operatorId),
+        playerIds: refereePlayerIds.map(String),
+        fromTs,
+        toTs,
+      },
+      format: "JSONEachRow",
+    });
+    const rows = await result.json();
+    return Number(rows[0] && rows[0].baseCents) || 0; // signed — caller floors
+  } catch (_e) {
+    return 0;
+  }
+}
+
+/**
  * Wager-since-FTD lookup via ClickHouse. Mirrors the activity_hourly_delta
  * query the affiliate engine uses, narrowed to a single (operator, player)
  * pair. Kept inside the engine so the integration / qualification flow has
@@ -1069,6 +1131,7 @@ module.exports = {
   evaluateQualification,
   enqueueRecurringDelivery,
   fetchPlayerMonthlyBase,
+  fetchCrewMonthlyBase,
   applyDeliveryAck,
   ReferralEngineError,
   // exposed for testing
