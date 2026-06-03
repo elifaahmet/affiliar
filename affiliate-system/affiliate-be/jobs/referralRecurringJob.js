@@ -425,4 +425,5 @@ module.exports = {
   stopReferralRecurringJob,
   runOnce,
   runForMonth,
+  processReferral, // exposed for ad-hoc / scoped (single-referrer) test runs
 };
