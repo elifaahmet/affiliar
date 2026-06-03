@@ -633,9 +633,21 @@ function CrewTierEditor({
       {
         activeReferrals: (last?.activeReferrals ?? 0) + 5,
         percent:         Math.min(100, (last?.percent ?? 0) + 3),
+        name:            '',
       },
     ]);
   };
+
+  // Level number = the row's rank when sorted ascending by threshold (same
+  // ordering the engine uses). Level 1 is the lowest tier; a referrer below it
+  // is Level 0. Shown read-only so operators see the number the player gets.
+  const rankByIndex: Record<number, number> = {};
+  levels
+    .map((_, i) => i)
+    .sort((a, b) => (levels[a].activeReferrals || 0) - (levels[b].activeReferrals || 0))
+    .forEach((origIdx, r) => {
+      rankByIndex[origIdx] = r + 1;
+    });
   const removeRow = (idx: number) => {
     rowIds.current = rowIds.current.filter((_, i) => i !== idx);
     onLevelsChange(levels.filter((_, i) => i !== idx));
@@ -680,6 +692,8 @@ function CrewTierEditor({
           <table className='w-full text-sm'>
             <thead>
               <tr className='text-left text-[11px] uppercase tracking-wider text-gray-600 border-b border-gray-100'>
+                <th className='py-2 pr-3'>Level</th>
+                <th className='py-2 pr-3'>Tier name</th>
                 <th className='py-2 pr-3'>Active referrals (≥)</th>
                 <th className='py-2 pr-3'>Percent</th>
                 <th className='py-2 w-10' />
@@ -688,6 +702,18 @@ function CrewTierEditor({
             <tbody>
               {levels.map((lvl, idx) => (
                 <tr key={rowIds.current[idx]} className='border-b border-gray-50 last:border-0'>
+                  <td className='py-1.5 pr-3 text-gray-500 tabular-nums whitespace-nowrap'>
+                    Level {rankByIndex[idx]}
+                  </td>
+                  <td className='py-1.5 pr-3'>
+                    <input
+                      type='text'
+                      value={lvl.name ?? ''}
+                      placeholder='e.g. Starter Crew'
+                      onChange={(e) => updateRow(idx, { name: e.target.value })}
+                      className='w-40 text-sm rounded-md px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary'
+                    />
+                  </td>
                   <td className='py-1.5 pr-3'>
                     <NumberField
                       min={0}

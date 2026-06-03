@@ -12,6 +12,7 @@ export interface BrandsResponse {
 export interface CrewLevel {
   activeReferrals: number;
   percent: number;
+  name?: string;
 }
 
 export interface RewardConfig {

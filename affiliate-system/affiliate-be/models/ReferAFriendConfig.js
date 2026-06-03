@@ -78,15 +78,19 @@ const referAFriendConfigSchema = new mongoose.Schema(
             _id: false,
             activeReferrals: { type: Number, required: true, min: 0 },
             percent:         { type: Number, required: true, min: 0, max: 100 },
+            // Operator-facing label for the tier (e.g. "Starter Crew"). The
+            // tier's level NUMBER is derived from its sorted position (1-based);
+            // a referrer below the first threshold is "Level 0".
+            name:            { type: String, default: "" },
           },
         ],
         default: () => [
-          { activeReferrals: 3,  percent: 3  },
-          { activeReferrals: 5,  percent: 5  },
-          { activeReferrals: 10, percent: 8  },
-          { activeReferrals: 15, percent: 12 },
-          { activeReferrals: 20, percent: 15 },
-          { activeReferrals: 25, percent: 18 },
+          { activeReferrals: 3,  percent: 3,  name: "Starter Crew" },
+          { activeReferrals: 5,  percent: 5,  name: "Bronze Crew" },
+          { activeReferrals: 10, percent: 8,  name: "Silver Crew" },
+          { activeReferrals: 15, percent: 12, name: "Gold Crew" },
+          { activeReferrals: 20, percent: 15, name: "Platinum Crew" },
+          { activeReferrals: 25, percent: 18, name: "Diamond Crew" },
         ],
       },
       // Which base the crew percent applies to. `ngr` = bets − wins − bonuses

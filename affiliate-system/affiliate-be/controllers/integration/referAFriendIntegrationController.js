@@ -524,23 +524,33 @@ exports.getPlayerCrew = async (req, res) => {
   };
   const activeReferralsCount = await PlayerReferral.countDocuments(referralFilter);
 
-  // Resolve current + next tier (only meaningful for crew_tiered).
+  // Resolve current + next tier (only meaningful for crew_tiered). Each tier
+  // carries a 1-based `levelNumber` from its sorted position and the operator's
+  // `name`; a referrer below the first threshold is Level 0 (currentLevel null).
   let currentLevel = null;
   let nextLevel = null;
   let currentPercent = 0;
+  let currentLevelNumber = 0;
   if (isCrew && Array.isArray(config.reward.crewLevels)) {
     const sorted = [...config.reward.crewLevels].sort(
       (a, b) => a.activeReferrals - b.activeReferrals,
     );
-    for (const lvl of sorted) {
+    sorted.forEach((lvl, i) => {
+      const levelNumber = i + 1;
+      const shaped = {
+        levelNumber,
+        name: lvl.name || "",
+        activeReferrals: lvl.activeReferrals,
+        percent: lvl.percent,
+      };
       if (activeReferralsCount >= (Number(lvl.activeReferrals) || 0)) {
-        currentLevel = { activeReferrals: lvl.activeReferrals, percent: lvl.percent };
+        currentLevel = shaped;
         currentPercent = Number(lvl.percent) || 0;
+        currentLevelNumber = levelNumber;
       } else if (!nextLevel) {
-        nextLevel = { activeReferrals: lvl.activeReferrals, percent: lvl.percent };
-        break;
+        nextLevel = shaped;
       }
-    }
+    });
   }
 
   // Earnings: aggregate over RewardDelivery for the referrer side. The
@@ -578,7 +588,8 @@ exports.getPlayerCrew = async (req, res) => {
     brandId: String(config.brandId),
     rewardType: config.reward?.type ?? null,
     activeReferralsCount,
-    currentLevel,                  // { activeReferrals, percent } or null
+    currentLevel,                  // { levelNumber, name, activeReferrals, percent } or null
+    currentLevelNumber,            // 0 when below the first threshold (Level 0)
     nextLevel,                     // null when at the top tier
     currentPercent,                // 0 if below the first threshold
     progressToNext: nextLevel
