@@ -587,6 +587,7 @@ function AddAffiliateTab() {
   const [username, setUsername] = useState('');
   const [name, setName]         = useState('');
   const [phone, setPhone]       = useState('');
+  const [website, setWebsite]   = useState('');
   const [selectedBrandIds, setSelectedBrandIds] = useState<string[]>([]);
   const [result, setResult]     = useState<CreateResult | null>(null);
   const [error, setError]       = useState('');
@@ -610,7 +611,7 @@ function AddAffiliateTab() {
     onSuccess: (data) => {
       setResult(data);
       setUpgradeBanner(null);
-      setEmail(''); setUsername(''); setName(''); setPhone(''); setSelectedBrandIds([]);
+      setEmail(''); setUsername(''); setName(''); setPhone(''); setWebsite(''); setSelectedBrandIds([]);
     },
     onError: (e: any) => {
       const respData = e?.response?.data;
@@ -642,6 +643,7 @@ function AddAffiliateTab() {
       username,
       name,
       mobileNumber: phone || undefined,
+      website: website || undefined,
       brandIds: selectedBrandIds,
     });
   };
@@ -660,6 +662,7 @@ function AddAffiliateTab() {
           <Field label='Email *'       value={email}    onChange={setEmail}    placeholder='jane@example.com' type='email' />
           <Field label='Username *'    value={username} onChange={setUsername} placeholder='jane_doe' />
           <Field label='Phone'         value={phone}    onChange={setPhone}    placeholder='+90 555 000 0000' />
+          <Field label='Website'       value={website}  onChange={setWebsite}  placeholder='https://yoursite.com' />
 
           <div>
             <label className='block text-xs font-medium text-gray-600 mb-1'>Brands *</label>
