@@ -77,6 +77,13 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // Affiliate's own website / promotion URL, self-editable from their
+    // profile. Free-form (affiliates may enter a domain or full URL).
+    website: {
+      type: String,
+      default: null,
+      trim: true,
+    },
     operatorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Operator",

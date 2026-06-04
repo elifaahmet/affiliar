@@ -386,6 +386,7 @@ exports.getProfile = async (req, res) => {
         name:               affiliate.name,
         mobileNumber:       affiliate.mobileNumber,
         mobileCountryCode:  affiliate.mobileCountryCode,
+        website:            affiliate.website || null,
         status:             affiliate.status,
         payoutAddress:      affiliate.payoutAddress || null,
         payoutNetwork:      affiliate.payoutNetwork || "TRC20",
@@ -826,11 +827,24 @@ exports.updateProfile = async (req, res) => {
       return res.status(403).json({ error: "Affiliates only" });
     }
 
-    const { name, mobileNumber, mobileCountryCode } = req.body;
+    const { name, mobileNumber, mobileCountryCode, website } = req.body;
+
+    const set = {
+      name,
+      mobileNumber: mobileNumber || null,
+      mobileCountryCode: mobileCountryCode || null,
+    };
+    // Only touch website when the field is provided, so an unrelated update
+    // doesn't wipe it. Empty string clears it.
+    if (website !== undefined) {
+      set.website = typeof website === "string" && website.trim()
+        ? website.trim()
+        : null;
+    }
 
     const updated = await User.findByIdAndUpdate(
       affiliate._id,
-      { $set: { name, mobileNumber: mobileNumber || null, mobileCountryCode: mobileCountryCode || null } },
+      { $set: set },
       { new: true, select: "-password -twoFactorSecret" },
     ).lean();
 

@@ -20,6 +20,7 @@ interface ProfileResponse {
     name: string;
     mobileNumber: string | null;
     mobileCountryCode: string | null;
+    website: string | null;
     status: string;
     payoutAddress: string | null;
     payoutNetwork: string;
@@ -60,6 +61,7 @@ export default function AffiliateProfile() {
   const [name, setName]                       = useState('');
   const [mobileNumber, setMobileNumber]       = useState('');
   const [mobileCountryCode, setMobileCountryCode] = useState('');
+  const [website, setWebsite]                 = useState('');
   const [saving, setSaving]                   = useState(false);
   const [saveMsg, setSaveMsg]                 = useState<string | null>(null);
 
@@ -74,6 +76,7 @@ export default function AffiliateProfile() {
       setName(data.user.name ?? '');
       setMobileNumber(data.user.mobileNumber ?? '');
       setMobileCountryCode(data.user.mobileCountryCode ?? '');
+      setWebsite(data.user.website ?? '');
       setWalletAddress(data.user.payoutAddress ?? '');
     }
   }, [data]);
@@ -83,7 +86,7 @@ export default function AffiliateProfile() {
     setSaveMsg(null);
     try {
       await axiosInstance.patch(AFFILIATE_PORTAL_API_URLS.PROFILE(), {
-        name, mobileNumber, mobileCountryCode,
+        name, mobileNumber, mobileCountryCode, website,
       });
       setSaveMsg('Profile updated successfully.');
       refetch();
@@ -189,6 +192,15 @@ export default function AffiliateProfile() {
                 placeholder='555 000 0000'
               />
             </div>
+          </div>
+
+          <div>
+            <label className='block text-xs font-medium text-gray-600 mb-1'>Website</label>
+            <input
+              type='text' value={website} onChange={(e) => setWebsite(e.target.value)}
+              className='w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-primary'
+              placeholder='https://yoursite.com'
+            />
           </div>
 
           <div className='flex items-center gap-3 pt-2'>
