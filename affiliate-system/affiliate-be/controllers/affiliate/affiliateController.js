@@ -33,7 +33,7 @@ async function uniqueAffiliateCode() {
  * brand so the affiliate can share the right link for each brand they promote.
  */
 async function createAffiliate(operatorUser, body) {
-  const { email, username, name, mobileNumber, mobileCountryCode, brandIds } = body;
+  const { email, username, name, mobileNumber, mobileCountryCode, website, brandIds } = body;
 
   if (!email || !username || !name) {
     throw Object.assign(new Error("email, username and name are required"), { status: 400 });
@@ -84,6 +84,7 @@ async function createAffiliate(operatorUser, body) {
     operatorId: operatorUser.operatorId, // Operator collection _id, same as list filter
     mobileNumber: mobileNumber || null,
     mobileCountryCode: mobileCountryCode || null,
+    website: (typeof website === "string" && website.trim()) ? website.trim() : null,
     isDeleted: false,
   });
 

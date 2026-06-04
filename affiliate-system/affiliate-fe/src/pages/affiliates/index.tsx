@@ -728,9 +728,9 @@ function AddAffiliateTab() {
 
 // ── Bulk import tab ───────────────────────────────────────────────────────────
 
-const BULK_TEMPLATE = `email,username,name,mobileNumber,referralCodes
-jane@example.com,jane_doe,Jane Doe,+905550000000,CODE1
-john@example.com,john_doe,John Doe,,LEGACY_XYZ`;
+const BULK_TEMPLATE = `email,username,name,mobileNumber,website,referralCodes
+jane@example.com,jane_doe,Jane Doe,+905550000000,https://janedoe.com,CODE1
+john@example.com,john_doe,John Doe,,,LEGACY_XYZ`;
 
 function BulkImportTab() {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -826,7 +826,7 @@ function BulkImportTab() {
           onClick={() => fileRef.current?.click()}
         >
           <p className='text-sm text-gray-700'>Click to upload CSV</p>
-          <p className='text-xs text-gray-600 mt-1'>Columns: email, username, name, mobileNumber, referralCodes (semicolon-separated)</p>
+          <p className='text-xs text-gray-600 mt-1'>Columns: email, username, name, mobileNumber, website, referralCodes (semicolon-separated)</p>
           <input ref={fileRef} type='file' accept='.csv' onChange={handleFile} className='hidden' />
         </div>
 
@@ -837,7 +837,7 @@ function BulkImportTab() {
               <table className='w-full text-xs'>
                 <thead className='bg-gray-50'>
                   <tr>
-                    {['Email', 'Username', 'Name', 'Phone', 'Codes'].map(h => (
+                    {['Email', 'Username', 'Name', 'Phone', 'Website', 'Codes'].map(h => (
                       <th key={h} className='px-3 py-2 text-left text-gray-700 font-medium border-r border-gray-100 last:border-r-0'>{h}</th>
                     ))}
                   </tr>
@@ -849,6 +849,7 @@ function BulkImportTab() {
                       <td className='px-3 py-2 border-r border-gray-100'>{row.username}</td>
                       <td className='px-3 py-2 border-r border-gray-100'>{row.name}</td>
                       <td className='px-3 py-2 border-r border-gray-100'>{row.mobileNumber || '—'}</td>
+                      <td className='px-3 py-2 border-r border-gray-100 break-all'>{row.website || '—'}</td>
                       <td className='px-3 py-2'>{Array.isArray(row.referralCodes) ? row.referralCodes.join(', ') : '—'}</td>
                     </tr>
                   ))}
