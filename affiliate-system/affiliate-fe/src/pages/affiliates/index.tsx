@@ -43,6 +43,7 @@ interface Affiliate {
   status: string;
   mobileNumber?: string;
   mobileCountryCode?: string;
+  website?: string | null;
   createdAt: string;
   referralCodes?: string[];
   // Legacy single-plan reference — kept for backward compat. Prefer
@@ -432,7 +433,7 @@ function AffiliatesTab() {
           <table className='w-full'>
             <thead className='bg-gray-50'>
               <tr>
-                {['Name', 'Username', 'Email', 'Phone', 'Status', 'Commission Plan', 'Parent', 'Joined'].map((h) => (
+                {['Name', 'Username', 'Email', 'Phone', 'Website', 'Status', 'Commission Plan', 'Parent', 'Joined'].map((h) => (
                   <th key={h} className='px-4 py-3 text-left text-xs font-semibold text-gray-700 border-r border-gray-100 last:border-r-0 whitespace-nowrap'>
                     {h}
                   </th>
@@ -456,6 +457,18 @@ function AffiliatesTab() {
                     {a.mobileCountryCode && a.mobileNumber
                       ? `${a.mobileCountryCode.startsWith('+') ? '' : '+'}${a.mobileCountryCode} ${a.mobileNumber}`
                       : '—'}
+                  </td>
+                  <td className='px-4 py-3 text-xs text-gray-700 border-r border-gray-100 max-w-[200px]'>
+                    {a.website ? (
+                      <a
+                        href={/^https?:\/\//i.test(a.website) ? a.website : `https://${a.website}`}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='text-primary hover:underline break-all'
+                      >
+                        {a.website}
+                      </a>
+                    ) : '—'}
                   </td>
                   <td className='px-4 py-3 text-xs border-r border-gray-100'>
                     <div className='flex flex-col gap-1'>
