@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { useBaseMutation } from 'api/core/useBaseMutation';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import { BRANDS_API_URLS } from 'config/apiUrls';
-
-import BrandPagesTab from './BrandPagesTab';
 
 interface Brand {
   _id: string;
@@ -17,30 +16,20 @@ interface Brand {
 
 interface BrandsResponse { brands: Brand[]; }
 
-// ── modal ─────────────────────────────────────────────────────────────────────
+// ── create modal ────────────────────────────────────────────────────────────
+// Brand editing (incl. the Pages tab) now lives on the /brands/:id detail page;
+// this modal only handles creating a new brand.
 
 interface ModalProps {
-  brand?: Brand;          // undefined → create mode; defined → edit
   onClose: () => void;
   onSaved: () => void;
 }
 
-type ModalTab = 'details' | 'pages';
-
-function BrandModal({ brand, onClose, onSaved }: ModalProps) {
-  const isEdit = !!brand;
-  const [tab, setTab]         = useState<ModalTab>('details');
-  const [name, setName]       = useState(brand?.name ?? '');
-  const [url, setUrl]         = useState(brand?.url ?? '');
-  const [enabled, setEnabled] = useState(brand?.enabled ?? true);
+function BrandModal({ onClose, onSaved }: ModalProps) {
+  const [name, setName]       = useState('');
+  const [url, setUrl]         = useState('');
+  const [enabled, setEnabled] = useState(true);
   const [error, setError]     = useState('');
-
-  const updateMutation = useBaseMutation({
-    endpoint: BRANDS_API_URLS.UPDATE(brand?._id ?? ''),
-    method: 'patch',
-    onSuccess: () => { onSaved(); onClose(); },
-    onError: (e: any) => setError(e?.message ?? 'Failed to update brand'),
-  });
 
   const createMutation = useBaseMutation({
     endpoint: BRANDS_API_URLS.CREATE(),
@@ -49,50 +38,18 @@ function BrandModal({ brand, onClose, onSaved }: ModalProps) {
     onError: (e: any) => setError(e?.message ?? 'Failed to create brand'),
   });
 
-  const saving = isEdit ? updateMutation.isPending : createMutation.isPending;
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     if (!name.trim()) { setError('Name is required'); return; }
-    const payload = { name: name.trim(), url: url.trim() || null, enabled };
-    if (isEdit) updateMutation.mutate(payload);
-    else        createMutation.mutate(payload);
+    createMutation.mutate({ name: name.trim(), url: url.trim() || null, enabled });
   };
 
   return createPortal(
     <div className='fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4'>
-      <div className='bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-5'>
-        <h2 className='text-base font-semibold text-gray-800'>
-          {isEdit ? 'Edit Brand' : 'Add Brand'}
-        </h2>
+      <div className='bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-5'>
+        <h2 className='text-base font-semibold text-gray-800'>Add Brand</h2>
 
-        {/* Tabs — Pages is only available once the brand exists. */}
-        <div className='flex gap-1 border-b border-gray-100 -mt-1'>
-          {(['details', 'pages'] as ModalTab[]).map((k) => {
-            const disabled = k === 'pages' && !isEdit;
-            return (
-              <button
-                key={k}
-                type='button'
-                disabled={disabled}
-                onClick={() => setTab(k)}
-                title={disabled ? 'Save the brand first' : undefined}
-                className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                  tab === k
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
-              >
-                {k === 'details' ? 'Details' : 'Pages'}
-              </button>
-            );
-          })}
-        </div>
-
-        {tab === 'pages' && isEdit && brand ? (
-          <BrandPagesTab brandId={brand._id} />
-        ) : (
         <form onSubmit={handleSubmit} className='space-y-4'>
           <div>
             <label className='block text-xs font-medium text-gray-600 mb-1'>Name</label>
@@ -138,14 +95,13 @@ function BrandModal({ brand, onClose, onSaved }: ModalProps) {
             </button>
             <button
               type='submit'
-              disabled={saving}
+              disabled={createMutation.isPending}
               className='px-4 py-2 text-sm rounded-lg bg-primary text-white font-medium hover:bg-primary-dark disabled:opacity-60'
             >
-              {saving ? 'Saving...' : isEdit ? 'Save' : 'Create'}
+              {createMutation.isPending ? 'Saving...' : 'Create'}
             </button>
           </div>
         </form>
-        )}
       </div>
     </div>,
     document.body,
@@ -155,8 +111,8 @@ function BrandModal({ brand, onClose, onSaved }: ModalProps) {
 // ── main page ─────────────────────────────────────────────────────────────────
 
 export default function Brands() {
-  const [editBrand, setEditBrand] = useState<Brand | null>(null);
-  const [creating, setCreating]   = useState(false);
+  const navigate = useNavigate();
+  const [creating, setCreating] = useState(false);
 
   const { data, isLoading, refetch } = useBaseQuery<BrandsResponse>({
     endpoint: BRANDS_API_URLS.LIST(),
@@ -228,7 +184,7 @@ export default function Brands() {
                     </td>
                     <td className='px-5 py-3 w-16'>
                       <button
-                        onClick={() => setEditBrand(b)}
+                        onClick={() => navigate(`/brands/${b._id}`)}
                         className='text-xs text-primary font-medium hover:underline'
                       >
                         Edit
@@ -241,10 +197,6 @@ export default function Brands() {
           </div>
         )}
       </div>
-
-      {editBrand && (
-        <BrandModal brand={editBrand} onClose={() => setEditBrand(null)} onSaved={() => refetch()} />
-      )}
 
       {creating && (
         <BrandModal onClose={() => setCreating(false)} onSaved={() => refetch()} />
