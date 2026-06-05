@@ -287,6 +287,15 @@ export const BRANDS_API_URLS = {
   UPDATE: (id: string) => `${API_BASE_URL}api/brands/${id}`,
 };
 
+export const BRAND_PAGES_API_URLS = {
+  LIST:   (brandId: string) => `${API_BASE_URL}api/brands/${brandId}/pages`,
+  CREATE: (brandId: string) => `${API_BASE_URL}api/brands/${brandId}/pages`,
+  UPDATE: (brandId: string, pageId: string) =>
+    `${API_BASE_URL}api/brands/${brandId}/pages/${pageId}`,
+  DELETE: (brandId: string, pageId: string) =>
+    `${API_BASE_URL}api/brands/${brandId}/pages/${pageId}`,
+};
+
 export const FEES_API_URLS = {
   BRANDS: () => `${API_BASE_URL}api/fees/brands`,
   PROVIDER_RATES: () => `${API_BASE_URL}api/fees/provider-rates`,

@@ -5,6 +5,8 @@ import { useBaseMutation } from 'api/core/useBaseMutation';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import { BRANDS_API_URLS } from 'config/apiUrls';
 
+import BrandPagesTab from './BrandPagesTab';
+
 interface Brand {
   _id: string;
   id: number;
@@ -23,8 +25,11 @@ interface ModalProps {
   onSaved: () => void;
 }
 
+type ModalTab = 'details' | 'pages';
+
 function BrandModal({ brand, onClose, onSaved }: ModalProps) {
   const isEdit = !!brand;
+  const [tab, setTab]         = useState<ModalTab>('details');
   const [name, setName]       = useState(brand?.name ?? '');
   const [url, setUrl]         = useState(brand?.url ?? '');
   const [enabled, setEnabled] = useState(brand?.enabled ?? true);
@@ -57,11 +62,37 @@ function BrandModal({ brand, onClose, onSaved }: ModalProps) {
 
   return createPortal(
     <div className='fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4'>
-      <div className='bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-5'>
+      <div className='bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-5'>
         <h2 className='text-base font-semibold text-gray-800'>
           {isEdit ? 'Edit Brand' : 'Add Brand'}
         </h2>
 
+        {/* Tabs — Pages is only available once the brand exists. */}
+        <div className='flex gap-1 border-b border-gray-100 -mt-1'>
+          {(['details', 'pages'] as ModalTab[]).map((k) => {
+            const disabled = k === 'pages' && !isEdit;
+            return (
+              <button
+                key={k}
+                type='button'
+                disabled={disabled}
+                onClick={() => setTab(k)}
+                title={disabled ? 'Save the brand first' : undefined}
+                className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                  tab === k
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+              >
+                {k === 'details' ? 'Details' : 'Pages'}
+              </button>
+            );
+          })}
+        </div>
+
+        {tab === 'pages' && isEdit && brand ? (
+          <BrandPagesTab brandId={brand._id} />
+        ) : (
         <form onSubmit={handleSubmit} className='space-y-4'>
           <div>
             <label className='block text-xs font-medium text-gray-600 mb-1'>Name</label>
@@ -114,6 +145,7 @@ function BrandModal({ brand, onClose, onSaved }: ModalProps) {
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>,
     document.body,
