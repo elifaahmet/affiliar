@@ -327,6 +327,8 @@ export const AFFILIATE_PORTAL_API_URLS = {
   BRAND_PAGES:      () => `${API_BASE_URL}api/affiliate-portal/brand-pages`,
   LINKS:            () => `${API_BASE_URL}api/affiliate-portal/links`,
   LINK:             (linkId: string) => `${API_BASE_URL}api/affiliate-portal/links/${linkId}`,
+  API_KEY:          () => `${API_BASE_URL}api/affiliate-portal/api-key`,
+  API_KEY_ROTATE:   () => `${API_BASE_URL}api/affiliate-portal/api-key/rotate`,
   FEE_DETAILS:      () => `${API_BASE_URL}api/affiliate-portal/fee-details`,
   // Affiliate payout wallet + own history
   PAYOUT_INFO:      () => `${API_BASE_URL}api/affiliate-portal/payout-info`,

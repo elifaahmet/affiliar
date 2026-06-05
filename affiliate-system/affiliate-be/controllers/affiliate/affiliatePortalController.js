@@ -1,5 +1,6 @@
 "use strict";
 
+const crypto             = require("crypto");
 const clickhouse         = require("../../config/clickhouse");
 const AffiliateProfile   = require("../../models/AffiliateProfile");
 const CommissionReport   = require("../../models/CommissionReport");
@@ -1106,5 +1107,65 @@ exports.listMyPayouts = async (req, res) => {
     return res.json({ payouts, count: payouts.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+// ── Affiliate API key + referral-code list ──────────────────────────────────
+// The key authenticates the affiliate's own systems against the read-only
+// pull API (/api/affiliate-api/v1). These two management endpoints run under
+// the JWT-authed portal so the affiliate can view + rotate the key on screen.
+
+function newApiKey() {
+  return `aff_${crypto.randomBytes(24).toString("hex")}`;
+}
+
+// GET /api/affiliate-portal/api-key
+exports.getApiKey = async (req, res) => {
+  const affiliate = req.affiliateUser;
+  if (affiliate.role !== "affiliate") {
+    return res.status(403).json({ error: "Affiliates only" });
+  }
+  try {
+    const profile = await AffiliateProfile.findOne({ user: affiliate._id })
+      .select("apiKey")
+      .lean();
+    return res.json({ apiKey: profile?.apiKey ?? null });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /api/affiliate-portal/api-key/rotate — generate (or replace) the key.
+exports.rotateApiKey = async (req, res) => {
+  const affiliate = req.affiliateUser;
+  if (affiliate.role !== "affiliate") {
+    return res.status(403).json({ error: "Affiliates only" });
+  }
+  try {
+    const apiKey = newApiKey();
+    const updated = await AffiliateProfile.findOneAndUpdate(
+      { user: affiliate._id },
+      { $set: { apiKey } },
+      { new: true },
+    ).select("apiKey");
+    if (!updated) return res.status(404).json({ error: "profile_not_found" });
+    return res.json({ apiKey });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// GET /api/affiliate-api/v1/referral-codes — the affiliate's per-brand codes,
+// same shape the portal overview surfaces (reuses buildBrandCodes).
+exports.referralCodes = async (req, res) => {
+  const affiliate = req.affiliateUser;
+  if (affiliate.role !== "affiliate") {
+    return res.status(403).json({ error: "Affiliates only" });
+  }
+  try {
+    const profile = await AffiliateProfile.findOne({ user: affiliate._id }).lean();
+    return res.json({ referralCodes: await buildBrandCodes(profile) });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
 };

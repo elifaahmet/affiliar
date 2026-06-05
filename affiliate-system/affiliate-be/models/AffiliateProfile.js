@@ -18,6 +18,14 @@ const affiliateProfileSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    // API key for the affiliate's own systems to pull their reporting data via
+    // the read-only Affiliate API (/api/affiliate-api/v1/*). Null until the
+    // affiliate generates one from the portal. Indexed for O(1) key lookup.
+    apiKey: {
+      type: String,
+      default: null,
+      index: true,
+    },
     // Per-brand referral codes — each brand the operator owns gets its own code.
     // Operator must have at least one brand before an affiliate can be created.
     brandCodes: {

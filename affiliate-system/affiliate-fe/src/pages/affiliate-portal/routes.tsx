@@ -7,6 +7,7 @@ import AffiliateCommission from './commission';
 import AffiliatePlayers from './players';
 import AffiliateProfile from './profile';
 import AffiliateSubAffiliates from './sub-affiliates';
+import AffiliateApiAccess from './api-access';
 
 export const affiliatePortalRoutes: AppRouteProps[] = [
   { path: '/',                          element: <Navigate to='/affiliate/dashboard' replace /> },
@@ -17,5 +18,6 @@ export const affiliatePortalRoutes: AppRouteProps[] = [
   { path: '/affiliate/commission',      element: <Outlet />, children: [{ path: '', element: <AffiliateCommission /> }] },
   { path: '/affiliate/sub-affiliates',  element: <Outlet />, children: [{ path: '', element: <AffiliateSubAffiliates /> }] },
   { path: '/affiliate/profile',         element: <Outlet />, children: [{ path: '', element: <AffiliateProfile /> }] },
+  { path: '/affiliate/api-access',      element: <Outlet />, children: [{ path: '', element: <AffiliateApiAccess /> }] },
   { path: '*',                          element: <Navigate to='/affiliate/dashboard' replace /> },
 ];

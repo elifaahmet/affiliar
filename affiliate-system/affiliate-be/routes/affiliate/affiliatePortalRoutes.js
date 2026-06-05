@@ -28,6 +28,10 @@ router.get   ("/links",            marketingCtrl.listLinks);
 router.post  ("/links",            marketingCtrl.createLink);
 router.delete("/links/:linkId",    marketingCtrl.deleteLink);
 
+// API key for the affiliate's own systems (read-only pull API).
+router.get ("/api-key",            ctrl.getApiKey);
+router.post("/api-key/rotate",     ctrl.rotateApiKey);
+
 // Payout wallet + history (affiliate-owned, USDT-TRC20)
 router.get ("/payout-info",        ctrl.getPayoutInfo);
 router.put ("/payout-info",        ctrl.updatePayoutInfo);

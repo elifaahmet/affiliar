@@ -66,6 +66,11 @@ const publicAuthPaths = new Set([
   `${prefix}/billing/sans/callback`,
 ]);
 
+// Affiliate read-only pull API — authenticated by a per-affiliate API key, not
+// the session JWT. Mounted before the global authorize() gate so its requests
+// take the API-key path instead of the session-cookie one.
+app.use(`${prefix}/affiliate-api/v1`, require("./routes/affiliate/affiliateApiRoutes"));
+
 app.use((req, res, next) => {
   if (req.method === "OPTIONS") return next();
   if (publicAuthPaths.has(req.path)) return next();

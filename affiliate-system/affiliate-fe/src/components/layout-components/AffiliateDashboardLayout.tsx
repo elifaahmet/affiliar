@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   BanknotesIcon,
   ChartBarIcon,
+  CodeBracketIcon,
   MegaphoneIcon,
   Squares2X2Icon,
   UserCircleIcon,
@@ -33,6 +34,7 @@ const NAV: NavItem[] = [
   { key: 'marketing',     label: 'Marketing Tools', href: '/affiliate/marketing',      Icon: MegaphoneIcon },
   { key: 'commission',    label: 'Commission',      href: '/affiliate/commission',     Icon: BanknotesIcon },
   { key: 'sub-affiliate', label: 'Sub-Affiliates',  href: '/affiliate/sub-affiliates', Icon: UserGroupIcon },
+  { key: 'api-access',    label: 'API Access',      href: '/affiliate/api-access',     Icon: CodeBracketIcon },
   { key: 'profile',       label: 'Profile',         href: '/affiliate/profile',        Icon: UserCircleIcon },
 ];
 
