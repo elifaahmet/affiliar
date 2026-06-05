@@ -677,6 +677,10 @@ exports.getSettings = async (req, res) => {
         ? reward.crewLevels.map((l) => ({
             activeReferrals: l.activeReferrals,
             percent: l.percent,
+            // Named tiers + level number so the FE can label the ladder
+            // ("Bronze", "Silver"…) instead of just a percent row.
+            levelNumber: l.levelNumber ?? null,
+            name: l.name ?? null,
           }))
         : [],
       crewMetric: reward.crewMetric ?? null,
