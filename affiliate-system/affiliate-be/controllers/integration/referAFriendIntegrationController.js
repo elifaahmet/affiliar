@@ -377,6 +377,28 @@ exports.listPlayerReferrals = async (req, res) => {
     }
   }
 
+  // Live current-month NGR per referee, straight from ClickHouse, so the FE
+  // can show each friend's real NGR even while the referral is still
+  // pending_ftd / pending_qualification — the recurringPayments ledger only
+  // fills once a referral is 'rewarded' and the monthly job runs, so without
+  // this every un-rewarded friend would read €0. Uses the brand's crew metric
+  // (from the qualify-time snapshot); fetchCrewMonthlyBasePerReferee swallows
+  // any ClickHouse hiccup and returns an empty map.
+  const ngrMetric =
+    (referrals[0] &&
+      referrals[0].configSnapshot &&
+      referrals[0].configSnapshot.reward &&
+      referrals[0].configSnapshot.reward.crewMetric) ||
+    "ngr";
+  const now = new Date();
+  const liveNgrByReferee = await engine.fetchCrewMonthlyBasePerReferee({
+    operatorId,
+    refereePlayerIds: referrals.map((r) => r.refereePlayerId),
+    year: now.getUTCFullYear(),
+    month: now.getUTCMonth() + 1,
+    ngrMetric,
+  });
+
   const rows = referrals.map((r) => {
     const pending = pendingByReferral.get(String(r._id));
     // Crew recurring breakdown: this referee's NGR × tier% accrued monthly.
@@ -400,6 +422,9 @@ exports.listPlayerReferrals = async (req, res) => {
           r.configSnapshot.reward.rewardKind) ||
         null,
       recurringNgrCents: rp.reduce((s, p) => s + (Number(p.ngrCents) || 0), 0),
+      // Live current-month NGR (signed, netted) regardless of referral status —
+      // the FE shows this when there's no accrued recurring NGR yet.
+      currentNgrCents: liveNgrByReferee.get(String(r.refereePlayerId)) || 0,
       recurringRewardCents: rp.reduce((s, p) => s + (Number(p.rewardCents) || 0), 0),
       recurringPercent: latest ? (latest.percent ?? null) : null,
       pendingDeliveryId: pending ? String(pending._id) : null,
