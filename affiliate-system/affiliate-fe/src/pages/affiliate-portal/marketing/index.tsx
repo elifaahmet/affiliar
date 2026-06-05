@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { useBaseMutation } from 'api/core/useBaseMutation';
 import { useQueryClient } from '@tanstack/react-query';
+import axiosInstance from 'config/axiosInstance';
 import { AFFILIATE_PORTAL_API_URLS } from 'config/apiUrls';
 
 interface BrandReferralCode {
@@ -13,6 +14,38 @@ interface BrandReferralCode {
 
 interface OverviewResponse {
   referralCodes: BrandReferralCode[];
+}
+
+interface BrandPageRow {
+  _id: string;
+  brandId: string;
+  brandName: string | null;
+  brandUrl: string | null;
+  code: string | null;
+  name: string;
+  url: string | null;
+  description: string | null;
+}
+
+interface BrandPagesResponse {
+  pages: BrandPageRow[];
+}
+
+interface SavedLink {
+  _id: string;
+  brandId: string;
+  brandName: string | null;
+  pageId: string | null;
+  code: string;
+  label: string | null;
+  url: string;
+  campaign: string | null;
+  sub: string | null;
+  createdAt: string;
+}
+
+interface SavedLinksResponse {
+  links: SavedLink[];
 }
 
 interface CampaignReportRow {
@@ -92,12 +125,29 @@ export default function AffiliateMarketing() {
 
   const referralCodes = data?.referralCodes ?? [];
 
-  // Link builder state — selected base code + tracking params.
+  // Operator-defined brand pages the affiliate can target + the affiliate's
+  // own saved tracking links.
+  const { data: pagesData } = useBaseQuery<BrandPagesResponse>({
+    endpoint: AFFILIATE_PORTAL_API_URLS.BRAND_PAGES(),
+    queryKey: ['affiliate-brand-pages'],
+  });
+  const brandPages = pagesData?.pages ?? [];
+
+  const { data: linksData } = useBaseQuery<SavedLinksResponse>({
+    endpoint: AFFILIATE_PORTAL_API_URLS.LINKS(),
+    queryKey: ['affiliate-saved-links'],
+  });
+  const savedLinks = linksData?.links ?? [];
+
+  // Link builder state — selected base code + target page + tracking params.
   const [builderCode, setBuilderCode] = useState<string>('');
+  const [builderPageId, setBuilderPageId] = useState<string>('');
   const [campaign, setCampaign] = useState<string>('');
   const [sub, setSub] = useState<string>('');
   const [customParams, setCustomParams] = useState<Array<{ key: string; value: string }>>([]);
   const [builderCopied, setBuilderCopied] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const fallbackBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
@@ -119,29 +169,78 @@ export default function AffiliateMarketing() {
     return out;
   }, [referralCodes]);
 
-  // Live preview of the builder link. Returns the full URL with the
-  // selected code + any campaign / sub / custom params appended.
+  // The referral code currently selected in the builder (drives brand + code).
+  const builderRc =
+    referralCodes.find((r) => r.code === builderCode) ?? referralCodes[0] ?? null;
+
+  // Pages belonging to the selected code's brand — the targets the affiliate
+  // can point this link at (empty → only the brand homepage).
+  const pagesForBrand = useMemo(
+    () =>
+      builderRc?.brandId
+        ? brandPages.filter((p) => p.brandId === builderRc.brandId)
+        : [],
+    [brandPages, builderRc],
+  );
+
+  // Live preview of the builder link: the selected page's URL (or the brand
+  // homepage) + ?affiliate=<code> + any campaign / sub / custom params.
   const builderLink = useMemo(() => {
-    const rc =
-      referralCodes.find((r) => r.code === builderCode) ?? referralCodes[0];
-    if (!rc) return '';
+    if (!builderRc) return '';
+    const page = pagesForBrand.find((p) => p._id === builderPageId);
+    const rawBase = (page?.url || builderRc.brandUrl || fallbackBaseUrl).replace(/\/+$/, '');
     const params: Array<[string, string]> = [];
     if (campaign.trim()) params.push(['campaign', campaign.trim()]);
     if (sub.trim()) params.push(['sub', sub.trim()]);
     for (const p of customParams) {
       const k = p.key.trim();
       const v = p.value.trim();
-      if (k && v && k.toLowerCase() !== 'affiliate') {
-        params.push([k, v]);
-      }
+      if (k && v && k.toLowerCase() !== 'affiliate') params.push([k, v]);
     }
-    const base = buildLink(rc); // already has ?affiliate=<code>
-    if (params.length === 0) return base;
-    const tail = params
-      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-      .join('&');
-    return `${base}&${tail}`;
-  }, [referralCodes, builderCode, campaign, sub, customParams]);
+    const joiner = rawBase.includes('?') ? '&' : '/?';
+    let url = `${rawBase}${joiner}affiliate=${builderRc.code}`;
+    if (params.length > 0) {
+      url +=
+        '&' +
+        params.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
+    }
+    return url;
+  }, [builderRc, pagesForBrand, builderPageId, campaign, sub, customParams, fallbackBaseUrl]);
+
+  // Persist the current builder link so the affiliate can re-copy it later.
+  const saveLink = async () => {
+    if (!builderRc?.brandId) {
+      setSaveError('This code is not linked to a brand, so it cannot be saved.');
+      setTimeout(() => setSaveError(null), 4000);
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await axiosInstance.post(AFFILIATE_PORTAL_API_URLS.LINKS(), {
+        brandId: builderRc.brandId,
+        pageId: builderPageId || null,
+        campaign: campaign.trim() || null,
+        sub: sub.trim() || null,
+        customParams: customParams.filter((p) => p.key.trim() && p.value.trim()),
+      });
+      queryClient.invalidateQueries({ queryKey: ['affiliate-saved-links'] });
+    } catch (e: any) {
+      setSaveError(e?.response?.data?.error || e?.message || 'Failed to save link');
+      setTimeout(() => setSaveError(null), 4000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteSavedLink = async (id: string) => {
+    try {
+      await axiosInstance.delete(AFFILIATE_PORTAL_API_URLS.LINK(id));
+      queryClient.invalidateQueries({ queryKey: ['affiliate-saved-links'] });
+    } catch {
+      /* best-effort; the list just won't change */
+    }
+  };
 
   const copyBuilder = () => {
     if (!builderLink) return;
@@ -369,6 +468,25 @@ export default function AffiliateMarketing() {
 
         {referralCodes.length > 0 && (
           <div className='space-y-4'>
+            {pagesForBrand.length > 0 && (
+              <label className='flex flex-col gap-1'>
+                <span className='text-xs text-gray-600'>Target page</span>
+                <select
+                  value={pagesForBrand.some((p) => p._id === builderPageId) ? builderPageId : ''}
+                  onChange={(e) => setBuilderPageId(e.target.value)}
+                  className='bg-white text-gray-700 text-xs rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
+                >
+                  <option value=''>Homepage</option>
+                  {pagesForBrand.map((p) => (
+                    <option key={p._id} value={p._id}>
+                      {p.name}
+                      {p.url ? '' : ' (no URL — uses homepage)'}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
             <div className='grid grid-cols-1 sm:grid-cols-3 gap-3'>
               <label className='flex flex-col gap-1'>
                 <span className='text-xs text-gray-600'>Base code</span>
@@ -458,22 +576,94 @@ export default function AffiliateMarketing() {
             <div className='border-t border-gray-100 pt-4'>
               <div className='flex items-center justify-between mb-2'>
                 <span className='text-xs font-semibold text-gray-700'>Generated link</span>
-                <button
-                  type='button'
-                  onClick={copyBuilder}
-                  className={`shrink-0 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                    builderCopied
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-primary text-white hover:bg-primary-dark'
-                  }`}
-                >
-                  {builderCopied ? 'Copied!' : 'Copy Link'}
-                </button>
+                <div className='flex items-center gap-2'>
+                  <button
+                    type='button'
+                    onClick={saveLink}
+                    disabled={saving}
+                    className='shrink-0 px-3 py-1.5 rounded-md text-xs font-medium border border-primary text-primary hover:bg-primary/5 disabled:opacity-60'
+                  >
+                    {saving ? 'Saving…' : 'Save link'}
+                  </button>
+                  <button
+                    type='button'
+                    onClick={copyBuilder}
+                    className={`shrink-0 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                      builderCopied
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-primary text-white hover:bg-primary-dark'
+                    }`}
+                  >
+                    {builderCopied ? 'Copied!' : 'Copy Link'}
+                  </button>
+                </div>
               </div>
+              {saveError && <p className='text-xs text-red-600 mb-2'>{saveError}</p>}
               <p className='text-xs text-gray-700 break-all font-mono bg-gray-50 rounded-md border border-gray-100 p-3'>
                 {builderLink}
               </p>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Saved Links */}
+      <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-6'>
+        <h2 className='text-sm font-semibold text-gray-800 mb-1'>Your Saved Links</h2>
+        <p className='text-xs text-gray-700 mb-4'>
+          Links you built and saved. Copy them any time, or remove the ones you no longer use.
+        </p>
+
+        {savedLinks.length === 0 ? (
+          <div className='rounded-lg border border-dashed border-gray-200 p-6 text-center'>
+            <p className='text-sm text-gray-600'>
+              No saved links yet. Build a link above and hit &ldquo;Save link&rdquo;.
+            </p>
+          </div>
+        ) : (
+          <div className='space-y-3'>
+            {savedLinks.map((l) => {
+              const isCopied = copied === l.url;
+              return (
+                <div key={l._id} className='flex items-center gap-3 p-4 rounded-lg border border-gray-100 bg-gray-50'>
+                  <div className='flex-1 min-w-0'>
+                    <div className='flex items-center gap-2 mb-0.5 flex-wrap'>
+                      {l.brandName && (
+                        <span className='inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary uppercase tracking-wide'>
+                          {l.brandName}
+                        </span>
+                      )}
+                      {l.label && (
+                        <span className='text-xs font-semibold text-gray-700'>{l.label}</span>
+                      )}
+                      {l.campaign && (
+                        <span className='text-[10px] text-gray-500'>campaign: {l.campaign}</span>
+                      )}
+                      {l.sub && (
+                        <span className='text-[10px] text-gray-500'>sub: {l.sub}</span>
+                      )}
+                    </div>
+                    <p className='text-xs text-gray-600 truncate font-mono'>{l.url}</p>
+                  </div>
+                  <button
+                    onClick={() => copy(l.url)}
+                    className={`shrink-0 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                      isCopied
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-primary text-white hover:bg-primary-dark'
+                    }`}
+                  >
+                    {isCopied ? 'Copied!' : 'Copy Link'}
+                  </button>
+                  <button
+                    onClick={() => deleteSavedLink(l._id)}
+                    className='shrink-0 px-3 py-1.5 rounded-md text-xs font-medium border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors'
+                  >
+                    Delete
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

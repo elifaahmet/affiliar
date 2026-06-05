@@ -2,6 +2,7 @@ const express        = require("express");
 const router         = express.Router();
 const ctrl           = require("../../controllers/affiliate/affiliatePortalController");
 const reportCtrl     = require("../../controllers/affiliate/reportController");
+const marketingCtrl  = require("../../controllers/affiliate/affiliateMarketingController");
 const { recalculateSubtreePayouts } = require("../../controllers/affiliate/commissionController");
 
 router.get("/overview",            ctrl.overview);
@@ -20,6 +21,12 @@ router.get ("/payout-balance",                    ctrl.getPayoutBalance);
 router.get("/campaign-reports",    reportCtrl.portalCampaignReport);
 router.post("/referral-codes",     ctrl.generateReferralCode);
 router.get ("/fee-details",        ctrl.feeDetails);
+
+// Marketing tools: operator-defined brand pages + the affiliate's saved links.
+router.get   ("/brand-pages",      marketingCtrl.listBrandPages);
+router.get   ("/links",            marketingCtrl.listLinks);
+router.post  ("/links",            marketingCtrl.createLink);
+router.delete("/links/:linkId",    marketingCtrl.deleteLink);
 
 // Payout wallet + history (affiliate-owned, USDT-TRC20)
 router.get ("/payout-info",        ctrl.getPayoutInfo);
