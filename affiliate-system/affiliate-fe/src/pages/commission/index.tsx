@@ -1013,6 +1013,30 @@ function ReportsTab() {
   // affiliate granularity here (not per-report rows).
   const [selectedAffiliateIds, setSelectedAffiliateIds] = useState<Set<string>>(new Set());
 
+  // Payment-note editor. Clicking a row's Note cell opens a modal showing the
+  // full note (however long) with edit + save via PATCH /reports/:id/notes.
+  const [noteFor, setNoteFor]     = useState<CommissionReport | null>(null);
+  const [noteText, setNoteText]   = useState('');
+  const [savingNote, setSavingNote] = useState(false);
+
+  const openNote = (r: CommissionReport) => { setNoteFor(r); setNoteText(r.notes || ''); };
+
+  const saveNote = async () => {
+    if (!noteFor) return;
+    setSavingNote(true);
+    try {
+      await axiosInstance.patch(COMMISSION_API_URLS.REPORT_NOTES(noteFor._id), {
+        notes: noteText.trim() || null,
+      });
+      setNoteFor(null);
+      refetch();
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Could not save note.');
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
   const params: Record<string, any> = { year, month, page, limit: 50 };
   if (status) params.status = status;
 
@@ -1300,7 +1324,7 @@ function ReportsTab() {
                         aria-label='Select all approved affiliates'
                       />
                     </th>
-                    {['Affiliate', 'Product', 'Plan', 'Players', 'FTDs', 'GGR', 'NGR', 'RevShare', 'CPA', 'Total', 'Status'].map((h) => {
+                    {['Affiliate', 'Product', 'Plan', 'Players', 'FTDs', 'GGR', 'NGR', 'RevShare', 'CPA', 'Total', 'Status', 'Note'].map((h) => {
                       // Numeric columns are right-aligned in the body cells, so
                       // their headers must match or the labels float off to the left.
                       const isNumeric = ['Players', 'FTDs', 'GGR', 'NGR', 'RevShare', 'CPA', 'Total'].includes(h);
@@ -1362,8 +1386,28 @@ function ReportsTab() {
                         <td className='px-4 py-2.5 text-xs text-gray-700 border-r border-gray-100 text-right'>{cents(r.breakdown.revshareAmountCents)}</td>
                         <td className='px-4 py-2.5 text-xs text-gray-700 border-r border-gray-100 text-right'>{cents(r.breakdown.cpaAmountCents)}</td>
                         <td className='px-4 py-2.5 text-xs font-semibold text-gray-800 border-r border-gray-100 text-right'>{cents(r.breakdown.totalCents)}</td>
-                        <td className='px-4 py-2.5'>
+                        <td className='px-4 py-2.5 border-r border-gray-100'>
                           <span className={badge.cls}>{badge.label}</span>
+                        </td>
+                        <td className='px-4 py-2.5'>
+                          {r.notes ? (
+                            <button
+                              type='button'
+                              onClick={() => openNote(r)}
+                              title='Click to view / edit the full note'
+                              className='text-xs text-gray-700 truncate max-w-[160px] inline-block align-middle text-left hover:text-primary hover:underline'
+                            >
+                              {r.notes}
+                            </button>
+                          ) : (
+                            <button
+                              type='button'
+                              onClick={() => openNote(r)}
+                              className='text-xs text-gray-400 hover:text-primary'
+                            >
+                              + Add
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -1386,6 +1430,46 @@ function ReportsTab() {
           </>
         )}
       </div>
+
+      {noteFor && (
+        <div
+          className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4'
+          onClick={() => { if (!savingNote) setNoteFor(null); }}
+        >
+          <div
+            className='bg-white rounded-xl shadow-xl w-full max-w-md p-5 text-left'
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className='text-sm font-semibold text-gray-900'>Payment note</h3>
+            <p className='text-xs text-gray-600 mt-1'>
+              {noteFor.affiliateId?.username ?? '—'} · {MONTHS[noteFor.period.month - 1]} {noteFor.period.year}
+            </p>
+            <textarea
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              rows={5}
+              placeholder='Payment note (optional)'
+              className='mt-3 w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary'
+            />
+            <div className='mt-4 flex justify-end gap-2'>
+              <button
+                onClick={() => setNoteFor(null)}
+                disabled={savingNote}
+                className='px-3 py-1.5 text-xs font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40'
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveNote}
+                disabled={savingNote}
+                className='px-3 py-1.5 text-xs font-medium rounded-md bg-primary text-white hover:bg-primary-dark disabled:opacity-40'
+              >
+                {savingNote ? '…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
