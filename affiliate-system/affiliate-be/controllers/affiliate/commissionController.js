@@ -312,13 +312,13 @@ async function fetchPlayerCumulativeContext(tenantId, endTs) {
       SELECT
         affiliate_id,
         player_id,
-        MIN(hour_bucket)              AS ftd_date,
+        MIN(from_ts)                  AS ftd_date,
         SUM(ftd_sum_cents)            AS first_deposit_cents,
         SUM(deposit_fees_sum_cents)   AS first_deposit_fees_cents
-      FROM affiliate.activity_hourly_delta
+      FROM affiliate.activity
       WHERE tenant_id = {tenantId:String}
         AND ftd_count > 0
-        AND hour_bucket <= {endTs:DateTime}
+        AND from_ts <= {endTs:DateTime}
         AND player_id != '__fees__'
         AND affiliate_id != ''
       GROUP BY affiliate_id, player_id
@@ -337,10 +337,10 @@ async function fetchPlayerCumulativeContext(tenantId, endTs) {
       SUM(toInt64(a.casino_ngr_cents)
         + toInt64(a.sb_ngr_cents))                              AS ngrCents
     FROM ftds f
-    LEFT JOIN affiliate.activity_hourly_delta a
+    LEFT JOIN affiliate.activity a
       ON a.tenant_id = {tenantId:String}
      AND a.player_id = f.player_id
-     AND a.hour_bucket <= {endTs:DateTime}
+     AND a.from_ts <= {endTs:DateTime}
      AND a.player_id != '__fees__'
     GROUP BY f.affiliate_id, f.player_id, f.ftd_date,
              f.first_deposit_cents, f.first_deposit_fees_cents
