@@ -37,6 +37,7 @@ interface PayoutRow {
   status: 'pending' | 'processing' | 'paid' | 'failed' | 'cancelled';
   failureReason: string | null;
   sansTransactionId: string | null;
+  paymentNote: string | null;
   initiatedAt: string;
   paidAt: string | null;
   failedAt: string | null;
@@ -340,6 +341,7 @@ function HistoryTab() {
                 <th className='px-4 py-2.5 font-semibold'>Wallet</th>
                 <th className='px-4 py-2.5 font-semibold text-right'>Amount</th>
                 <th className='px-4 py-2.5 font-semibold'>Status</th>
+                <th className='px-4 py-2.5 font-semibold'>Note</th>
                 <th className='px-4 py-2.5 font-semibold text-right'>Actions</th>
               </tr>
             </thead>
@@ -364,6 +366,10 @@ function HistoryRow({
   const aff = typeof payout.affiliateId === 'object' ? payout.affiliateId : null;
   const identity = aff ? (aff.name || aff.username || aff.email) : String(payout.affiliateId).slice(-6);
 
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [note, setNote] = useState('');
+  const [savingPaid, setSavingPaid] = useState(false);
+
   const handleAction = async (fn: () => Promise<unknown>, confirmMsg: string) => {
     if (!confirm(confirmMsg)) return;
     try {
@@ -371,6 +377,22 @@ function HistoryRow({
       onChange();
     } catch (err: any) {
       alert(err?.response?.data?.error || 'Action failed.');
+    }
+  };
+
+  const submitMarkPaid = async () => {
+    setSavingPaid(true);
+    try {
+      await axiosInstance.post(AFFILIATE_PAYOUT_API_URLS.MARK_PAID(payout._id), {
+        paymentNote: note.trim() || null,
+      });
+      setShowNoteModal(false);
+      setNote('');
+      onChange();
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Action failed.');
+    } finally {
+      setSavingPaid(false);
     }
   };
 
@@ -395,6 +417,18 @@ function HistoryRow({
         </span>
         {payout.failureReason && (
           <div className='text-[10px] text-red-600 mt-0.5'>{payout.failureReason}</div>
+        )}
+      </td>
+      <td className='px-4 py-2.5'>
+        {payout.paymentNote ? (
+          <span
+            className='text-xs text-gray-700 truncate max-w-[220px] inline-block align-middle'
+            title={payout.paymentNote}
+          >
+            {payout.paymentNote}
+          </span>
+        ) : (
+          <span className='text-xs text-gray-400'>—</span>
         )}
       </td>
       <td className='px-4 py-2.5 text-right'>
@@ -423,16 +457,54 @@ function HistoryRow({
           )}
           {(payout.status === 'pending' || payout.status === 'processing' || payout.status === 'failed') && (
             <button
-              onClick={() => handleAction(
-                () => axiosInstance.post(AFFILIATE_PAYOUT_API_URLS.MARK_PAID(payout._id)),
-                'Mark this payout as paid (manual reconciliation)?',
-              )}
+              onClick={() => { setNote(payout.paymentNote || ''); setShowNoteModal(true); }}
               className='px-2.5 py-1 text-xs font-medium rounded-md bg-green-50 text-green-700 border border-green-100 hover:bg-green-100'
             >
               Mark paid
             </button>
           )}
         </div>
+
+        {showNoteModal && (
+          <div
+            className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4'
+            onClick={() => { if (!savingPaid) setShowNoteModal(false); }}
+          >
+            <div
+              className='bg-white rounded-xl shadow-xl w-full max-w-md p-5 text-left'
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className='text-sm font-semibold text-gray-900'>Mark payout as paid</h3>
+              <p className='text-xs text-gray-600 mt-1'>
+                {fmtCents(payout.amountCents, payout.currency)} to {identity}. Manual
+                reconciliation — add an optional payment note (e.g. transfer reference).
+              </p>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={3}
+                placeholder='Payment note (optional)'
+                className='mt-3 w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary'
+              />
+              <div className='mt-4 flex justify-end gap-2'>
+                <button
+                  onClick={() => setShowNoteModal(false)}
+                  disabled={savingPaid}
+                  className='px-3 py-1.5 text-xs font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40'
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={submitMarkPaid}
+                  disabled={savingPaid}
+                  className='px-3 py-1.5 text-xs font-medium rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-40'
+                >
+                  {savingPaid ? '…' : 'Mark paid'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </td>
     </tr>
   );

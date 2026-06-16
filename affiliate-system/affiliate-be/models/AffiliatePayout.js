@@ -110,6 +110,10 @@ const affiliatePayoutSchema = new mongoose.Schema(
       ref: "User",
       default: null,
     },
+
+    // Free-form note captured when an operator marks a payout paid by hand
+    // (e.g. an external transfer reference). Optional — may be empty/null.
+    paymentNote: { type: String, default: null, trim: true },
   },
   { timestamps: true },
 );

@@ -848,8 +848,15 @@ exports.markPaid = async (req, res) => {
       return res.status(409).json({ error: "terminal_status", status: payout.status });
     }
 
+    // Optional free-form note (external transfer reference, etc.). Empty
+    // string collapses to null so the list doesn't render a blank chip.
+    const note = typeof req.body?.paymentNote === "string"
+      ? req.body.paymentNote.trim()
+      : "";
+
     payout.status = "paid";
     payout.paidAt = new Date();
+    payout.paymentNote = note || null;
     await payout.save();
 
     if (payout.sourceReportIds && payout.sourceReportIds.length) {
