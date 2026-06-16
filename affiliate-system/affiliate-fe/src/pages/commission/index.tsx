@@ -1300,11 +1300,16 @@ function ReportsTab() {
                         aria-label='Select all approved affiliates'
                       />
                     </th>
-                    {['Affiliate', 'Product', 'Plan', 'Players', 'FTDs', 'GGR', 'NGR', 'RevShare', 'CPA', 'Total', 'Status'].map((h) => (
-                      <th key={h} className='px-4 py-3 text-left text-xs font-semibold text-gray-700 border-r border-gray-100 last:border-r-0 whitespace-nowrap'>
-                        {h}
-                      </th>
-                    ))}
+                    {['Affiliate', 'Product', 'Plan', 'Players', 'FTDs', 'GGR', 'NGR', 'RevShare', 'CPA', 'Total', 'Status'].map((h) => {
+                      // Numeric columns are right-aligned in the body cells, so
+                      // their headers must match or the labels float off to the left.
+                      const isNumeric = ['Players', 'FTDs', 'GGR', 'NGR', 'RevShare', 'CPA', 'Total'].includes(h);
+                      return (
+                        <th key={h} className={`px-4 py-3 text-xs font-semibold text-gray-700 border-r border-gray-100 last:border-r-0 whitespace-nowrap ${isNumeric ? 'text-right' : 'text-left'}`}>
+                          {h}
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
