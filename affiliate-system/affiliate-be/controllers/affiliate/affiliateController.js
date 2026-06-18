@@ -157,6 +157,18 @@ const affiliateController = {
         ];
       }
 
+      // Brand-scoped operator users only see affiliates that carry a brand
+      // code for one of their brands (affiliate↔brand link lives on
+      // AffiliateProfile.brandCodes). Owners (no brandIds) see everyone.
+      if (Array.isArray(operator.brandIds) && operator.brandIds.length > 0) {
+        const scopedProfiles = await AffiliateProfile.find({
+          "brandCodes.brandId": { $in: operator.brandIds },
+        })
+          .select({ user: 1 })
+          .lean();
+        filter._id = { $in: scopedProfiles.map((p) => p.user) };
+      }
+
       const skip = (Number(page) - 1) * Number(limit);
 
       const [affiliates, total] = await Promise.all([

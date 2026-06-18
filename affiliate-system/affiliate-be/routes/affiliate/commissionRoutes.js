@@ -3,6 +3,11 @@ const router  = express.Router();
 const { planController, reportController, affiliatePlanController } =
   require("../../controllers/affiliate/commissionController");
 const { checkCommissionType } = require("../../middlewares/planGuard");
+const requireOperatorOwner = require("../../middlewares/requireOperatorOwner");
+
+// Owner-only section: commission plans/reports are operator-wide (no brand
+// dimension), so brand-scoped operator users are blocked.
+router.use(requireOperatorOwner);
 
 // ── Plans ─────────────────────────────────────────────────────────────────────
 router.get("/plans",              planController.list);

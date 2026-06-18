@@ -11,6 +11,11 @@
 const express = require("express");
 const router  = express.Router();
 const ctrl    = require("../../controllers/affiliate/affiliatePayoutController");
+const requireOperatorOwner = require("../../middlewares/requireOperatorOwner");
+
+// Owner-only section: payouts have no brand dimension, so brand-scoped
+// operator users have no business here.
+router.use(requireOperatorOwner);
 
 // Settings (must come before /:id routes so it doesn't get matched as an id)
 router.get ("/settings",                ctrl.getSettings);

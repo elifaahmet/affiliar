@@ -272,6 +272,8 @@ export const OPERATOR_API_URLS = {
   GET_INVITE_LINK: () => `${API_BASE_URL}api/operators/invite-link`,
   GET_ME: () => `${API_BASE_URL}api/operators/me`,
   GET_PLAN: () => `${API_BASE_URL}api/operators/plan`,
+  TEAM: () => `${API_BASE_URL}api/operators/team`,
+  TEAM_MEMBER: (userId: string) => `${API_BASE_URL}api/operators/team/${userId}`,
 };
 
 export const REPORTS_API_URLS = {

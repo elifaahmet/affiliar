@@ -115,12 +115,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   // operatorId) skip the operator-side items entirely below — they only
   // see the Platform Admin section.
   const userInfo = storageHelper.getStoreWithDecryption('user_information') as
-    | { isPlatformAdmin?: boolean; operatorId?: string | null }
+    | { isPlatformAdmin?: boolean; operatorId?: string | null; brandIds?: string[] }
     | null;
   const hasOperator = !!userInfo?.operatorId;
   const isPlatformAdmin = !!userInfo?.isPlatformAdmin;
+  // Brand-scoped operator users (non-empty brandIds) are restricted to the
+  // data-viewing surfaces. Owners (no brandIds) get the full operator menu.
+  const isBrandScoped = Array.isArray(userInfo?.brandIds) && (userInfo?.brandIds?.length ?? 0) > 0;
+  const SCOPED_KEYS = ['dashboard', 'reports', 'affiliates'];
 
-  const navigation: NavigationItem[] = hasOperator ? [
+  const fullNavigation: NavigationItem[] = hasOperator ? [
     {
       key: 'dashboard',
       name: t('menuItems.dashboard') || 'Dashboard',
@@ -192,6 +196,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       current: pathname.startsWith('/billing'),
     },
     {
+      key: 'team',
+      name: t('menuItems.team') || 'Team',
+      href: '/team',
+      Icon: UsersIcon,
+      current: pathname.startsWith('/team'),
+    },
+    {
       key: 'settings',
       name: t('menuItems.settings') || 'Settings',
       href: '/settings',
@@ -199,6 +210,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       current: pathname.startsWith('/settings'),
     },
   ] : [];
+
+  // Brand-scoped users only see the data-viewing surfaces; owners see all.
+  const navigation: NavigationItem[] = isBrandScoped
+    ? fullNavigation.filter((n) => SCOPED_KEYS.includes(n.key))
+    : fullNavigation;
 
   if (isPlatformAdmin) {
     navigation.push({

@@ -1,6 +1,15 @@
 const Operator = require("../../models/Operator");
 const User = require("../../models/User");
+const Brand = require("../../models/Brand");
 const { getPlan } = require("../../utils/planLimits");
+const { sendOperatorInvite } = require("../../utils/mailer");
+const { logger } = require("../../middlewares/logger");
+
+// An operator user with no brandIds is an "owner" (full access). Only owners
+// may manage the team and the owner-only sections.
+function isOwner(user) {
+  return !(Array.isArray(user.brandIds) && user.brandIds.length > 0);
+}
 
 const operatorController = {
   getInviteLink: async (req, res) => {
@@ -69,6 +78,163 @@ const operatorController = {
       }
 
       return res.json(operator);
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  // GET /operators/team — list the operator's team (all operator-role users
+  // under this operator), each with their brand scope. Visible to any
+  // operator user, but the page is only surfaced to owners in the UI.
+  listTeam: async (req, res) => {
+    try {
+      const user = req.affiliateUser;
+      if (user.role !== "operator" || !user.operatorId) {
+        return res.status(403).json({ error: "Operators only" });
+      }
+
+      const [users, brands] = await Promise.all([
+        User.find({
+          operatorId: user.operatorId,
+          role: "operator",
+          isDeleted: { $ne: true },
+        })
+          .select({ email: 1, username: 1, name: 1, status: 1, brandIds: 1, lastLogin: 1, createdAt: 1 })
+          .sort({ createdAt: 1 })
+          .lean(),
+        Brand.find({ operatorId: user.operatorId }).select({ _id: 1, name: 1 }).lean(),
+      ]);
+
+      const brandName = new Map(brands.map((b) => [String(b._id), b.name]));
+
+      return res.json({
+        users: users.map((u) => ({
+          _id: String(u._id),
+          email: u.email,
+          username: u.username,
+          name: u.name,
+          status: u.status,
+          isOwner: !(u.brandIds && u.brandIds.length),
+          isSelf: String(u._id) === String(user._id),
+          brands: (u.brandIds || []).map((id) => ({
+            _id: String(id),
+            name: brandName.get(String(id)) || "—",
+          })),
+          lastLogin: u.lastLogin || null,
+        })),
+      });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  // POST /operators/team — invite a brand-scoped operator user. Owner-only
+  // (also guarded by requireOperatorOwner). The invitee activates via the
+  // standard /auth/activate flow and is restricted to the selected brands.
+  inviteTeamMember: async (req, res) => {
+    try {
+      const owner = req.affiliateUser;
+      if (owner.role !== "operator" || !owner.operatorId) {
+        return res.status(403).json({ error: "Operators only" });
+      }
+      if (!isOwner(owner)) {
+        return res.status(403).json({ error: "owner_only" });
+      }
+
+      const { email, name, username, brandIds } = req.body || {};
+      if (!email || !name || !username) {
+        return res.status(400).json({ error: "email, name, username are required" });
+      }
+      if (!Array.isArray(brandIds) || brandIds.length === 0) {
+        return res.status(400).json({ error: "Select at least one brand for this user" });
+      }
+
+      // Every brand must belong to this operator — never let an owner scope a
+      // user to another tenant's brand.
+      const ownBrands = await Brand.find({
+        _id: { $in: brandIds },
+        operatorId: owner.operatorId,
+      })
+        .select({ _id: 1 })
+        .lean();
+      if (ownBrands.length !== brandIds.length) {
+        return res.status(400).json({ error: "One or more brands are invalid for this operator" });
+      }
+
+      const existing = await User.findOne({
+        $or: [{ email: email.toLowerCase().trim() }, { username: username.trim() }],
+        isDeleted: false,
+      });
+      if (existing) {
+        return res.status(409).json({ error: "Email or username already taken" });
+      }
+
+      const newUser = await User.create({
+        email: email.toLowerCase().trim(),
+        username: username.trim(),
+        name: name.trim(),
+        password: "PENDING",
+        role: "operator",
+        status: "pending",
+        operatorId: owner.operatorId,
+        brandIds: ownBrands.map((b) => b._id),
+        isDeleted: false,
+      });
+
+      const operator = await Operator.findById(owner.operatorId).select({ name: 1, plan: 1 }).lean();
+      sendOperatorInvite({
+        to: newUser.email,
+        name: newUser.name,
+        userId: newUser._id.toString(),
+        operatorName: operator?.name,
+        planName: operator?.plan,
+      }).catch((err) => {
+        logger.error("operator.team_invite.mail_failed", { error: err?.message });
+      });
+
+      return res.status(201).json({
+        user: {
+          _id: String(newUser._id),
+          email: newUser.email,
+          username: newUser.username,
+          name: newUser.name,
+          status: newUser.status,
+        },
+        activationUrl: `${process.env.APP_URL || ""}/activate?userId=${newUser._id}`,
+      });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  // DELETE /operators/team/:userId — soft-delete a brand-scoped teammate.
+  // Owner-only. Won't remove owners or yourself.
+  removeTeamMember: async (req, res) => {
+    try {
+      const owner = req.affiliateUser;
+      if (owner.role !== "operator" || !owner.operatorId) {
+        return res.status(403).json({ error: "Operators only" });
+      }
+      if (!isOwner(owner)) {
+        return res.status(403).json({ error: "owner_only" });
+      }
+
+      const target = await User.findOne({
+        _id: req.params.userId,
+        operatorId: owner.operatorId,
+        role: "operator",
+      });
+      if (!target) return res.status(404).json({ error: "User not found" });
+      if (String(target._id) === String(owner._id)) {
+        return res.status(400).json({ error: "You cannot remove yourself" });
+      }
+      if (isOwner(target)) {
+        return res.status(400).json({ error: "Cannot remove an owner account here" });
+      }
+
+      target.isDeleted = true;
+      await target.save();
+      return res.json({ ok: true });
     } catch (err) {
       return res.status(500).json({ error: err.message });
     }

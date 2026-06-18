@@ -4,9 +4,27 @@ const Brand = require("../../models/Brand");
 // Union the product flags across the brands in the report's filter scope.
 // FE uses this to hide tiles/columns for products no brand actually
 // offers (e.g. a casino-only operator never sees Sportsbook NGR=0).
+// Brand-scoped operator users (User.brandIds non-empty) are hard-restricted to
+// their brands. Returns the list of Brand._id strings they're limited to, or
+// null when the user has full operator access. A requested ?brandId= is
+// honoured only if it falls inside the allowed set.
+function scopedBrandIds(operator) {
+  if (Array.isArray(operator.brandIds) && operator.brandIds.length > 0) {
+    return operator.brandIds.map((id) => String(id));
+  }
+  return null;
+}
+
 async function productScopeForReport(operator, query) {
   const filter = { operatorId: operator.operatorId };
-  if (query.brandId) filter._id = query.brandId;
+  const allowed = scopedBrandIds(operator);
+  if (allowed) {
+    filter._id = query.brandId && allowed.includes(String(query.brandId))
+      ? query.brandId
+      : { $in: allowed };
+  } else if (query.brandId) {
+    filter._id = query.brandId;
+  }
   const brands = await Brand.find(filter).select({ products: 1 }).lean();
   if (brands.length === 0) return { casino: true, sportsbook: true };
   const scope = { casino: false, sportsbook: false };
@@ -49,7 +67,18 @@ function buildWhere(operator, query) {
     conditions.push("from_ts <= {toTs:DateTime}");
     params.toTs = chTo(query.to);
   }
-  if (query.brandId) {
+  const allowed = scopedBrandIds(operator);
+  if (allowed) {
+    // Hard brand restriction. If a specific in-scope brand is requested, narrow
+    // to it; otherwise constrain to the full allowed set.
+    if (query.brandId && allowed.includes(String(query.brandId))) {
+      conditions.push("brand_id = {brandId:String}");
+      params.brandId = query.brandId;
+    } else {
+      conditions.push("brand_id IN ({brandIds:Array(String)})");
+      params.brandIds = allowed;
+    }
+  } else if (query.brandId) {
     conditions.push("brand_id = {brandId:String}");
     params.brandId = query.brandId;
   }

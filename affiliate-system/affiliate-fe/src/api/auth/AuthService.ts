@@ -38,6 +38,7 @@ const authService = {
               email: responseData?.user?.email,
               isPlatformAdmin: !!responseData?.user?.isPlatformAdmin,
               operatorId: responseData?.user?.operatorId ?? null,
+              brandIds: responseData?.user?.brandIds ?? [],
             });
           } catch (error) {
             console.error('Invalid token format after direct login:', error);
@@ -79,6 +80,7 @@ const authService = {
             email: responseData?.user?.email,
             isPlatformAdmin: !!responseData?.user?.isPlatformAdmin,
             operatorId: responseData?.user?.operatorId ?? null,
+            brandIds: responseData?.user?.brandIds ?? [],
           });
         } catch (error) {
           console.error('Invalid token format after 2FA verification:', error);
@@ -132,6 +134,7 @@ const authService = {
           email: response.data.user.email,
           isPlatformAdmin: !!response.data.user.isPlatformAdmin,
           operatorId: response.data.user.operatorId ?? null,
+          brandIds: response.data.user.brandIds ?? [],
         });
       }
 

@@ -19,6 +19,7 @@ import { feesRoutes } from './fees/routes';
 import { referAFriendRoutes } from './refer-a-friend/routes';
 import { billingRoutes } from './billing/routes';
 import { payoutsRoutes } from './payouts/routes';
+import { teamRoutes } from './team/routes';
 import { settingsRoutes } from './settings/routes';
 import { platformRoutes } from './platform/routes';
 import { registerRoutes } from './register/routes';
@@ -52,6 +53,7 @@ export default function Router() {
         ...feesRoutes,
         ...referAFriendRoutes,
         ...payoutsRoutes,
+        ...teamRoutes,
         ...billingRoutes,
         ...settingsRoutes,
         ...platformRoutes,

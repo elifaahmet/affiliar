@@ -91,6 +91,17 @@ const userSchema = new mongoose.Schema(
       index: true,
     },
 
+    // Brand-scoping for operator-role users. EMPTY = full operator access
+    // (owner-level) — the historical behaviour every existing operator user
+    // keeps. NON-EMPTY = the user is restricted to exactly these brands:
+    // reports/affiliates are filtered to them and owner-only sections
+    // (payouts, commission, fees, brands, team) are blocked. Brands must
+    // belong to the user's operator. Ignored for affiliates.
+    brandIds: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Brand" }],
+      default: [],
+    },
+
     // ── Affiliate payout wallet ──────────────────────────────────────────────
     //
     // Only meaningful when role === "affiliate". The operator's payout flow
