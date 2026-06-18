@@ -27,6 +27,7 @@ const STATUS_TONE: Record<string, string> = {
 export default function Team() {
   const queryClient = useQueryClient();
   const [showInvite, setShowInvite] = useState(false);
+  const [editing, setEditing] = useState<TeamUser | null>(null);
 
   const { data, isLoading } = useBaseQuery<TeamResponse>({
     endpoint: OPERATOR_API_URLS.TEAM(),
@@ -110,12 +111,20 @@ export default function Team() {
                   </td>
                   <td className='px-4 py-2.5 text-right'>
                     {!u.isOwner && !u.isSelf && (
-                      <button
-                        onClick={() => remove(u)}
-                        className='px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-700'
-                      >
-                        Remove
-                      </button>
+                      <div className='flex items-center justify-end gap-1.5'>
+                        <button
+                          onClick={() => setEditing(u)}
+                          className='px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-violet-50 hover:text-violet-700'
+                        >
+                          Edit brands
+                        </button>
+                        <button
+                          onClick={() => remove(u)}
+                          className='px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-700'
+                        >
+                          Remove
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -125,21 +134,23 @@ export default function Team() {
         )}
       </div>
 
-      {showInvite && <InviteModal onClose={() => setShowInvite(false)} onSaved={() => { setShowInvite(false); refresh(); }} />}
+      {showInvite && <MemberModal onClose={() => setShowInvite(false)} onSaved={() => { setShowInvite(false); refresh(); }} />}
+      {editing && <MemberModal member={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); refresh(); }} />}
     </div>
   );
 }
 
-function InviteModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [username, setUsername] = useState('');
-  const [brandIds, setBrandIds] = useState<string[]>([]);
+function MemberModal({ member, onClose, onSaved }: { member?: TeamUser; onClose: () => void; onSaved: () => void }) {
+  const isEdit = !!member;
+  const [name, setName] = useState(member?.name ?? '');
+  const [email, setEmail] = useState(member?.email ?? '');
+  const [username, setUsername] = useState(member?.username ?? '');
+  const [brandIds, setBrandIds] = useState<string[]>(member ? member.brands.map((b) => b._id) : []);
   const [saving, setSaving] = useState(false);
 
   const { data } = useBaseQuery<BrandsResponse>({
     endpoint: BRANDS_API_URLS.LIST(),
-    queryKey: ['team-invite-brands'],
+    queryKey: ['team-modal-brands'],
   });
   const brands = data?.brands ?? [];
 
@@ -147,23 +158,27 @@ function InviteModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
     setBrandIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
 
   const canSubmit = useMemo(
-    () => name.trim() && email.trim() && username.trim() && brandIds.length > 0 && !saving,
-    [name, email, username, brandIds, saving],
+    () => (isEdit || (name.trim() && email.trim() && username.trim())) && brandIds.length > 0 && !saving,
+    [isEdit, name, email, username, brandIds, saving],
   );
 
   const submit = async () => {
     if (!canSubmit) return;
     setSaving(true);
     try {
-      await axiosInstance.post(OPERATOR_API_URLS.TEAM(), {
-        name: name.trim(),
-        email: email.trim(),
-        username: username.trim(),
-        brandIds,
-      });
+      if (isEdit) {
+        await axiosInstance.patch(OPERATOR_API_URLS.TEAM_MEMBER(member!._id), { brandIds });
+      } else {
+        await axiosInstance.post(OPERATOR_API_URLS.TEAM(), {
+          name: name.trim(),
+          email: email.trim(),
+          username: username.trim(),
+          brandIds,
+        });
+      }
       onSaved();
     } catch (err: any) {
-      alert(err?.response?.data?.error || 'Could not send invite.');
+      alert(err?.response?.data?.error || (isEdit ? 'Could not update access.' : 'Could not send invite.'));
     } finally {
       setSaving(false);
     }
@@ -172,27 +187,35 @@ function InviteModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
   return (
     <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4' onClick={() => { if (!saving) onClose(); }}>
       <div className='bg-white rounded-xl shadow-xl w-full max-w-md p-5 text-left' onClick={(e) => e.stopPropagation()}>
-        <h3 className='text-sm font-semibold text-gray-900'>Invite team member</h3>
+        <h3 className='text-sm font-semibold text-gray-900'>
+          {isEdit ? `Edit brand access — ${member!.name || member!.username}` : 'Invite team member'}
+        </h3>
         <p className='text-xs text-gray-600 mt-1'>
-          They&apos;ll get an email to set a password, and will only see the brands you select.
+          {isEdit
+            ? 'Update which brands this member can see. They are restricted to the selected brands.'
+            : "They'll get an email to set a password, and will only see the brands you select."}
         </p>
 
         <div className='mt-3 space-y-3'>
-          <div>
-            <label className='block text-xs font-medium text-gray-600 mb-1'>Name *</label>
-            <input value={name} onChange={(e) => setName(e.target.value)}
-              className='w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary' />
-          </div>
-          <div>
-            <label className='block text-xs font-medium text-gray-600 mb-1'>Email *</label>
-            <input type='email' value={email} onChange={(e) => setEmail(e.target.value)}
-              className='w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary' />
-          </div>
-          <div>
-            <label className='block text-xs font-medium text-gray-600 mb-1'>Username *</label>
-            <input value={username} onChange={(e) => setUsername(e.target.value)}
-              className='w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary' />
-          </div>
+          {!isEdit && (
+            <>
+              <div>
+                <label className='block text-xs font-medium text-gray-600 mb-1'>Name *</label>
+                <input value={name} onChange={(e) => setName(e.target.value)}
+                  className='w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary' />
+              </div>
+              <div>
+                <label className='block text-xs font-medium text-gray-600 mb-1'>Email *</label>
+                <input type='email' value={email} onChange={(e) => setEmail(e.target.value)}
+                  className='w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary' />
+              </div>
+              <div>
+                <label className='block text-xs font-medium text-gray-600 mb-1'>Username *</label>
+                <input value={username} onChange={(e) => setUsername(e.target.value)}
+                  className='w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary' />
+              </div>
+            </>
+          )}
           <div>
             <label className='block text-xs font-medium text-gray-600 mb-1'>Brands *</label>
             {brands.length === 0 ? (
@@ -218,7 +241,7 @@ function InviteModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
           </button>
           <button onClick={submit} disabled={!canSubmit}
             className='px-3 py-1.5 text-xs font-medium rounded-md bg-primary text-white hover:bg-primary-dark disabled:opacity-40'>
-            {saving ? '…' : 'Send invite'}
+            {saving ? '…' : isEdit ? 'Save' : 'Send invite'}
           </button>
         </div>
       </div>

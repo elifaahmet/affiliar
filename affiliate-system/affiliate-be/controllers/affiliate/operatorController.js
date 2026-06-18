@@ -207,6 +207,55 @@ const operatorController = {
     }
   },
 
+  // PATCH /operators/team/:userId — change a brand-scoped teammate's brand
+  // set. Owner-only. Can't edit owners or yourself; brands must belong to the
+  // operator and at least one is required (emptying would promote to owner).
+  updateTeamMember: async (req, res) => {
+    try {
+      const owner = req.affiliateUser;
+      if (owner.role !== "operator" || !owner.operatorId) {
+        return res.status(403).json({ error: "Operators only" });
+      }
+      if (!isOwner(owner)) {
+        return res.status(403).json({ error: "owner_only" });
+      }
+
+      const { brandIds } = req.body || {};
+      if (!Array.isArray(brandIds) || brandIds.length === 0) {
+        return res.status(400).json({ error: "Select at least one brand for this user" });
+      }
+
+      const target = await User.findOne({
+        _id: req.params.userId,
+        operatorId: owner.operatorId,
+        role: "operator",
+      });
+      if (!target) return res.status(404).json({ error: "User not found" });
+      if (String(target._id) === String(owner._id)) {
+        return res.status(400).json({ error: "You cannot edit your own access" });
+      }
+      if (isOwner(target)) {
+        return res.status(400).json({ error: "Cannot scope an owner account here" });
+      }
+
+      const ownBrands = await Brand.find({
+        _id: { $in: brandIds },
+        operatorId: owner.operatorId,
+      })
+        .select({ _id: 1 })
+        .lean();
+      if (ownBrands.length !== brandIds.length) {
+        return res.status(400).json({ error: "One or more brands are invalid for this operator" });
+      }
+
+      target.brandIds = ownBrands.map((b) => b._id);
+      await target.save();
+      return res.json({ ok: true });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
   // DELETE /operators/team/:userId — soft-delete a brand-scoped teammate.
   // Owner-only. Won't remove owners or yourself.
   removeTeamMember: async (req, res) => {

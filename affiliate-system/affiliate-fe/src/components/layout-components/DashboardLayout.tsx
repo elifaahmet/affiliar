@@ -122,7 +122,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   // Brand-scoped operator users (non-empty brandIds) are restricted to the
   // data-viewing surfaces. Owners (no brandIds) get the full operator menu.
   const isBrandScoped = Array.isArray(userInfo?.brandIds) && (userInfo?.brandIds?.length ?? 0) > 0;
-  const SCOPED_KEYS = ['dashboard', 'reports', 'affiliates'];
+  const SCOPED_KEYS = ['dashboard', 'players', 'reports', 'affiliates'];
 
   const fullNavigation: NavigationItem[] = hasOperator ? [
     {

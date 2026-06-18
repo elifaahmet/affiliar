@@ -16,6 +16,7 @@ router.get("/invite-link", operatorController.getInviteLink);
 // operator user; invite/remove are owner-only.
 router.get("/team", operatorController.listTeam);
 router.post("/team", requireOperatorOwner, operatorController.inviteTeamMember);
+router.patch("/team/:userId", requireOperatorOwner, operatorController.updateTeamMember);
 router.delete("/team/:userId", requireOperatorOwner, operatorController.removeTeamMember);
 
 module.exports = router;

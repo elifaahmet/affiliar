@@ -83,6 +83,14 @@ const affiliatePlayerController = {
         filter.affiliateId = affiliateId;
       }
 
+      // Brand-scoped operator users only see players attributed to their
+      // brands. AffiliatePlayer.brandId is the Brand._id as a string (same
+      // convention as the ClickHouse brand_id), so compare against the
+      // stringified brandIds. Players with no brandId stay hidden from them.
+      if (user.role === "operator" && Array.isArray(user.brandIds) && user.brandIds.length > 0) {
+        filter.brandId = { $in: user.brandIds.map(String) };
+      }
+
       if (affiliateCode) filter.affiliateCode = affiliateCode.toUpperCase();
       if (campaign)      filter.campaign = campaign;
       if (playerId)      filter.playerId = { $regex: playerId, $options: "i" };
