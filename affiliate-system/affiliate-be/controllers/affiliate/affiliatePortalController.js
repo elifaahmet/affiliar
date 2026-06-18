@@ -546,6 +546,7 @@ exports.listSubPayouts = async (req, res) => {
       status:              r.status,
       calculatedAt:        r.calculatedAt,
       paidAt:              r.paidAt,
+      notes:               r.notes ?? null,
     }));
 
     res.json({ payouts, total, page, limit });
@@ -579,8 +580,14 @@ exports.markSubPayoutPaid = async (req, res) => {
     if (payout.status === "paid") {
       return res.json({ ok: true, payout });
     }
+
+    // Optional free-form note (external transfer reference, etc.). Empty
+    // string collapses to null so the table doesn't render a blank chip.
+    const note = typeof req.body?.notes === "string" ? req.body.notes.trim() : "";
+
     payout.status = "paid";
     payout.paidAt = new Date();
+    payout.notes = note || null;
     await payout.save();
 
     res.json({ ok: true, payout });

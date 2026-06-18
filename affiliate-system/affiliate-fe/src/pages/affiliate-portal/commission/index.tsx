@@ -202,6 +202,7 @@ interface SubPayout {
   status: SubPayoutStatus;
   calculatedAt: string | null;
   paidAt: string | null;
+  notes: string | null;
 }
 
 interface PayoutBalanceResponse {
@@ -348,6 +349,7 @@ function SubAffiliatePayouts() {
                 <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>CPA (€)</th>
                 <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>Payable (€)</th>
                 <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Status</th>
+                <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Note</th>
                 {tab === 'outgoing' && (
                   <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'></th>
                 )}
@@ -378,6 +380,18 @@ function SubAffiliatePayouts() {
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${SUB_STATUS_TONE[p.status] ?? 'bg-gray-100 text-gray-600'}`}>
                         {p.status}
                       </span>
+                    </td>
+                    <td className='px-4 py-3'>
+                      {p.notes ? (
+                        <span
+                          className='text-xs text-gray-700 truncate max-w-[200px] inline-block align-middle'
+                          title={p.notes}
+                        >
+                          {p.notes}
+                        </span>
+                      ) : (
+                        <span className='text-xs text-gray-400'>—</span>
+                      )}
                     </td>
                     {tab === 'outgoing' && (
                       <td className='px-4 py-3 text-right'>
@@ -474,6 +488,9 @@ function SubPayoutActions({
   const canMarkPaid = payout.status === 'draft' || payout.status === 'failed';
   const balanceOk   = balanceCents >= payout.payableCents;
 
+  const [showNote, setShowNote] = useState(false);
+  const [note, setNote] = useState('');
+
   const dispatchMut = useBaseMutation({
     endpoint: AFFILIATE_PORTAL_API_URLS.DISPATCH_SUB_PAYOUT(payout._id),
     method: 'post',
@@ -489,7 +506,7 @@ function SubPayoutActions({
   const markMut = useBaseMutation({
     endpoint: AFFILIATE_PORTAL_API_URLS.MARK_SUB_PAYOUT_PAID(payout._id),
     method: 'post',
-    onSuccess: onChange,
+    onSuccess: () => { setShowNote(false); setNote(''); onChange(); },
     onError: (err: any) => alert(friendlySubPayoutError(err)),
   });
 
@@ -527,12 +544,53 @@ function SubPayoutActions({
       {canMarkPaid && (
         <button
           disabled={markMut.isPending}
-          onClick={() => markMut.mutate({} as any)}
+          onClick={() => { setNote(''); setShowNote(true); }}
           title='Manual reconciliation (paid off-platform)'
           className='px-2.5 py-1 text-xs font-medium rounded-md bg-green-50 text-green-700 border border-green-100 hover:bg-green-100 disabled:opacity-50'
         >
           {markMut.isPending ? '…' : 'Mark paid'}
         </button>
+      )}
+
+      {showNote && (
+        <div
+          className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4'
+          onClick={() => { if (!markMut.isPending) setShowNote(false); }}
+        >
+          <div
+            className='bg-white rounded-xl shadow-xl w-full max-w-md p-5 text-left'
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className='text-sm font-semibold text-gray-900'>Mark sub-affiliate payout as paid</h3>
+            <p className='text-xs text-gray-600 mt-1'>
+              {fmt(payout.payableCents)} to {payout.sub?.name || payout.sub?.username || 'sub-affiliate'}.
+              Manual reconciliation — add an optional payment note (e.g. transfer reference).
+            </p>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={3}
+              placeholder='Payment note (optional)'
+              className='mt-3 w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary'
+            />
+            <div className='mt-4 flex justify-end gap-2'>
+              <button
+                onClick={() => setShowNote(false)}
+                disabled={markMut.isPending}
+                className='px-3 py-1.5 text-xs font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40'
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => markMut.mutate({ notes: note.trim() || null } as any)}
+                disabled={markMut.isPending}
+                className='px-3 py-1.5 text-xs font-medium rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-40'
+              >
+                {markMut.isPending ? '…' : 'Mark paid'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
