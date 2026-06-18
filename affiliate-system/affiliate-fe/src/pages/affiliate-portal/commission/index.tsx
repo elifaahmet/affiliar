@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { useBaseMutation } from 'api/core/useBaseMutation';
 import { AFFILIATE_PORTAL_API_URLS } from 'config/apiUrls';
@@ -229,6 +230,7 @@ interface SubPayoutsResponse {
 function SubAffiliatePayouts() {
   const [tab, setTab] = useState<Direction>('incoming');
   const [calcMessage, setCalcMessage] = useState<string | null>(null);
+  const [markFor, setMarkFor] = useState<SubPayout | null>(null);
 
   const { data, isLoading, refetch } = useBaseQuery<SubPayoutsResponse>({
     endpoint: AFFILIATE_PORTAL_API_URLS.SUB_PAYOUTS(),
@@ -399,6 +401,7 @@ function SubAffiliatePayouts() {
                           payout={p}
                           balanceCents={balance}
                           onChange={refreshAll}
+                          onMarkPaid={setMarkFor}
                         />
                       </td>
                     )}
@@ -410,6 +413,14 @@ function SubAffiliatePayouts() {
         </div>
       )}
       </div>
+
+      {markFor && (
+        <MarkSubPaidModal
+          payout={markFor}
+          onClose={() => setMarkFor(null)}
+          onSaved={() => { setMarkFor(null); refreshAll(); }}
+        />
+      )}
     </div>
   );
 }
@@ -477,19 +488,17 @@ function friendlySubPayoutError(err: any): string {
 // `pending` rows can be Cancelled. Manual Mark-Paid remains for out-of-band
 // reconciliation across draft/failed.
 function SubPayoutActions({
-  payout, balanceCents, onChange,
+  payout, balanceCents, onChange, onMarkPaid,
 }: {
   payout: SubPayout;
   balanceCents: number;
   onChange: () => void;
+  onMarkPaid: (payout: SubPayout) => void;
 }) {
   const canDispatch = payout.status === 'draft' || payout.status === 'failed';
   const canCancel   = payout.status === 'pending';
   const canMarkPaid = payout.status === 'draft' || payout.status === 'failed';
   const balanceOk   = balanceCents >= payout.payableCents;
-
-  const [showNote, setShowNote] = useState(false);
-  const [note, setNote] = useState('');
 
   const dispatchMut = useBaseMutation({
     endpoint: AFFILIATE_PORTAL_API_URLS.DISPATCH_SUB_PAYOUT(payout._id),
@@ -501,12 +510,6 @@ function SubPayoutActions({
     endpoint: AFFILIATE_PORTAL_API_URLS.CANCEL_SUB_PAYOUT(payout._id),
     method: 'post',
     onSuccess: onChange,
-    onError: (err: any) => alert(friendlySubPayoutError(err)),
-  });
-  const markMut = useBaseMutation({
-    endpoint: AFFILIATE_PORTAL_API_URLS.MARK_SUB_PAYOUT_PAID(payout._id),
-    method: 'post',
-    onSuccess: () => { setShowNote(false); setNote(''); onChange(); },
     onError: (err: any) => alert(friendlySubPayoutError(err)),
   });
 
@@ -543,56 +546,74 @@ function SubPayoutActions({
       )}
       {canMarkPaid && (
         <button
-          disabled={markMut.isPending}
-          onClick={() => { setNote(''); setShowNote(true); }}
+          onClick={() => onMarkPaid(payout)}
           title='Manual reconciliation (paid off-platform)'
           className='px-2.5 py-1 text-xs font-medium rounded-md bg-green-50 text-green-700 border border-green-100 hover:bg-green-100 disabled:opacity-50'
         >
-          {markMut.isPending ? '…' : 'Mark paid'}
+          Mark paid
         </button>
       )}
-
-      {showNote && (
-        <div
-          className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4'
-          onClick={() => { if (!markMut.isPending) setShowNote(false); }}
-        >
-          <div
-            className='bg-white rounded-xl shadow-xl w-full max-w-md p-5 text-left'
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className='text-sm font-semibold text-gray-900'>Mark sub-affiliate payout as paid</h3>
-            <p className='text-xs text-gray-600 mt-1'>
-              {fmt(payout.payableCents)} to {payout.sub?.name || payout.sub?.username || 'sub-affiliate'}.
-              Manual reconciliation — add an optional payment note (e.g. transfer reference).
-            </p>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={3}
-              placeholder='Payment note (optional)'
-              className='mt-3 w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary'
-            />
-            <div className='mt-4 flex justify-end gap-2'>
-              <button
-                onClick={() => setShowNote(false)}
-                disabled={markMut.isPending}
-                className='px-3 py-1.5 text-xs font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40'
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => markMut.mutate({ notes: note.trim() || null } as any)}
-                disabled={markMut.isPending}
-                className='px-3 py-1.5 text-xs font-medium rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-40'
-              >
-                {markMut.isPending ? '…' : 'Mark paid'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
+  );
+}
+
+// Rendered via a portal to document.body so the overlay is never constrained
+// by the table/card containers (which get very narrow with a single sub row).
+function MarkSubPaidModal({
+  payout, onClose, onSaved,
+}: {
+  payout: SubPayout;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [note, setNote] = useState('');
+  const markMut = useBaseMutation({
+    endpoint: AFFILIATE_PORTAL_API_URLS.MARK_SUB_PAYOUT_PAID(payout._id),
+    method: 'post',
+    onSuccess: onSaved,
+    onError: (err: any) => alert(friendlySubPayoutError(err)),
+  });
+
+  return createPortal(
+    <div
+      className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4'
+      onClick={() => { if (!markMut.isPending) onClose(); }}
+    >
+      <div
+        className='bg-white rounded-xl shadow-xl w-full max-w-md p-5 text-left'
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className='text-sm font-semibold text-gray-900'>Mark sub-affiliate payout as paid</h3>
+        <p className='text-xs text-gray-600 mt-1'>
+          {fmt(payout.payableCents)} to {payout.sub?.name || payout.sub?.username || 'sub-affiliate'}.
+          Manual reconciliation — add an optional payment note (e.g. transfer reference).
+        </p>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={3}
+          placeholder='Payment note (optional)'
+          className='mt-3 w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary'
+        />
+        <div className='mt-4 flex justify-end gap-2'>
+          <button
+            onClick={onClose}
+            disabled={markMut.isPending}
+            className='px-3 py-1.5 text-xs font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40'
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => markMut.mutate({ notes: note.trim() || null } as any)}
+            disabled={markMut.isPending}
+            className='px-3 py-1.5 text-xs font-medium rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-40'
+          >
+            {markMut.isPending ? '…' : 'Mark paid'}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 
