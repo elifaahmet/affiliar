@@ -489,7 +489,7 @@ const planController = {
       const operator = req.affiliateUser;
       if (operator.role !== "operator") return res.status(403).json({ error: "Operators only" });
 
-      const { name, type, revshare, cpa, tiers, isDefault, notes } = req.body;
+      const { name, type, product, revshare, cpa, fixed, tiers, isDefault, notes } = req.body;
       if (!name || !type) return res.status(400).json({ error: "name and type are required" });
 
       // Plan-gated: a minKycLevel on the qualification block is only honored
@@ -509,8 +509,10 @@ const planController = {
         operatorId: operator.operatorId,
         name,
         type,
+        product:  product  ?? "casino",
         revshare: revshare ?? { metric: "ngr", rate: 0 },
         cpa:      cpa      ?? { amountCents: 0, currency: "USD" },
+        ...(fixed !== undefined && { fixed }),
         tiers:    tiers    ?? [],
         isDefault: isDefault ?? false,
         notes: notes ?? null,
@@ -535,7 +537,7 @@ const planController = {
 
       if (!(await ensureKycGatePermitted(req, res))) return;
 
-      const { name, type, revshare, cpa, tiers, isDefault, isActive, notes } = req.body;
+      const { name, type, product, revshare, cpa, fixed, tiers, isDefault, isActive, notes } = req.body;
 
       if (isDefault && !plan.isDefault) {
         await CommissionPlan.updateMany(
@@ -547,8 +549,10 @@ const planController = {
       Object.assign(plan, {
         ...(name      !== undefined && { name }),
         ...(type      !== undefined && { type }),
+        ...(product   !== undefined && { product }),
         ...(revshare  !== undefined && { revshare }),
         ...(cpa       !== undefined && { cpa }),
+        ...(fixed     !== undefined && { fixed }),
         ...(tiers     !== undefined && { tiers }),
         ...(isDefault !== undefined && { isDefault }),
         ...(isActive  !== undefined && { isActive }),
