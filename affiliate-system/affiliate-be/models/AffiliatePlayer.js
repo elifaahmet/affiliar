@@ -36,6 +36,16 @@ const affiliatePlayerSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // The affiliate's OWN reference for this player on their side. Auto-seeded
+    // from subId at click time; can also be set/overridden later by the
+    // affiliate (PATCH /affiliate-portal/players/:playerId/ref) when they
+    // couldn't pass a sub on the link. Lets them reconcile our player_id with
+    // their internal id without us storing operator player ids on their behalf.
+    externalRef: {
+      type: String,
+      default: null,
+      trim: true,
+    },
     country: {
       type: String,
       default: null,

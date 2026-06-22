@@ -37,6 +37,9 @@ router.get  ("/postback",            ctrl.getPostbackConfig);
 router.patch("/postback",            ctrl.updatePostbackConfig);
 router.get  ("/postback/deliveries", ctrl.listPostbackDeliveries);
 
+// Affiliate maps a player to their own internal id (sub_id reconciliation).
+router.patch("/players/:playerId/ref", ctrl.setPlayerRef);
+
 // Payout wallet + history (affiliate-owned, USDT-TRC20)
 router.get ("/payout-info",        ctrl.getPayoutInfo);
 router.put ("/payout-info",        ctrl.updatePayoutInfo);

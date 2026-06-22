@@ -978,6 +978,32 @@ exports.listPostbackDeliveries = async (req, res) => {
   }
 };
 
+// ── Player cross-reference (affiliate's own id mapping) ───────────────────────
+
+const AffiliatePlayer = require("../../models/AffiliatePlayer");
+
+// PATCH /api/affiliate-portal/players/:playerId/ref
+// The affiliate maps one of THEIR players to their own internal id. Scoped to
+// players directly attributed to this affiliate; empty clears the ref.
+exports.setPlayerRef = async (req, res) => {
+  try {
+    const affiliate = req.affiliateUser;
+    if (affiliate.role !== "affiliate") {
+      return res.status(403).json({ error: "Affiliates only" });
+    }
+    const ref = typeof req.body?.ref === "string" ? req.body.ref.trim() : "";
+    const player = await AffiliatePlayer.findOneAndUpdate(
+      { playerId: String(req.params.playerId), affiliateId: affiliate._id },
+      { $set: { externalRef: ref || null } },
+      { new: true, select: { playerId: 1, externalRef: 1 } },
+    ).lean();
+    if (!player) return res.status(404).json({ error: "Player not found among yours" });
+    res.json({ playerId: player.playerId, externalRef: player.externalRef ?? null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // ── Fee details (read-only operator policy) ───────────────────────────────────
 
 const OperatorFinancialSettings = require("../../models/OperatorFinancialSettings");

@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useBaseQuery } from 'api/core/useBaseQuery';
+import axiosInstance from 'config/axiosInstance';
 import { AFFILIATE_PORTAL_API_URLS } from 'config/apiUrls';
 
 interface ProfileResponse {
@@ -44,6 +46,7 @@ interface PlayerRow {
   affiliateCode: string | null;
   campaign: string | null;
   subId: string | null;
+  externalRef: string | null;
   registeredAt: string;
   status?: string;
   statusUpdatedAt?: string;
@@ -65,6 +68,60 @@ function StatusBadge({ status }: { status?: string }) {
     <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${cls}`}>
       {label.replace(/_/g, ' ')}
     </span>
+  );
+}
+
+// "Your reference": shows the affiliate's own id for this player — the sub
+// carried on the link, overridable inline (stored as externalRef). Lets them
+// reconcile with their platform without us exposing operator ids.
+function RefCell({ player }: { player: PlayerRow }) {
+  const queryClient = useQueryClient();
+  const current = player.externalRef ?? player.subId ?? '';
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(current);
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await axiosInstance.patch(AFFILIATE_PORTAL_API_URLS.PLAYER_REF(player.playerId), {
+        ref: value.trim() || null,
+      });
+      queryClient.invalidateQueries({ queryKey: ['affiliate-players'] });
+      setEditing(false);
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Could not save reference.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <div className='flex items-center gap-1'>
+        <input
+          value={value}
+          autoFocus
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
+          className='w-28 text-xs rounded border border-gray-200 px-2 py-1 focus:outline-none focus:border-primary font-mono'
+        />
+        <button onClick={save} disabled={saving} className='text-[11px] font-medium text-primary hover:underline disabled:opacity-50'>
+          {saving ? '…' : 'Save'}
+        </button>
+        <button onClick={() => { setValue(current); setEditing(false); }} className='text-[11px] text-gray-400 hover:text-gray-600'>✕</button>
+      </div>
+    );
+  }
+  return (
+    <button
+      onClick={() => setEditing(true)}
+      title='Click to set your own reference for this player'
+      className='group inline-flex items-center gap-1 text-xs font-mono text-gray-700 hover:text-primary'
+    >
+      <span className={current ? '' : 'text-gray-400'}>{current || '+ set'}</span>
+      <span className='opacity-0 group-hover:opacity-100 text-[10px] text-gray-400'>✎</span>
+    </button>
   );
 }
 
@@ -228,6 +285,7 @@ export default function AffiliatePlayers() {
               <thead className='bg-gray-50'>
                 <tr>
                   <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Player ID</th>
+                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Your reference</th>
                   <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Status</th>
                   <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Code</th>
                   <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Campaign</th>
@@ -245,6 +303,9 @@ export default function AffiliatePlayers() {
                   <tr key={p._id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                     <td className='px-4 py-3 text-xs font-mono text-gray-700 whitespace-nowrap'>
                       {p.playerId}
+                    </td>
+                    <td className='px-4 py-3 whitespace-nowrap'>
+                      <RefCell player={p} />
                     </td>
                     <td className='px-4 py-3 whitespace-nowrap'>
                       <StatusBadge status={p.status} />
