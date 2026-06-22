@@ -868,6 +868,116 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
+// ── Real-time postback config (affiliate's own S2S integration) ───────────────
+
+const PostbackDelivery = require("../../models/PostbackDelivery");
+const { POSTBACK_MACROS } = require("../../utils/postback");
+
+const POSTBACK_EVENTS = ["registration", "ftd", "deposit"];
+
+// GET /api/affiliate-portal/postback
+// Returns the affiliate's postback config + the supported macros so the FE can
+// render a reference, plus a small sample URL.
+exports.getPostbackConfig = async (req, res) => {
+  try {
+    const affiliate = req.affiliateUser;
+    if (affiliate.role !== "affiliate") {
+      return res.status(403).json({ error: "Affiliates only" });
+    }
+    const profile = await AffiliateProfile.findOne({ user: affiliate._id })
+      .select({ postbackEnabled: 1, postbackUrl: 1, postbackEvents: 1 })
+      .lean();
+    res.json({
+      enabled: !!profile?.postbackEnabled,
+      url: profile?.postbackUrl ?? "",
+      events: profile?.postbackEvents ?? [],
+      supportedEvents: POSTBACK_EVENTS,
+      macros: POSTBACK_MACROS,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// PATCH /api/affiliate-portal/postback
+// Affiliate sets their URL template, which events fire, and the on/off switch.
+exports.updatePostbackConfig = async (req, res) => {
+  try {
+    const affiliate = req.affiliateUser;
+    if (affiliate.role !== "affiliate") {
+      return res.status(403).json({ error: "Affiliates only" });
+    }
+
+    const { enabled, url, events } = req.body || {};
+    const set = {};
+
+    if (url !== undefined) {
+      const trimmed = typeof url === "string" ? url.trim() : "";
+      if (trimmed && !/^https?:\/\//i.test(trimmed)) {
+        return res.status(400).json({ error: "Postback URL must start with http:// or https://" });
+      }
+      set.postbackUrl = trimmed || null;
+    }
+
+    if (events !== undefined) {
+      if (!Array.isArray(events) || events.some((e) => !POSTBACK_EVENTS.includes(e))) {
+        return res.status(400).json({ error: `events must be a subset of: ${POSTBACK_EVENTS.join(", ")}` });
+      }
+      set.postbackEvents = events;
+    }
+
+    if (enabled !== undefined) {
+      // Can't enable without a URL — guard against a no-op "on" state.
+      const effectiveUrl = set.postbackUrl !== undefined
+        ? set.postbackUrl
+        : (await AffiliateProfile.findOne({ user: affiliate._id }).select({ postbackUrl: 1 }).lean())?.postbackUrl;
+      if (enabled && !effectiveUrl) {
+        return res.status(400).json({ error: "Set a postback URL before enabling" });
+      }
+      set.postbackEnabled = !!enabled;
+    }
+
+    const profile = await AffiliateProfile.findOneAndUpdate(
+      { user: affiliate._id },
+      { $set: set },
+      { new: true, select: { postbackEnabled: 1, postbackUrl: 1, postbackEvents: 1 } },
+    ).lean();
+    if (!profile) return res.status(404).json({ error: "Affiliate profile not found" });
+
+    res.json({
+      enabled: !!profile.postbackEnabled,
+      url: profile.postbackUrl ?? "",
+      events: profile.postbackEvents ?? [],
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET /api/affiliate-portal/postback/deliveries?limit=
+// Recent postback attempts for this affiliate (delivery log).
+exports.listPostbackDeliveries = async (req, res) => {
+  try {
+    const affiliate = req.affiliateUser;
+    if (affiliate.role !== "affiliate") {
+      return res.status(403).json({ error: "Affiliates only" });
+    }
+    const lim = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+    const deliveries = await PostbackDelivery.find({ affiliateId: affiliate._id })
+      .sort({ createdAt: -1 })
+      .limit(lim)
+      .select({
+        event: 1, playerId: 1, clickId: 1, amountCents: 1, currency: 1,
+        status: 1, attempts: 1, responseStatus: 1, finalUrl: 1, lastError: 1,
+        createdAt: 1, sentAt: 1,
+      })
+      .lean();
+    res.json({ deliveries });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // ── Fee details (read-only operator policy) ───────────────────────────────────
 
 const OperatorFinancialSettings = require("../../models/OperatorFinancialSettings");

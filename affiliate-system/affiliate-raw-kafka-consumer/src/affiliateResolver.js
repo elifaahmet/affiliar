@@ -9,6 +9,8 @@ let playersCol;
 let _hexoraDb;
 let _affiliateDb;
 let codeToUserId = new Map();
+// userId -> { url, events:[...] } for affiliates with postback turned on.
+let postbackByUser = new Map();
 let refreshTimer;
 
 export function getHexoraDb() {
@@ -76,6 +78,69 @@ async function refreshCache() {
     }
   }
   codeToUserId = next;
+
+  // Postback config for affiliates who turned it on (small set).
+  const pbCursor = profilesCol.find(
+    { postbackEnabled: true, postbackUrl: { $nin: [null, ''] } },
+    { projection: { user: 1, postbackUrl: 1, postbackEvents: 1 } },
+  );
+  const pbNext = new Map();
+  for await (const doc of pbCursor) {
+    const userId = doc.user?.toString?.();
+    if (userId && doc.postbackUrl) {
+      pbNext.set(userId, { url: doc.postbackUrl, events: doc.postbackEvents || [] });
+    }
+  }
+  postbackByUser = pbNext;
+}
+
+// Postback config for an affiliate (or null). Cached + refreshed on the same
+// timer as the code map, so toggling postback in the portal takes effect
+// within one refresh cycle.
+export function getPostbackConfig(userId) {
+  if (!userId) return null;
+  return postbackByUser.get(String(userId)) || null;
+}
+
+// Stored attribution meta for a player — used to fill click_id/code/brand on
+// deposit events, which don't carry the affiliate code/subId inline.
+export async function getAffiliatePlayerMeta(playerId) {
+  if (!playerId || !affiliatePlayersCol) return null;
+  return affiliatePlayersCol.findOne(
+    { playerId: String(playerId) },
+    { projection: { subId: 1, affiliateCode: 1, brandId: 1 } },
+  );
+}
+
+// Insert a pending outbound postback. affiliate-be's postbackDeliveryJob picks
+// it up and delivers. Native insert into the same collection the Mongoose
+// PostbackDelivery model maps to ('postbackdeliveries').
+export async function enqueuePostback(ctx) {
+  if (!_affiliateDb) return;
+  const now = new Date();
+  await _affiliateDb.collection('postbackdeliveries').insertOne({
+    operatorId:    toObjectId(ctx.tenantId),
+    affiliateId:   toObjectId(ctx.affiliateId),
+    affiliateCode: ctx.affiliateCode ? String(ctx.affiliateCode).toUpperCase() : null,
+    event:         ctx.event,
+    playerId:      ctx.playerId != null ? String(ctx.playerId) : null,
+    clickId:       ctx.clickId || null,
+    amountCents:   Number(ctx.amountCents) || 0,
+    currency:      ctx.currency || null,
+    brandId:       ctx.brandId || null,
+    occurredAt:    ctx.occurredAt ? new Date(ctx.occurredAt) : now,
+    urlTemplate:   ctx.urlTemplate,
+    status:        'pending',
+    attempts:      0,
+    maxAttempts:   5,
+    nextAttemptAt: now,
+    finalUrl:       null,
+    responseStatus: null,
+    lastError:      null,
+    sentAt:         null,
+    createdAt:     now,
+    updatedAt:     now,
+  });
 }
 
 export function resolveAffiliateIdByCode(code) {

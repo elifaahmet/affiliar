@@ -104,6 +104,28 @@ const affiliateProfileSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: null,
     },
+
+    // ── Real-time S2S postback (affiliate pulls conversions into their own
+    // tracker) ────────────────────────────────────────────────────────────────
+    // The affiliate sets a URL template with {macros}; on each enabled
+    // conversion event we fire an HTTP GET with the macros filled. Disabled
+    // until the affiliate sets a URL + toggles it on from the portal.
+    postbackEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    // URL template, e.g.
+    //   https://track.aff.com/pb?cid={click_id}&event={event}&payout={amount}
+    postbackUrl: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    // Which conversion events fire a postback. Empty = none.
+    postbackEvents: {
+      type: [{ type: String, enum: ["registration", "ftd", "deposit"] }],
+      default: ["registration", "ftd"],
+    },
   },
   { timestamps: true },
 );

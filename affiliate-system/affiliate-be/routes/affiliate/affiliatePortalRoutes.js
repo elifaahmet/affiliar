@@ -32,6 +32,11 @@ router.delete("/links/:linkId",    marketingCtrl.deleteLink);
 router.get ("/api-key",            ctrl.getApiKey);
 router.post("/api-key/rotate",     ctrl.rotateApiKey);
 
+// Real-time outbound postback (push conversions to the affiliate's own tracker).
+router.get  ("/postback",            ctrl.getPostbackConfig);
+router.patch("/postback",            ctrl.updatePostbackConfig);
+router.get  ("/postback/deliveries", ctrl.listPostbackDeliveries);
+
 // Payout wallet + history (affiliate-owned, USDT-TRC20)
 router.get ("/payout-info",        ctrl.getPayoutInfo);
 router.put ("/payout-info",        ctrl.updatePayoutInfo);

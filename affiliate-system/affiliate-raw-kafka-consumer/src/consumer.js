@@ -6,7 +6,58 @@ import {
   resolveAffiliateIdByPlayer,
   upsertAffiliatePlayer,
   updatePlayerFlag,
+  getPostbackConfig,
+  getAffiliatePlayerMeta,
+  enqueuePostback,
 } from './affiliateResolver.js';
+
+// Map a raw event to the postback event name (or null if not postback-worthy).
+function postbackEventOf(eventType, data) {
+  if (eventType === 'player.registered') return { event: 'registration', amountCents: 0 };
+  if (eventType === 'wallet.deposit.confirmed') {
+    return { event: data.isFirstDeposit ? 'ftd' : 'deposit', amountCents: data.amountCents || 0 };
+  }
+  return null;
+}
+
+// Fire-and-forget: queue an outbound postback if this affiliate has one
+// configured for this event. Never throws into the ingest path.
+async function maybeEnqueuePostback(event, data, affiliateId) {
+  if (!affiliateId) return;
+  const cfg = getPostbackConfig(affiliateId);
+  if (!cfg || !cfg.url) return;
+  const mapped = postbackEventOf(event.eventType, data);
+  if (!mapped || !(cfg.events || []).includes(mapped.event)) return;
+
+  try {
+    // Registration carries code/subId inline; deposits don't — pull stored
+    // attribution meta for those.
+    let clickId = data.subId || null;
+    let affiliateCode = data.affiliateCode || null;
+    let brandId = event.brandId || null;
+    if (mapped.event !== 'registration') {
+      const meta = await getAffiliatePlayerMeta(event.playerId);
+      clickId = clickId || meta?.subId || null;
+      affiliateCode = affiliateCode || meta?.affiliateCode || null;
+      brandId = brandId || meta?.brandId || null;
+    }
+    await enqueuePostback({
+      tenantId: event.tenantId,
+      affiliateId,
+      affiliateCode,
+      event: mapped.event,
+      playerId: event.playerId,
+      clickId,
+      amountCents: mapped.amountCents,
+      currency: event.currency || null,
+      brandId,
+      occurredAt: event.occurredAt,
+      urlTemplate: cfg.url,
+    });
+  } catch (err) {
+    console.error('[consumer] postback enqueue failed:', err?.message || err);
+  }
+}
 
 async function processMessage(rawValue) {
   let parsed;
@@ -57,6 +108,10 @@ async function processMessage(rawValue) {
       );
     }
   }
+
+  // Outbound affiliate postback (after the registration upsert above, so a
+  // first-touch registration postback can rely on stored attribution).
+  await maybeEnqueuePostback(event, data, affiliateId);
 }
 
 export async function startConsuming() {

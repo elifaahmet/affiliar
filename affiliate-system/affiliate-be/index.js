@@ -149,4 +149,9 @@ app.listen(PORT, () => {
   // (transition-only) and email the operator's users.
   const { startBillingExpiryJob } = require("./jobs/billingExpiryJob");
   startBillingExpiryJob();
+
+  // Outbound affiliate postbacks: deliver queued conversion notifications
+  // (enqueued by the raw Kafka consumer) to each affiliate's URL template.
+  const { startPostbackDeliveryJob } = require("./jobs/postbackDeliveryJob");
+  startPostbackDeliveryJob();
 });
