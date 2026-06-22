@@ -1364,6 +1364,11 @@ https://track.example.com/pb?cid={click_id}&amp;event={event}&amp;payout={amount
 
 <span class="tok-cmt">// Fired on an FTD</span>
 <span class="tok-mth">GET</span> <span class="tok-url">https://track.example.com/pb?cid=abc123&amp;event=ftd&amp;payout=50.00&amp;cur=EUR</span></code></pre>
+
+          <div class="mt-6 rounded-xl border border-primary/20 bg-primary-light/30 p-5">
+            <p class="text-sm font-semibold text-gray-900 mb-1">Matching players to your own IDs</p>
+            <p class="text-sm text-gray-600">You don't need our player ids to reconcile conversions — use <code>sub</code> as the bridge. Put your own click/player reference in the <code>sub</code> parameter of your tracking link (<code>?affiliate=CODE&amp;sub=&lt;your-id&gt;</code>); we store it and return it on every postback as <code>{click_id}</code> / <code>{sub_id}</code>. Each postback also includes our <code>{player_id}</code>, so you can persist the mapping from the first callback. In the portal the value shows on the <strong>Players</strong> page as <strong>Your reference</strong>, and you can set or override it per player there (or via <code>PATCH /api/affiliate-portal/players/:playerId/ref</code>) if you couldn't pass a <code>sub</code> at click time. The same field is returned by <code>GET /players</code> on the pull API.</p>
+          </div>
         </section>
 
         <div class="h-16"></div>
