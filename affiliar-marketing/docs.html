@@ -186,6 +186,7 @@
           <a href="#api-reports"     class="nav-link">Reports</a>
           <a href="#api-campaigns"   class="nav-link">Campaign Reports</a>
           <a href="#api-portal"      class="nav-link">Affiliate Portal</a>
+          <a href="#api-postback"    class="nav-link">Postback (S2S)</a>
         </div>
 
       </div>
@@ -1301,6 +1302,68 @@ NGR = GGR
               <span class="text-sm text-gray-400 ml-auto">Own campaign performance report</span>
             </div>
           </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── POSTBACK (S2S) ─────────────────────────────────────────────── -->
+        <section id="api-postback">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Real-time Postback (S2S)</h2>
+          <p class="text-gray-500 mb-4">Affiliates can receive a server-to-server callback the moment a conversion happens, keeping their own tracker in sync without polling. Configure it in the portal under <strong>API Access &rarr; Real-time Postback</strong>: set a URL template with <code>{macros}</code>, pick which events fire, and toggle it on. On each enabled conversion Affiliar sends an HTTP <code>GET</code> to the URL with the macros filled, retrying with exponential backoff (up to 5 attempts) on non-2xx responses.</p>
+
+          <div class="space-y-4 mb-6">
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-get">GET</span>
+              <code class="text-sm">/api/affiliate-portal/postback</code>
+              <span class="text-sm text-gray-400 ml-auto">Current config + supported events &amp; macros</span>
+            </div>
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-patch">PATCH</span>
+              <code class="text-sm">/api/affiliate-portal/postback</code>
+              <span class="text-sm text-gray-400 ml-auto">Set URL, events, on/off</span>
+            </div>
+            <div class="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+              <span class="badge badge-get">GET</span>
+              <code class="text-sm">/api/affiliate-portal/postback/deliveries</code>
+              <span class="text-sm text-gray-400 ml-auto">Recent delivery log (status, HTTP code)</span>
+            </div>
+          </div>
+
+          <p class="text-sm font-semibold text-gray-900 mb-2">Events</p>
+          <div class="overflow-x-auto rounded-xl border border-gray-100 mb-6">
+            <table>
+              <thead><tr><th>Event</th><th>Fires on</th></tr></thead>
+              <tbody>
+                <tr><td><code>registration</code></td><td>A player registers under the affiliate's code.</td></tr>
+                <tr><td><code>ftd</code></td><td>The player's first confirmed deposit.</td></tr>
+                <tr><td><code>deposit</code></td><td>Every confirmed deposit (not just the first).</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p class="text-sm font-semibold text-gray-900 mb-2">Macros</p>
+          <div class="overflow-x-auto rounded-xl border border-gray-100 mb-6">
+            <table>
+              <thead><tr><th>Macro</th><th>Value</th></tr></thead>
+              <tbody>
+                <tr><td><code>{click_id}</code> / <code>{sub_id}</code></td><td>The sub-tracking id carried on the affiliate's link.</td></tr>
+                <tr><td><code>{event}</code></td><td><code>registration</code> | <code>ftd</code> | <code>deposit</code></td></tr>
+                <tr><td><code>{player_id}</code></td><td>The casino player id.</td></tr>
+                <tr><td><code>{amount}</code> / <code>{amount_cents}</code></td><td>Deposit amount in major units / integer cents (0 for registration).</td></tr>
+                <tr><td><code>{currency}</code></td><td>ISO currency code.</td></tr>
+                <tr><td><code>{affiliate_code}</code></td><td>The referral code that attributed the player.</td></tr>
+                <tr><td><code>{brand_id}</code></td><td>Brand the conversion belongs to.</td></tr>
+                <tr><td><code>{timestamp}</code></td><td>Event time, unix seconds.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p class="text-sm font-semibold text-gray-900 mb-2">Example</p>
+          <pre><code><span class="tok-cmt">// Template configured by the affiliate</span>
+https://track.example.com/pb?cid={click_id}&amp;event={event}&amp;payout={amount}&amp;cur={currency}
+
+<span class="tok-cmt">// Fired on an FTD</span>
+<span class="tok-mth">GET</span> <span class="tok-url">https://track.example.com/pb?cid=abc123&amp;event=ftd&amp;payout=50.00&amp;cur=EUR</span></code></pre>
         </section>
 
         <div class="h-16"></div>
