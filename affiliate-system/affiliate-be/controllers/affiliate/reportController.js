@@ -1,5 +1,6 @@
 const clickhouse = require("../../config/clickhouse");
 const Brand = require("../../models/Brand");
+const Click = require("../../models/Click");
 
 // Union the product flags across the brands in the report's filter scope.
 // FE uses this to hide tiles/columns for products no brand actually
@@ -13,6 +14,27 @@ function scopedBrandIds(operator) {
     return operator.brandIds.map((id) => String(id));
   }
   return null;
+}
+
+// Top-of-funnel click count for an operator, honouring the same tenant / brand
+// / affiliate / date filters as buildWhere (clicks live in Mongo, not CH).
+async function countClicks(operator, query) {
+  const filter = { operatorId: operator.operatorId };
+  const allowed = scopedBrandIds(operator);
+  if (allowed) {
+    filter.brandId = query.brandId && allowed.includes(String(query.brandId))
+      ? query.brandId
+      : { $in: allowed };
+  } else if (query.brandId) {
+    filter.brandId = query.brandId;
+  }
+  if (query.affiliateId) filter.affiliateId = query.affiliateId;
+  if (query.from || query.to) {
+    filter.createdAt = {};
+    if (query.from) filter.createdAt.$gte = new Date(`${query.from}T00:00:00Z`);
+    if (query.to)   filter.createdAt.$lte = new Date(`${query.to}T23:59:59.999Z`);
+  }
+  return Click.countDocuments(filter);
 }
 
 async function productScopeForReport(operator, query) {
@@ -203,11 +225,13 @@ exports.overview = async (req, res) => {
     );
 
     const productScope = await productScopeForReport(operator, req.query);
+    const clicks = await countClicks(operator, req.query);
 
     return res.json({
       period: { from: req.query.from, to: req.query.to },
       productScope,
       summary,
+      clicks,
       byDay: byDayRows.map(coerce),
     });
   } catch (err) {

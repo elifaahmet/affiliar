@@ -147,7 +147,14 @@ type MetricSummary = Omit<DayRow, 'date'>;
 interface OverviewResponse {
   period: Period;
   summary: MetricSummary;
+  clicks: number;
   byDay: DayRow[];
+}
+
+// Funnel conversion-rate %, guarding divide-by-zero.
+function pct(numerator: number, denominator: number) {
+  if (!denominator) return '—';
+  return `${((numerator / denominator) * 100).toFixed(1)}%`;
 }
 
 // ── chart metrics catalogue ───────────────────────────────────────────────────
@@ -633,7 +640,8 @@ export default function Dashboard() {
 
           {product === 'casino' && (
             <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4'>
-              <KpiCard label='Registrations' value={String(s?.registrations ?? 0)} sub={`${s?.playerCount ?? 0} players`} />
+              <KpiCard label='Clicks' value={String(data?.clicks ?? 0)} sub={`${pct(s?.registrations ?? 0, data?.clicks ?? 0)} → reg`} />
+              <KpiCard label='Registrations' value={String(s?.registrations ?? 0)} sub={`${pct(s?.ftdCount ?? 0, s?.registrations ?? 0)} → FTD`} />
               <KpiCard label='FTDs'          value={String(s?.ftdCount ?? 0)} sub={`€${fmt(s?.ftdSumCents ?? 0)}`} />
               <KpiCard label='Deposits'      value={`€${fmt(s?.depositsSumCents ?? 0)}`} sub={`${s?.depositsCount ?? 0} txns`} />
               <KpiCard label='Cashouts'      value={`€${fmt(s?.cashoutsSumCents ?? 0)}`} sub={`${s?.cashoutsCount ?? 0} txns`} />
@@ -647,7 +655,8 @@ export default function Dashboard() {
 
           {product === 'sportsbook' && (
             <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4'>
-              <KpiCard label='Registrations' value={String(s?.registrations ?? 0)} sub={`${s?.playerCount ?? 0} players`} />
+              <KpiCard label='Clicks' value={String(data?.clicks ?? 0)} sub={`${pct(s?.registrations ?? 0, data?.clicks ?? 0)} → reg`} />
+              <KpiCard label='Registrations' value={String(s?.registrations ?? 0)} sub={`${pct(s?.ftdCount ?? 0, s?.registrations ?? 0)} → FTD`} />
               <KpiCard label='FTDs'          value={String(s?.ftdCount ?? 0)} sub={`€${fmt(s?.ftdSumCents ?? 0)}`} />
               <KpiCard label='SB Bets'       value={`€${fmt(s?.sbBetsSumCents ?? 0)}`} sub={`Settled €${fmt(s?.sbSettledBetsSumCents ?? 0)}`} />
               <KpiCard label='SB Wins'       value={`€${fmt(s?.sbWinsSumCents ?? 0)}`} />
@@ -661,7 +670,8 @@ export default function Dashboard() {
 
           {product === 'all' && (
             <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4'>
-              <KpiCard label='Registrations' value={String(s?.registrations ?? 0)} sub={`${s?.playerCount ?? 0} players`} />
+              <KpiCard label='Clicks' value={String(data?.clicks ?? 0)} sub={`${pct(s?.registrations ?? 0, data?.clicks ?? 0)} → reg`} />
+              <KpiCard label='Registrations' value={String(s?.registrations ?? 0)} sub={`${pct(s?.ftdCount ?? 0, s?.registrations ?? 0)} → FTD`} />
               <KpiCard label='FTDs'          value={String(s?.ftdCount ?? 0)} sub={`€${fmt(s?.ftdSumCents ?? 0)}`} />
               <KpiCard label='Deposits'      value={`€${fmt(s?.depositsSumCents ?? 0)}`} sub={`${s?.depositsCount ?? 0} txns`} />
               <KpiCard label='Cashouts'      value={`€${fmt(s?.cashoutsSumCents ?? 0)}`} sub={`${s?.cashoutsCount ?? 0} txns`} />
