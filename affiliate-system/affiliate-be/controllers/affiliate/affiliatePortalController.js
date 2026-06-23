@@ -3,6 +3,7 @@
 const crypto             = require("crypto");
 const mongoose           = require("mongoose");
 const clickhouse         = require("../../config/clickhouse");
+const Click              = require("../../models/Click");
 const AffiliateProfile   = require("../../models/AffiliateProfile");
 const CommissionReport   = require("../../models/CommissionReport");
 const SubAffiliatePayout = require("../../models/SubAffiliatePayout");
@@ -329,12 +330,23 @@ exports.overview = async (req, res) => {
       totalApproved: reportCommission.totalApproved, // sub payouts have no approved state
     };
 
+    // Top-of-funnel clicks on the affiliate's smartlinks for the same scope +
+    // window. Lets the FE show Click→Reg and Reg→FTD conversion rates.
+    const clickFilter = { affiliateId: { $in: affiliateIds } };
+    if (from || to) {
+      clickFilter.createdAt = {};
+      if (from) clickFilter.createdAt.$gte = new Date(`${from}T00:00:00Z`);
+      if (to)   clickFilter.createdAt.$lte = new Date(`${to}T23:59:59.999Z`);
+    }
+    const clicks = await Click.countDocuments(clickFilter);
+
     // Referral codes (per brand)
     const referralCodes = await buildBrandCodes(profile);
 
     res.json({
       period: { from, to },
       summary,
+      clicks,
       byDay: byDayRows.map(coerce),
       commission,
       referralCodes,

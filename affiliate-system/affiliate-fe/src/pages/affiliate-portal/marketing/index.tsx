@@ -39,6 +39,7 @@ interface SavedLink {
   code: string;
   label: string | null;
   url: string;
+  trackingUrl?: string | null;
   campaign: string | null;
   sub: string | null;
   createdAt: string;
@@ -185,26 +186,29 @@ export default function AffiliateMarketing() {
 
   // Live preview of the builder link: the selected page's URL (or the brand
   // homepage) + ?affiliate=<code> + any campaign / sub / custom params.
+  // Trackable smartlink: routes through Affiliar's click tracker (/api/r/:code)
+  // — sub/campaign are recorded on the click, custom params ride along on the
+  // landing URL, and the tracker appends affiliate + click_id before the 302.
   const builderLink = useMemo(() => {
     if (!builderRc) return '';
     const page = pagesForBrand.find((p) => p._id === builderPageId);
     const rawBase = (page?.url || builderRc.brandUrl || fallbackBaseUrl).replace(/\/+$/, '');
-    const params: Array<[string, string]> = [];
-    if (campaign.trim()) params.push(['campaign', campaign.trim()]);
-    if (sub.trim()) params.push(['sub', sub.trim()]);
-    for (const p of customParams) {
-      const k = p.key.trim();
-      const v = p.value.trim();
-      if (k && v && k.toLowerCase() !== 'affiliate') params.push([k, v]);
+    const customPairs = customParams
+      .map((p) => [p.key.trim(), p.value.trim()] as [string, string])
+      .filter(([k, v]) => k && v && k.toLowerCase() !== 'affiliate');
+    let landing = rawBase;
+    if (customPairs.length > 0) {
+      const joiner = rawBase.includes('?') ? '&' : '/?';
+      landing =
+        `${rawBase}${joiner}` +
+        customPairs.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
     }
-    const joiner = rawBase.includes('?') ? '&' : '/?';
-    let url = `${rawBase}${joiner}affiliate=${builderRc.code}`;
-    if (params.length > 0) {
-      url +=
-        '&' +
-        params.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
-    }
-    return url;
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const sp = new URLSearchParams();
+    if (campaign.trim()) sp.set('campaign', campaign.trim());
+    if (sub.trim()) sp.set('sub', sub.trim());
+    sp.set('to', landing);
+    return `${origin}/api/r/${builderRc.code}?${sp.toString()}`;
   }, [builderRc, pagesForBrand, builderPageId, campaign, sub, customParams, fallbackBaseUrl]);
 
   // Persist the current builder link so the affiliate can re-copy it later.
@@ -623,7 +627,8 @@ export default function AffiliateMarketing() {
         ) : (
           <div className='space-y-3'>
             {savedLinks.map((l) => {
-              const isCopied = copied === l.url;
+              const shareUrl = l.trackingUrl || l.url;
+              const isCopied = copied === shareUrl;
               return (
                 <div key={l._id} className='flex items-center gap-3 p-4 rounded-lg border border-gray-100 bg-gray-50'>
                   <div className='flex-1 min-w-0'>
@@ -643,10 +648,10 @@ export default function AffiliateMarketing() {
                         <span className='text-[10px] text-gray-500'>sub: {l.sub}</span>
                       )}
                     </div>
-                    <p className='text-xs text-gray-600 truncate font-mono'>{l.url}</p>
+                    <p className='text-xs text-gray-600 truncate font-mono'>{shareUrl}</p>
                   </div>
                   <button
-                    onClick={() => copy(l.url)}
+                    onClick={() => copy(shareUrl)}
                     className={`shrink-0 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                       isCopied
                         ? 'bg-green-100 text-green-700'

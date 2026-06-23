@@ -71,6 +71,10 @@ const publicAuthPaths = new Set([
 // take the API-key path instead of the session-cookie one.
 app.use(`${prefix}/affiliate-api/v1`, require("./routes/affiliate/affiliateApiRoutes"));
 
+// Public click tracker (smartlink redirect) — end users hit this, so it sits
+// before the global auth gate, like the pull API above.
+app.use(`${prefix}/r`, require("./routes/affiliate/clickRoutes"));
+
 app.use((req, res, next) => {
   if (req.method === "OPTIONS") return next();
   if (publicAuthPaths.has(req.path)) return next();

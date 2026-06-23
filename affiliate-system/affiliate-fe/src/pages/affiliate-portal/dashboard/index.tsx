@@ -95,8 +95,15 @@ interface CommissionSummary {
 interface OverviewResponse {
   period: { from: string; to: string };
   summary: Omit<DayRow, 'date'>;
+  clicks: number;
   byDay: DayRow[];
   commission: CommissionSummary;
+}
+
+// Percent helper for funnel conversion rates (guards divide-by-zero).
+function pct(numerator: number, denominator: number) {
+  if (!denominator) return '—';
+  return `${((numerator / denominator) * 100).toFixed(1)}%`;
 }
 
 function KpiCard({
@@ -274,9 +281,14 @@ export default function AffiliateDashboard() {
             <p className='text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3'>Traffic</p>
             <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4'>
               <KpiCard
+                label='Clicks'
+                value={String(data?.clicks ?? 0)}
+                sub={`${pct(s?.registrations ?? 0, data?.clicks ?? 0)} → reg`}
+              />
+              <KpiCard
                 label='Registrations'
                 value={String(s?.registrations ?? 0)}
-                sub={`${s?.playerCount ?? 0} active players`}
+                sub={`${pct(s?.ftdCount ?? 0, s?.registrations ?? 0)} → FTD`}
               />
               <KpiCard
                 label='FTDs'

@@ -59,6 +59,18 @@ function buildTrackingUrl(base, code, { campaign, sub, customParams } = {}) {
   return `${trimmed}${joiner}${qs}`;
 }
 
+// Trackable "smartlink": routes the visitor through Affiliar's click tracker
+// (/r/:code) before landing them on `landing`, so the click is recorded and a
+// click_id is attached. This is the link affiliates should actually share.
+function buildSmartlink(code, { campaign, sub } = {}, landing) {
+  const baseApp = (process.env.APP_URL || "https://app.affiliar.co").replace(/\/+$/, "");
+  const u = new URL(`${baseApp}/api/r/${encodeURIComponent(code)}`);
+  if (campaign && campaign.trim()) u.searchParams.set("campaign", campaign.trim());
+  if (sub && sub.trim()) u.searchParams.set("sub", sub.trim());
+  if (landing) u.searchParams.set("to", landing);
+  return u.toString();
+}
+
 /**
  * GET /api/affiliate-portal/brand-pages
  * Enabled pages for every brand the affiliate has a code for, each annotated
@@ -91,6 +103,9 @@ exports.listBrandPages = async (req, res) => {
         code: codeMap.get(String(p.brandId)) ?? null,
         name: p.name,
         url: p.url || null,
+        trackingUrl: codeMap.get(String(p.brandId))
+          ? buildSmartlink(codeMap.get(String(p.brandId)), {}, p.url || brand?.url)
+          : null,
         description: p.description || null,
       };
     });
@@ -124,6 +139,7 @@ exports.listLinks = async (req, res) => {
       links: links.map((l) => ({
         ...l,
         brandName: bmap.get(String(l.brandId)) ?? null,
+        trackingUrl: buildSmartlink(l.code, { campaign: l.campaign, sub: l.sub }, l.targetUrl),
       })),
     });
   } catch (err) {
@@ -188,7 +204,12 @@ exports.createLink = async (req, res) => {
       customParams: cleanCustom,
     });
 
-    return res.status(201).json({ link });
+    return res.status(201).json({
+      link: {
+        ...link.toObject(),
+        trackingUrl: buildSmartlink(code, { campaign, sub }, base),
+      },
+    });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
