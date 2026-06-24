@@ -42,6 +42,7 @@ interface CommissionPlan {
   product: ProductScope;
   isDefault: boolean;
   isActive: boolean;
+  negativeCarryover?: boolean;
   revshare: {
     // null → inherit from operator default
     metric: 'ngr' | 'ggr' | null;
@@ -181,6 +182,7 @@ function currentYearMonth() {
 
 const EMPTY_PLAN = {
   name: '', type: 'revshare' as PlanType, product: 'casino' as ProductScope, isDefault: false,
+  negativeCarryover: false,
   // Null on the nullable fields → the backend inherits from the operator's
   // defaults (configured on the Fees page).
   revshare: {
@@ -237,6 +239,7 @@ export function PlanForm({
           // Older plans may not have `product` on the document — default to casino.
           product: (plan.product ?? 'casino') as ProductScope,
           isDefault: plan.isDefault,
+          negativeCarryover: plan.negativeCarryover ?? false,
           // Older plan documents may not have the nullable fields set.
           // Default them to null ("inherit") so the form renders sensibly.
           revshare: {
@@ -777,6 +780,21 @@ export function PlanForm({
               className='w-4 h-4 accent-primary' />
             <label htmlFor='isDefault' className='text-sm text-gray-700'>Set as default plan</label>
           </div>
+
+          {(showRevshare || showTiers) && (
+            <div className='flex items-start gap-2'>
+              <input id='negativeCarryover' type='checkbox' checked={form.negativeCarryover}
+                onChange={(e) => setField('negativeCarryover', e.target.checked)}
+                className='w-4 h-4 mt-0.5 accent-primary' />
+              <label htmlFor='negativeCarryover' className='text-sm text-gray-700'>
+                Negative carryover
+                <span className='block text-xs text-gray-500'>
+                  A losing month (negative NGR) carries its deficit forward and offsets future
+                  months instead of resetting to zero. Applies to the revshare base only.
+                </span>
+              </label>
+            </div>
+          )}
 
           <div>
             <label className='block text-xs font-medium text-gray-600 mb-1'>Notes (optional)</label>

@@ -97,6 +97,11 @@ const commissionReportSchema = new mongoose.Schema(
       directCents:         { type: Number, default: 0 }, // revshare + cpa + fixed
       overrideCents:       { type: Number, default: 0 }, // earned from sub-affiliates
       totalCents:          { type: Number, default: 0 }, // directCents + overrideCents
+      // Negative carryover (only non-zero on plans with negativeCarryover on):
+      // carryInCents = prior period's deficit netted into this period's NGR
+      // base; carryOutCents = deficit rolling to next period. Both ≤ 0.
+      carryInCents:        { type: Number, default: 0 },
+      carryOutCents:       { type: Number, default: 0 },
     },
 
     // IDs of players who triggered the fixed payout in this period. Used

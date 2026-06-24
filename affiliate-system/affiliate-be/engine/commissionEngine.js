@@ -36,6 +36,16 @@ function calculate(plan, metrics, operatorDefaults = {}) {
   let cpaAmountCents = 0;
   let fixedAmountCents = 0;
 
+  // Negative carryover: when enabled on the plan, a prior period's unrecovered
+  // NGR deficit (carryInCents, ≤ 0) is netted against this period's revshare
+  // base before the share is taken. Any deficit that remains (still ≤ 0) is
+  // returned as carryOutCents to carry into the next period. Disabled by
+  // default → carryIn forced to 0, so behaviour is identical to flooring at 0.
+  const carryInCents = plan.negativeCarryover
+    ? Math.min(0, Number(metrics.carryInCents) || 0)
+    : 0;
+  let carryOutCents = 0;
+
   // Prefer the qualified count when the caller has already run gates.
   const ftdCountForCpa =
     metrics.qualifiedFtdCount !== undefined
@@ -49,10 +59,13 @@ function calculate(plan, metrics, operatorDefaults = {}) {
   const fixedQualifiedCount = metrics.newlyQualifiedPlayerCount || 0;
 
   const base = computeRevshareBase(metrics, settings, plan);
+  // Net the carried deficit against this period's base (carryIn ≤ 0).
+  const effectiveBase = base + carryInCents;
 
   switch (plan.type) {
     case "revshare": {
-      revshareAmountCents = calcRevshare(plan.revshare, base);
+      revshareAmountCents = calcRevshare(plan.revshare, effectiveBase);
+      carryOutCents = Math.min(0, effectiveBase);
       break;
     }
 
@@ -62,13 +75,15 @@ function calculate(plan, metrics, operatorDefaults = {}) {
     }
 
     case "hybrid": {
-      revshareAmountCents = calcRevshare(plan.revshare, base);
+      revshareAmountCents = calcRevshare(plan.revshare, effectiveBase);
       cpaAmountCents      = calcCpa(plan.cpa, ftdCountForCpa);
+      carryOutCents = Math.min(0, effectiveBase);
       break;
     }
 
     case "tiered_revshare": {
-      revshareAmountCents = calcTiered(plan.tiers, base);
+      revshareAmountCents = calcTiered(plan.tiers, effectiveBase);
+      carryOutCents = Math.min(0, effectiveBase);
       break;
     }
 
@@ -86,6 +101,10 @@ function calculate(plan, metrics, operatorDefaults = {}) {
     revshareAmountCents,
     cpaAmountCents,
     fixedAmountCents,
+    // Carryover audit: what we netted in, and what rolls to next period.
+    // Both 0 unless the plan opts into negative carryover.
+    carryInCents,
+    carryOutCents: plan.negativeCarryover ? carryOutCents : 0,
     totalCents: revshareAmountCents + cpaAmountCents + fixedAmountCents,
     // Expose the resolved settings so controllers can log/store them
     // on the commission report snapshot.

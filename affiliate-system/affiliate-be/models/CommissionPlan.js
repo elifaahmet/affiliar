@@ -66,6 +66,16 @@ const commissionPlanSchema = new mongoose.Schema(
       default: true,
     },
 
+    // Negative carryover: when true, a period with negative NGR doesn't just
+    // pay 0 — the deficit carries forward and offsets future positive months
+    // until recovered. Off by default (each month floors at 0 independently).
+    // Applies to the revshare base (revshare / tiered_revshare / hybrid);
+    // CPA and fixed payouts are unaffected.
+    negativeCarryover: {
+      type: Boolean,
+      default: false,
+    },
+
     /**
      * Revenue share config.
      * Used by: revshare, hybrid

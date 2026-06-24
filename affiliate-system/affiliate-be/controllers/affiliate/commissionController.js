@@ -489,7 +489,7 @@ const planController = {
       const operator = req.affiliateUser;
       if (operator.role !== "operator") return res.status(403).json({ error: "Operators only" });
 
-      const { name, type, product, revshare, cpa, fixed, tiers, isDefault, notes } = req.body;
+      const { name, type, product, revshare, cpa, fixed, tiers, isDefault, notes, negativeCarryover } = req.body;
       if (!name || !type) return res.status(400).json({ error: "name and type are required" });
 
       // Plan-gated: a minKycLevel on the qualification block is only honored
@@ -516,6 +516,7 @@ const planController = {
         tiers:    tiers    ?? [],
         isDefault: isDefault ?? false,
         notes: notes ?? null,
+        negativeCarryover: !!negativeCarryover,
       });
 
       res.status(201).json(plan);
@@ -537,7 +538,7 @@ const planController = {
 
       if (!(await ensureKycGatePermitted(req, res))) return;
 
-      const { name, type, product, revshare, cpa, fixed, tiers, isDefault, isActive, notes } = req.body;
+      const { name, type, product, revshare, cpa, fixed, tiers, isDefault, isActive, notes, negativeCarryover } = req.body;
 
       if (isDefault && !plan.isDefault) {
         await CommissionPlan.updateMany(
@@ -557,6 +558,7 @@ const planController = {
         ...(isDefault !== undefined && { isDefault }),
         ...(isActive  !== undefined && { isActive }),
         ...(notes     !== undefined && { notes }),
+        ...(negativeCarryover !== undefined && { negativeCarryover: !!negativeCarryover }),
       });
 
       await plan.save();
@@ -725,6 +727,26 @@ const reportController = {
         priorFixedPaidByKey.set(key, set);
       }
 
+      // Negative-carryover carry-in: this period's carry-in per (affiliate,
+      // product) is the IMMEDIATELY PRIOR month's carryOutCents (a deficit,
+      // ≤ 0). Only plans with negativeCarryover enabled consume it.
+      const prevPeriod = m === 1 ? { year: y - 1, month: 12 } : { year: y, month: m - 1 };
+      const priorCarryReports = await CommissionReport.find({
+        operatorId: operator.operatorId,
+        "period.year": prevPeriod.year,
+        "period.month": prevPeriod.month,
+        "breakdown.carryOutCents": { $lt: 0 },
+      })
+        .select({ affiliateId: 1, product: 1, "breakdown.carryOutCents": 1 })
+        .lean();
+      const priorCarryOutByKey = new Map(); // `${affiliateUserId}|${product}` → carryOut (≤0)
+      for (const r of priorCarryReports) {
+        priorCarryOutByKey.set(
+          `${String(r.affiliateId)}|${r.product || "casino"}`,
+          r.breakdown?.carryOutCents || 0,
+        );
+      }
+
       // Resolve User IDs from ClickHouse affiliateId strings
       const affiliateProfiles = await AffiliateProfile.find({
         operatorUser: operator._id,
@@ -879,12 +901,16 @@ const reportController = {
               fixedNewlyPaidPlayerIds = fixedQual.newlyQualifiedRows.map((r) => r.playerId);
             }
 
+            const carryInCents = plan.negativeCarryover
+              ? (priorCarryOutByKey.get(`${String(topUserId)}|${product}`) || 0)
+              : 0;
             const breakdown = calculate(
               plan,
               {
                 ...subtreeRow,
                 qualifiedFtdCount: qualification.qualified,
                 newlyQualifiedPlayerCount: fixedQual.newlyQualified,
+                carryInCents,
               },
               operatorDefaults,
             );
