@@ -20,7 +20,7 @@ function clickDateRange(query) {
 // keyed `${affiliateId}|${campaign}` (campaign '' when null) → count.
 async function clicksByCampaign(match) {
   const rows = await Click.aggregate([
-    { $match: match },
+    { $match: { ...match, isBot: { $ne: true } } },
     { $group: { _id: { a: "$affiliateId", c: "$campaign" }, count: { $sum: 1 } } },
   ]);
   const map = new Map();
@@ -47,7 +47,7 @@ function scopedBrandIds(operator) {
 // Top-of-funnel click count for an operator, honouring the same tenant / brand
 // / affiliate / date filters as buildWhere (clicks live in Mongo, not CH).
 async function countClicks(operator, query) {
-  const filter = { operatorId: operator.operatorId };
+  const filter = { operatorId: operator.operatorId, isBot: { $ne: true } };
   const allowed = scopedBrandIds(operator);
   if (allowed) {
     filter.brandId = query.brandId && allowed.includes(String(query.brandId))

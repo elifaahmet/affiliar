@@ -332,7 +332,7 @@ exports.overview = async (req, res) => {
 
     // Top-of-funnel clicks on the affiliate's smartlinks for the same scope +
     // window. Lets the FE show Click→Reg and Reg→FTD conversion rates.
-    const clickFilter = { affiliateId: { $in: affiliateIds } };
+    const clickFilter = { affiliateId: { $in: affiliateIds }, isBot: { $ne: true } };
     if (from || to) {
       clickFilter.createdAt = {};
       if (from) clickFilter.createdAt.$gte = new Date(`${from}T00:00:00Z`);

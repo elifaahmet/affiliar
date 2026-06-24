@@ -23,6 +23,11 @@ const clickSchema = new mongoose.Schema(
     country:   { type: String, default: null },
     targetUrl: { type: String, default: null }, // where we 302'd them
 
+    // Bot/crawler/prefetch hit (matched a known bot UA or had none). Still
+    // recorded + still redirected, but excluded from funnel counts so CR isn't
+    // inflated by link-preview bots and scanners.
+    isBot:     { type: Boolean, default: false, index: true },
+
     // Set when this click is later tied to a registration (Phase 2: exact
     // match via click_id echoed back by the casino; today it stays false and
     // the funnel uses aggregate counts).
