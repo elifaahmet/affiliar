@@ -489,7 +489,13 @@ export default function Reports() {
         ))}
       </div>
 
-      <div className='flex justify-end'>
+      <div className='flex justify-end gap-4'>
+        <Link
+          to='/reports/clicks'
+          className='text-sm font-medium text-primary hover:text-primary-dark transition-colors'
+        >
+          Clicks &rarr;
+        </Link>
         <Link
           to='/reports/campaigns'
           className='text-sm font-medium text-primary hover:text-primary-dark transition-colors'

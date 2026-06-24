@@ -281,6 +281,7 @@ export const REPORTS_API_URLS = {
   AFFILIATES: () => `${API_BASE_URL}api/reports/affiliates`,
   TRAFFIC:    () => `${API_BASE_URL}api/reports/traffic`,
   CAMPAIGNS:  () => `${API_BASE_URL}api/reports/campaigns`,
+  CLICKS:     () => `${API_BASE_URL}api/reports/clicks`,
 };
 
 export const BRANDS_API_URLS = {

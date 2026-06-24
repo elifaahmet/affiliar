@@ -416,6 +416,70 @@ exports.campaignReport = async (req, res) => {
   }
 };
 
+// GET /reports/clicks — operator click analytics: totals + bot rate +
+// converted, plus top campaigns and countries. Same scope/brand/affiliate/date
+// filters as the other reports.
+exports.clicksAnalytics = async (req, res) => {
+  const operator = req.affiliateUser;
+  if (operator.role !== "operator") {
+    return res.status(403).json({ error: "Only operators can access reports" });
+  }
+  if (!operator.operatorId) {
+    return res.status(400).json({ error: "Operator account is not linked to an operator record" });
+  }
+
+  try {
+    const match = { operatorId: operator.operatorId };
+    const allowed = scopedBrandIds(operator);
+    if (allowed) {
+      match.brandId = (req.query.brandId && allowed.includes(String(req.query.brandId)) && oid(req.query.brandId))
+        ? oid(req.query.brandId)
+        : { $in: allowed.map(oid).filter(Boolean) };
+    } else if (req.query.brandId && oid(req.query.brandId)) {
+      match.brandId = oid(req.query.brandId);
+    }
+    if (req.query.affiliateId && oid(req.query.affiliateId)) match.affiliateId = oid(req.query.affiliateId);
+    const dr = clickDateRange(req.query);
+    if (dr) match.createdAt = dr;
+
+    const human = { ...match, isBot: { $ne: true } };
+    const [summaryRow] = await Click.aggregate([
+      { $match: match },
+      { $group: {
+        _id: null,
+        total:     { $sum: 1 },
+        bots:      { $sum: { $cond: ["$isBot", 1, 0] } },
+        converted: { $sum: { $cond: ["$converted", 1, 0] } },
+      } },
+    ]);
+    const [byCampaign, byCountry] = await Promise.all([
+      Click.aggregate([
+        { $match: human },
+        { $group: { _id: "$campaign", clicks: { $sum: 1 }, converted: { $sum: { $cond: ["$converted", 1, 0] } } } },
+        { $sort: { clicks: -1 } },
+        { $limit: 20 },
+      ]),
+      Click.aggregate([
+        { $match: human },
+        { $group: { _id: "$country", clicks: { $sum: 1 } } },
+        { $sort: { clicks: -1 } },
+        { $limit: 20 },
+      ]),
+    ]);
+
+    const total = summaryRow?.total || 0;
+    const bots = summaryRow?.bots || 0;
+    return res.json({
+      period: { from: req.query.from, to: req.query.to },
+      summary: { total, bots, human: total - bots, converted: summaryRow?.converted || 0 },
+      byCampaign: byCampaign.map((c) => ({ campaign: c._id || null, clicks: c.clicks, converted: c.converted })),
+      byCountry: byCountry.map((c) => ({ country: c._id || null, clicks: c.clicks })),
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
 exports.portalCampaignReport = async (req, res) => {
   const user = req.affiliateUser;
   if (user.role !== "affiliate") {
