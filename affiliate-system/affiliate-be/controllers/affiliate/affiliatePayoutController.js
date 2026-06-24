@@ -42,6 +42,7 @@ const User              = require("../../models/User");
 const CommissionReport  = require("../../models/CommissionReport");
 const AffiliatePayout   = require("../../models/AffiliatePayout");
 const { logger }        = require("../../middlewares/logger");
+const { notify }        = require("../../utils/notify");
 // Re-use the Sans token cache + axios instance from billingController so
 // deposits and payouts share the same per-operator merchant session.
 const { getSansToken, sansProvider } = require("./billingController");
@@ -865,6 +866,15 @@ exports.markPaid = async (req, res) => {
         { $set: { status: "paid", paidAt: new Date() } },
       );
     }
+
+    notify({
+      userId: payout.affiliateId,
+      operatorId: payout.operatorId,
+      type: "payout_paid",
+      title: "Payout marked paid",
+      body: `${(payout.amountCents / 100).toFixed(2)} ${payout.currency || "USDT"} has been paid to your wallet.`,
+      link: "/affiliate-portal/payouts",
+    });
 
     return res.json({ payout: payout.toObject() });
   } catch (err) {

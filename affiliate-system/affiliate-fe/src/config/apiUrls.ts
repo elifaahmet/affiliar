@@ -290,6 +290,12 @@ export const FRAUD_API_URLS = {
   FLAG: (playerId: string) => `${API_BASE_URL}api/fraud/${playerId}`,
 };
 
+export const NOTIFICATION_API_URLS = {
+  LIST: () => `${API_BASE_URL}api/notifications`,
+  READ_ALL: () => `${API_BASE_URL}api/notifications/read-all`,
+  READ: (id: string) => `${API_BASE_URL}api/notifications/${id}/read`,
+};
+
 export const BRANDS_API_URLS = {
   LIST:   () => `${API_BASE_URL}api/brands`,
   CREATE: () => `${API_BASE_URL}api/brands`,

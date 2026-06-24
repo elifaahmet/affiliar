@@ -11,6 +11,7 @@ const { checkCpaQualification } = require("../../engine/cpaQualification");
 const { checkFixedQualification } = require("../../engine/fixedQualification");
 const { resolveCommissionSettings, resolveFixedSettings } = require("../../engine/commissionSettings");
 const { computeSubPayout }      = require("../../engine/subAffiliatePayout");
+const { notify }                = require("../../utils/notify");
 const {
   resolveOperatorPlan, planError,
 } = require("../../middlewares/planGuard");
@@ -1206,6 +1207,11 @@ const reportController = {
         filter["period.month"] = Number(month);
       }
 
+      // Snapshot who's about to be approved so we can notify them.
+      const affected = await CommissionReport.find(filter)
+        .select({ affiliateId: 1 })
+        .lean();
+
       const result = await CommissionReport.updateMany(filter, {
         $set: {
           status:     "approved",
@@ -1213,6 +1219,19 @@ const reportController = {
           approvedBy: operator._id,
         },
       });
+
+      // One notification per affiliate (dedupe across product rows).
+      const notifiedAff = new Set(affected.map((r) => String(r.affiliateId)).filter(Boolean));
+      for (const affId of notifiedAff) {
+        notify({
+          userId: affId,
+          operatorId: operator.operatorId,
+          type: "commission_approved",
+          title: "Commission approved",
+          body: "Your commission was approved and is queued for payout.",
+          link: "/affiliate-portal/commission",
+        });
+      }
 
       res.json({ updated: result.modifiedCount });
     } catch (err) {

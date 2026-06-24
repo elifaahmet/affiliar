@@ -17,6 +17,7 @@ import { logoutUser } from 'store/auth/authenticationSlice';
 import { storageHelper } from 'utils/storage/StorageHelper';
 
 import UserProfile from './UserProfile';
+import NotificationBell from './NotificationBell';
 
 type IconComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>;
 
@@ -141,6 +142,7 @@ export default function AffiliateDashboardLayout({ children }: { children: React
             {NAV.find((n) => pathname.startsWith(n.href))?.label ?? 'Affiliate Panel'}
           </p>
           <div className='flex items-center gap-3 pr-8'>
+            <NotificationBell />
             <UserProfile />
           </div>
         </div>

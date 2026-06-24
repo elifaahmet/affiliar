@@ -6,6 +6,7 @@ const Operator = require("../../models/Operator");
 const { sendAffiliateInvite } = require("../../utils/mailer");
 const { wouldCreateCycle } = require("../../utils/affiliateHierarchy");
 const { cloneOperatorDefaultsForBrand } = require("../../utils/brandDefaults");
+const { notifyOperatorOwners } = require("../../utils/notify");
 
 function generateAffiliateCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -125,6 +126,13 @@ async function createAffiliate(operatorUser, body) {
     // eslint-disable-next-line no-console
     console.error("affiliate.invite.mail_failed", mailErr.message);
   }
+
+  notifyOperatorOwners(operatorUser.operatorId, {
+    type: "new_affiliate",
+    title: "New affiliate joined",
+    body: `${user.name || user.username || user.email} signed up as an affiliate.`,
+    link: "/affiliates",
+  });
 
   return { user, affiliateCode: allCodes[0], allCodes, brandCodes };
 }

@@ -28,6 +28,7 @@ import { useTranslate } from '../../utils/locales/use-locales';
 import BreadCrumb from './BreadCrumb';
 import LanguageSelect from './LanguageSelect';
 import UserProfile from './UserProfile';
+import NotificationBell from './NotificationBell';
 
 type IconComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>;
 
@@ -359,6 +360,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <BreadCrumb pages={breadcrumbs} />
           <div className="relative flex items-center gap-2 pr-8">
             <LanguageSelect />
+            <NotificationBell />
             <span className="mx-1 h-5 w-px bg-violet-100" aria-hidden="true" />
             <UserProfile />
           </div>

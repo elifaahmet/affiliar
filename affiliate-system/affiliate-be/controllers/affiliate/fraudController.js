@@ -3,6 +3,7 @@
 const AffiliatePlayer = require("../../models/AffiliatePlayer");
 const User = require("../../models/User");
 const { scanOperatorFraud } = require("../../engine/fraudEngine");
+const { notifyOperatorOwners } = require("../../utils/notify");
 
 function operatorOnly(req, res) {
   const user = req.affiliateUser;
@@ -25,6 +26,14 @@ exports.scan = async (req, res) => {
   try {
     const threshold = Math.max(2, Number(req.body?.threshold) || 4);
     const result = await scanOperatorFraud(operator.operatorId, { threshold });
+    if (result.flaggedPlayers > 0) {
+      notifyOperatorOwners(operator.operatorId, {
+        type: "fraud_flagged",
+        title: "Fraud scan flagged players",
+        body: `${result.flaggedPlayers} player(s) across ${result.clusters} cluster(s) share an IP/device under one affiliate.`,
+        link: "/reports/fraud",
+      });
+    }
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
