@@ -1,6 +1,34 @@
+const mongoose = require("mongoose");
 const clickhouse = require("../../config/clickhouse");
 const Brand = require("../../models/Brand");
 const Click = require("../../models/Click");
+
+function oid(v) {
+  try { return new mongoose.Types.ObjectId(String(v)); } catch { return null; }
+}
+
+function clickDateRange(query) {
+  if (!query.from && !query.to) return null;
+  const r = {};
+  if (query.from) r.$gte = new Date(`${query.from}T00:00:00Z`);
+  if (query.to)   r.$lte = new Date(`${query.to}T23:59:59.999Z`);
+  return r;
+}
+
+// Clicks grouped by affiliate + campaign for a Mongo match. NOTE aggregate
+// $match does NOT cast, so callers must pass real ObjectIds. Returns a Map
+// keyed `${affiliateId}|${campaign}` (campaign '' when null) → count.
+async function clicksByCampaign(match) {
+  const rows = await Click.aggregate([
+    { $match: match },
+    { $group: { _id: { a: "$affiliateId", c: "$campaign" }, count: { $sum: 1 } } },
+  ]);
+  const map = new Map();
+  for (const r of rows) {
+    map.set(`${r._id.a ? String(r._id.a) : ""}|${r._id.c ?? ""}`, r.count);
+  }
+  return map;
+}
 
 // Union the product flags across the brands in the report's filter scope.
 // FE uses this to hide tiles/columns for products no brand actually
@@ -360,9 +388,28 @@ exports.campaignReport = async (req, res) => {
       params,
     );
 
+    // Per-campaign clicks (same operator/brand/affiliate scope + window).
+    const clickMatch = { operatorId: operator.operatorId };
+    const allowed = scopedBrandIds(operator);
+    if (allowed) {
+      clickMatch.brandId = (req.query.brandId && allowed.includes(String(req.query.brandId)) && oid(req.query.brandId))
+        ? oid(req.query.brandId)
+        : { $in: allowed.map(oid).filter(Boolean) };
+    } else if (req.query.brandId && oid(req.query.brandId)) {
+      clickMatch.brandId = oid(req.query.brandId);
+    }
+    if (req.query.affiliateId && oid(req.query.affiliateId)) clickMatch.affiliateId = oid(req.query.affiliateId);
+    if (req.query.campaign) clickMatch.campaign = req.query.campaign;
+    const dr = clickDateRange(req.query);
+    if (dr) clickMatch.createdAt = dr;
+    const cmap = await clicksByCampaign(clickMatch);
+
     return res.json({
       period: { from: req.query.from, to: req.query.to },
-      rows: rows.map(coerce),
+      rows: rows.map(coerce).map((r) => ({
+        ...r,
+        clicks: cmap.get(`${r.affiliateId}|${r.campaign ?? ""}`) || 0,
+      })),
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -427,9 +474,19 @@ exports.portalCampaignReport = async (req, res) => {
       params,
     );
 
+    // Per-campaign clicks for this affiliate + window.
+    const clickMatch = { affiliateId: user._id };
+    if (req.query.campaign) clickMatch.campaign = req.query.campaign;
+    const dr = clickDateRange(req.query);
+    if (dr) clickMatch.createdAt = dr;
+    const cmap = await clicksByCampaign(clickMatch);
+
     return res.json({
       period: { from: req.query.from, to: req.query.to },
-      rows: rows.map(coerce),
+      rows: rows.map(coerce).map((r) => ({
+        ...r,
+        clicks: cmap.get(`${r.affiliateId}|${r.campaign ?? ""}`) || 0,
+      })),
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });

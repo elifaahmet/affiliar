@@ -40,6 +40,7 @@ interface CampaignRow {
   campaign: string;
   affiliateId: string;
   affiliateCode: string;
+  clicks: number;
   registrations: number;
   ftdCount: number;
   ftdSumCents: number;
@@ -142,13 +143,14 @@ export default function CampaignReports() {
   const totals = useMemo(() => {
     return rows.reduce(
       (acc, r) => ({
+        clicks: acc.clicks + (r.clicks || 0),
         registrations: acc.registrations + r.registrations,
         ftdCount: acc.ftdCount + r.ftdCount,
         depositsSumCents: acc.depositsSumCents + r.depositsSumCents,
         ngrCents: acc.ngrCents + r.ngrCents,
         playerCount: acc.playerCount + r.playerCount,
       }),
-      { registrations: 0, ftdCount: 0, depositsSumCents: 0, ngrCents: 0, playerCount: 0 },
+      { clicks: 0, registrations: 0, ftdCount: 0, depositsSumCents: 0, ngrCents: 0, playerCount: 0 },
     );
   }, [rows]);
 
@@ -217,6 +219,10 @@ export default function CampaignReports() {
           <KpiCard label='Total Deposits' value={`\u20AC${centsToEur(totals.depositsSumCents)}`} />
           <KpiCard label='FTDs' value={String(totals.ftdCount)} />
           <KpiCard label='Registrations' value={String(totals.registrations)} />
+          <KpiCard
+            label='Clicks'
+            value={totals.clicks ? `${totals.clicks} · ${((totals.registrations / totals.clicks) * 100).toFixed(1)}% → reg` : String(totals.clicks)}
+          />
           <KpiCard label='Players' value={String(totals.playerCount)} />
         </div>
       )}
@@ -237,6 +243,7 @@ export default function CampaignReports() {
                 <tr>
                   <Th>Campaign</Th>
                   <Th>Affiliate</Th>
+                  <Th right>Clicks</Th>
                   <Th right>Registrations</Th>
                   <Th right>FTDs</Th>
                   <Th right>Deposits (&euro;)</Th>
@@ -254,6 +261,7 @@ export default function CampaignReports() {
                       <span className='font-mono'>{row.campaign || '\u2014'}</span>
                     </Td>
                     <Td>{row.affiliateCode || row.affiliateId || '\u2014'}</Td>
+                    <Td right>{row.clicks ?? 0}</Td>
                     <Td right>{row.registrations}</Td>
                     <Td right>{row.ftdCount}</Td>
                     <Td right>{centsToEur(row.depositsSumCents)}</Td>
@@ -263,7 +271,7 @@ export default function CampaignReports() {
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={7} className='px-3 py-6 text-center text-xs text-gray-600'>
+                    <td colSpan={8} className='px-3 py-6 text-center text-xs text-gray-600'>
                       No campaign data for the selected period.
                     </td>
                   </tr>
