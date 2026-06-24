@@ -108,7 +108,17 @@ export async function getAffiliatePlayerMeta(playerId) {
   if (!playerId || !affiliatePlayersCol) return null;
   return affiliatePlayersCol.findOne(
     { playerId: String(playerId) },
-    { projection: { subId: 1, affiliateCode: 1, brandId: 1 } },
+    { projection: { subId: 1, clickId: 1, affiliateCode: 1, brandId: 1 } },
+  );
+}
+
+// Exact per-click attribution: mark the click that produced this registration
+// as converted. Idempotent (won't re-stamp an already-converted click).
+export async function markClickConverted(clickId, playerId) {
+  if (!clickId || !_affiliateDb) return;
+  await _affiliateDb.collection('clicks').updateOne(
+    { clickId: String(clickId), converted: { $ne: true } },
+    { $set: { converted: true, convertedPlayerId: String(playerId), convertedAt: new Date() } },
   );
 }
 
@@ -205,6 +215,7 @@ export async function upsertAffiliatePlayer(event, data, affiliateId) {
     affiliateCode: code,
     campaign: data.campaign || null,
     subId: data.subId || null,
+    clickId: data.clickId || null,
     country: data.country || null,
     currency: event.currency || null,
     registeredAt: event.occurredAt ? new Date(event.occurredAt) : new Date(),

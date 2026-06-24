@@ -28,6 +28,10 @@ const EVENT_DATA_SCHEMAS = {
     affiliateCode: z.string().optional(),
     campaign:      z.string().optional(),
     subId:         z.string().optional(),
+    // Exact click attribution: the click_id Affiliar's smartlink put on the
+    // landing URL, echoed back by the casino. Optional (older traffic / direct
+    // signups won't have it).
+    clickId:       z.string().optional(),
   }),
   'player.flagged': z.object({
     flag: z.enum(['disabled', 'self_excluded', 'unverified', 'duplicate', 'active']),

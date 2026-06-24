@@ -9,6 +9,7 @@ import {
   getPostbackConfig,
   getAffiliatePlayerMeta,
   enqueuePostback,
+  markClickConverted,
 } from './affiliateResolver.js';
 
 // Map a raw event to the postback event name (or null if not postback-worthy).
@@ -32,12 +33,13 @@ async function maybeEnqueuePostback(event, data, affiliateId) {
   try {
     // Registration carries code/subId inline; deposits don't — pull stored
     // attribution meta for those.
-    let clickId = data.subId || null;
+    // Prefer the exact click_id; fall back to subId for older/direct traffic.
+    let clickId = data.clickId || data.subId || null;
     let affiliateCode = data.affiliateCode || null;
     let brandId = event.brandId || null;
     if (mapped.event !== 'registration') {
       const meta = await getAffiliatePlayerMeta(event.playerId);
-      clickId = clickId || meta?.subId || null;
+      clickId = clickId || meta?.clickId || meta?.subId || null;
       affiliateCode = affiliateCode || meta?.affiliateCode || null;
       brandId = brandId || meta?.brandId || null;
     }
@@ -95,6 +97,14 @@ async function processMessage(rawValue) {
         '[consumer] Failed to upsert affiliatePlayer:',
         err?.message || err,
       );
+    }
+    // Exact click→registration attribution when the casino echoed click_id.
+    if (data.clickId) {
+      try {
+        await markClickConverted(data.clickId, event.playerId);
+      } catch (err) {
+        console.error('[consumer] Failed to mark click converted:', err?.message || err);
+      }
     }
   }
 
