@@ -2,6 +2,7 @@ import { AppRouteProps } from '@components/router/AppRoute';
 import Reports from './index';
 import CampaignReports from './campaigns/index';
 import ClicksReport from './clicks/index';
+import FraudReport from './fraud/index';
 
 export const reportsRoutes: AppRouteProps[] = [
   {
@@ -15,5 +16,9 @@ export const reportsRoutes: AppRouteProps[] = [
   {
     path: 'reports/clicks',
     element: <ClicksReport />,
+  },
+  {
+    path: 'reports/fraud',
+    element: <FraudReport />,
   },
 ];

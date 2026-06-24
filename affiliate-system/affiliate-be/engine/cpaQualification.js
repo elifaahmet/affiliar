@@ -58,6 +58,12 @@ function checkCpaQualification(ftds, gates, now = new Date()) {
 }
 
 function evaluate(ftd, gates, nowMs) {
+  // 0. Fraud — a flagged player never earns CPA. Permanent rejection (an
+  // operator who clears the flag and recalcs will re-qualify it).
+  if (ftd.fraudFlagged) {
+    return { bucket: "rejected", reason: "fraud_flagged" };
+  }
+
   const depositForGate =
     gates.depositBasis === "net"
       ? Math.max(0, (ftd.depositCents || 0) - (ftd.depositFeeCents || 0))

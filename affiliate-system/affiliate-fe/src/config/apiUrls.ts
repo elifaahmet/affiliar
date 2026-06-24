@@ -284,6 +284,12 @@ export const REPORTS_API_URLS = {
   CLICKS:     () => `${API_BASE_URL}api/reports/clicks`,
 };
 
+export const FRAUD_API_URLS = {
+  LIST: () => `${API_BASE_URL}api/fraud`,
+  SCAN: () => `${API_BASE_URL}api/fraud/scan`,
+  FLAG: (playerId: string) => `${API_BASE_URL}api/fraud/${playerId}`,
+};
+
 export const BRANDS_API_URLS = {
   LIST:   () => `${API_BASE_URL}api/brands`,
   CREATE: () => `${API_BASE_URL}api/brands`,

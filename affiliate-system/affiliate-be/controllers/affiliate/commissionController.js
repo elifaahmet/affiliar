@@ -273,14 +273,18 @@ async function fetchFtdContextRows(tenantId, year, month) {
   // to 0 (unverified). Operators ship KYC updates via player.kyc.updated.
   const playerIds = Array.from(new Set(rows.map((r) => r.playerId).filter(Boolean)));
   const kycMap = new Map();
+  const fraudSet = new Set();
   if (playerIds.length) {
     const kycRows = await AffiliatePlayer.find({
       operatorId: tenantId,
       playerId: { $in: playerIds },
     })
-      .select({ playerId: 1, kycLevel: 1 })
+      .select({ playerId: 1, kycLevel: 1, fraudFlagged: 1 })
       .lean();
-    for (const k of kycRows) kycMap.set(k.playerId, Number(k.kycLevel) || 0);
+    for (const k of kycRows) {
+      kycMap.set(k.playerId, Number(k.kycLevel) || 0);
+      if (k.fraudFlagged) fraudSet.add(k.playerId);
+    }
   }
 
   return rows.map((r) => ({
@@ -294,6 +298,7 @@ async function fetchFtdContextRows(tenantId, year, month) {
     depositsTotalCents:    Math.max(0, Number(r.depositsTotalCents) || 0),
     cashoutsTotalCents:    Math.max(0, Number(r.cashoutsTotalCents) || 0),
     kycLevel:              kycMap.get(r.playerId) ?? 0,
+    fraudFlagged:          fraudSet.has(r.playerId),
   }));
 }
 
