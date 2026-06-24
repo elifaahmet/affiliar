@@ -32,6 +32,9 @@ const EVENT_DATA_SCHEMAS = {
     // landing URL, echoed back by the casino. Optional (older traffic / direct
     // signups won't have it).
     clickId:       z.string().optional(),
+    // Anti-fraud fingerprints (sha256 of IP / user-agent at signup). Optional.
+    ipHash:        z.string().optional(),
+    deviceHash:    z.string().optional(),
   }),
   'player.flagged': z.object({
     flag: z.enum(['disabled', 'self_excluded', 'unverified', 'duplicate', 'active']),

@@ -216,6 +216,8 @@ export async function upsertAffiliatePlayer(event, data, affiliateId) {
     campaign: data.campaign || null,
     subId: data.subId || null,
     clickId: data.clickId || null,
+    ...(data.ipHash ? { ipHash: data.ipHash } : {}),
+    ...(data.deviceHash ? { deviceHash: data.deviceHash } : {}),
     country: data.country || null,
     currency: event.currency || null,
     registeredAt: event.occurredAt ? new Date(event.occurredAt) : new Date(),
