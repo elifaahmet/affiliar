@@ -128,6 +128,7 @@
           <a href="#fees"            class="nav-link">Fees &amp; Adjustments</a>
           <a href="#currency"        class="nav-link">Multi-Currency</a>
           <a href="#campaign-tracking" class="nav-link">Campaign Tracking</a>
+          <a href="#click-tracking"  class="nav-link">Click Tracking</a>
           <a href="#idempotency"     class="nav-link">Idempotency</a>
         </div>
 
@@ -748,6 +749,41 @@ NGR = GGR
 
           <div class="callout-info mt-6">
             If a referral link does not include a <code>campaign</code> parameter, the value defaults to an empty string. All events still flow through normally &mdash; campaign is purely optional metadata.
+          </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── CLICK TRACKING ─────────────────────────────────────────────── -->
+        <section id="click-tracking">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Click Tracking &amp; Smartlinks</h2>
+          <p class="text-gray-500 mb-6">A <strong>smartlink</strong> routes a visitor through Affiliar before sending them on to the brand, so the click is recorded at the top of the funnel. This turns reporting from &ldquo;registrations onward&rdquo; into a full <strong>clicks &rarr; registrations &rarr; FTD</strong> funnel with real conversion rates &mdash; and attaches a unique <code>click_id</code> the affiliate gets back on every postback.</p>
+
+          <h3 class="font-semibold text-gray-900 mb-2">Smartlink format</h3>
+          <pre><code>https://app.affiliar.co<span class="tok-url">/api/r/&lt;code&gt;?sub=fb_ad_42&amp;campaign=instagram_april&amp;to=https://brand.com/promo</span></code></pre>
+          <div class="overflow-x-auto rounded-xl border border-gray-100 my-6">
+            <table>
+              <thead><tr><th>Part</th><th>Required</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td><code>/api/r/&lt;code&gt;</code></td><td>Yes</td><td>The affiliate's referral code (per brand).</td></tr>
+                <tr><td><code>sub</code></td><td>No</td><td>The affiliate's own click/player reference (echoed back as <code>click_id</code>/<code>sub_id</code>).</td></tr>
+                <tr><td><code>campaign</code></td><td>No</td><td>Traffic-source label, recorded on the click.</td></tr>
+                <tr><td><code>to</code></td><td>No</td><td>Landing-page override. Honoured only when it points at the brand's own host (no open redirect); otherwise the brand's default URL is used.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-gray-500 mb-6">Affiliates don't build this by hand &mdash; the portal's <strong>Marketing Tools</strong> generate the smartlink (and saved links expose it as <code>trackingUrl</code>).</p>
+
+          <h3 class="font-semibold text-gray-900 mt-8 mb-2">How it flows</h3>
+          <ol class="list-decimal list-inside space-y-2 text-sm text-gray-600 mb-6">
+            <li>Visitor clicks the smartlink. Affiliar records a <code>Click</code> (code, brand, sub, campaign, country, IP/UA) and mints a unique <code>click_id</code>.</li>
+            <li>Affiliar 302-redirects to the brand landing with <code>?affiliate=&lt;code&gt;&amp;click_id=&lt;id&gt;&amp;sub=&hellip;</code> appended.</li>
+            <li>On registration the casino echoes <code>click_id</code> back in the <code>player.registered</code> event &mdash; the matching click is marked <strong>converted</strong> (exact click&rarr;registration attribution).</li>
+            <li>Dashboards and campaign reports show <strong>Clicks</strong>, <strong>Click&rarr;Reg %</strong> and <strong>Reg&rarr;FTD %</strong> for both affiliates and operators.</li>
+          </ol>
+
+          <div class="callout-info mt-6">
+            <strong>Bot filtering:</strong> link-preview bots, crawlers and CLI fetchers (and requests with no user-agent) are flagged and excluded from funnel counts, so conversion rates aren't inflated &mdash; they're still recorded and still redirected. The attribution window is 30 days. See also <a href="#api-postback" class="text-primary underline">Postback</a> for how <code>click_id</code> is returned to the affiliate.
           </div>
         </section>
 
