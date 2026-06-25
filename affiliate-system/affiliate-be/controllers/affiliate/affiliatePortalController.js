@@ -384,6 +384,80 @@ exports.commissionReports = async (req, res) => {
   }
 };
 
+// ── Self-billed statement / invoice (own, single period) ──────────────────────
+
+const Operator = require("../../models/Operator");
+
+// GET /affiliate-portal/statement?year=&month=
+// A self-billed commission statement the affiliate can print/save as PDF:
+// payer = operator, payee = the affiliate, line items = their per-product
+// CommissionReports for the period + any sub-affiliate income, plus payout
+// status. Self-billing = the platform issues it on the affiliate's behalf.
+exports.statement = async (req, res) => {
+  try {
+    const affiliate = req.affiliateUser;
+    if (affiliate.role !== "affiliate") {
+      return res.status(403).json({ error: "Affiliates only" });
+    }
+    const now = new Date();
+    const year = Number(req.query.year) || now.getUTCFullYear();
+    const month = Number(req.query.month) || (now.getUTCMonth() + 1);
+    if (month < 1 || month > 12) return res.status(400).json({ error: "month must be 1-12" });
+
+    const [profile, operator, reports, subPayouts] = await Promise.all([
+      AffiliateProfile.findOne({ user: affiliate._id }).select({ affiliateId: 1 }).lean(),
+      Operator.findById(affiliate.operatorId).select({ name: 1, affiliatePayoutSettings: 1 }).lean(),
+      CommissionReport.find({ affiliateId: affiliate._id, "period.year": year, "period.month": month })
+        .populate("planId", "name type")
+        .lean(),
+      SubAffiliatePayout.find({ subId: affiliate._id, "period.year": year, "period.month": month }).lean(),
+    ]);
+
+    const lineItems = reports.map((r) => ({
+      product:      r.product || "casino",
+      planName:     r.planId?.name || r.planSnapshot?.name || "—",
+      planType:     r.planId?.type || r.planSnapshot?.type || null,
+      ngrCents:     r.metrics?.ngrCents || 0,
+      ftdCount:     r.metrics?.ftdCount || 0,
+      revshareCents: r.breakdown?.revshareAmountCents || 0,
+      cpaCents:     r.breakdown?.cpaAmountCents || 0,
+      fixedCents:   r.breakdown?.fixedAmountCents || 0,
+      overrideCents: r.breakdown?.overrideCents || 0,
+      totalCents:   r.breakdown?.totalCents || 0,
+      status:       r.status,
+    }));
+
+    const reportsTotal = lineItems.reduce((s, l) => s + l.totalCents, 0);
+    const subIncomeTotal = subPayouts.reduce((s, p) => s + (p.payableCents || 0), 0);
+    const grandTotalCents = reportsTotal + subIncomeTotal;
+
+    // Stable invoice number: AFF-<numericId|userTail>-<YYYYMM>.
+    const idPart = profile?.affiliateId
+      ? String(profile.affiliateId)
+      : String(affiliate._id).slice(-6).toUpperCase();
+    const invoiceNumber = `AFF-${idPart}-${year}${String(month).padStart(2, "0")}`;
+
+    res.json({
+      invoiceNumber,
+      period: { year, month },
+      issuedAt: new Date(),
+      currency: operator?.affiliatePayoutSettings?.currency || "USD",
+      payer: { name: operator?.name || "Operator" },
+      payee: {
+        name: affiliate.name || affiliate.username || affiliate.email,
+        email: affiliate.email,
+        payoutAddress: affiliate.payoutAddress || null,
+        payoutNetwork: affiliate.payoutNetwork || null,
+      },
+      lineItems,
+      subIncome: { totalCents: subIncomeTotal, count: subPayouts.length },
+      grandTotalCents,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // ── Profile ───────────────────────────────────────────────────────────────────
 
 exports.getProfile = async (req, res) => {

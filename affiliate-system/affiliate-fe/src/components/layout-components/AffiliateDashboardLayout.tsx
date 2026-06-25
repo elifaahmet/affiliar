@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   BanknotesIcon,
+  DocumentTextIcon,
   ChartBarIcon,
   CodeBracketIcon,
   MegaphoneIcon,
@@ -34,6 +35,7 @@ const NAV: NavItem[] = [
   { key: 'players',       label: 'Players',         href: '/affiliate/players',        Icon: UsersIcon },
   { key: 'marketing',     label: 'Marketing Tools', href: '/affiliate/marketing',      Icon: MegaphoneIcon },
   { key: 'commission',    label: 'Commission',      href: '/affiliate/commission',     Icon: BanknotesIcon },
+  { key: 'statements',    label: 'Statements',      href: '/affiliate/statements',     Icon: DocumentTextIcon },
   { key: 'sub-affiliate', label: 'Sub-Affiliates',  href: '/affiliate/sub-affiliates', Icon: UserGroupIcon },
   { key: 'api-access',    label: 'API Access',      href: '/affiliate/api-access',     Icon: CodeBracketIcon },
   { key: 'profile',       label: 'Profile',         href: '/affiliate/profile',        Icon: UserCircleIcon },

@@ -327,6 +327,7 @@ export const FEES_API_URLS = {
 export const AFFILIATE_PORTAL_API_URLS = {
   OVERVIEW:         () => `${API_BASE_URL}api/affiliate-portal/overview`,
   COMMISSION:       () => `${API_BASE_URL}api/affiliate-portal/commission`,
+  STATEMENT:        () => `${API_BASE_URL}api/affiliate-portal/statement`,
   PROFILE:          () => `${API_BASE_URL}api/affiliate-portal/profile`,
   SUB_AFFILIATES:   () => `${API_BASE_URL}api/affiliate-portal/sub-affiliates`,
   SUB_PLAN:         (subId: string) => `${API_BASE_URL}api/affiliate-portal/sub-affiliates/${subId}/sub-plan`,

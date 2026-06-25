@@ -4,6 +4,7 @@ import AffiliateDashboard from './dashboard';
 import AffiliateReports from './reports';
 import AffiliateMarketing from './marketing';
 import AffiliateCommission from './commission';
+import AffiliateStatements from './statements';
 import AffiliatePlayers from './players';
 import AffiliateProfile from './profile';
 import AffiliateSubAffiliates from './sub-affiliates';
@@ -16,6 +17,7 @@ export const affiliatePortalRoutes: AppRouteProps[] = [
   { path: '/affiliate/marketing',       element: <Outlet />, children: [{ path: '', element: <AffiliateMarketing /> }] },
   { path: '/affiliate/players',         element: <Outlet />, children: [{ path: '', element: <AffiliatePlayers /> }] },
   { path: '/affiliate/commission',      element: <Outlet />, children: [{ path: '', element: <AffiliateCommission /> }] },
+  { path: '/affiliate/statements',      element: <Outlet />, children: [{ path: '', element: <AffiliateStatements /> }] },
   { path: '/affiliate/sub-affiliates',  element: <Outlet />, children: [{ path: '', element: <AffiliateSubAffiliates /> }] },
   { path: '/affiliate/profile',         element: <Outlet />, children: [{ path: '', element: <AffiliateProfile /> }] },
   { path: '/affiliate/api-access',      element: <Outlet />, children: [{ path: '', element: <AffiliateApiAccess /> }] },

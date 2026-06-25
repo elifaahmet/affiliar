@@ -8,6 +8,7 @@ const { recalculateSubtreePayouts } = require("../../controllers/affiliate/commi
 router.get("/overview",            ctrl.overview);
 router.get("/providers",           ctrl.providers);
 router.get("/commission",          ctrl.commissionReports);
+router.get("/statement",           ctrl.statement);
 router.get("/profile",             ctrl.getProfile);
 router.patch("/profile",           ctrl.updateProfile);
 router.get("/sub-affiliates",      ctrl.subAffiliates);
