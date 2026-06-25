@@ -480,6 +480,132 @@ exports.clicksAnalytics = async (req, res) => {
   }
 };
 
+// GET /reports/affiliate-quality?from=&to=&brandId=
+// Per-affiliate quality: funnel (clicks→reg→FTD), period NGR + NGR/player,
+// lifetime LTV (all-time NGR per acquired player), fraud-flagged count, and a
+// transparent composite score. Helps operators see who brings VALUE, not just
+// volume.
+const User = require("../../models/User");
+const AffiliatePlayer = require("../../models/AffiliatePlayer");
+
+exports.affiliateQuality = async (req, res) => {
+  const operator = req.affiliateUser;
+  if (operator.role !== "operator") {
+    return res.status(403).json({ error: "Only operators can access reports" });
+  }
+  if (!operator.operatorId) {
+    return res.status(400).json({ error: "Operator account is not linked to an operator record" });
+  }
+
+  try {
+    const coerce = (row) =>
+      Object.fromEntries(Object.entries(row).map(([k, v]) => [k, isNaN(Number(v)) ? v : Number(v)]));
+
+    // Period funnel + NGR, grouped by affiliate.
+    const { conditions, params } = buildWhere(operator, req.query);
+    const where = `${conditions.join(" AND ")} AND affiliate_id != ''`;
+    const periodRows = (await queryRows(
+      `SELECT
+         affiliate_id   AS affiliateId,
+         affiliate_code AS affiliateCode,
+         SUM(registrations)        AS registrations,
+         SUM(ftd_count)            AS ftdCount,
+         SUM(deposits_sum_cents)   AS depositsCents,
+         SUM(combined_ngr_cents)   AS ngrCents,
+         uniqExactIf(player_id, player_id != '__fees__') AS playerCount
+       FROM affiliate.activity
+       WHERE ${where}
+       GROUP BY affiliate_id, affiliate_code`,
+      params,
+    )).map(coerce);
+
+    // Lifetime LTV: all-time NGR per acquired (FTD) player, same tenant/brand
+    // scope but NO date bound.
+    const lifeConds = ["tenant_id = {tenantId:String}", "affiliate_id != ''"];
+    const lifeParams = { tenantId: operator.operatorId.toString() };
+    const allowed = scopedBrandIds(operator);
+    if (allowed) {
+      lifeConds.push("brand_id IN ({brandIds:Array(String)})");
+      lifeParams.brandIds = allowed;
+    }
+    const lifeRows = (await queryRows(
+      `SELECT
+         affiliate_id AS affiliateId,
+         SUM(combined_ngr_cents) AS lifetimeNgrCents,
+         uniqExactIf(player_id, ftd_count > 0 AND player_id != '__fees__') AS lifetimeFtdPlayers
+       FROM affiliate.activity
+       WHERE ${lifeConds.join(" AND ")}
+       GROUP BY affiliate_id`,
+      lifeParams,
+    )).map(coerce);
+    const lifeByAff = new Map(lifeRows.map((r) => [String(r.affiliateId), r]));
+
+    const affIds = periodRows.map((r) => String(r.affiliateId)).filter(Boolean);
+
+    // Clicks (non-bot) per affiliate for the period.
+    const clickMatch = { operatorId: operator.operatorId, isBot: { $ne: true } };
+    if (allowed) clickMatch.brandId = { $in: allowed.map(oid).filter(Boolean) };
+    const dr = clickDateRange(req.query);
+    if (dr) clickMatch.createdAt = dr;
+    const clickRows = await Click.aggregate([
+      { $match: { ...clickMatch, affiliateId: { $in: affIds.map(oid).filter(Boolean) } } },
+      { $group: { _id: "$affiliateId", clicks: { $sum: 1 } } },
+    ]);
+    const clicksByAff = new Map(clickRows.map((c) => [String(c._id), c.clicks]));
+
+    // Fraud-flagged player count per affiliate (all-time).
+    const fraudRows = await AffiliatePlayer.aggregate([
+      { $match: { operatorId: operator.operatorId, fraudFlagged: true, affiliateId: { $in: affIds.map(oid).filter(Boolean) } } },
+      { $group: { _id: "$affiliateId", count: { $sum: 1 } } },
+    ]);
+    const fraudByAff = new Map(fraudRows.map((f) => [String(f._id), f.count]));
+
+    // Affiliate identity.
+    const affs = affIds.length
+      ? await User.find({ _id: { $in: affIds.filter((id) => oid(id)) } }).select({ username: 1, email: 1, name: 1 }).lean()
+      : [];
+    const affMap = new Map(affs.map((a) => [String(a._id), a]));
+
+    const rows = periodRows.map((r) => {
+      const id = String(r.affiliateId);
+      const life = lifeByAff.get(id) || {};
+      const ltvCents = life.lifetimeFtdPlayers > 0
+        ? Math.round((life.lifetimeNgrCents || 0) / life.lifetimeFtdPlayers)
+        : 0;
+      const clicks = clicksByAff.get(id) || 0;
+      const fraudCount = fraudByAff.get(id) || 0;
+      const ftdRate = r.registrations > 0 ? r.ftdCount / r.registrations : 0;
+      const ngrPerPlayerCents = r.playerCount > 0 ? Math.round(r.ngrCents / r.playerCount) : 0;
+      // Transparent 0–100 score: FTD conversion (60%) + LTV vs a $200 anchor
+      // (40%), minus a fraud penalty (5 pts/flag, capped 30).
+      const ltvUsd = ltvCents / 100;
+      let score = Math.round(ftdRate * 60 + Math.min(ltvUsd / 200, 1) * 40);
+      score = Math.max(0, score - Math.min(fraudCount * 5, 30));
+      const a = affMap.get(id);
+      return {
+        affiliateId: id,
+        affiliate: a ? (a.name || a.username || a.email) : (r.affiliateCode || id.slice(-6)),
+        affiliateCode: r.affiliateCode || null,
+        clicks,
+        registrations: r.registrations,
+        ftdCount: r.ftdCount,
+        ftdRate: Math.round(ftdRate * 1000) / 10, // %
+        ngrCents: r.ngrCents,
+        playerCount: r.playerCount,
+        ngrPerPlayerCents,
+        ltvCents,
+        fraudCount,
+        score,
+      };
+    });
+    rows.sort((a, b) => b.score - a.score);
+
+    return res.json({ period: { from: req.query.from, to: req.query.to }, rows });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
 exports.portalCampaignReport = async (req, res) => {
   const user = req.affiliateUser;
   if (user.role !== "affiliate") {
