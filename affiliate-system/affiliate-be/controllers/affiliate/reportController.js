@@ -606,6 +606,103 @@ exports.affiliateQuality = async (req, res) => {
   }
 };
 
+// GET /reports/cohorts?months=12&affiliateId=&brandId=
+// Cohort retention: players grouped by their FTD month, tracked across the
+// months since acquisition. Each cell = active players (retention) + NGR for
+// that month-offset. Same tenant/brand/affiliate scope as other reports.
+exports.cohorts = async (req, res) => {
+  const operator = req.affiliateUser;
+  if (operator.role !== "operator") {
+    return res.status(403).json({ error: "Only operators can access reports" });
+  }
+  if (!operator.operatorId) {
+    return res.status(400).json({ error: "Operator account is not linked to an operator record" });
+  }
+
+  try {
+    const months = Math.min(Math.max(Number(req.query.months) || 12, 2), 24);
+
+    // Shared scope predicate for both CTEs.
+    const scope = ["tenant_id = {tenantId:String}", "player_id != '__fees__'", "affiliate_id != ''"];
+    const params = { tenantId: operator.operatorId.toString(), months };
+    const allowed = scopedBrandIds(operator);
+    if (allowed) {
+      scope.push("brand_id IN ({brandIds:Array(String)})");
+      params.brandIds = allowed;
+    } else if (req.query.brandId) {
+      scope.push("brand_id = {brandId:String}");
+      params.brandId = String(req.query.brandId);
+    }
+    if (req.query.affiliateId) {
+      scope.push("affiliate_id = {affiliateId:String}");
+      params.affiliateId = String(req.query.affiliateId);
+    }
+    const where = scope.join(" AND ");
+
+    const sql = `
+      WITH player_cohort AS (
+        SELECT player_id, toStartOfMonth(min(from_ts)) AS cohort
+        FROM affiliate.activity
+        WHERE ${where} AND ftd_count > 0
+        GROUP BY player_id
+        HAVING cohort >= toStartOfMonth(subtractMonths(now(), {months:UInt8} - 1))
+      ),
+      player_month AS (
+        SELECT player_id, toStartOfMonth(from_ts) AS m,
+               SUM(deposits_count)     AS deps,
+               SUM(combined_ngr_cents) AS ngr
+        FROM affiliate.activity
+        WHERE ${where}
+        GROUP BY player_id, m
+      )
+      SELECT
+        formatDateTime(c.cohort, '%Y-%m')        AS cohort,
+        dateDiff('month', c.cohort, a.m)         AS offset,
+        uniqExact(c.player_id)                   AS players,
+        SUM(a.ngr)                               AS ngrCents
+      FROM player_cohort c
+      INNER JOIN player_month a ON a.player_id = c.player_id
+      WHERE a.m >= c.cohort AND (a.deps > 0 OR a.ngr != 0)
+      GROUP BY cohort, offset
+      HAVING offset < {months:UInt8}
+      ORDER BY cohort ASC, offset ASC`;
+
+    const rows = await queryRows(sql, params);
+
+    // Assemble into { cohort, size, cells: [{offset, players, ngrCents}] }.
+    const byCohort = new Map();
+    for (const r of rows) {
+      const cohort = r.cohort;
+      const offset = Number(r.offset);
+      const players = Number(r.players) || 0;
+      const ngrCents = Number(r.ngrCents) || 0;
+      if (!byCohort.has(cohort)) byCohort.set(cohort, { cohort, size: 0, cells: {} });
+      const c = byCohort.get(cohort);
+      c.cells[offset] = { offset, players, ngrCents };
+      if (offset === 0) c.size = players; // everyone is active in their FTD month
+    }
+
+    const cohorts = [...byCohort.values()]
+      .sort((a, b) => (a.cohort < b.cohort ? 1 : -1)) // newest first
+      .map((c) => ({
+        cohort: c.cohort,
+        size: c.size,
+        cells: Object.values(c.cells)
+          .sort((x, y) => x.offset - y.offset)
+          .map((cell) => ({
+            offset: cell.offset,
+            players: cell.players,
+            retentionPct: c.size > 0 ? Math.round((cell.players / c.size) * 1000) / 10 : 0,
+            ngrCents: cell.ngrCents,
+          })),
+      }));
+
+    return res.json({ months, cohorts });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
 exports.portalCampaignReport = async (req, res) => {
   const user = req.affiliateUser;
   if (user.role !== "affiliate") {

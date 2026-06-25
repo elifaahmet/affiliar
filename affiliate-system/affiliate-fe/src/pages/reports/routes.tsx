@@ -4,6 +4,7 @@ import CampaignReports from './campaigns/index';
 import ClicksReport from './clicks/index';
 import FraudReport from './fraud/index';
 import AffiliateQuality from './affiliate-quality/index';
+import CohortsReport from './cohorts/index';
 
 export const reportsRoutes: AppRouteProps[] = [
   {
@@ -25,5 +26,9 @@ export const reportsRoutes: AppRouteProps[] = [
   {
     path: 'reports/affiliate-quality',
     element: <AffiliateQuality />,
+  },
+  {
+    path: 'reports/cohorts',
+    element: <CohortsReport />,
   },
 ];

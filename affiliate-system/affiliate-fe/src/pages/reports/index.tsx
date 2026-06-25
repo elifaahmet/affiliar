@@ -491,6 +491,12 @@ export default function Reports() {
 
       <div className='flex justify-end gap-4'>
         <Link
+          to='/reports/cohorts'
+          className='text-sm font-medium text-primary hover:text-primary-dark transition-colors'
+        >
+          Cohorts &rarr;
+        </Link>
+        <Link
           to='/reports/affiliate-quality'
           className='text-sm font-medium text-primary hover:text-primary-dark transition-colors'
         >

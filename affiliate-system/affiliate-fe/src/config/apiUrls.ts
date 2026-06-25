@@ -283,6 +283,7 @@ export const REPORTS_API_URLS = {
   CAMPAIGNS:  () => `${API_BASE_URL}api/reports/campaigns`,
   CLICKS:     () => `${API_BASE_URL}api/reports/clicks`,
   AFFILIATE_QUALITY: () => `${API_BASE_URL}api/reports/affiliate-quality`,
+  COHORTS:    () => `${API_BASE_URL}api/reports/cohorts`,
 };
 
 export const FRAUD_API_URLS = {

@@ -9,5 +9,6 @@ router.get("/traffic",     ctrl.traffic);
 router.get("/campaigns",   checkCampaignTracking, ctrl.campaignReport);
 router.get("/clicks",      ctrl.clicksAnalytics);
 router.get("/affiliate-quality", ctrl.affiliateQuality);
+router.get("/cohorts", ctrl.cohorts);
 
 module.exports = router;
