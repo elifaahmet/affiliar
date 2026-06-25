@@ -19,9 +19,11 @@ async function notify({ userId, operatorId = null, type, title, body = null, lin
   }
   try {
     const user = await User.findById(userId)
-      .select({ email: 1, name: 1, emailNotifications: 1 })
+      .select({ email: 1, name: 1, emailNotifications: 1, notificationPrefs: 1 })
       .lean();
-    if (user?.email && user.emailNotifications !== false) {
+    // Master switch off → no email. Otherwise per-type override (absent = on).
+    const typePref = user?.notificationPrefs ? user.notificationPrefs[type] : undefined;
+    if (user?.email && user.emailNotifications !== false && typePref !== false) {
       await sendNotificationEmail({ to: user.email, name: user.name, title, body, link });
     }
   } catch (err) {

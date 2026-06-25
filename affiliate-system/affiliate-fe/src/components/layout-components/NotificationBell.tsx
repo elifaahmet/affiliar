@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { BellIcon } from '@heroicons/react/24/outline';
+import { BellIcon, Cog6ToothIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import axiosInstance from 'config/axiosInstance';
 import { NOTIFICATION_API_URLS } from 'config/apiUrls';
@@ -19,6 +19,10 @@ interface NotificationsResponse {
   notifications: Notification[];
   unreadCount: number;
   emailNotifications: boolean;
+}
+interface PrefsResponse {
+  emailNotifications: boolean;
+  types: { type: string; label: string; email: boolean }[];
 }
 
 function timeAgo(iso: string) {
@@ -73,13 +77,33 @@ export default function NotificationBell() {
     refresh();
   };
 
-  const emailOn = data?.emailNotifications !== false;
-  const toggleEmail = async () => {
-    try {
-      await axiosInstance.patch(NOTIFICATION_API_URLS.PREFS(), { email: !emailOn });
-    } catch { /* ignore */ }
-    refresh();
+  const [showSettings, setShowSettings] = useState(false);
+  const { data: prefs } = useBaseQuery<PrefsResponse>({
+    endpoint: NOTIFICATION_API_URLS.PREFS(),
+    queryKey: ['notification-prefs'],
+    enabled: open,
+  });
+  const refreshPrefs = () => queryClient.invalidateQueries({ queryKey: ['notification-prefs'] });
+  const masterOn = prefs?.emailNotifications !== false;
+  const toggleMaster = async () => {
+    try { await axiosInstance.patch(NOTIFICATION_API_URLS.PREFS(), { email: !masterOn }); } catch { /* ignore */ }
+    refreshPrefs();
   };
+  const toggleType = async (type: string, val: boolean) => {
+    try { await axiosInstance.patch(NOTIFICATION_API_URLS.PREFS(), { types: { [type]: val } }); } catch { /* ignore */ }
+    refreshPrefs();
+  };
+
+  const Toggle = ({ on, onClick }: { on: boolean; onClick: () => void }) => (
+    <button
+      onClick={onClick}
+      role='switch'
+      aria-checked={on}
+      className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${on ? 'bg-primary' : 'bg-gray-300'}`}
+    >
+      <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${on ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+    </button>
+  );
 
   return (
     <div className='relative' ref={ref}>
@@ -97,16 +121,50 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className='absolute right-0 mt-2 w-80 max-h-[420px] overflow-auto rounded-xl border border-violet-100 bg-white shadow-xl z-50'>
+        <div className='absolute right-0 mt-2 w-80 max-h-[440px] overflow-auto rounded-xl border border-violet-100 bg-white shadow-xl z-50'>
           <div className='flex items-center justify-between px-4 py-2.5 border-b border-gray-100'>
-            <span className='text-sm font-semibold text-gray-800'>Notifications</span>
-            {unread > 0 && (
-              <button onClick={markAll} className='text-[11px] font-medium text-primary hover:underline'>
-                Mark all read
+            {showSettings ? (
+              <button onClick={() => setShowSettings(false)} className='flex items-center gap-1 text-sm font-semibold text-gray-800'>
+                <ArrowLeftIcon className='h-3.5 w-3.5' /> Email settings
               </button>
+            ) : (
+              <span className='text-sm font-semibold text-gray-800'>Notifications</span>
             )}
+            <div className='flex items-center gap-2'>
+              {!showSettings && unread > 0 && (
+                <button onClick={markAll} className='text-[11px] font-medium text-primary hover:underline'>Mark all read</button>
+              )}
+              {!showSettings && (
+                <button onClick={() => setShowSettings(true)} className='text-gray-400 hover:text-gray-700' aria-label='Notification settings'>
+                  <Cog6ToothIcon className='h-4 w-4' />
+                </button>
+              )}
+            </div>
           </div>
-          {items.length === 0 ? (
+
+          {showSettings ? (
+            <div className='p-4 space-y-3'>
+              <div className='flex items-center justify-between'>
+                <div>
+                  <p className='text-xs font-semibold text-gray-800'>Email notifications</p>
+                  <p className='text-[10px] text-gray-500'>Master switch — off mutes all emails.</p>
+                </div>
+                <Toggle on={masterOn} onClick={toggleMaster} />
+              </div>
+              <div className='border-t border-gray-100 pt-3 space-y-2.5'>
+                {(prefs?.types ?? []).map((t) => (
+                  <div key={t.type} className='flex items-center justify-between'>
+                    <span className={`text-xs ${masterOn ? 'text-gray-700' : 'text-gray-400'}`}>{t.label}</span>
+                    <Toggle on={masterOn && t.email} onClick={() => masterOn && toggleType(t.type, !t.email)} />
+                  </div>
+                ))}
+                {(prefs?.types ?? []).length === 0 && (
+                  <p className='text-[11px] text-gray-400'>No configurable types.</p>
+                )}
+              </div>
+              <p className='text-[10px] text-gray-400'>In-app notifications are always shown; these control email only.</p>
+            </div>
+          ) : items.length === 0 ? (
             <p className='px-4 py-6 text-xs text-gray-500 text-center'>No notifications yet.</p>
           ) : (
             <ul className='divide-y divide-gray-50'>
@@ -129,17 +187,6 @@ export default function NotificationBell() {
               ))}
             </ul>
           )}
-          <div className='flex items-center justify-between px-4 py-2.5 border-t border-gray-100'>
-            <span className='text-[11px] text-gray-600'>Email notifications</span>
-            <button
-              onClick={toggleEmail}
-              role='switch'
-              aria-checked={emailOn}
-              className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${emailOn ? 'bg-primary' : 'bg-gray-300'}`}
-            >
-              <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${emailOn ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
-            </button>
-          </div>
         </div>
       )}
     </div>

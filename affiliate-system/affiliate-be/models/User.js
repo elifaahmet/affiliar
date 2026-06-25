@@ -44,12 +44,18 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
     },
-    // Email delivery of in-app notifications (payout paid, commission
-    // approved, new signup, fraud, …). On by default; user can opt out from
-    // the notification bell. In-app notifications are always created.
+    // Email delivery of in-app notifications. `emailNotifications` is the
+    // master switch (off = no emails at all). `notificationPrefs` is a
+    // per-type override map (key = notification type, value = email on/off);
+    // an absent key defaults to on. In-app notifications are always created.
     emailNotifications: {
       type: Boolean,
       default: true,
+    },
+    notificationPrefs: {
+      type: Map,
+      of: Boolean,
+      default: {},
     },
 
     quickAccessShortcuts: {
