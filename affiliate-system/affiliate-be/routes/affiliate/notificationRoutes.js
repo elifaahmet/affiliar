@@ -6,6 +6,7 @@ const ctrl = require("../../controllers/affiliate/notificationController");
 // controller.
 router.get("/", ctrl.list);
 router.post("/read-all", ctrl.markAllRead);
+router.patch("/prefs", ctrl.setPrefs);
 router.patch("/:id/read", ctrl.markRead);
 
 module.exports = router;

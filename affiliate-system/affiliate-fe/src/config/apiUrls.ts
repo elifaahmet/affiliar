@@ -294,6 +294,7 @@ export const NOTIFICATION_API_URLS = {
   LIST: () => `${API_BASE_URL}api/notifications`,
   READ_ALL: () => `${API_BASE_URL}api/notifications/read-all`,
   READ: (id: string) => `${API_BASE_URL}api/notifications/${id}/read`,
+  PREFS: () => `${API_BASE_URL}api/notifications/prefs`,
 };
 
 export const BRANDS_API_URLS = {

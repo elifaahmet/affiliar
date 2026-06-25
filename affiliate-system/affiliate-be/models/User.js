@@ -44,6 +44,14 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
     },
+    // Email delivery of in-app notifications (payout paid, commission
+    // approved, new signup, fraud, …). On by default; user can opt out from
+    // the notification bell. In-app notifications are always created.
+    emailNotifications: {
+      type: Boolean,
+      default: true,
+    },
+
     quickAccessShortcuts: {
       type: [
         {

@@ -1,6 +1,7 @@
 "use strict";
 
 const Notification = require("../../models/Notification");
+const User = require("../../models/User");
 
 // GET /notifications?limit= — the caller's notifications + unread count.
 // Works for any authenticated user (operator or affiliate); scoped to self.
@@ -17,7 +18,24 @@ exports.list = async (req, res) => {
         .lean(),
       Notification.countDocuments({ userId, read: false }),
     ]);
-    res.json({ notifications: items, unreadCount });
+    res.json({
+      notifications: items,
+      unreadCount,
+      emailNotifications: req.affiliateUser?.emailNotifications !== false,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// PATCH /notifications/prefs — toggle email delivery for the caller.
+exports.setPrefs = async (req, res) => {
+  try {
+    const userId = req.affiliateUser?._id;
+    if (!userId) return res.status(401).json({ error: "Unauthenticated" });
+    const enabled = !!req.body?.email;
+    await User.updateOne({ _id: userId }, { $set: { emailNotifications: enabled } });
+    res.json({ emailNotifications: enabled });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

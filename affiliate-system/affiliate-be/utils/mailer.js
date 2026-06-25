@@ -319,8 +319,37 @@ async function sendBillingSuspendedNotice({ to, name, planName, dueDate }) {
   return sendMail({ to, subject, htmlBody, textBody });
 }
 
+// Generic transactional email for an in-app notification (payout paid,
+// commission approved, etc.). Mirrors the notification's title/body and links
+// back into the app. Used by utils/notify.js when the recipient has email
+// notifications enabled.
+async function sendNotificationEmail({ to, name, title, body, link }) {
+  const url = link ? `${APP_URL}${link}` : APP_URL;
+  const subject = title || "Affiliar notification";
+  const htmlBody = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; padding: 40px 30px;">
+      <div style="text-align: center; margin-bottom: 32px;">
+        <img src="${LOGO_URL}" alt="Affiliar" width="160" style="display: inline-block;" />
+      </div>
+      <h2 style="color: #0F172A; margin-top: 0;">${title || "Notification"}</h2>
+      <p style="color: #334155; font-size: 15px; line-height: 1.6;">Hi ${name || "there"},</p>
+      ${body ? `<p style="color: #334155; font-size: 15px; line-height: 1.6;">${body}</p>` : ""}
+      <p style="margin: 32px 0; text-align: center;">
+        <a href="${url}" style="background: #2563EB; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">
+          Open Affiliar
+        </a>
+      </p>
+      <hr style="border: none; border-top: 1px solid #E2E8F0; margin: 32px 0;" />
+      <p style="color: #94A3B8; font-size: 12px; text-align: center;">You're receiving this because email notifications are on. Turn them off in your profile settings.</p>
+    </div>
+  `;
+  const textBody = `Hi ${name || "there"},\n\n${title || "Notification"}${body ? `\n\n${body}` : ""}\n\nOpen Affiliar: ${url}`;
+  return sendMail({ to, subject, htmlBody, textBody });
+}
+
 module.exports = {
   sendMail,
+  sendNotificationEmail,
   sendAffiliateInvite,
   sendOperatorInvite,
   sendPasswordReset,

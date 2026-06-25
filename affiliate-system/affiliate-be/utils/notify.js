@@ -3,15 +3,29 @@
 const Notification = require("../models/Notification");
 const User = require("../models/User");
 const { logger } = require("../middlewares/logger");
+const { sendNotificationEmail } = require("./mailer");
 
 // Fire-and-forget single-user notification. Never throws into the caller —
 // a notification failure must not break the business action that triggered it.
+// Always creates the in-app row; additionally emails the user when they have
+// email notifications on.
 async function notify({ userId, operatorId = null, type, title, body = null, link = null }) {
   if (!userId || !type || !title) return;
   try {
     await Notification.create({ userId, operatorId, type, title, body, link });
   } catch (err) {
     logger.error("notify.create_failed", { type, error: err?.message });
+    return;
+  }
+  try {
+    const user = await User.findById(userId)
+      .select({ email: 1, name: 1, emailNotifications: 1 })
+      .lean();
+    if (user?.email && user.emailNotifications !== false) {
+      await sendNotificationEmail({ to: user.email, name: user.name, title, body, link });
+    }
+  } catch (err) {
+    logger.error("notify.email_failed", { type, error: err?.message });
   }
 }
 

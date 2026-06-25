@@ -18,6 +18,7 @@ interface Notification {
 interface NotificationsResponse {
   notifications: Notification[];
   unreadCount: number;
+  emailNotifications: boolean;
 }
 
 function timeAgo(iso: string) {
@@ -72,6 +73,14 @@ export default function NotificationBell() {
     refresh();
   };
 
+  const emailOn = data?.emailNotifications !== false;
+  const toggleEmail = async () => {
+    try {
+      await axiosInstance.patch(NOTIFICATION_API_URLS.PREFS(), { email: !emailOn });
+    } catch { /* ignore */ }
+    refresh();
+  };
+
   return (
     <div className='relative' ref={ref}>
       <button
@@ -120,6 +129,17 @@ export default function NotificationBell() {
               ))}
             </ul>
           )}
+          <div className='flex items-center justify-between px-4 py-2.5 border-t border-gray-100'>
+            <span className='text-[11px] text-gray-600'>Email notifications</span>
+            <button
+              onClick={toggleEmail}
+              role='switch'
+              aria-checked={emailOn}
+              className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${emailOn ? 'bg-primary' : 'bg-gray-300'}`}
+            >
+              <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${emailOn ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+            </button>
+          </div>
         </div>
       )}
     </div>
