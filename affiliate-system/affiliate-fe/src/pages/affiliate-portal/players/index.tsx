@@ -139,6 +139,19 @@ export default function AffiliatePlayers() {
   const [filterCampaign,  setFilterCampaign]  = useState('');
   const [filterFrom,      setFilterFrom]      = useState('');
   const [filterTo,        setFilterTo]        = useState('');
+  const [sortBy,          setSortBy]          = useState('');
+  const [sortDir,         setSortDir]         = useState<'asc' | 'desc'>('desc');
+
+  // Click a metric header to sort by it (CH-driven). Same column flips dir.
+  const toggleSort = (col: string) => {
+    setPage(1);
+    if (sortBy === col) {
+      setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
+    } else {
+      setSortBy(col);
+      setSortDir('desc');
+    }
+  };
   const limit = 50;
 
   const { data: profile } = useBaseQuery<ProfileResponse>({
@@ -154,8 +167,9 @@ export default function AffiliatePlayers() {
     if (filterCampaign) p.campaign      = filterCampaign;
     if (filterFrom)     p.from          = filterFrom;
     if (filterTo)       p.to            = filterTo;
+    if (sortBy)       { p.sortBy = sortBy; p.sortDir = sortDir; }
     return p;
-  }, [page, searchPlayerId, filterCode, filterCampaign, filterFrom, filterTo]);
+  }, [page, searchPlayerId, filterCode, filterCampaign, filterFrom, filterTo, sortBy, sortDir]);
 
   const { data, isLoading, isError } = useBaseQuery<PlayersResponse>({
     endpoint: AFFILIATE_PORTAL_API_URLS.PLAYERS(),
@@ -292,10 +306,26 @@ export default function AffiliatePlayers() {
                   <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Country</th>
                   <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Currency</th>
                   <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Registered</th>
-                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>Deposits</th>
-                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>FTD</th>
-                  <th className='px-4 py-3 text-right text-xs font-semibold text-gray-700'>NGR</th>
-                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Last Activity</th>
+                  {([
+                    ['depositsSumCents', 'Deposits'],
+                    ['ftdSumCents', 'FTD'],
+                    ['ggrCents', 'GGR'],
+                    ['ngrCents', 'NGR'],
+                  ] as [string, string][]).map(([col, label]) => (
+                    <th
+                      key={col}
+                      onClick={() => toggleSort(col)}
+                      className='px-4 py-3 text-right text-xs font-semibold text-gray-700 cursor-pointer select-none hover:text-primary whitespace-nowrap'
+                    >
+                      {label}{sortBy === col ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ''}
+                    </th>
+                  ))}
+                  <th
+                    onClick={() => toggleSort('lastActivityAt')}
+                    className='px-4 py-3 text-left text-xs font-semibold text-gray-700 cursor-pointer select-none hover:text-primary whitespace-nowrap'
+                  >
+                    Last Activity{sortBy === 'lastActivityAt' ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ''}
+                  </th>
                 </tr>
               </thead>
               <tbody className='divide-y divide-gray-100'>
@@ -322,6 +352,9 @@ export default function AffiliatePlayers() {
                     </td>
                     <td className='px-4 py-3 text-xs text-right text-gray-700'>
                       {p.metrics && p.metrics.ftdCount > 0 ? fmt(p.metrics.ftdSumCents) : '—'}
+                    </td>
+                    <td className='px-4 py-3 text-xs text-right text-gray-700'>
+                      {p.metrics ? fmt(p.metrics.ggrCents) : '—'}
                     </td>
                     <td className='px-4 py-3 text-xs text-right text-gray-700'>
                       {p.metrics ? fmt(p.metrics.ngrCents) : '—'}

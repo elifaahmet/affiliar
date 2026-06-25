@@ -15,27 +15,51 @@ async function queryRows(sql, queryParams) {
  * Batch lookup of per-player lifetime metrics from ClickHouse.
  * Returns a Map<playerId, metrics>.
  */
+// Per-player metric columns (shared by the enrich-by-page path and the
+// metric-sorted CH-driven path).
+const PLAYER_METRIC_COLS = `
+  SUM(deposits_count)         AS depositsCount,
+  SUM(deposits_sum_cents)     AS depositsSumCents,
+  SUM(ftd_count)              AS ftdCount,
+  SUM(ftd_sum_cents)          AS ftdSumCents,
+  SUM(cashouts_count)         AS cashoutsCount,
+  SUM(cashouts_sum_cents)     AS cashoutsSumCents,
+  SUM(chargebacks_count)      AS chargebacksCount,
+  SUM(chargebacks_sum_cents)  AS chargebacksSumCents,
+  SUM(bets_sum_cents)         AS betsSumCents,
+  SUM(wins_sum_cents)         AS winsSumCents,
+  SUM(wager_cents)            AS wagerCents,
+  SUM(rounds_count)           AS roundsCount,
+  SUM(bonus_issues_sum_cents) AS bonusIssuesSumCents,
+  SUM(casino_ggr_cents)       AS ggrCents,
+  SUM(casino_ngr_cents)       AS ngrCents,
+  max(from_ts)                AS lastActivityAt
+`;
+
+// Sortable metric → ClickHouse ORDER BY expression.
+const PLAYER_SORTS = {
+  ngrCents:         "SUM(casino_ngr_cents)",
+  ggrCents:         "SUM(casino_ggr_cents)",
+  depositsSumCents: "SUM(deposits_sum_cents)",
+  depositsCount:    "SUM(deposits_count)",
+  ftdSumCents:      "SUM(ftd_sum_cents)",
+  wagerCents:       "SUM(wager_cents)",
+  cashoutsSumCents: "SUM(cashouts_sum_cents)",
+  lastActivityAt:   "max(from_ts)",
+};
+
+function coerceMetricRow(row) {
+  const entry = {};
+  for (const [k, v] of Object.entries(row)) {
+    entry[k] = k === "lastActivityAt" || k === "playerId" ? v : Number(v);
+  }
+  return entry;
+}
+
 async function fetchPlayerMetrics(tenantId, playerIds) {
   if (!playerIds?.length) return new Map();
   const rows = await queryRows(
-    `SELECT
-       player_id AS playerId,
-       SUM(deposits_count)         AS depositsCount,
-       SUM(deposits_sum_cents)     AS depositsSumCents,
-       SUM(ftd_count)              AS ftdCount,
-       SUM(ftd_sum_cents)          AS ftdSumCents,
-       SUM(cashouts_count)         AS cashoutsCount,
-       SUM(cashouts_sum_cents)     AS cashoutsSumCents,
-       SUM(chargebacks_count)      AS chargebacksCount,
-       SUM(chargebacks_sum_cents)  AS chargebacksSumCents,
-       SUM(bets_sum_cents)         AS betsSumCents,
-       SUM(wins_sum_cents)         AS winsSumCents,
-       SUM(wager_cents)            AS wagerCents,
-       SUM(rounds_count)           AS roundsCount,
-       SUM(bonus_issues_sum_cents) AS bonusIssuesSumCents,
-       SUM(casino_ggr_cents)       AS ggrCents,
-       SUM(casino_ngr_cents)       AS ngrCents,
-       max(from_ts)                AS lastActivityAt
+    `SELECT player_id AS playerId, ${PLAYER_METRIC_COLS}
      FROM affiliate.activity
      WHERE tenant_id = {tenantId:String}
        AND player_id IN {playerIds:Array(String)}
@@ -44,13 +68,7 @@ async function fetchPlayerMetrics(tenantId, playerIds) {
   );
 
   const map = new Map();
-  for (const row of rows) {
-    const entry = {};
-    for (const [k, v] of Object.entries(row)) {
-      entry[k] = k === "lastActivityAt" ? v : Number(v);
-    }
-    map.set(row.playerId, entry);
-  }
+  for (const row of rows) map.set(row.playerId, coerceMetricRow(row));
   return map;
 }
 
@@ -70,9 +88,64 @@ const affiliatePlayerController = {
         campaign,
         from,
         to,
+        sortBy,
+        sortDir,
         page = 1,
         limit = 50,
       } = req.query;
+      const lim = Math.min(Math.max(Number(limit) || 50, 1), 200);
+      const off = (Math.max(Number(page), 1) - 1) * lim;
+      const dir = sortDir === "asc" ? "ASC" : "DESC";
+
+      // ── Metric-sorted path: order + paginate in ClickHouse (the metric isn't
+      // in Mongo), then hydrate the AffiliatePlayer rows for the page. ──────
+      if (PLAYER_SORTS[sortBy]) {
+        const conds = ["tenant_id = {tenantId:String}", "player_id != '__fees__'", "affiliate_id != ''"];
+        const cp = { tenantId: user.operatorId.toString() };
+        if (user.role === "affiliate") { conds.push("affiliate_id = {affId:String}"); cp.affId = String(user._id); }
+        else if (affiliateId)          { conds.push("affiliate_id = {affId:String}"); cp.affId = String(affiliateId); }
+        if (user.role === "operator" && Array.isArray(user.brandIds) && user.brandIds.length > 0) {
+          conds.push("brand_id IN ({brandIds:Array(String)})"); cp.brandIds = user.brandIds.map(String);
+        }
+        if (affiliateCode) { conds.push("affiliate_code = {code:String}"); cp.code = affiliateCode.toUpperCase(); }
+        if (campaign)      { conds.push("campaign = {campaign:String}"); cp.campaign = campaign; }
+        if (playerId)      { conds.push("player_id LIKE {pid:String}"); cp.pid = `%${playerId}%`; }
+        if (from)          { conds.push("from_ts >= {fromTs:DateTime}"); cp.fromTs = `${from} 00:00:00`; }
+        if (to)            { conds.push("from_ts <= {toTs:DateTime}");   cp.toTs = `${to} 23:59:59`; }
+        const chWhere = conds.join(" AND ");
+
+        const [metricRows, totalRows] = await Promise.all([
+          queryRows(
+            `SELECT player_id AS playerId, ${PLAYER_METRIC_COLS}
+             FROM affiliate.activity WHERE ${chWhere}
+             GROUP BY player_id
+             ORDER BY ${PLAYER_SORTS[sortBy]} ${dir}
+             LIMIT {lim:UInt32} OFFSET {off:UInt32}`,
+            { ...cp, lim, off },
+          ),
+          queryRows(`SELECT uniqExact(player_id) AS total FROM affiliate.activity WHERE ${chWhere}`, cp),
+        ]);
+
+        const ids = metricRows.map((r) => String(r.playerId));
+        const docs = ids.length
+          ? await AffiliatePlayer.find({ operatorId: user.operatorId, playerId: { $in: ids } })
+              .populate("affiliateId", "username email name")
+              .lean()
+          : [];
+        const docById = new Map(docs.map((d) => [String(d.playerId), d]));
+        const players = metricRows.map((r) => ({
+          ...(docById.get(String(r.playerId)) || { playerId: String(r.playerId) }),
+          playerId: String(r.playerId),
+          metrics: coerceMetricRow(r),
+        }));
+
+        return res.json({
+          players,
+          total: Number(totalRows?.[0]?.total) || 0,
+          page: Number(page),
+          limit: lim,
+        });
+      }
 
       const filter = { operatorId: user.operatorId };
 
