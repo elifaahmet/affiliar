@@ -433,6 +433,9 @@ export default function AffiliateMarketing() {
         )}
       </div>
 
+      {/* Creatives published by the operator */}
+      <CreativesSection />
+
       {/* How it works */}
       <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-6'>
         <h2 className='text-sm font-semibold text-gray-800 mb-4'>How It Works</h2>
@@ -672,6 +675,98 @@ export default function AffiliateMarketing() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── Creatives published by the operator ──────────────────────────────────────
+
+interface PortalCreative {
+  _id: string;
+  name: string;
+  type: 'banner' | 'text';
+  imageUrl: string | null;
+  width: number | null;
+  height: number | null;
+  body: string | null;
+  brandName: string | null;
+  code: string;
+  campaign: string;
+  landing: string;
+}
+
+function CreativesSection() {
+  const { data, isLoading } = useBaseQuery<{ creatives: PortalCreative[] }>({
+    endpoint: AFFILIATE_PORTAL_API_URLS.CREATIVES(),
+    queryKey: ['affiliate-creatives'],
+  });
+  const creatives = data?.creatives ?? [];
+  const [copied, setCopied] = useState<string | null>(null);
+
+  if (!isLoading && creatives.length === 0) return null;
+
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const linkFor = (c: PortalCreative) => {
+    const sp = new URLSearchParams();
+    if (c.campaign) sp.set('campaign', c.campaign);
+    if (c.landing) sp.set('to', c.landing);
+    return `${origin}/api/r/${c.code}?${sp.toString()}`;
+  };
+  const embedFor = (c: PortalCreative) => {
+    const link = linkFor(c);
+    if (c.type === 'banner' && c.imageUrl) {
+      const dim = c.width && c.height ? ` width="${c.width}" height="${c.height}"` : '';
+      return `<a href="${link}" target="_blank" rel="noopener"><img src="${c.imageUrl}" alt="${c.name}"${dim} border="0" /></a>`;
+    }
+    return `${c.body || ''}\n${link}`;
+  };
+  const copy = (key: string, text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(key);
+      setTimeout(() => setCopied(null), 2000);
+    });
+  };
+
+  return (
+    <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-6'>
+      <h2 className='text-sm font-semibold text-gray-800 mb-1'>Creatives</h2>
+      <p className='text-xs text-gray-600 mb-4'>
+        Banners and snippets from your operator, ready to share — each link carries your tracking code,
+        and performance shows up under its <code>creative-…</code> campaign.
+      </p>
+      {isLoading ? (
+        <p className='text-sm text-gray-600'>Loading…</p>
+      ) : (
+        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'>
+          {creatives.map((c) => (
+            <div key={c._id} className='border border-gray-100 rounded-xl overflow-hidden bg-white'>
+              <div className='h-32 bg-gray-50 flex items-center justify-center overflow-hidden'>
+                {c.type === 'banner' && c.imageUrl
+                  ? <img src={c.imageUrl} alt={c.name} className='max-h-32 max-w-full object-contain' />
+                  : <p className='text-xs text-gray-500 px-4 line-clamp-5'>{c.body || '—'}</p>}
+              </div>
+              <div className='p-3 space-y-2'>
+                <div>
+                  <p className='text-sm font-medium text-gray-800 truncate'>{c.name}</p>
+                  <p className='text-xs text-gray-500'>
+                    {c.brandName || '—'}{c.width && c.height ? ` · ${c.width}×${c.height}` : ''}
+                  </p>
+                </div>
+                <div className='flex gap-2'>
+                  <button onClick={() => copy(`${c._id}-link`, linkFor(c))}
+                    className='flex-1 text-xs font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 rounded-lg px-2 py-1.5'>
+                    {copied === `${c._id}-link` ? 'Copied!' : 'Copy link'}
+                  </button>
+                  <button onClick={() => copy(`${c._id}-embed`, embedFor(c))}
+                    className='flex-1 text-xs font-medium text-white bg-primary rounded-lg px-2 py-1.5'>
+                    {copied === `${c._id}-embed` ? 'Copied!' : c.type === 'banner' ? 'Copy embed' : 'Copy snippet'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

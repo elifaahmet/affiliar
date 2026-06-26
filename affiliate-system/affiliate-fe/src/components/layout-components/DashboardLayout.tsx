@@ -10,6 +10,7 @@ import {
   Cog6ToothIcon,
   CreditCardIcon,
   HeartIcon,
+  PhotoIcon,
   ShieldCheckIcon,
   Squares2X2Icon,
   UserGroupIcon,
@@ -161,6 +162,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       href: '/brands',
       Icon: BuildingStorefrontIcon,
       current: pathname.startsWith('/brands'),
+    },
+    {
+      key: 'creatives',
+      name: t('menuItems.creatives') || 'Creatives',
+      href: '/creatives',
+      Icon: PhotoIcon,
+      current: pathname.startsWith('/creatives'),
     },
     {
       key: 'commission',

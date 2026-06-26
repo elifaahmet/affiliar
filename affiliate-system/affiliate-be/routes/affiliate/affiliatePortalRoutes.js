@@ -3,6 +3,7 @@ const router         = express.Router();
 const ctrl           = require("../../controllers/affiliate/affiliatePortalController");
 const reportCtrl     = require("../../controllers/affiliate/reportController");
 const marketingCtrl  = require("../../controllers/affiliate/affiliateMarketingController");
+const creativeCtrl   = require("../../controllers/affiliate/creativeController");
 const { recalculateSubtreePayouts } = require("../../controllers/affiliate/commissionController");
 
 router.get("/overview",            ctrl.overview);
@@ -24,6 +25,7 @@ router.post("/referral-codes",     ctrl.generateReferralCode);
 router.get ("/fee-details",        ctrl.feeDetails);
 
 // Marketing tools: operator-defined brand pages + the affiliate's saved links.
+router.get   ("/creatives",        creativeCtrl.affiliateList);
 router.get   ("/brand-pages",      marketingCtrl.listBrandPages);
 router.get   ("/links",            marketingCtrl.listLinks);
 router.post  ("/links",            marketingCtrl.createLink);
