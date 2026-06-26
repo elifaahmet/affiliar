@@ -114,6 +114,24 @@ function parsePeriod(t) {
   if (has(t, "this year", "bu yil")) return span(new Date(Date.UTC(y, 0, 1)), new Date(Date.UTC(y, 11, 31)), "this year");
   if (has(t, "all time", "tum zaman", "her zaman")) return span(new Date(Date.UTC(2000, 0, 1)), new Date(Date.UTC(y, 11, 31)), "all time");
 
+  const today = new Date(Date.UTC(y, m, now.getUTCDate()));
+  const daysAgo = (n) => new Date(Date.UTC(y, m, now.getUTCDate() - n));
+
+  // Calendar weeks (Monday-start).
+  const dowMon = (now.getUTCDay() + 6) % 7; // 0 = Monday
+  if (has(t, "this week", "bu hafta")) return span(daysAgo(dowMon), today, "this week");
+  if (has(t, "last week", "gecen hafta", "onceki hafta", "past week", "son hafta")) {
+    return span(daysAgo(dowMon + 7), daysAgo(dowMon + 1), "last week");
+  }
+
+  // Rolling window: "last N days" / "son N gün" (e.g. last 7 days, son 30 gun).
+  const dayMatch = t.match(/\b(?:last|son|gecen)\s+(\d{1,3})\s*(?:days?|gun)\b/);
+  if (dayMatch) {
+    const n = Math.min(Math.max(Number(dayMatch[1]) || 1, 1), 365);
+    return span(daysAgo(n - 1), today, `last ${n} days`);
+  }
+  if (has(t, "son bir hafta", "past 7 days")) return span(daysAgo(6), today, "last 7 days");
+
   // Named month, e.g. "april", "nisan", optionally with a 4-digit year.
   for (const [name, idx] of Object.entries(MONTHS)) {
     if (!new RegExp(`\\b${name}\\b`).test(t)) continue;
@@ -214,14 +232,14 @@ async function answerTopPlayers(user, period) {
 
 const SUGGESTIONS = {
   operator: [
-    "Which affiliate earned the most this month?",
-    "Top players this month",
+    "Top affiliates last 7 days",
+    "Which affiliate earned the most in April?",
     "This month NGR / FTD",
     "Open campaign reports",
     "Show anti-fraud",
   ],
   affiliate: [
-    "Which player earned me the most this month?",
+    "Top players last 7 days",
     "My NGR last month",
     "Open campaign performance",
     "Where are my API keys?",
