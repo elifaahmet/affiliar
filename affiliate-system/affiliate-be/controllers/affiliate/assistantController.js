@@ -79,6 +79,24 @@ const NAV_INTENTS = [
   { key: "dashboard",        label: "Dashboard",        reply: "Heading to your dashboard.",                  test: (t) => has(t, "dashboard", "anasayfa", "ana sayfa", "ozet", "özet", "home") },
 ];
 
+// Named months → index, matched on the *normalised* text (Turkish diacritics
+// already stripped: şubat→subat, mayıs→mayis, ağustos→agustos, etc.).
+const MONTHS = {
+  january: 0, jan: 0, ocak: 0,
+  february: 1, feb: 1, subat: 1,
+  march: 2, mar: 2, mart: 2,
+  april: 3, apr: 3, nisan: 3,
+  may: 4, mayis: 4,
+  june: 5, jun: 5, haziran: 5,
+  july: 6, jul: 6, temmuz: 6,
+  august: 7, aug: 7, agustos: 7,
+  september: 8, sep: 8, sept: 8, eylul: 8,
+  october: 9, oct: 9, ekim: 9,
+  november: 10, nov: 10, kasim: 10,
+  december: 11, dec: 11, aralik: 11,
+};
+const MONTH_LABELS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
 // Period detection from free text. Defaults to the current month.
 function parsePeriod(t) {
   const now = new Date();
@@ -93,8 +111,19 @@ function parsePeriod(t) {
   if (has(t, "today", "bugun")) return span(new Date(Date.UTC(y, m, now.getUTCDate())), new Date(Date.UTC(y, m, now.getUTCDate())), "today");
   if (has(t, "yesterday", "dun")) { const d = new Date(Date.UTC(y, m, now.getUTCDate() - 1)); return span(d, d, "yesterday"); }
   if (has(t, "last month", "gecen ay", "onceki ay")) return span(new Date(Date.UTC(y, m - 1, 1)), new Date(Date.UTC(y, m, 0)), "last month");
-  if (has(t, "this year", "bu yil", "yil")) return span(new Date(Date.UTC(y, 0, 1)), new Date(Date.UTC(y, 11, 31)), "this year");
+  if (has(t, "this year", "bu yil")) return span(new Date(Date.UTC(y, 0, 1)), new Date(Date.UTC(y, 11, 31)), "this year");
   if (has(t, "all time", "tum zaman", "her zaman")) return span(new Date(Date.UTC(2000, 0, 1)), new Date(Date.UTC(y, 11, 31)), "all time");
+
+  // Named month, e.g. "april", "nisan", optionally with a 4-digit year.
+  for (const [name, idx] of Object.entries(MONTHS)) {
+    if (!new RegExp(`\\b${name}\\b`).test(t)) continue;
+    const yearMatch = t.match(/\b(20\d{2})\b/);
+    // No explicit year: use current year, unless that month is still in the
+    // future (e.g. "december" asked in June) → assume last year.
+    const year = yearMatch ? Number(yearMatch[1]) : (idx > m ? y - 1 : y);
+    return span(new Date(Date.UTC(year, idx, 1)), new Date(Date.UTC(year, idx + 1, 0)), `${MONTH_LABELS[idx]} ${year}`);
+  }
+
   return span(new Date(Date.UTC(y, m, 1)), new Date(Date.UTC(y, m + 1, 0)), "this month");
 }
 
