@@ -68,7 +68,12 @@
       "Kafka event ingestion",
       "Commission approval workflow",
       "Affiliate self-service portal",
-      "Bulk affiliate import"
+      "Bulk affiliate import",
+      "Click tracking and smartlinks with bot filtering and click-to-FTD attribution",
+      "Anti-fraud detection with IP / device / wallet fingerprint clustering",
+      "Affiliate quality scoring and player lifetime value (LTV)",
+      "Cohort retention analytics (month-over-month retention and NGR heatmap)",
+      "Affiliar Agent — in-app assistant for navigation and live stats"
     ],
     "applicationSubCategory": "iGaming Affiliate Management"
   }
@@ -463,6 +468,86 @@
             <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[10px]">✓</span> Wager floor (flat or Nx)</span>
             <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[10px]">✓</span> Cash-retention gate</span>
             <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[10px]">✓</span> Chargeback FTD reversal</span>
+          </div>
+        </div>
+
+        <div class="border border-gray-100 rounded-2xl p-7 card-hover bg-white">
+          <div class="w-11 h-11 rounded-xl bg-cyan-50 flex items-center justify-center mb-5">
+            <svg class="w-5 h-5 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+            </svg>
+          </div>
+          <h3 class="font-bold text-lg text-gray-900 mb-2">Click Tracking &amp; Smartlinks</h3>
+          <p class="text-gray-500 text-sm leading-relaxed mb-4">
+            Every click on an affiliate link is logged — IP, device, country, campaign — then matched to the registration it produced. Smartlink redirects, bot filtering and click-to-FTD conversion all live in one funnel.
+          </p>
+          <div class="flex flex-wrap gap-3 text-xs text-gray-500">
+            <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-full bg-cyan-100 text-cyan-600 flex items-center justify-center text-[10px]">✓</span> Bot filtering</span>
+            <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-full bg-cyan-100 text-cyan-600 flex items-center justify-center text-[10px]">✓</span> Click → FTD attribution</span>
+          </div>
+        </div>
+
+        <div class="border border-gray-100 rounded-2xl p-7 card-hover bg-white">
+          <div class="w-11 h-11 rounded-xl bg-red-50 flex items-center justify-center mb-5">
+            <svg class="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          </div>
+          <h3 class="font-bold text-lg text-gray-900 mb-2">Anti-Fraud Detection</h3>
+          <p class="text-gray-500 text-sm leading-relaxed mb-4">
+            Beyond CPA gates: a fraud-review dashboard that clusters players by shared IP, device and wallet fingerprints. Suspicious affiliates surface automatically — flag and exclude them from commission in one click.
+          </p>
+          <div class="flex flex-wrap gap-3 text-xs text-gray-500">
+            <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-full bg-red-100 text-red-500 flex items-center justify-center text-[10px]">✓</span> Fingerprint clustering</span>
+            <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-full bg-red-100 text-red-500 flex items-center justify-center text-[10px]">✓</span> Flag &amp; exclude</span>
+          </div>
+        </div>
+
+        <div class="border border-gray-100 rounded-2xl p-7 card-hover bg-white">
+          <div class="w-11 h-11 rounded-xl bg-sky-50 flex items-center justify-center mb-5">
+            <svg class="w-5 h-5 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+            </svg>
+          </div>
+          <h3 class="font-bold text-lg text-gray-900 mb-2">Affiliate Quality &amp; LTV</h3>
+          <p class="text-gray-500 text-sm leading-relaxed mb-4">
+            Score every affiliate on the <em>quality</em> of the players they bring — retention, lifetime value, deposit consistency — not just raw volume. See which partners deliver players that actually stick.
+          </p>
+          <div class="flex flex-wrap gap-3 text-xs text-gray-500">
+            <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center text-[10px]">✓</span> Player LTV</span>
+            <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center text-[10px]">✓</span> Quality scoring</span>
+          </div>
+        </div>
+
+        <div class="border border-gray-100 rounded-2xl p-7 card-hover bg-white">
+          <div class="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center mb-5">
+            <svg class="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18" />
+            </svg>
+          </div>
+          <h3 class="font-bold text-lg text-gray-900 mb-2">Cohort Retention</h3>
+          <p class="text-gray-500 text-sm leading-relaxed mb-4">
+            Group players by acquisition month and track how many stay active — and how much NGR they generate — month over month. A heatmap that shows which cohorts (and which affiliates) actually hold.
+          </p>
+          <div class="flex flex-wrap gap-3 text-xs text-gray-500">
+            <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px]">✓</span> Month-over-month</span>
+            <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px]">✓</span> Retention heatmap</span>
+          </div>
+        </div>
+
+        <div class="border border-gray-100 rounded-2xl p-7 card-hover bg-white">
+          <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center mb-5">
+            <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+            </svg>
+          </div>
+          <h3 class="font-bold text-lg text-gray-900 mb-2">Affiliar Agent</h3>
+          <p class="text-gray-500 text-sm leading-relaxed mb-4">
+            An assistant in the corner of every page. Ask where a feature lives and it takes you there, or ask &ldquo;which player earned the most in April?&rdquo; and it answers from live data — operators and affiliates, each scoped to their own numbers.
+          </p>
+          <div class="flex flex-wrap gap-2 text-xs">
+            <span class="px-2.5 py-1 rounded-lg bg-violet-50 text-violet-700 font-semibold">In-app assistant</span>
+            <span class="px-2.5 py-1 rounded-lg bg-fuchsia-50 text-fuchsia-700 font-semibold">Live answers</span>
           </div>
         </div>
 
