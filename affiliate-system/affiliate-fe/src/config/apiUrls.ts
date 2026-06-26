@@ -299,6 +299,10 @@ export const NOTIFICATION_API_URLS = {
   PREFS: () => `${API_BASE_URL}api/notifications/prefs`,
 };
 
+export const ASSISTANT_API_URLS = {
+  ASK: () => `${API_BASE_URL}api/assistant/ask`,
+};
+
 export const BRANDS_API_URLS = {
   LIST:   () => `${API_BASE_URL}api/brands`,
   CREATE: () => `${API_BASE_URL}api/brands`,

@@ -29,6 +29,7 @@ import BreadCrumb from './BreadCrumb';
 import LanguageSelect from './LanguageSelect';
 import UserProfile from './UserProfile';
 import NotificationBell from './NotificationBell';
+import AffiliarAgent from './AffiliarAgent';
 
 type IconComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>;
 
@@ -370,6 +371,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="flex-1 overflow-auto">{children}</div>
         </div>
       </div>
+      <AffiliarAgent />
     </div>
   );
 }

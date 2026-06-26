@@ -19,6 +19,7 @@ import { storageHelper } from 'utils/storage/StorageHelper';
 
 import UserProfile from './UserProfile';
 import NotificationBell from './NotificationBell';
+import AffiliarAgent from './AffiliarAgent';
 
 type IconComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>;
 
@@ -150,6 +151,7 @@ export default function AffiliateDashboardLayout({ children }: { children: React
         </div>
         <div className='h-[calc(100vh-65px)] mt-[60px]'>{children}</div>
       </div>
+      <AffiliarAgent />
     </div>
   );
 }
