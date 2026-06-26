@@ -16,14 +16,23 @@ interface AskResponse {
 
 interface Msg extends Partial<AskResponse> { role: 'user' | 'agent'; text?: string }
 
-const GREETING: Msg = {
-  role: 'agent',
-  reply: "Hi, I'm your Affiliar agent. Ask me where something is, or about your numbers.",
-  suggestions: ['Top players this month', 'This month NGR', 'Open campaign reports'],
+// Role-aware opening message — affiliates and operators see different prompts.
+const GREETINGS: Record<'operator' | 'affiliate', Msg> = {
+  operator: {
+    role: 'agent',
+    reply: "Hi, I'm your Affiliar agent. Ask me where something is, or about your affiliates & numbers.",
+    suggestions: ['Top affiliates last 7 days', 'This month NGR', 'Open campaign reports', 'Show anti-fraud'],
+  },
+  affiliate: {
+    role: 'agent',
+    reply: "Hi, I'm your Affiliar agent. Ask me where something is, or about your players & earnings.",
+    suggestions: ['Top players last 7 days', 'My NGR last month', 'Open campaign performance', 'Where are my API keys?'],
+  },
 };
 
-export default function AffiliarAgent() {
+export default function AffiliarAgent({ role = 'operator' }: { role?: 'operator' | 'affiliate' }) {
   const navigate = useNavigate();
+  const GREETING = GREETINGS[role];
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);

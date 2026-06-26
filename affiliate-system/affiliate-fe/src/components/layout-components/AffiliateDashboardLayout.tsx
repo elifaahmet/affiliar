@@ -151,7 +151,7 @@ export default function AffiliateDashboardLayout({ children }: { children: React
         </div>
         <div className='h-[calc(100vh-65px)] mt-[60px]'>{children}</div>
       </div>
-      <AffiliarAgent />
+      <AffiliarAgent role="affiliate" />
     </div>
   );
 }
