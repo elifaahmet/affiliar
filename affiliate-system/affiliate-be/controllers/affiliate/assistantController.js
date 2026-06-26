@@ -255,6 +255,20 @@ async function answerNewAffiliates(operator, period) {
 // before navigation so "how do commissions work" explains rather than just
 // jumping to a page.
 const FAQ_INTENTS = [
+  // ── Postback / S2S help (specific before general) ──────────────────────────
+  { roles: ["affiliate", "operator"], routeKey: "apiAccess",
+    test: (t) => has(t, "postback", "s2s", "callback") && has(t, "macro", "parameter", "parametre", "variable", "token", "placeholder", "field", "alan"),
+    reply: "Postback macros — use these in your URL template:\n• {click_id} / {sub_id} — your own ID from the tracking link (same value)\n• {event} — registration | ftd | deposit\n• {player_id} — the operator's player ID\n• {amount} — major units (e.g. 12.50) · {amount_cents} — integer cents\n• {currency}\n• {affiliate_code} · {brand_id}\n• {timestamp} — unix seconds\nValues are URI-encoded; unknown macros are left as-is so typos are visible." },
+  { roles: ["affiliate", "operator"], routeKey: "apiAccess",
+    test: (t) => has(t, "sub_id", "subid", "sub id") || (has(t, "postback", "s2s", "player") && has(t, "match", "esle", "eslestir", "map", "mapping", "own id", "kendi", "my user", "my player")),
+    reply: "Matching players to your own users:\nPut your own click/visitor ID on the tracking link as sub_id. It comes back on every postback as {sub_id} (= {click_id}), so you can map the operator's {player_id} to your user.\nDidn't pass sub_id at click time? You can still map a player to your external reference after the fact from the API Access page." },
+  { roles: ["affiliate", "operator"], routeKey: "apiAccess",
+    test: (t) => has(t, "postback", "s2s") && has(t, "event", "when", "ne zaman", "fire", "trigger", "tetik", "hangi"),
+    reply: "Postbacks fire on these events (pick any subset on the API Access page):\n• registration — a referred player signs up\n• ftd — their first deposit\n• deposit — every subsequent deposit\nEach fires a server-to-server GET to your URL with {event} set accordingly." },
+  { roles: ["affiliate", "operator"], routeKey: "apiAccess",
+    test: (t) => has(t, "postback", "s2s", "callback", "server to server", "server-to-server", "pixel"),
+    reply: "Set up your S2S postback on the API Access page:\n1. Paste your postback URL template (use {macros})\n2. Choose which events fire: registration, ftd, deposit\n3. Toggle it on\nWe send a server-to-server GET to your URL on each matching event (URI-encoded values).\nMacros: {click_id} / {sub_id}, {event}, {player_id}, {amount}, {amount_cents}, {currency}, {affiliate_code}, {brand_id}, {timestamp}\nExample: https://you.com/pb?cid={sub_id}&event={event}&amt={amount}" },
+
   { roles: ["affiliate"], routeKey: "commission",
     test: (t) => (has(t, "when") && has(t, "paid", "payout", "pay")) || has(t, "ne zaman odeme", "ne zaman alir", "ne zaman para", "payout schedule", "odeme ne zaman"),
     reply: "Commissions are tallied monthly. Once your operator approves the report, your payout is sent — track the status (Draft → Approved → Paid) on your Commission page." },
@@ -286,8 +300,8 @@ const SUGGESTIONS = {
   affiliate: [
     "Top players last 7 days",
     "My NGR last month",
-    "Open campaign performance",
-    "Where are my API keys?",
+    "How do I set up postback?",
+    "Postback macros",
     "Show my statements",
   ],
 };

@@ -26,7 +26,7 @@ const GREETINGS: Record<'operator' | 'affiliate', Msg> = {
   affiliate: {
     role: 'agent',
     reply: "Hi, I'm your Affiliar agent. Ask me where something is, or about your players & earnings.",
-    suggestions: ['Top players last 7 days', 'My NGR last month', 'Open campaign performance', 'Where are my API keys?'],
+    suggestions: ['Top players last 7 days', 'My NGR last month', 'How do I set up postback?', 'Postback macros'],
   },
 };
 
@@ -129,7 +129,7 @@ function Bubble({ msg, onGo, onSuggest }: { msg: Msg; onGo: (r: string) => void;
     <div className='flex justify-start'>
       <div className='max-w-[88%] space-y-2'>
         {msg.reply && (
-          <div className='rounded-2xl rounded-bl-sm bg-white border border-gray-100 text-sm text-gray-800 px-3 py-2'>{msg.reply}</div>
+          <div className='rounded-2xl rounded-bl-sm bg-white border border-gray-100 text-sm text-gray-800 px-3 py-2 whitespace-pre-line break-words'>{msg.reply}</div>
         )}
 
         {msg.data?.kind === 'summary' && (
