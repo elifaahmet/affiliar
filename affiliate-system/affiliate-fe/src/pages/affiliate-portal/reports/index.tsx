@@ -255,10 +255,99 @@ export default function AffiliateReports() {
             referralCodes={(data?.referralCodes ?? []).map((rc) => rc.code)}
           />
 
+          {/* Campaign performance — which of the affiliate's campaigns earned
+              the most, sortable by any metric. */}
+          <CampaignPerformance period={period} />
+
           {/* Fee details — operator-set policy the affiliate's NGR is
               calculated against. Read-only. */}
           <FeeDetails />
         </>
+      )}
+    </div>
+  );
+}
+
+// ── Campaign performance (sortable) ──────────────────────────────────────────
+
+interface CampaignRow {
+  campaign: string | null;
+  clicks: number;
+  registrations: number;
+  ftdCount: number;
+  ggrCents: number;
+  ngrCents: number;
+}
+
+function CampaignPerformance({ period }: { period: Period }) {
+  const params = useMemo(() => ({ from: period.from, to: period.to }), [period]);
+  const { data, isLoading } = useBaseQuery<{ rows: CampaignRow[] }>({
+    endpoint: AFFILIATE_PORTAL_API_URLS.CAMPAIGN_REPORTS(),
+    queryKey: ['affiliate-campaign-perf', params],
+    params,
+  });
+
+  const [sortBy, setSortBy] = useState<keyof CampaignRow>('ngrCents');
+  const [dir, setDir] = useState<'asc' | 'desc'>('desc');
+  const toggle = (col: keyof CampaignRow) => {
+    if (sortBy === col) setDir((d) => (d === 'desc' ? 'asc' : 'desc'));
+    else { setSortBy(col); setDir('desc'); }
+  };
+
+  const rows = useMemo(() => {
+    const r = [...(data?.rows ?? [])];
+    r.sort((a, b) => {
+      const av = a[sortBy] ?? 0, bv = b[sortBy] ?? 0;
+      if (typeof av === 'number' && typeof bv === 'number') return dir === 'desc' ? bv - av : av - bv;
+      return dir === 'desc' ? String(bv).localeCompare(String(av)) : String(av).localeCompare(String(bv));
+    });
+    return r;
+  }, [data, sortBy, dir]);
+
+  const eur = (c: number) => `€${(c / 100).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  const COLS: [keyof CampaignRow, string, boolean][] = [
+    ['clicks', 'Clicks', true],
+    ['registrations', 'Regs', true],
+    ['ftdCount', 'FTDs', true],
+    ['ggrCents', 'GGR', true],
+    ['ngrCents', 'NGR', true],
+  ];
+
+  return (
+    <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
+      <p className='px-5 py-3 text-sm font-semibold text-gray-800 border-b border-gray-100'>Campaign performance</p>
+      {isLoading ? (
+        <p className='p-6 text-sm text-gray-600'>Loading…</p>
+      ) : rows.length === 0 ? (
+        <p className='p-6 text-sm text-gray-600'>No campaign activity in this period.</p>
+      ) : (
+        <div className='overflow-x-auto'>
+          <table className='w-full text-sm'>
+            <thead className='bg-gray-50'>
+              <tr>
+                <th className='px-4 py-2.5 text-left text-xs font-semibold text-gray-700'>Campaign</th>
+                {COLS.map(([col, label]) => (
+                  <th key={col} onClick={() => toggle(col)}
+                    className='px-4 py-2.5 text-right text-xs font-semibold text-gray-700 cursor-pointer select-none hover:text-primary whitespace-nowrap'>
+                    {label}{sortBy === col ? (dir === 'desc' ? ' ↓' : ' ↑') : ''}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className='divide-y divide-gray-100'>
+              {rows.map((r, i) => (
+                <tr key={`${r.campaign}-${i}`}>
+                  <td className='px-4 py-2.5 text-xs text-gray-800'>{r.campaign || '— (none)'}</td>
+                  <td className='px-4 py-2.5 text-right text-xs text-gray-700'>{r.clicks}</td>
+                  <td className='px-4 py-2.5 text-right text-xs text-gray-700'>{r.registrations}</td>
+                  <td className='px-4 py-2.5 text-right text-xs text-gray-700'>{r.ftdCount}</td>
+                  <td className='px-4 py-2.5 text-right text-xs text-gray-700'>{eur(r.ggrCents)}</td>
+                  <td className='px-4 py-2.5 text-right text-xs font-semibold text-gray-900'>{eur(r.ngrCents)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

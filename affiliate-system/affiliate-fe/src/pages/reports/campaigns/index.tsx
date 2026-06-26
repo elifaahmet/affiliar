@@ -68,12 +68,13 @@ interface AffiliatesResponse {
 
 // ── sub-components ───────────────────────────────────────────────────────────
 
-function Th({ children, right }: { children: React.ReactNode; right?: boolean }) {
+function Th({ children, right, onClick }: { children: React.ReactNode; right?: boolean; onClick?: () => void }) {
   return (
     <th
+      onClick={onClick}
       className={`px-4 py-3 text-xs font-semibold text-gray-700 whitespace-nowrap border-r border-gray-100 last:border-r-0 ${
         right ? 'text-right' : 'text-left'
-      }`}
+      } ${onClick ? 'cursor-pointer select-none hover:text-primary' : ''}`}
     >
       {children}
     </th>
@@ -138,7 +139,24 @@ export default function CampaignReports() {
     enabled: !campaignBlocked,
   });
 
-  const rows = data?.rows ?? [];
+  const rawRows = data?.rows ?? [];
+
+  const [sortBy, setSortBy] = useState<keyof CampaignRow>('ngrCents');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const sortCol = (col: keyof CampaignRow) => {
+    if (sortBy === col) setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
+    else { setSortBy(col); setSortDir('desc'); }
+  };
+  const arrow = (c: keyof CampaignRow) => (sortBy === c ? (sortDir === 'desc' ? ' ↓' : ' ↑') : '');
+  const rows = useMemo(() => {
+    const r = [...rawRows];
+    r.sort((a, b) => {
+      const av = (a as any)[sortBy] ?? 0, bv = (b as any)[sortBy] ?? 0;
+      if (typeof av === 'number' && typeof bv === 'number') return sortDir === 'desc' ? bv - av : av - bv;
+      return sortDir === 'desc' ? String(bv).localeCompare(String(av)) : String(av).localeCompare(String(bv));
+    });
+    return r;
+  }, [rawRows, sortBy, sortDir]);
 
   const totals = useMemo(() => {
     return rows.reduce(
@@ -243,12 +261,12 @@ export default function CampaignReports() {
                 <tr>
                   <Th>Campaign</Th>
                   <Th>Affiliate</Th>
-                  <Th right>Clicks</Th>
-                  <Th right>Registrations</Th>
-                  <Th right>FTDs</Th>
-                  <Th right>Deposits (&euro;)</Th>
-                  <Th right>NGR (&euro;)</Th>
-                  <Th right>Players</Th>
+                  <Th right onClick={() => sortCol('clicks')}>Clicks{arrow('clicks')}</Th>
+                  <Th right onClick={() => sortCol('registrations')}>Registrations{arrow('registrations')}</Th>
+                  <Th right onClick={() => sortCol('ftdCount')}>FTDs{arrow('ftdCount')}</Th>
+                  <Th right onClick={() => sortCol('depositsSumCents')}>Deposits (&euro;){arrow('depositsSumCents')}</Th>
+                  <Th right onClick={() => sortCol('ngrCents')}>NGR (&euro;){arrow('ngrCents')}</Th>
+                  <Th right onClick={() => sortCol('playerCount')}>Players{arrow('playerCount')}</Th>
                 </tr>
               </thead>
               <tbody className='divide-y divide-gray-100'>
