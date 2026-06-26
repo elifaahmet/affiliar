@@ -21,7 +21,7 @@ const GREETINGS: Record<'operator' | 'affiliate', Msg> = {
   operator: {
     role: 'agent',
     reply: "Hi, I'm your Affiliar agent. Ask me where something is, or about your affiliates & numbers.",
-    suggestions: ['Top affiliates last 7 days', 'This month NGR', 'Open campaign reports', 'Show anti-fraud'],
+    suggestions: ['Top affiliates last 7 days', 'New affiliates this month', 'This month NGR', 'Show anti-fraud'],
   },
   affiliate: {
     role: 'agent',

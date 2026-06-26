@@ -230,10 +230,55 @@ async function answerTopPlayers(user, period) {
   };
 }
 
+async function answerNewAffiliates(operator, period) {
+  const count = await User.countDocuments({
+    role: "affiliate",
+    operatorId: operator.operatorId,
+    isDeleted: { $ne: true },
+    createdAt: {
+      $gte: new Date(period.from.replace(" ", "T") + "Z"),
+      $lte: new Date(period.to.replace(" ", "T") + "Z"),
+    },
+  });
+  return {
+    reply: `New affiliates (${period.label}):`,
+    data: {
+      kind: "summary",
+      label: period.label,
+      action: { type: "navigate", route: ROUTES.affiliates.operator, label: "Affiliates" },
+      items: [{ label: "New affiliates", value: String(count) }],
+    },
+  };
+}
+
+// Static informational answers (FAQ) — no data query, optional route. Checked
+// before navigation so "how do commissions work" explains rather than just
+// jumping to a page.
+const FAQ_INTENTS = [
+  { roles: ["affiliate"], routeKey: "commission",
+    test: (t) => (has(t, "when") && has(t, "paid", "payout", "pay")) || has(t, "ne zaman odeme", "ne zaman alir", "ne zaman para", "payout schedule", "odeme ne zaman"),
+    reply: "Commissions are tallied monthly. Once your operator approves the report, your payout is sent — track the status (Draft → Approved → Paid) on your Commission page." },
+  { roles: ["affiliate"], routeKey: "commission",
+    test: (t) => has(t, "minimum") && has(t, "payout", "odeme", "withdraw", "pay"),
+    reply: "Minimum payout thresholds are set by your operator, not a fixed Affiliar number. Your approved commission shows on the Commission page — check with your operator for their threshold." },
+  { roles: ["affiliate"], routeKey: "commission",
+    test: (t) => (has(t, "how", "nasil") && has(t, "commission", "komisyon", "earn", "kazan")) || has(t, "my plan", "planim", "what plan"),
+    reply: "Your earnings follow the plan your operator assigned — RevShare, CPA, hybrid or tiered. See your active plan and current earnings on the Commission page." },
+  { roles: ["affiliate"], routeKey: "marketing",
+    test: (t) => has(t, "referral link", "tracking link", "my link", "linkim", "link nerede", "where is my link", "get my link"),
+    reply: "Your tracking links & referral codes live on the Marketing page — copy a link, add a campaign tag, and share." },
+  { roles: ["operator"], routeKey: "affiliates",
+    test: (t) => has(t, "invite", "davet", "add affiliate", "affiliate ekle", "yeni affiliate ekle") && has(t, "affiliate"),
+    reply: "Add or invite affiliates from the Affiliates page — use the Add tabs, or send an email invite so they set their own password." },
+  { roles: ["operator"], routeKey: "affiliates",
+    test: (t) => has(t, "announce", "announcement", "broadcast", "duyuru", "update mail", "toplu mail", "send update"),
+    reply: "Use the 📣 Announce button on the Affiliates page to send a one-off update to all your affiliates — in-app + email, respecting each affiliate's notification preferences." },
+];
+
 const SUGGESTIONS = {
   operator: [
     "Top affiliates last 7 days",
-    "Which affiliate earned the most in April?",
+    "New affiliates this month",
     "This month NGR / FTD",
     "Open campaign reports",
     "Show anti-fraud",
@@ -279,8 +324,18 @@ const assistantController = {
       if (wantsTop) {
         return res.json(await answerTopPlayers(user, period));
       }
+      if (user.role === "operator" && has(t, "affiliate", "signup", "uye") && has(t, "new", "yeni", "how many", "kac", "count", "joined", "katil")) {
+        return res.json(await answerNewAffiliates(user, period));
+      }
       if (has(t, "ngr", "ggr", "ftd", "deposit", "yatirim", "ciro", "revenue", "summary", "ozet", "how much", "ne kadar", "kac", "rakam", "total")) {
         return res.json(await answerSummary(user, period));
+      }
+
+      // ── FAQ (static answers, optional route) ────────────────────────────────
+      for (const f of FAQ_INTENTS) {
+        if (!f.roles.includes(user.role) || !f.test(t)) continue;
+        const route = f.routeKey ? ROUTES[f.routeKey]?.[user.role] : null;
+        return res.json({ reply: f.reply, action: route ? { type: "navigate", route, label: NAV_INTENTS.find((n) => n.key === f.routeKey)?.label || "Open" } : null });
       }
 
       // ── Navigation intents ──────────────────────────────────────────────────
