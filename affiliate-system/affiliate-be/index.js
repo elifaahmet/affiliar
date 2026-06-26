@@ -96,6 +96,7 @@ app.use(`${prefix}/reports`, affiliateRoutes.reportRoutes);
 app.use(`${prefix}/fraud`, require("./routes/affiliate/fraudRoutes"));
 app.use(`${prefix}/notifications`, require("./routes/affiliate/notificationRoutes"));
 app.use(`${prefix}/assistant`, require("./routes/affiliate/assistantRoutes"));
+app.use(`${prefix}/announcements`, require("./routes/affiliate/announcementRoutes"));
 app.use(`${prefix}/brands`,     affiliateRoutes.brandRoutes);
 app.use(`${prefix}/commission`,        affiliateRoutes.commissionRoutes);
 app.use(`${prefix}/affiliate-portal`, affiliateRoutes.affiliatePortalRoutes);

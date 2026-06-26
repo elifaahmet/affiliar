@@ -303,6 +303,11 @@ export const ASSISTANT_API_URLS = {
   ASK: () => `${API_BASE_URL}api/assistant/ask`,
 };
 
+export const ANNOUNCEMENTS_API_URLS = {
+  AUDIENCE: () => `${API_BASE_URL}api/announcements/audience`,
+  BROADCAST: () => `${API_BASE_URL}api/announcements/broadcast`,
+};
+
 export const BRANDS_API_URLS = {
   LIST:   () => `${API_BASE_URL}api/brands`,
   CREATE: () => `${API_BASE_URL}api/brands`,

@@ -9,6 +9,7 @@ const TYPE_CATALOG = {
   affiliate: [
     { type: "payout_paid", label: "Payout paid" },
     { type: "commission_approved", label: "Commission approved" },
+    { type: "announcement", label: "Announcements from your operator" },
   ],
   operator: [
     { type: "new_affiliate", label: "New affiliate signup" },

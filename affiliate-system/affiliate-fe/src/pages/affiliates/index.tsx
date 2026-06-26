@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { useBaseMutation } from 'api/core/useBaseMutation';
-import { AFFILIATES_API_URLS, OPERATOR_API_URLS, COMMISSION_API_URLS, BRANDS_API_URLS } from 'config/apiUrls';
+import { AFFILIATES_API_URLS, OPERATOR_API_URLS, COMMISSION_API_URLS, BRANDS_API_URLS, ANNOUNCEMENTS_API_URLS } from 'config/apiUrls';
 import axiosInstance from 'config/axiosInstance';
 import UpgradeBanner from '@components/core-components/UpgradeBanner';
 import PlanBadge from '@components/core-components/PlanBadge';
@@ -362,6 +362,7 @@ function AffiliatesTab() {
   const [assigningAffiliate, setAssigningAffiliate] = useState<Affiliate | null>(null);
   const [settingParent, setSettingParent]           = useState<Affiliate | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [announcing, setAnnouncing] = useState(false);
 
   const copyInviteLink = (affiliateId: string) => {
     const link = `${window.location.origin}/activate?userId=${affiliateId}`;
@@ -388,6 +389,12 @@ function AffiliatesTab() {
       <div className='px-5 py-3 border-b border-gray-100 flex items-center justify-between'>
         <p className='text-sm font-medium text-gray-800'>Affiliates</p>
         <div className='flex items-center gap-3'>
+          <button
+            onClick={() => setAnnouncing(true)}
+            className='text-xs font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg px-3 py-1.5 flex items-center gap-1.5'
+          >
+            <span aria-hidden>📣</span> Announce
+          </button>
           {planData && (
             <span className='text-xs text-gray-700 flex items-center gap-1.5'>
               {data?.total ?? 0} / {planData.limits.maxAffiliates} affiliates
@@ -576,7 +583,94 @@ function AffiliatesTab() {
           onSaved={() => { refetch(); setSettingParent(null); }}
         />
       )}
+
+      {announcing && <AnnounceModal onClose={() => setAnnouncing(false)} />}
     </div>
+  );
+}
+
+// ── Announcement broadcast modal ─────────────────────────────────────────────
+
+function AnnounceModal({ onClose }: { onClose: () => void }) {
+  const [subject, setSubject] = useState('');
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+  const [sent, setSent] = useState<{ recipients: number; emailed: number } | null>(null);
+
+  const { data: audience } = useBaseQuery<{ total: number; emailable: number }>({
+    endpoint: ANNOUNCEMENTS_API_URLS.AUDIENCE(),
+    queryKey: ['announce-audience'],
+  });
+
+  const send = async () => {
+    if (!subject.trim() || !message.trim() || sending) return;
+    setSending(true);
+    setError('');
+    try {
+      const { data } = await axiosInstance.post(ANNOUNCEMENTS_API_URLS.BROADCAST(), { subject, message });
+      setSent(data);
+    } catch (e) {
+      const err = e as { response?: { data?: { error?: string } } };
+      setError(err.response?.data?.error || 'Failed to send.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return createPortal(
+    <div className='fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4' onClick={onClose}>
+      <div className='bg-white rounded-2xl shadow-2xl w-full max-w-md' onClick={(e) => e.stopPropagation()}>
+        <div className='px-5 py-3 border-b border-gray-100 flex items-center justify-between'>
+          <h2 className='text-base font-semibold text-gray-800'>📣 Announce to affiliates</h2>
+          <button onClick={onClose} aria-label='Close' className='text-gray-400 hover:text-gray-600 text-lg leading-none'>×</button>
+        </div>
+
+        {sent ? (
+          <div className='p-6 text-center space-y-3'>
+            <p className='text-3xl'>✅</p>
+            <p className='text-sm text-gray-800 font-medium'>Announcement sent.</p>
+            <p className='text-xs text-gray-600'>
+              In-app notification to <strong>{sent.recipients}</strong> affiliate{sent.recipients === 1 ? '' : 's'};
+              emailed <strong>{sent.emailed}</strong> who have announcement emails on.
+            </p>
+            <button onClick={onClose} className='mt-2 h-9 px-5 rounded-lg text-sm font-medium text-white bg-primary'>Done</button>
+          </div>
+        ) : (
+          <div className='p-5 space-y-3'>
+            <p className='text-xs text-gray-600'>
+              Sends an in-app notification to all your affiliates
+              {audience ? <> — <strong>{audience.total}</strong> total, <strong>{audience.emailable}</strong> will also get an email</> : ''}.
+            </p>
+            <input
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              maxLength={150}
+              placeholder='Subject (e.g. New payout schedule)'
+              className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary'
+            />
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              maxLength={4000}
+              rows={5}
+              placeholder='Your message to all affiliates…'
+              className='w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary resize-none'
+            />
+            {error && <p className='text-xs text-red-500'>{error}</p>}
+            <div className='flex justify-end gap-2 pt-1'>
+              <button onClick={onClose} className='h-9 px-4 rounded-lg text-sm text-gray-600 hover:bg-gray-100'>Cancel</button>
+              <button
+                onClick={send}
+                disabled={sending || !subject.trim() || !message.trim()}
+                className='h-9 px-5 rounded-lg text-sm font-medium text-white bg-primary disabled:opacity-40'
+              >{sending ? 'Sending…' : `Send to ${audience?.total ?? ''} affiliates`}</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body,
   );
 }
 
