@@ -10,10 +10,12 @@ const TYPE_CATALOG = {
     { type: "payout_paid", label: "Payout paid" },
     { type: "commission_approved", label: "Commission approved" },
     { type: "announcement", label: "Announcements from your operator" },
+    { type: "bonus_earned", label: "Bonus campaign earned" },
   ],
   operator: [
     { type: "new_affiliate", label: "New affiliate signup" },
     { type: "fraud_flagged", label: "Fraud flagged" },
+    { type: "bonus_awarded", label: "Bonus campaign awards" },
   ],
 };
 

@@ -12,6 +12,7 @@ import {
   HeartIcon,
   PhotoIcon,
   ShieldCheckIcon,
+  TrophyIcon,
   Squares2X2Icon,
   UserGroupIcon,
   UsersIcon,
@@ -176,6 +177,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       href: '/commission',
       Icon: BanknotesIcon,
       current: pathname.startsWith('/commission'),
+    },
+    {
+      key: 'bonus-campaigns',
+      name: t('menuItems.bonusCampaigns') || 'Bonus Campaigns',
+      href: '/bonus-campaigns',
+      Icon: TrophyIcon,
+      current: pathname.startsWith('/bonus-campaigns'),
     },
     {
       key: 'payouts',
