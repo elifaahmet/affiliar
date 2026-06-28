@@ -192,6 +192,74 @@ const bonusOfferController = {
       res.json({ offers: out });
     } catch (err) { res.status(500).json({ error: err.message }); }
   },
+  // ── Casino integration (operator-authed, under /integration/bonus) ───────────
+
+  // GET /integration/bonus/verify?code=CODE — casino resolves a redemption code
+  // to its offer + affiliate before applying. Tenant-scoped to the caller.
+  async verifyCode(req, res) {
+    try {
+      const operator = req.affiliateUser;
+      if (!operator || operator.role !== "operator") return res.status(403).json({ error: "Operator authentication required" });
+      const code = String(req.query.code || "").trim().toUpperCase();
+      if (!code) return res.status(400).json({ error: "code is required" });
+      const codeDoc = await AffiliateBonusCode.findOne({ code, operatorId: operator.operatorId, status: "active" }).lean();
+      if (!codeDoc) return res.json({ valid: false });
+      const offer = await BonusOffer.findOne({ _id: codeDoc.offerId, status: "active" }).lean();
+      if (!offer) return res.json({ valid: false });
+      res.json({
+        valid: true,
+        code,
+        offerId: String(offer._id),
+        affiliateId: String(codeDoc.affiliateId),
+        externalBonusId: codeDoc.provision?.externalBonusId || null,
+        offer: {
+          name: offer.name, type: offer.type, currency: offer.currency,
+          wageringMultiplier: offer.wageringMultiplier, validityDays: offer.validityDays,
+          percentAmount: offer.percentAmount, minDepositAmount: offer.minDepositAmount, maxBonusAmount: offer.maxBonusAmount,
+          freeSpinCount: offer.freeSpinCount, cashbackPercent: offer.cashbackPercent,
+        },
+      });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  },
+
+  // POST /integration/bonus/claim — casino reports a redemption. Idempotent on
+  // (code, player). Attributes the claim to the code's affiliate.
+  async ingestClaim(req, res) {
+    try {
+      const operator = req.affiliateUser;
+      if (!operator || operator.role !== "operator") return res.status(403).json({ error: "Operator authentication required" });
+      const { code, playerId, amountCents, currency, status, source } = req.body || {};
+      if (!code || !playerId) return res.status(400).json({ error: "code and playerId are required" });
+
+      const codeDoc = await AffiliateBonusCode.findOne({ code: String(code).trim().toUpperCase(), operatorId: operator.operatorId });
+      if (!codeDoc) return res.status(404).json({ error: "Unknown bonus code" });
+
+      const existing = await BonusClaim.findOne({ codeId: codeDoc._id, playerId: String(playerId) });
+      if (existing) {
+        if (status) existing.status = status;
+        if (amountCents != null) existing.amountCents = Number(amountCents);
+        await existing.save();
+        return res.json({ claim: existing, deduped: true });
+      }
+
+      const claim = await BonusClaim.create({
+        offerId: codeDoc.offerId, codeId: codeDoc._id, operatorId: operator.operatorId,
+        affiliateId: codeDoc.affiliateId, playerId: String(playerId), code: codeDoc.code,
+        source: source === "link" ? "link" : "code",
+        amountCents: amountCents != null ? Number(amountCents) : null,
+        currency: currency || "EUR", status: status || "granted",
+      });
+      await AffiliateBonusCode.updateOne({ _id: codeDoc._id }, { $inc: { claimsCount: 1 } });
+
+      notify({
+        userId: codeDoc.affiliateId, operatorId: operator.operatorId, type: "bonus_claimed",
+        title: "Your bonus was claimed 🎉",
+        body: `A player redeemed your code ${codeDoc.code}.`,
+        link: "/affiliate/bonus-offers",
+      });
+      res.status(201).json({ claim });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  },
 };
 
 module.exports = bonusOfferController;

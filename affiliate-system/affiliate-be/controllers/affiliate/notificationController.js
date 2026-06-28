@@ -11,6 +11,7 @@ const TYPE_CATALOG = {
     { type: "commission_approved", label: "Commission approved" },
     { type: "announcement", label: "Announcements from your operator" },
     { type: "bonus_available", label: "New bonus to distribute" },
+    { type: "bonus_claimed", label: "Your bonus was claimed" },
   ],
   operator: [
     { type: "new_affiliate", label: "New affiliate signup" },

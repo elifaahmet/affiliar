@@ -18,6 +18,12 @@ router.post("/activity", importActivity);
 router.post("/player/register", playerIntegration.register);
 router.post("/player/bulk", playerIntegration.bulkRegister);
 
+// Affiliate bonus distribution: casino verifies a redemption code + reports
+// claims back. Operator-authed (same as the other integration endpoints).
+const bonusOfferController = require("../controllers/affiliate/bonusOfferController");
+router.get("/bonus/verify", bonusOfferController.verifyCode);
+router.post("/bonus/claim", bonusOfferController.ingestClaim);
+
 // ── Raw event ingestion (single + batch) ─────────────────────────────────────
 
 router.post("/raw-event", async (req, res) => {
