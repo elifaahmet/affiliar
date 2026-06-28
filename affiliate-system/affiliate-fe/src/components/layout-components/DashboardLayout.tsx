@@ -9,6 +9,7 @@ import {
   ChartBarSquareIcon,
   Cog6ToothIcon,
   CreditCardIcon,
+  GiftIcon,
   HeartIcon,
   PhotoIcon,
   ShieldCheckIcon,
@@ -176,6 +177,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       href: '/commission',
       Icon: BanknotesIcon,
       current: pathname.startsWith('/commission'),
+    },
+    {
+      key: 'bonus-offers',
+      name: t('menuItems.bonusOffers') || 'Player Bonuses',
+      href: '/bonus-offers',
+      Icon: GiftIcon,
+      current: pathname.startsWith('/bonus-offers'),
     },
     {
       key: 'payouts',

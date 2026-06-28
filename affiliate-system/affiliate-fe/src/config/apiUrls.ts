@@ -320,6 +320,15 @@ export const CREATIVES_API_URLS = {
   ITEM:   (id: string) => `${API_BASE_URL}api/creatives/${id}`,
 };
 
+export const BONUS_OFFERS_API_URLS = {
+  LIST:        () => `${API_BASE_URL}api/bonus-offers`,
+  CREATE:      () => `${API_BASE_URL}api/bonus-offers`,
+  ITEM:        (id: string) => `${API_BASE_URL}api/bonus-offers/${id}`,
+  AUTHORIZE:   (id: string) => `${API_BASE_URL}api/bonus-offers/${id}/authorize`,
+  CODES:       (id: string) => `${API_BASE_URL}api/bonus-offers/${id}/codes`,
+  REPROVISION: (codeId: string) => `${API_BASE_URL}api/bonus-offers/codes/${codeId}/reprovision`,
+};
+
 export const BRAND_PAGES_API_URLS = {
   LIST:   (brandId: string) => `${API_BASE_URL}api/brands/${brandId}/pages`,
   CREATE: (brandId: string) => `${API_BASE_URL}api/brands/${brandId}/pages`,
@@ -359,6 +368,7 @@ export const AFFILIATE_PORTAL_API_URLS = {
   PLAYER_DETAIL:    (playerId: string) => `${API_BASE_URL}api/players/detail/${playerId}`,
   REFERRAL_CODES:   () => `${API_BASE_URL}api/affiliate-portal/referral-codes`,
   CREATIVES:        () => `${API_BASE_URL}api/affiliate-portal/creatives`,
+  BONUS_OFFERS:     () => `${API_BASE_URL}api/affiliate-portal/bonus-offers`,
   BRAND_PAGES:      () => `${API_BASE_URL}api/affiliate-portal/brand-pages`,
   LINKS:            () => `${API_BASE_URL}api/affiliate-portal/links`,
   LINK:             (linkId: string) => `${API_BASE_URL}api/affiliate-portal/links/${linkId}`,
