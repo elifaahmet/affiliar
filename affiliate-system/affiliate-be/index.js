@@ -98,7 +98,6 @@ app.use(`${prefix}/notifications`, require("./routes/affiliate/notificationRoute
 app.use(`${prefix}/assistant`, require("./routes/affiliate/assistantRoutes"));
 app.use(`${prefix}/announcements`, require("./routes/affiliate/announcementRoutes"));
 app.use(`${prefix}/creatives`, require("./routes/affiliate/creativeRoutes"));
-app.use(`${prefix}/bonus-campaigns`, require("./routes/affiliate/bonusCampaignRoutes"));
 app.use(`${prefix}/brands`,     affiliateRoutes.brandRoutes);
 app.use(`${prefix}/commission`,        affiliateRoutes.commissionRoutes);
 app.use(`${prefix}/affiliate-portal`, affiliateRoutes.affiliatePortalRoutes);
@@ -164,8 +163,4 @@ app.listen(PORT, () => {
   // (enqueued by the raw Kafka consumer) to each affiliate's URL template.
   const { startPostbackDeliveryJob } = require("./jobs/postbackDeliveryJob");
   startPostbackDeliveryJob();
-
-  // Performance bonus campaigns: award affiliates who cross a campaign target.
-  const { startBonusCampaignJob } = require("./jobs/bonusCampaignJob");
-  startBonusCampaignJob();
 });

@@ -26,7 +26,6 @@ router.get ("/fee-details",        ctrl.feeDetails);
 
 // Marketing tools: operator-defined brand pages + the affiliate's saved links.
 router.get   ("/creatives",        creativeCtrl.affiliateList);
-router.get   ("/bonuses",          require("../../controllers/affiliate/bonusCampaignController").affiliateList);
 router.get   ("/brand-pages",      marketingCtrl.listBrandPages);
 router.get   ("/links",            marketingCtrl.listLinks);
 router.post  ("/links",            marketingCtrl.createLink);
