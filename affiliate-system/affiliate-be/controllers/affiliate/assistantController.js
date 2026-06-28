@@ -162,11 +162,16 @@ function chScope(user, period, { excludeFees = true } = {}) {
 // ── Data answers ─────────────────────────────────────────────────────────────
 
 async function answerSummary(user, period) {
-  const { where, cp } = chScope(user, period);
+  // Match the operator dashboard / reports overview exactly: sum over the whole
+  // tenant+brand+period scope INCLUDING the fee-delta rows (player_id='__fees__'),
+  // and without an affiliate_id filter. Otherwise NGR omits operator fee
+  // deductions (comes out too high) and drops non-attributed traffic. Affiliates
+  // are still scoped to their own rows by chScope.
+  const { where, cp } = chScope(user, period, { excludeFees: false });
   const rows = await chRows(
     `SELECT SUM(casino_ngr_cents) AS ngr, SUM(casino_ggr_cents) AS ggr,
             SUM(deposits_sum_cents) AS deposits, SUM(ftd_count) AS ftd
-     FROM affiliate.activity WHERE ${where} AND affiliate_id != ''`,
+     FROM affiliate.activity WHERE ${where}`,
     cp,
   );
   const r = rows[0] || {};
