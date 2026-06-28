@@ -17,6 +17,7 @@ async function runOnce() {
   const now = new Date();
   const campaigns = await BonusCampaign.find({
     status: "active",
+    kind: "target",
     startDate: { $lte: now },
     endDate: { $gte: new Date(now.getTime() - GRACE_MS) },
   }).lean();

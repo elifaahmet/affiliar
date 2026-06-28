@@ -8,9 +8,10 @@ const bonusAwardSchema = new mongoose.Schema(
     campaignId:  { type: mongoose.Schema.Types.ObjectId, ref: "BonusCampaign", required: true },
     operatorId:  { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
     affiliateId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    metric:      { type: String, required: true },
-    value:       { type: Number, required: true },   // metric value at award time
-    target:      { type: Number, required: true },
+    source:      { type: String, enum: ["target", "direct"], default: "target" },
+    metric:      { type: String, default: null },    // target awards only
+    value:       { type: Number, default: null },    // metric value at award time
+    target:      { type: Number, default: null },
     rewardCents: { type: Number, required: true },
     currency:    { type: String, default: "EUR" },
     achievedAt:  { type: Date, required: true },

@@ -56,6 +56,49 @@ async function affiliateValue(campaign, affiliateId) {
   return Number(rows?.[0]?.value) || 0;
 }
 
+// Notify affiliates of new awards + the operator owners (shared by the target
+// race and direct grants).
+async function notifyAwards(campaign, created) {
+  if (!created.length) return;
+  const direct = campaign.kind === "direct";
+  const names = new Map(
+    (await User.find({ _id: { $in: created.map((a) => a.affiliateId) } }).select("username name email").lean())
+      .map((u) => [String(u._id), u.name || u.username || u.email]),
+  );
+  for (const a of created) {
+    notify({
+      userId: a.affiliateId, operatorId: campaign.operatorId, type: "bonus_earned",
+      title: `🎉 You received a ${eur(a.rewardCents)} bonus!`,
+      body: direct ? campaign.name : `You hit "${campaign.name}" — reached the ${METRICS[campaign.metric]?.label || "metric"} target.`,
+      link: "/affiliate/bonuses",
+    });
+  }
+  notifyOperatorOwners(campaign.operatorId, {
+    type: "bonus_awarded",
+    title: direct ? `Bonus granted: ${campaign.name}` : `Bonus campaign milestone: ${campaign.name}`,
+    body: `${created.length} affiliate(s): ${created.map((a) => names.get(String(a.affiliateId)) || "?").join(", ")}.`,
+    link: "/bonus-campaigns",
+  });
+}
+
+// Direct grant: give the reward straight to the chosen affiliates.
+async function grantDirect(campaign, affiliateIds) {
+  const created = [];
+  for (const id of affiliateIds) {
+    try {
+      const award = await BonusAward.create({
+        campaignId: campaign._id, operatorId: campaign.operatorId, affiliateId: id,
+        source: "direct", rewardCents: campaign.rewardCents, currency: campaign.currency, achievedAt: new Date(),
+      });
+      created.push(award);
+    } catch (e) {
+      if (e.code !== 11000) throw e;
+    }
+  }
+  await notifyAwards(campaign, created);
+  return created;
+}
+
 // Grant awards for whoever crossed the target; notify on each new award.
 // Idempotent via the unique (campaignId, affiliateId) index.
 async function evaluateCampaign(campaign) {
@@ -74,35 +117,21 @@ async function evaluateCampaign(campaign) {
       if (e.code !== 11000) throw e; // already awarded → skip
     }
   }
-  if (created.length) {
-    const names = new Map(
-      (await User.find({ _id: { $in: created.map((a) => a.affiliateId) } }).select("username name email").lean())
-        .map((u) => [String(u._id), u.name || u.username || u.email]),
-    );
-    for (const a of created) {
-      notify({
-        userId: a.affiliateId, operatorId: campaign.operatorId, type: "bonus_earned",
-        title: `🎉 You earned a ${eur(a.rewardCents)} bonus!`,
-        body: `You hit "${campaign.name}" — reached the ${METRICS[campaign.metric].label} target.`,
-        link: "/affiliate/bonuses",
-      });
-    }
-    notifyOperatorOwners(campaign.operatorId, {
-      type: "bonus_awarded",
-      title: `Bonus campaign milestone: ${campaign.name}`,
-      body: `${created.length} affiliate(s) just reached the target: ${created.map((a) => names.get(String(a.affiliateId)) || "?").join(", ")}.`,
-      link: "/bonus-campaigns",
-    });
-  }
+  await notifyAwards(campaign, created);
   return created;
 }
 
 function publicCampaign(c) {
   const now = Date.now();
-  const phase = c.status === "archived" ? "archived"
-    : now < new Date(c.startDate).getTime() ? "upcoming"
-    : now > new Date(c.endDate).getTime() ? "ended" : "active";
-  return { ...c, phase, metricLabel: METRICS[c.metric]?.label, metricIsMoney: !!METRICS[c.metric]?.money };
+  let phase;
+  if (c.kind === "direct") {
+    phase = c.status === "archived" ? "archived" : "granted";
+  } else {
+    phase = c.status === "archived" ? "archived"
+      : !c.startDate || now < new Date(c.startDate).getTime() ? "upcoming"
+      : now > new Date(c.endDate).getTime() ? "ended" : "active";
+  }
+  return { ...c, kind: c.kind || "target", phase, metricLabel: METRICS[c.metric]?.label || null, metricIsMoney: !!METRICS[c.metric]?.money };
 }
 
 const bonusCampaignController = {
@@ -137,19 +166,43 @@ const bonusCampaignController = {
   async create(req, res) {
     try {
       const user = req.affiliateUser;
-      const { brandId, name, description, metric, target, rewardCents, currency, startDate, endDate } = req.body || {};
-      if (!name || !metric || !METRICS[metric]) return res.status(400).json({ error: "name and a valid metric are required" });
-      if (!(Number(target) > 0)) return res.status(400).json({ error: "target must be > 0" });
-      if (!(Number(rewardCents) > 0)) return res.status(400).json({ error: "reward must be > 0" });
-      if (!startDate || !endDate || new Date(endDate) < new Date(startDate)) return res.status(400).json({ error: "Invalid date range" });
-      if (brandId) {
-        const brand = await Brand.findOne({ _id: brandId, operatorId: user.operatorId }).select({ _id: 1 }).lean();
+      const b = req.body || {};
+      const kind = b.kind === "direct" ? "direct" : "target";
+      const name = b.name;
+      const rewardCents = Number(b.rewardCents);
+      if (!name) return res.status(400).json({ error: "name is required" });
+      if (!(rewardCents > 0)) return res.status(400).json({ error: "reward must be > 0" });
+      if (b.brandId) {
+        const brand = await Brand.findOne({ _id: b.brandId, operatorId: user.operatorId }).select({ _id: 1 }).lean();
         if (!brand) return res.status(400).json({ error: "Unknown brand" });
       }
+
+      // ── Direct grant: resolve recipients, create the record, award now ──────
+      if (kind === "direct") {
+        let ids = [];
+        if (b.allAffiliates || b.affiliateIds === "all") {
+          ids = (await User.find({ role: "affiliate", operatorId: user.operatorId, isDeleted: { $ne: true } }).select("_id").lean()).map((a) => a._id);
+        } else if (Array.isArray(b.affiliateIds) && b.affiliateIds.length) {
+          ids = (await User.find({ _id: { $in: b.affiliateIds }, role: "affiliate", operatorId: user.operatorId, isDeleted: { $ne: true } }).select("_id").lean()).map((a) => a._id);
+        }
+        if (!ids.length) return res.status(400).json({ error: "Select at least one affiliate" });
+        const campaign = await BonusCampaign.create({
+          operatorId: user.operatorId, kind: "direct", brandId: b.brandId || null,
+          name: String(name).trim(), description: b.description || null,
+          rewardCents, currency: b.currency || "EUR", createdBy: user._id,
+        });
+        const created = await grantDirect(campaign, ids);
+        return res.status(201).json({ campaign: publicCampaign(campaign.toObject()), granted: created.length });
+      }
+
+      // ── Target race ─────────────────────────────────────────────────────────
+      if (!b.metric || !METRICS[b.metric]) return res.status(400).json({ error: "a valid metric is required" });
+      if (!(Number(b.target) > 0)) return res.status(400).json({ error: "target must be > 0" });
+      if (!b.startDate || !b.endDate || new Date(b.endDate) < new Date(b.startDate)) return res.status(400).json({ error: "Invalid date range" });
       const campaign = await BonusCampaign.create({
-        operatorId: user.operatorId, brandId: brandId || null, name: String(name).trim(),
-        description: description || null, metric, target: Number(target), rewardCents: Number(rewardCents),
-        currency: currency || "EUR", startDate: new Date(startDate), endDate: new Date(endDate), createdBy: user._id,
+        operatorId: user.operatorId, kind: "target", brandId: b.brandId || null, name: String(name).trim(),
+        description: b.description || null, metric: b.metric, target: Number(b.target), rewardCents,
+        currency: b.currency || "EUR", startDate: new Date(b.startDate), endDate: new Date(b.endDate), createdBy: user._id,
       });
       res.status(201).json({ campaign: publicCampaign(campaign.toObject()) });
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -189,7 +242,7 @@ const bonusCampaignController = {
       const campaign = await BonusCampaign.findOne({ _id: req.params.id, operatorId: user.operatorId }).lean();
       if (!campaign) return res.status(404).json({ error: "Not found" });
       const [vals, awards] = await Promise.all([
-        affiliateValues(campaign),
+        campaign.kind === "direct" ? Promise.resolve([]) : affiliateValues(campaign),
         BonusAward.find({ campaignId: campaign._id }).lean(),
       ]);
       const ids = [...new Set([...vals.map((v) => v.id), ...awards.map((a) => String(a.affiliateId))])];
@@ -239,7 +292,7 @@ const bonusCampaignController = {
       if (user.role !== "affiliate") return res.status(403).json({ error: "Affiliates only" });
       const now = new Date();
       const campaigns = await BonusCampaign.find({
-        operatorId: user.operatorId, status: "active",
+        operatorId: user.operatorId, status: "active", kind: "target",
         startDate: { $lte: now }, endDate: { $gte: now },
       }).populate("brandId", "name").sort({ endDate: 1 }).lean();
 
