@@ -2,12 +2,17 @@
 
 const axios = require("axios");
 
-// The casino player-name resolve endpoint lives on the same host as the bonus
-// catalog endpoint (operator's casinoBonusApiUrl). Derive it from that URL's
-// origin so operators only configure one casino base.
+// The casino player-name resolve endpoint sits next to the bonus catalog
+// endpoint (operator's casinoBonusApiUrl). Swap the path suffix rather than
+// rebuilding from origin, so any routing prefix (e.g. nginx /api on a separate
+// casino server) is preserved.
 function playersUrlFrom(bonusUrl) {
   try {
-    return `${new URL(bonusUrl).origin}/affiliar-players/resolve`;
+    const u = new URL(bonusUrl);
+    const swapped = u.pathname.replace(/\/affiliar-bonus\/definitions\/?$/, "/affiliar-players/resolve");
+    u.pathname = swapped.endsWith("/affiliar-players/resolve") ? swapped : "/affiliar-players/resolve";
+    u.search = "";
+    return u.toString();
   } catch {
     return "";
   }
