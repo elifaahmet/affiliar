@@ -7,6 +7,7 @@ import { useBaseQuery } from 'api/core/useBaseQuery';
 interface AffiliateRef { username?: string; email?: string; name?: string }
 interface PlayerRow {
   playerId: string;
+  username?: string | null;
   affiliateId?: AffiliateRef | string | null;
   metrics?: Record<string, number | string | null> | null;
 }
@@ -127,7 +128,10 @@ export default function PlayerLeaderboard({ endpoint, scope, affiliatesEndpoint 
               {players.map((p, i) => (
                 <tr key={p.playerId} className={i < 3 ? 'bg-violet-50/40' : ''}>
                   <td className='px-4 py-2 text-sm'>{i < 3 ? MEDAL[i] : <span className='text-gray-400 text-xs'>{i + 1}</span>}</td>
-                  <td className='px-4 py-2 text-xs font-medium text-gray-800 truncate max-w-[180px]'>{p.playerId}</td>
+                  <td className='px-4 py-2 max-w-[200px]'>
+                    <div className='text-xs font-medium text-gray-800 truncate'>{p.username || p.playerId}</div>
+                    {p.username && <div className='text-[10px] text-gray-400 truncate'>{p.playerId}</div>}
+                  </td>
                   {scope === 'operator' && <td className='px-4 py-2 text-xs text-gray-600 truncate max-w-[160px]'>{affName(p.affiliateId)}</td>}
                   {METRICS.map((m) => (
                     <td key={m.key} className={`px-4 py-2 text-right text-xs whitespace-nowrap ${metric === m.key ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>

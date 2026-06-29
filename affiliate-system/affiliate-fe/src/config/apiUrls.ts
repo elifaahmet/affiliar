@@ -436,6 +436,7 @@ export const REFER_API_URLS = {
 
 export const AFFILIATE_PLAYERS_API_URLS = {
   LIST:              () => `${API_BASE_URL}api/players`,
+  SYNC_NAMES:        () => `${API_BASE_URL}api/players/sync-names`,
   BULK_REGISTER:     () => `${API_BASE_URL}api/integration/player/bulk`,
   AFFILIATES_SELECT: () => `${API_BASE_URL}api/players/affiliates-select`,
 };

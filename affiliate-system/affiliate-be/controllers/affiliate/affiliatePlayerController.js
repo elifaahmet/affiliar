@@ -1,6 +1,19 @@
 const AffiliatePlayer = require("../../models/AffiliatePlayer");
 const User = require("../../models/User");
+const Operator = require("../../models/Operator");
+const PlayerName = require("../../models/PlayerName");
 const clickhouse = require("../../config/clickhouse");
+const casinoPlayers = require("../../utils/casinoPlayers");
+
+// Attach cached usernames (PlayerName) onto a list of player rows.
+async function attachUsernames(operatorId, players) {
+  const ids = players.map((p) => String(p.playerId));
+  if (!ids.length) return players;
+  const names = await PlayerName.find({ operatorId, playerId: { $in: ids } }).select("playerId username").lean();
+  const m = new Map(names.map((n) => [n.playerId, n.username]));
+  for (const p of players) p.username = m.get(String(p.playerId)) || null;
+  return players;
+}
 
 async function queryRows(sql, queryParams) {
   const result = await clickhouse.query({
@@ -143,6 +156,7 @@ const affiliatePlayerController = {
           playerId: String(r.playerId),
           metrics: coerceMetricRow(r),
         }));
+        await attachUsernames(user.operatorId, players);
 
         return res.json({
           players,
@@ -202,6 +216,7 @@ const affiliatePlayerController = {
         ...p,
         metrics: metrics.get(String(p.playerId)) || null,
       }));
+      await attachUsernames(user.operatorId, enriched);
 
       res.json({ players: enriched, total, page: Number(page), limit: Number(limit) });
     } catch (err) {
@@ -269,6 +284,54 @@ const affiliatePlayerController = {
         .lean();
 
       res.json(affiliates);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+
+  // POST /players/sync-names — operator pulls player_id → username from its
+  // casino and caches them (PlayerName). Manual trigger.
+  async syncNames(req, res) {
+    try {
+      const user = req.affiliateUser;
+      if (user.role !== "operator") return res.status(403).json({ error: "Only operators can sync usernames" });
+
+      const op = await Operator.findById(user.operatorId).select("casinoBonusApiUrl casinoBonusApiToken").lean();
+      const cfg = {
+        url: op?.casinoBonusApiUrl || process.env.CASINO_BONUS_API_URL || "",
+        token: op?.casinoBonusApiToken || process.env.CASINO_BONUS_API_TOKEN || "",
+      };
+      if (!cfg.url || !cfg.token) {
+        return res.status(400).json({ error: "Casino API not configured — set the casino connection first." });
+      }
+
+      const rows = await queryRows(
+        `SELECT player_id AS id FROM affiliate.activity
+         WHERE tenant_id = {tenantId:String} AND player_id != '__fees__'
+         GROUP BY player_id LIMIT 5000`,
+        { tenantId: user.operatorId.toString() },
+      );
+      const ids = rows.map((r) => String(r.id)).filter(Boolean);
+      if (!ids.length) return res.json({ synced: 0, total: 0 });
+
+      let synced = 0;
+      for (let i = 0; i < ids.length; i += 500) {
+        const batch = ids.slice(i, i + 500);
+        let resolved = [];
+        try { resolved = await casinoPlayers.resolveUsernames(cfg, batch); }
+        catch (e) { return res.status(502).json({ error: `Casino resolve failed: ${e.message}`, synced }); }
+        const writes = resolved
+          .filter((p) => p.playerId && p.username)
+          .map((p) => ({
+            updateOne: {
+              filter: { operatorId: user.operatorId, playerId: String(p.playerId) },
+              update: { $set: { username: p.username } },
+              upsert: true,
+            },
+          }));
+        if (writes.length) { await PlayerName.bulkWrite(writes); synced += writes.length; }
+      }
+      res.json({ synced, total: ids.length });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

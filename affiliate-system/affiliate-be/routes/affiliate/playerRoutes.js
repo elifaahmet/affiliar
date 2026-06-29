@@ -13,6 +13,9 @@ const { logger } = require("../../middlewares/logger");
 router.get("/", affiliatePlayerController.list);
 router.get("/affiliates-select", affiliatePlayerController.affiliatesSelect);
 router.get("/detail/:playerId", affiliatePlayerController.detail);
+// Operator-only: pull player_id -> username from the casino. Must precede the
+// parametric "/:adminId" POST route below.
+router.post("/sync-names", affiliatePlayerController.syncNames);
 
 /**
  * @swagger

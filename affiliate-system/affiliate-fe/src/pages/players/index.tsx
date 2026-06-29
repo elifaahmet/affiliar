@@ -4,6 +4,7 @@ import { useBaseMutation } from 'api/core/useBaseMutation';
 import { AFFILIATE_PLAYERS_API_URLS } from 'config/apiUrls';
 import BSelectWithSearch from '@components/core-components/selectWithInput/BSelectWithSearch';
 import PlayerLeaderboard from '@components/core-components/PlayerLeaderboard';
+import axiosInstance from 'config/axiosInstance';
 
 // ── types ─────────────────────────────────────────────────────────────────────
 
@@ -522,10 +523,31 @@ function ImportPlayersTab() {
 
 export default function Players() {
   const [activeTab, setActiveTab] = useState<Tab>('Players');
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState('');
+  const syncNames = async () => {
+    setSyncing(true); setSyncMsg('');
+    try {
+      const { data } = await axiosInstance.post(AFFILIATE_PLAYERS_API_URLS.SYNC_NAMES(), {});
+      setSyncMsg(`Synced ${data.synced}/${data.total} usernames`);
+    } catch (e) {
+      const err = e as { response?: { data?: { error?: string } } };
+      setSyncMsg(err.response?.data?.error || 'Sync failed');
+    } finally { setSyncing(false); setTimeout(() => setSyncMsg(''), 6000); }
+  };
 
   return (
     <div className='h-full overflow-auto p-6 pb-24 space-y-5'>
-      <h1 className='text-xl font-semibold text-gray-800'>Players</h1>
+      <div className='flex items-center justify-between gap-3 flex-wrap'>
+        <h1 className='text-xl font-semibold text-gray-800'>Players</h1>
+        <div className='flex items-center gap-2'>
+          {syncMsg && <span className='text-xs text-gray-600'>{syncMsg}</span>}
+          <button onClick={syncNames} disabled={syncing}
+            className='text-sm font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg px-4 py-2 disabled:opacity-50'>
+            {syncing ? 'Syncing…' : '↻ Sync usernames'}
+          </button>
+        </div>
+      </div>
 
       <div className='flex gap-1 bg-white rounded-xl p-1 shadow-sm border border-gray-100 w-full'>
         {TABS.map((tab) => (
