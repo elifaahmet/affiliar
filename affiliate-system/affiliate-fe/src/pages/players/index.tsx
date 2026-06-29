@@ -542,7 +542,7 @@ export default function Players() {
       </div>
 
       {activeTab === 'Players' && <PlayersTab />}
-      {activeTab === 'Leaderboard' && <PlayerLeaderboard endpoint={AFFILIATE_PLAYERS_API_URLS.LIST()} scope='operator' />}
+      {activeTab === 'Leaderboard' && <PlayerLeaderboard endpoint={AFFILIATE_PLAYERS_API_URLS.LIST()} scope='operator' affiliatesEndpoint={AFFILIATE_PLAYERS_API_URLS.AFFILIATES_SELECT()} />}
       {activeTab === 'Import Players' && <ImportPlayersTab />}
     </div>
   );

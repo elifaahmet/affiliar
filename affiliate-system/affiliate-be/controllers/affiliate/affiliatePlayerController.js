@@ -101,9 +101,13 @@ const affiliatePlayerController = {
       // ── Metric-sorted path: order + paginate in ClickHouse (the metric isn't
       // in Mongo), then hydrate the AffiliatePlayer rows for the page. ──────
       if (PLAYER_SORTS[sortBy]) {
-        const conds = ["tenant_id = {tenantId:String}", "player_id != '__fees__'", "affiliate_id != ''"];
+        // Affiliates are locked to their own players. Operators see everyone:
+        // all players by default (incl. organic / unattributed), a specific
+        // affiliate when affiliateId is given, or only organic via "__none__".
+        const conds = ["tenant_id = {tenantId:String}", "player_id != '__fees__'"];
         const cp = { tenantId: user.operatorId.toString() };
         if (user.role === "affiliate") { conds.push("affiliate_id = {affId:String}"); cp.affId = String(user._id); }
+        else if (affiliateId === "__none__") { conds.push("affiliate_id = ''"); }
         else if (affiliateId)          { conds.push("affiliate_id = {affId:String}"); cp.affId = String(affiliateId); }
         if (user.role === "operator" && Array.isArray(user.brandIds) && user.brandIds.length > 0) {
           conds.push("brand_id IN ({brandIds:Array(String)})"); cp.brandIds = user.brandIds.map(String);

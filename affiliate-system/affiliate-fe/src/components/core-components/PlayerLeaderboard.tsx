@@ -46,18 +46,30 @@ function rangeFor(p: string): { from?: string; to?: string } {
   return {}; // all time
 }
 
-export default function PlayerLeaderboard({ endpoint, scope }: { endpoint: string; scope: 'operator' | 'affiliate' }) {
+interface AffiliateOpt2 { _id: string; username?: string; email?: string }
+
+export default function PlayerLeaderboard({ endpoint, scope, affiliatesEndpoint }: { endpoint: string; scope: 'operator' | 'affiliate'; affiliatesEndpoint?: string }) {
   const [metric, setMetric] = useState<string>('ngrCents');
   const [period, setPeriod] = useState<string>('this_month');
+  const [affFilter, setAffFilter] = useState<string>(''); // '' = all, '__none__' = organic, else affiliateId
   const range = rangeFor(period);
+
+  // Operators can slice by affiliate (or organic / all). Affiliates don't.
+  const { data: affData } = useBaseQuery<AffiliateOpt2[]>({
+    endpoint: affiliatesEndpoint || '',
+    queryKey: ['lb-affiliates', affiliatesEndpoint],
+    enabled: scope === 'operator' && !!affiliatesEndpoint,
+  });
+  const affiliates = affData ?? [];
 
   const { data, isLoading } = useBaseQuery<{ players: PlayerRow[] }>({
     endpoint,
-    queryKey: ['player-leaderboard', endpoint, metric, period],
+    queryKey: ['player-leaderboard', endpoint, metric, period, affFilter],
     params: {
       sortBy: metric, sortDir: 'desc', limit: 50, page: 1,
       ...(range.from ? { from: range.from } : {}),
       ...(range.to ? { to: range.to } : {}),
+      ...(affFilter ? { affiliateId: affFilter } : {}),
     },
   });
   const players = data?.players ?? [];
@@ -69,6 +81,14 @@ export default function PlayerLeaderboard({ endpoint, scope }: { endpoint: strin
       <div className='px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap'>
         <p className='text-sm font-medium text-gray-800'>🏆 Top 50 players</p>
         <div className='flex items-center gap-2 flex-wrap'>
+        {scope === 'operator' && affiliatesEndpoint && (
+          <select value={affFilter} onChange={(e) => setAffFilter(e.target.value)}
+            className='text-xs rounded-lg px-2 py-1.5 border border-gray-200 bg-white text-gray-700 focus:outline-none focus:border-primary max-w-[160px]'>
+            <option value=''>All players</option>
+            <option value='__none__'>Organic (no affiliate)</option>
+            {affiliates.map((a) => <option key={a._id} value={a._id}>{a.username || a.email || a._id}</option>)}
+          </select>
+        )}
         <select value={period} onChange={(e) => setPeriod(e.target.value)}
           className='text-xs rounded-lg px-2 py-1.5 border border-gray-200 bg-white text-gray-700 focus:outline-none focus:border-primary'>
           {PERIODS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
