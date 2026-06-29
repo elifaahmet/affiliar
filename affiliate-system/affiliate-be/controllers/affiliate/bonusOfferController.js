@@ -4,6 +4,7 @@ const BonusClaim = require("../../models/BonusClaim");
 const Brand = require("../../models/Brand");
 const User = require("../../models/User");
 const Operator = require("../../models/Operator");
+const AffiliateProfile = require("../../models/AffiliateProfile");
 const casinoBonus = require("../../utils/casinoBonus");
 const { notify } = require("../../utils/notify");
 
@@ -260,15 +261,29 @@ const bonusOfferController = {
       if (!codes.length) return res.json({ offers: [] });
 
       const offerIds = codes.map((c) => c.offerId);
-      const offers = await BonusOffer.find({ _id: { $in: offerIds }, status: "active" }).populate("brandId", "name url").lean();
+      // Only distributable, active offers surface to the affiliate.
+      const offers = await BonusOffer.find({ _id: { $in: offerIds }, status: "active", distributable: true }).populate("brandId", "name url").lean();
       const offerById = new Map(offers.map((o) => [String(o._id), o]));
+
+      // The affiliate's own referral code per brand → drives ?affiliate= attribution.
+      const profile = await AffiliateProfile.findOne({ user: user._id }).select({ brandCodes: 1 }).lean();
+      const refByBrand = new Map((profile?.brandCodes || []).map((bc) => [String(bc.brandId), bc.code]));
 
       const out = codes
         .map((c) => {
           const o = offerById.get(String(c.offerId));
           if (!o) return null;
           const brandUrl = o.brandId?.url || null;
-          const link = brandUrl ? `${brandUrl.replace(/\/+$/, "")}/?bonus=${encodeURIComponent(c.code)}` : null;
+          const affRef = o.brandId?._id ? refByBrand.get(String(o.brandId._id)) : null;
+          // Link carries both attribution (?affiliate=) and the bonus (?bonus=),
+          // captured by the casino's affiliate + bonus trackers.
+          let link = null;
+          if (brandUrl) {
+            const sp = new URLSearchParams();
+            if (affRef) sp.set("affiliate", affRef);
+            sp.set("bonus", c.code);
+            link = `${brandUrl.replace(/\/+$/, "")}/?${sp.toString()}`;
+          }
           return {
             offerId: o._id, name: o.name, description: o.description, type: o.type,
             brandName: o.brandId?.name || null, wageringMultiplier: o.wageringMultiplier, validityDays: o.validityDays,
