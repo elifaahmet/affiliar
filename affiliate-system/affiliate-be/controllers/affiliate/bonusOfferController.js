@@ -3,8 +3,15 @@ const AffiliateBonusCode = require("../../models/AffiliateBonusCode");
 const BonusClaim = require("../../models/BonusClaim");
 const Brand = require("../../models/Brand");
 const User = require("../../models/User");
+const Operator = require("../../models/Operator");
 const casinoBonus = require("../../utils/casinoBonus");
 const { notify } = require("../../utils/notify");
+
+// Per-operator casino bonus API config (falls back to global env in casinoBonus).
+async function casinoCfg(operatorId) {
+  const op = await Operator.findById(operatorId).select("casinoBonusApiUrl casinoBonusApiToken").lean();
+  return { url: op?.casinoBonusApiUrl || "", token: op?.casinoBonusApiToken || "" };
+}
 
 // Per-affiliate sub-code: base + short affiliate suffix (uppercased).
 function makeCode(baseCode, affiliateId) {
@@ -46,8 +53,32 @@ const bonusOfferController = {
           claims: byOffer.get(String(o._id))?.claims || 0,
         })),
         provisioning: casinoBonus.isConfigured(),
-        pullConfigured: casinoBonus.pullConfigured(),
+        pullConfigured: casinoBonus.pullConfigured(await casinoCfg(user.operatorId)),
       });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  },
+
+  // GET /bonus-offers/casino-config — current casino connection (token masked).
+  async getConfig(req, res) {
+    try {
+      const user = req.affiliateUser;
+      const cfg = await casinoCfg(user.operatorId);
+      const eff = { url: cfg.url || process.env.CASINO_BONUS_API_URL || "", hasToken: !!(cfg.token || process.env.CASINO_BONUS_API_TOKEN) };
+      res.json({ url: cfg.url || "", hasToken: !!cfg.token, effective: eff, configured: casinoBonus.pullConfigured(cfg) });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  },
+
+  // PATCH /bonus-offers/casino-config { url, token } — set this operator's casino API.
+  async setConfig(req, res) {
+    try {
+      const user = req.affiliateUser;
+      const set = {};
+      if ("url" in (req.body || {})) set.casinoBonusApiUrl = req.body.url ? String(req.body.url).trim() : null;
+      if (req.body?.token) set.casinoBonusApiToken = String(req.body.token); // only overwrite when a new token is sent
+      if (!Object.keys(set).length) return res.status(400).json({ error: "Nothing to update" });
+      await Operator.updateOne({ _id: user.operatorId }, { $set: set });
+      const cfg = await casinoCfg(user.operatorId);
+      res.json({ url: cfg.url || "", hasToken: !!cfg.token, configured: casinoBonus.pullConfigured(cfg) });
     } catch (err) { res.status(500).json({ error: err.message }); }
   },
 
@@ -57,11 +88,12 @@ const bonusOfferController = {
   async sync(req, res) {
     try {
       const user = req.affiliateUser;
-      if (!casinoBonus.pullConfigured()) {
-        return res.status(400).json({ error: "Casino bonus API not configured (CASINO_BONUS_API_URL + CASINO_BONUS_API_TOKEN)" });
+      const cfg = await casinoCfg(user.operatorId);
+      if (!casinoBonus.pullConfigured(cfg)) {
+        return res.status(400).json({ error: "Casino bonus API not configured — set the casino connection (URL + token) first." });
       }
       let defs;
-      try { defs = await casinoBonus.fetchDefinitions(); }
+      try { defs = await casinoBonus.fetchDefinitions(cfg); }
       catch (e) { return res.status(502).json({ error: `Casino fetch failed: ${e.message}` }); }
 
       const num = (v) => {

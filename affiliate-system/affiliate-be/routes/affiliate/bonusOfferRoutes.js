@@ -6,6 +6,8 @@ const requireOperatorOwner = require("../../middlewares/requireOperatorOwner");
 // Operator-managed player bonus offers (distributed by affiliates). Owner-only.
 router.use(requireOperatorOwner);
 router.get("/", ctrl.list);
+router.get("/casino-config", ctrl.getConfig);
+router.patch("/casino-config", ctrl.setConfig);
 router.post("/sync", ctrl.sync);
 router.post("/", ctrl.create);
 router.patch("/:id", ctrl.update);

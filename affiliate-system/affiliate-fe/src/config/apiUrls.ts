@@ -323,6 +323,7 @@ export const CREATIVES_API_URLS = {
 export const BONUS_OFFERS_API_URLS = {
   LIST:        () => `${API_BASE_URL}api/bonus-offers`,
   SYNC:        () => `${API_BASE_URL}api/bonus-offers/sync`,
+  CASINO_CONFIG: () => `${API_BASE_URL}api/bonus-offers/casino-config`,
   CREATE:      () => `${API_BASE_URL}api/bonus-offers`,
   ITEM:        (id: string) => `${API_BASE_URL}api/bonus-offers/${id}`,
   AUTHORIZE:   (id: string) => `${API_BASE_URL}api/bonus-offers/${id}/authorize`,

@@ -131,6 +131,12 @@ const operatorSchema = new mongoose.Schema(
       of: mongoose.Schema.Types.Mixed,
       default: () => new Map(),
     },
+    // Per-operator casino bonus integration (pull model). Affiliar pulls this
+    // operator's casino bonus catalog from `casinoBonusApiUrl` using
+    // `casinoBonusApiToken` (the casino's AFFILIAR_SERVICE_TOKEN). Falls back to
+    // the global CASINO_BONUS_API_URL/TOKEN env when unset.
+    casinoBonusApiUrl:   { type: String, default: null, trim: true },
+    casinoBonusApiToken: { type: String, default: null },
     isDeleted: {
       type: Boolean,
       default: false,

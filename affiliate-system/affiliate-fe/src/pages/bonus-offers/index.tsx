@@ -69,10 +69,11 @@ export default function BonusOffersPage() {
         </p>
       </div>
 
+      <CasinoConfig />
+
       {data && !data.pullConfigured && (
         <div className='text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2'>
-          ⚠️ Casino bonus API not configured — set <code className='mx-1'>CASINO_BONUS_API_URL</code> +
-          <code className='mx-1'>CASINO_BONUS_API_TOKEN</code> to pull this casino's bonus catalog.
+          ⚠️ Casino bonus API not configured — set the casino connection above to pull this casino's bonus catalog.
         </div>
       )}
 
@@ -90,6 +91,55 @@ export default function BonusOffersPage() {
       {isLoading ? <p className='text-sm text-gray-600'>Loading…</p>
         : offers.length === 0 ? <p className='text-sm text-gray-600'>No bonuses yet. Create your first above.</p>
         : <div className='space-y-3'>{offers.map((o) => <OfferRow key={o._id} o={o} onChanged={refresh} />)}</div>}
+    </div>
+  );
+}
+
+function CasinoConfig() {
+  const { data } = useBaseQuery<{ url: string; hasToken: boolean; configured: boolean }>({
+    endpoint: BONUS_OFFERS_API_URLS.CASINO_CONFIG(), queryKey: ['bo-casino-config'],
+  });
+  const [open, setOpen] = useState(false);
+  const [url, setUrl] = useState('');
+  const [token, setToken] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const edit = () => { setUrl(data?.url || ''); setToken(''); setOpen(true); };
+  const save = async () => {
+    setSaving(true); setMsg('');
+    try {
+      await axiosInstance.patch(BONUS_OFFERS_API_URLS.CASINO_CONFIG(), { url, ...(token ? { token } : {}) });
+      setMsg('Saved.'); setOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['bo-casino-config'] });
+      queryClient.invalidateQueries({ queryKey: ['bonus-offers'] });
+    } catch (e) { const err = e as { response?: { data?: { error?: string } } }; setMsg(err.response?.data?.error || 'Failed'); }
+    finally { setSaving(false); setTimeout(() => setMsg(''), 4000); }
+  };
+
+  const input = 'w-full text-sm rounded-lg px-3 py-2 border border-gray-200 focus:outline-none focus:border-primary';
+  return (
+    <div className='bg-white rounded-xl border border-gray-100 px-5 py-3'>
+      <div className='flex items-center justify-between gap-2'>
+        <div className='text-xs text-gray-600'>
+          Casino connection:{' '}
+          {data?.configured
+            ? <span className='text-green-600 font-medium'>✓ configured</span>
+            : <span className='text-amber-600 font-medium'>not configured</span>}
+          {data?.url && <span className='text-gray-400'> · {data.url}</span>}
+        </div>
+        <button onClick={open ? () => setOpen(false) : edit} className='text-xs text-violet-700 hover:underline'>{open ? 'Cancel' : 'Edit'}</button>
+      </div>
+      {open && (
+        <div className='mt-3 space-y-2'>
+          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder='Casino bonus API URL (…/affiliar-bonus/definitions)' className={input} />
+          <input value={token} onChange={(e) => setToken(e.target.value)} type='password' placeholder={data?.hasToken ? 'Token (leave blank to keep current)' : 'Service token'} className={input} />
+          <div className='flex justify-end'>
+            <button onClick={save} disabled={saving} className='h-9 px-5 rounded-lg text-sm font-medium text-white bg-primary disabled:opacity-40'>{saving ? 'Saving…' : 'Save connection'}</button>
+          </div>
+        </div>
+      )}
+      {msg && <p className='text-xs text-gray-500 mt-1'>{msg}</p>}
     </div>
   );
 }

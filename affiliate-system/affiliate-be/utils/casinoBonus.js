@@ -25,19 +25,24 @@ function isConfigured() {
   return !!(API_URL && API_TOKEN);
 }
 
-// Pull model: same env (CASINO_BONUS_API_URL points at the casino's
-// /affiliar-bonus/definitions read endpoint, CASINO_BONUS_API_TOKEN is the
-// shared service token). Everything is guarded on these being set.
-function pullConfigured() {
-  return !!(API_URL && API_TOKEN);
+// Pull model. Config is per-operator ({ url, token } from the Operator doc),
+// falling back to the global CASINO_BONUS_API_URL/TOKEN env. Everything is
+// guarded on a url + token resolving.
+function resolveConfig(cfg = {}) {
+  return { url: cfg.url || API_URL || "", token: cfg.token || API_TOKEN || "" };
+}
+function pullConfigured(cfg = {}) {
+  const { url, token } = resolveConfig(cfg);
+  return !!(url && token);
 }
 
-// Fetch the casino's active bonus definitions. Returns [] if not configured.
-async function fetchDefinitions() {
-  if (!pullConfigured()) return [];
-  const res = await axios.get(API_URL, {
+// Fetch a casino's active bonus definitions. Returns [] if not configured.
+async function fetchDefinitions(cfg = {}) {
+  const { url, token } = resolveConfig(cfg);
+  if (!url || !token) return [];
+  const res = await axios.get(url, {
     timeout: TIMEOUT_MS,
-    headers: { "x-affiliar-token": API_TOKEN },
+    headers: { "x-affiliar-token": token },
   });
   const defs = res.data?.definitions || res.data || [];
   return Array.isArray(defs) ? defs : [];
