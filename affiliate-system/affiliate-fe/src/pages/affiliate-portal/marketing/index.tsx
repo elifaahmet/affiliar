@@ -727,6 +727,27 @@ function CreativesSection() {
     });
   };
 
+  // Download the banner image as a file. Falls back to opening it in a new tab
+  // if the host blocks cross-origin fetch.
+  const download = async (c: PortalCreative) => {
+    if (!c.imageUrl) return;
+    try {
+      const res = await fetch(c.imageUrl);
+      const blob = await res.blob();
+      const ext = (blob.type.split('/')[1] || 'png').split('+')[0];
+      const u = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = u;
+      a.download = `${(c.name || 'creative').replace(/[^\w.-]+/g, '_')}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(u);
+    } catch {
+      window.open(c.imageUrl, '_blank', 'noopener');
+    }
+  };
+
   return (
     <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-6'>
       <h2 className='text-sm font-semibold text-gray-800 mb-1'>Creatives</h2>
@@ -762,6 +783,12 @@ function CreativesSection() {
                     {copied === `${c._id}-embed` ? 'Copied!' : c.type === 'banner' ? 'Copy embed' : 'Copy snippet'}
                   </button>
                 </div>
+                {c.type === 'banner' && c.imageUrl && (
+                  <button onClick={() => download(c)}
+                    className='w-full text-xs font-medium text-gray-700 border border-gray-200 hover:bg-gray-50 rounded-lg px-2 py-1.5'>
+                    ↓ Download image
+                  </button>
+                )}
               </div>
             </div>
           ))}
