@@ -367,6 +367,7 @@ export const AFFILIATE_PORTAL_API_URLS = {
   PAYOUT_BALANCE:        () => `${API_BASE_URL}api/affiliate-portal/payout-balance`,
   CAMPAIGN_REPORTS: () => `${API_BASE_URL}api/affiliate-portal/campaign-reports`,
   PLAYERS:          () => `${API_BASE_URL}api/players`,
+  SYNC_NAMES:       () => `${API_BASE_URL}api/players/sync-names`,
   PLAYER_DETAIL:    (playerId: string) => `${API_BASE_URL}api/players/detail/${playerId}`,
   REFERRAL_CODES:   () => `${API_BASE_URL}api/affiliate-portal/referral-codes`,
   CREATIVES:        () => `${API_BASE_URL}api/affiliate-portal/creatives`,

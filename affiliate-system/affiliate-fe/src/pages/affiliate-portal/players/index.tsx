@@ -42,6 +42,7 @@ interface PlayerMetrics {
 interface PlayerRow {
   _id: string;
   playerId: string;
+  username?: string | null;
   country: string | null;
   currency: string | null;
   affiliateCode: string | null;
@@ -134,7 +135,21 @@ interface PlayersResponse {
 }
 
 export default function AffiliatePlayers() {
+  const queryClient = useQueryClient();
   const [view, setView] = useState<'list' | 'leaderboard'>('list');
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState('');
+  const syncNames = async () => {
+    setSyncing(true); setSyncMsg('');
+    try {
+      const { data } = await axiosInstance.post(AFFILIATE_PORTAL_API_URLS.SYNC_NAMES(), {});
+      setSyncMsg(`Synced ${data.synced}/${data.total} usernames`);
+      queryClient.invalidateQueries({ queryKey: ['affiliate-players'] });
+    } catch (e) {
+      const err = e as { response?: { data?: { error?: string } } };
+      setSyncMsg(err.response?.data?.error || 'Sync failed');
+    } finally { setSyncing(false); setTimeout(() => setSyncMsg(''), 6000); }
+  };
   const [page, setPage] = useState(1);
   const [searchPlayerId,  setSearchPlayerId]  = useState('');
   const [filterCode,      setFilterCode]      = useState('');
@@ -194,13 +209,23 @@ export default function AffiliatePlayers() {
 
   return (
     <div className='h-full overflow-auto p-6 pb-24 space-y-6'>
-      <div className='flex rounded-lg border border-violet-200 overflow-hidden text-sm w-fit'>
-        {(['list', 'leaderboard'] as const).map((v) => (
-          <button key={v} onClick={() => setView(v)}
-            className={`px-4 py-1.5 font-medium capitalize ${view === v ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
-            {v === 'list' ? 'List' : '🏆 Leaderboard'}
+      <div className='flex items-center justify-between gap-3 flex-wrap'>
+        <div className='flex rounded-lg border border-violet-200 overflow-hidden text-sm w-fit'>
+          {(['list', 'leaderboard'] as const).map((v) => (
+            <button key={v} onClick={() => setView(v)}
+              className={`px-4 py-1.5 font-medium capitalize ${view === v ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+              {v === 'list' ? 'List' : '🏆 Leaderboard'}
+            </button>
+          ))}
+        </div>
+        <div className='flex items-center gap-2'>
+          {syncMsg && <span className='text-xs text-gray-600'>{syncMsg}</span>}
+          <button onClick={syncNames} disabled={syncing}
+            title='Pull the latest usernames for your players from the casino'
+            className='text-sm font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg px-4 py-2 disabled:opacity-50'>
+            {syncing ? 'Syncing…' : '↻ Sync usernames'}
           </button>
-        ))}
+        </div>
       </div>
 
       {view === 'leaderboard' && (
@@ -314,7 +339,7 @@ export default function AffiliatePlayers() {
             <table className='w-full'>
               <thead className='bg-gray-50'>
                 <tr>
-                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Player ID</th>
+                  <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Player</th>
                   <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Your reference</th>
                   <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Status</th>
                   <th className='px-4 py-3 text-left text-xs font-semibold text-gray-700'>Code</th>
@@ -347,8 +372,9 @@ export default function AffiliatePlayers() {
               <tbody className='divide-y divide-gray-100'>
                 {players.map((p, i) => (
                   <tr key={p._id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className='px-4 py-3 text-xs font-mono text-gray-700 whitespace-nowrap'>
-                      {p.playerId}
+                    <td className='px-4 py-3 whitespace-nowrap'>
+                      <div className='text-xs font-medium text-gray-800'>{p.username || p.playerId}</div>
+                      {p.username && <div className='text-[10px] font-mono text-gray-400'>{p.playerId}</div>}
                     </td>
                     <td className='px-4 py-3 whitespace-nowrap'>
                       <RefCell player={p} />

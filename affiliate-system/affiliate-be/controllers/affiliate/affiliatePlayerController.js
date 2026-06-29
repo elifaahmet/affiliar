@@ -289,12 +289,12 @@ const affiliatePlayerController = {
     }
   },
 
-  // POST /players/sync-names — operator pulls player_id → username from its
-  // casino and caches them (PlayerName). Manual trigger.
+  // POST /players/sync-names — pull player_id → username from the casino and
+  // cache them (PlayerName). Manual trigger. Operators sync all players;
+  // affiliates sync only their own (using the operator's casino connection).
   async syncNames(req, res) {
     try {
       const user = req.affiliateUser;
-      if (user.role !== "operator") return res.status(403).json({ error: "Only operators can sync usernames" });
 
       const op = await Operator.findById(user.operatorId).select("casinoBonusApiUrl casinoBonusApiToken").lean();
       const cfg = {
@@ -305,11 +305,15 @@ const affiliatePlayerController = {
         return res.status(400).json({ error: "Casino API not configured — set the casino connection first." });
       }
 
+      const conds = ["tenant_id = {tenantId:String}", "player_id != '__fees__'"];
+      const cp = { tenantId: user.operatorId.toString() };
+      if (user.role === "affiliate") { conds.push("affiliate_id = {affId:String}"); cp.affId = String(user._id); }
+
       const rows = await queryRows(
         `SELECT player_id AS id FROM affiliate.activity
-         WHERE tenant_id = {tenantId:String} AND player_id != '__fees__'
+         WHERE ${conds.join(" AND ")}
          GROUP BY player_id LIMIT 5000`,
-        { tenantId: user.operatorId.toString() },
+        cp,
       );
       const ids = rows.map((r) => String(r.id)).filter(Boolean);
       if (!ids.length) return res.json({ synced: 0, total: 0 });
