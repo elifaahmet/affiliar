@@ -3,6 +3,7 @@ import { useBaseQuery } from 'api/core/useBaseQuery';
 import { useBaseMutation } from 'api/core/useBaseMutation';
 import { AFFILIATE_PLAYERS_API_URLS } from 'config/apiUrls';
 import BSelectWithSearch from '@components/core-components/selectWithInput/BSelectWithSearch';
+import PlayerLeaderboard from '@components/core-components/PlayerLeaderboard';
 
 // ── types ─────────────────────────────────────────────────────────────────────
 
@@ -75,7 +76,7 @@ const CSV_TEMPLATE =
 
 // ── tabs ──────────────────────────────────────────────────────────────────────
 
-const TABS = ['Players', 'Import Players'] as const;
+const TABS = ['Players', 'Leaderboard', 'Import Players'] as const;
 type Tab = (typeof TABS)[number];
 
 // ── Players List Tab ──────────────────────────────────────────────────────────
@@ -541,6 +542,7 @@ export default function Players() {
       </div>
 
       {activeTab === 'Players' && <PlayersTab />}
+      {activeTab === 'Leaderboard' && <PlayerLeaderboard endpoint={AFFILIATE_PLAYERS_API_URLS.LIST()} scope='operator' />}
       {activeTab === 'Import Players' && <ImportPlayersTab />}
     </div>
   );

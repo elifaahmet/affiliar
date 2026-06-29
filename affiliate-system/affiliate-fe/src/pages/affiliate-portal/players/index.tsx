@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import PlayerLeaderboard from '@components/core-components/PlayerLeaderboard';
 import { useQueryClient } from '@tanstack/react-query';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import axiosInstance from 'config/axiosInstance';
@@ -133,6 +134,7 @@ interface PlayersResponse {
 }
 
 export default function AffiliatePlayers() {
+  const [view, setView] = useState<'list' | 'leaderboard'>('list');
   const [page, setPage] = useState(1);
   const [searchPlayerId,  setSearchPlayerId]  = useState('');
   const [filterCode,      setFilterCode]      = useState('');
@@ -192,6 +194,20 @@ export default function AffiliatePlayers() {
 
   return (
     <div className='h-full overflow-auto p-6 pb-24 space-y-6'>
+      <div className='flex rounded-lg border border-violet-200 overflow-hidden text-sm w-fit'>
+        {(['list', 'leaderboard'] as const).map((v) => (
+          <button key={v} onClick={() => setView(v)}
+            className={`px-4 py-1.5 font-medium capitalize ${view === v ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+            {v === 'list' ? 'List' : '🏆 Leaderboard'}
+          </button>
+        ))}
+      </div>
+
+      {view === 'leaderboard' && (
+        <PlayerLeaderboard endpoint={AFFILIATE_PORTAL_API_URLS.PLAYERS()} scope='affiliate' />
+      )}
+
+      {view === 'list' && (<>
       {/* Filters */}
       <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-4 space-y-3'>
         <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3'>
@@ -395,6 +411,7 @@ export default function AffiliatePlayers() {
           </div>
         )}
       </div>
+      </>)}
     </div>
   );
 }

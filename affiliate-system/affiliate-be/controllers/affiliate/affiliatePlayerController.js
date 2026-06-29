@@ -42,6 +42,7 @@ const PLAYER_SORTS = {
   ggrCents:         "SUM(casino_ggr_cents)",
   depositsSumCents: "SUM(deposits_sum_cents)",
   depositsCount:    "SUM(deposits_count)",
+  ftdCount:         "SUM(ftd_count)",
   ftdSumCents:      "SUM(ftd_sum_cents)",
   wagerCents:       "SUM(wager_cents)",
   cashoutsSumCents: "SUM(cashouts_sum_cents)",
