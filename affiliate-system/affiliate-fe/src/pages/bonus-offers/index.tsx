@@ -22,6 +22,8 @@ interface Offer {
   baseCode: string;
   status: 'draft' | 'active' | 'archived';
   brandId: { _id: string; name: string } | null;
+  source: 'manual' | 'casino';
+  distributable: boolean;
   codes: number;
   claims: number;
 }
@@ -37,11 +39,25 @@ function terms(o: Offer): string {
 export default function BonusOffersPage() {
   const { data: brandsData } = useBaseQuery<{ brands: Brand[] }>({ endpoint: BRANDS_API_URLS.LIST(), queryKey: ['bo-brands'] });
   const brands = brandsData?.brands ?? [];
-  const { data, isLoading } = useBaseQuery<{ offers: Offer[]; provisioning: boolean }>({
+  const { data, isLoading } = useBaseQuery<{ offers: Offer[]; provisioning: boolean; pullConfigured: boolean }>({
     endpoint: BONUS_OFFERS_API_URLS.LIST(), queryKey: ['bonus-offers'],
   });
   const offers = data?.offers ?? [];
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['bonus-offers'] });
+
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState('');
+  const sync = async () => {
+    setSyncing(true); setSyncMsg('');
+    try {
+      const { data: r } = await axiosInstance.post(BONUS_OFFERS_API_URLS.SYNC(), {});
+      setSyncMsg(`Synced ${r.synced} bonus${r.synced === 1 ? '' : 'es'} from the casino.`);
+      refresh();
+    } catch (e) {
+      const err = e as { response?: { data?: { error?: string } } };
+      setSyncMsg(err.response?.data?.error || 'Sync failed.');
+    } finally { setSyncing(false); setTimeout(() => setSyncMsg(''), 6000); }
+  };
 
   return (
     <div className='h-full overflow-auto p-6 pb-24 space-y-5'>
@@ -53,14 +69,23 @@ export default function BonusOffersPage() {
         </p>
       </div>
 
-      {data && !data.provisioning && (
+      {data && !data.pullConfigured && (
         <div className='text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2'>
-          ⚠️ Casino bonus API not configured yet — codes are created in Affiliar but won't apply in the casino until
-          <code className='mx-1'>CASINO_BONUS_API_URL</code> is wired (Phase 2). You can still set everything up.
+          ⚠️ Casino bonus API not configured — set <code className='mx-1'>CASINO_BONUS_API_URL</code> +
+          <code className='mx-1'>CASINO_BONUS_API_TOKEN</code> to pull this casino's bonus catalog.
         </div>
       )}
 
-      <CreateForm brands={brands} onCreated={refresh} />
+      <div className='flex items-center gap-3 flex-wrap'>
+        {data?.pullConfigured && (
+          <button onClick={sync} disabled={syncing}
+            className='text-sm font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg px-4 py-2 disabled:opacity-50'>
+            {syncing ? 'Syncing…' : '↻ Sync from casino'}
+          </button>
+        )}
+        <CreateForm brands={brands} onCreated={refresh} />
+        {syncMsg && <span className='text-xs text-gray-600'>{syncMsg}</span>}
+      </div>
 
       {isLoading ? <p className='text-sm text-gray-600'>Loading…</p>
         : offers.length === 0 ? <p className='text-sm text-gray-600'>No bonuses yet. Create your first above.</p>
@@ -161,6 +186,7 @@ function OfferRow({ o, onChanged }: { o: Offer; onChanged: () => void }) {
   const archive = async () => { setBusy(true); try { await axiosInstance.patch(BONUS_OFFERS_API_URLS.ITEM(o._id), { status: o.status === 'archived' ? 'active' : 'archived' }); onChanged(); } finally { setBusy(false); } };
   const del = async () => { if (!window.confirm(`Delete "${o.name}"?`)) return; setBusy(true); try { await axiosInstance.delete(BONUS_OFFERS_API_URLS.ITEM(o._id)); onChanged(); } catch (e) { const err = e as { response?: { data?: { error?: string } } }; window.alert(err.response?.data?.error || 'Failed'); } finally { setBusy(false); } };
   const reprovision = async (codeId: string) => { await axiosInstance.post(BONUS_OFFERS_API_URLS.REPROVISION(codeId)); await loadCodes(); };
+  const setDistrib = async () => { setBusy(true); try { await axiosInstance.patch(BONUS_OFFERS_API_URLS.ITEM(o._id), { distributable: !o.distributable }); onChanged(); } finally { setBusy(false); } };
 
   return (
     <div className='bg-white rounded-xl border border-violet-100 overflow-hidden'>
@@ -176,6 +202,9 @@ function OfferRow({ o, onChanged }: { o: Offer; onChanged: () => void }) {
         </div>
         <div className='text-xs text-gray-600'>{o.codes} affiliates · {o.claims} claims</div>
         <div className='flex items-center gap-2'>
+          <button onClick={setDistrib} disabled={busy} className={`text-xs hover:underline ${o.distributable ? 'text-green-600 font-medium' : 'text-gray-500'}`}>
+            {o.distributable ? '✓ Distributable' : 'Make distributable'}
+          </button>
           <button onClick={() => setAuthoring(true)} className='text-xs font-medium text-violet-700 hover:underline'>Authorize</button>
           <button onClick={toggle} className='text-xs text-gray-600 hover:underline'>{open ? 'Hide' : 'Codes'}</button>
           <button onClick={archive} disabled={busy} className='text-xs text-gray-600 hover:underline'>{o.status === 'archived' ? 'Activate' : 'Archive'}</button>

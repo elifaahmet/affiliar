@@ -37,6 +37,13 @@ const bonusOfferSchema = new mongoose.Schema(
 
     status:    { type: String, enum: ["draft", "active", "archived"], default: "draft" },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+
+    // Pull model: bonus synced from the casino catalog. externalBonusId is the
+    // casino bonus-definition id; distributable = operator opted it in for
+    // affiliates. source 'casino' = pulled, 'manual' = defined in Affiliar.
+    source:          { type: String, enum: ["manual", "casino"], default: "manual" },
+    externalBonusId: { type: String, default: null },
+    distributable:   { type: Boolean, default: false },
   },
   { timestamps: true },
 );

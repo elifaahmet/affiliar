@@ -46,7 +46,55 @@ const bonusOfferController = {
           claims: byOffer.get(String(o._id))?.claims || 0,
         })),
         provisioning: casinoBonus.isConfigured(),
+        pullConfigured: casinoBonus.pullConfigured(),
       });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  },
+
+  // Pull the casino's bonus catalog into BonusOffer (pull model). Upserts by
+  // externalBonusId; preserves the operator's `distributable` choice. No-op-safe
+  // when the casino bonus API isn't configured.
+  async sync(req, res) {
+    try {
+      const user = req.affiliateUser;
+      if (!casinoBonus.pullConfigured()) {
+        return res.status(400).json({ error: "Casino bonus API not configured (CASINO_BONUS_API_URL + CASINO_BONUS_API_TOKEN)" });
+      }
+      let defs;
+      try { defs = await casinoBonus.fetchDefinitions(); }
+      catch (e) { return res.status(502).json({ error: `Casino fetch failed: ${e.message}` }); }
+
+      const num = (v) => {
+        if (v == null) return null;
+        if (typeof v === "object") v = v.$numberDecimal ?? (typeof v.toString === "function" ? v.toString() : v);
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+      };
+
+      let synced = 0;
+      for (const d of defs) {
+        if (!d?._id || !d?.code || !["deposit_bonus", "free_spins", "cashback"].includes(d.type)) continue;
+        const dep = d.deposit_trigger_details || {};
+        const fs = d.free_spin_bonus_details || {};
+        const cb = d.cashback_bonus_details || {};
+        await BonusOffer.updateOne(
+          { operatorId: user.operatorId, externalBonusId: String(d._id) },
+          {
+            $set: {
+              source: "casino", name: d.name || d.code, description: d.description || null,
+              type: d.type, currency: d.currency || "EUR",
+              wageringMultiplier: num(d.wagering_multiplier) ?? 15,
+              baseCode: String(d.code).toUpperCase(),
+              percentAmount: num(dep.percent_amount), minDepositAmount: num(dep.min_deposit_amount), maxBonusAmount: num(dep.max_bonus_amount),
+              freeSpinCount: num(fs.count), cashbackPercent: num(cb.percent),
+            },
+            $setOnInsert: { distributable: false, status: "active", createdBy: user._id },
+          },
+          { upsert: true },
+        );
+        synced += 1;
+      }
+      res.json({ synced });
     } catch (err) { res.status(500).json({ error: err.message }); }
   },
 
@@ -78,7 +126,7 @@ const bonusOfferController = {
   async update(req, res) {
     try {
       const user = req.affiliateUser;
-      const allowed = ["name", "description", "status", "validityDays", "percentAmount", "minDepositAmount",
+      const allowed = ["name", "description", "status", "distributable", "validityDays", "percentAmount", "minDepositAmount",
         "maxBonusAmount", "freeSpinCount", "freeSpinGameId", "freeSpinValue", "cashbackPercent", "cashbackMaxAmount", "wageringMultiplier"];
       const set = {};
       for (const k of allowed) if (k in (req.body || {})) set[k] = req.body[k];

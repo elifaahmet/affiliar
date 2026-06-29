@@ -25,6 +25,24 @@ function isConfigured() {
   return !!(API_URL && API_TOKEN);
 }
 
+// Pull model: same env (CASINO_BONUS_API_URL points at the casino's
+// /affiliar-bonus/definitions read endpoint, CASINO_BONUS_API_TOKEN is the
+// shared service token). Everything is guarded on these being set.
+function pullConfigured() {
+  return !!(API_URL && API_TOKEN);
+}
+
+// Fetch the casino's active bonus definitions. Returns [] if not configured.
+async function fetchDefinitions() {
+  if (!pullConfigured()) return [];
+  const res = await axios.get(API_URL, {
+    timeout: TIMEOUT_MS,
+    headers: { "x-affiliar-token": API_TOKEN },
+  });
+  const defs = res.data?.definitions || res.data || [];
+  return Array.isArray(defs) ? defs : [];
+}
+
 // Map an offer + a specific affiliate sub-code to the casino bonus-definition
 // payload.
 function toDefinition(offer, code) {
@@ -78,4 +96,4 @@ async function createBonusDefinition(offer, code) {
   return { externalBonusId };
 }
 
-module.exports = { isConfigured, toDefinition, createBonusDefinition };
+module.exports = { isConfigured, pullConfigured, fetchDefinitions, toDefinition, createBonusDefinition };
