@@ -26,13 +26,39 @@ const eur = (c: number | string | null | undefined) =>
 const fmt = (v: number | string | null | undefined, money: boolean) => (money ? eur(v) : String(Number(v || 0)));
 const MEDAL = ['🥇', '🥈', '🥉'];
 
+const PERIODS = [
+  ['this_month', 'This month'],
+  ['last_7', 'Last 7 days'],
+  ['last_30', 'Last 30 days'],
+  ['this_year', 'This year'],
+  ['all', 'All time'],
+] as const;
+
+const ymd = (d: Date) => d.toISOString().slice(0, 10);
+function rangeFor(p: string): { from?: string; to?: string } {
+  const now = new Date();
+  const y = now.getUTCFullYear(), m = now.getUTCMonth(), d = now.getUTCDate();
+  const today = ymd(new Date(Date.UTC(y, m, d)));
+  if (p === 'this_month') return { from: ymd(new Date(Date.UTC(y, m, 1))), to: today };
+  if (p === 'last_7') return { from: ymd(new Date(Date.UTC(y, m, d - 6))), to: today };
+  if (p === 'last_30') return { from: ymd(new Date(Date.UTC(y, m, d - 29))), to: today };
+  if (p === 'this_year') return { from: ymd(new Date(Date.UTC(y, 0, 1))), to: today };
+  return {}; // all time
+}
+
 export default function PlayerLeaderboard({ endpoint, scope }: { endpoint: string; scope: 'operator' | 'affiliate' }) {
   const [metric, setMetric] = useState<string>('ngrCents');
+  const [period, setPeriod] = useState<string>('this_month');
+  const range = rangeFor(period);
 
   const { data, isLoading } = useBaseQuery<{ players: PlayerRow[] }>({
     endpoint,
-    queryKey: ['player-leaderboard', endpoint, metric],
-    params: { sortBy: metric, sortDir: 'desc', limit: 50, page: 1 },
+    queryKey: ['player-leaderboard', endpoint, metric, period],
+    params: {
+      sortBy: metric, sortDir: 'desc', limit: 50, page: 1,
+      ...(range.from ? { from: range.from } : {}),
+      ...(range.to ? { to: range.to } : {}),
+    },
   });
   const players = data?.players ?? [];
   const affName = (a: PlayerRow['affiliateId']) =>
@@ -42,6 +68,11 @@ export default function PlayerLeaderboard({ endpoint, scope }: { endpoint: strin
     <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 overflow-hidden'>
       <div className='px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap'>
         <p className='text-sm font-medium text-gray-800'>🏆 Top 50 players</p>
+        <div className='flex items-center gap-2 flex-wrap'>
+        <select value={period} onChange={(e) => setPeriod(e.target.value)}
+          className='text-xs rounded-lg px-2 py-1.5 border border-gray-200 bg-white text-gray-700 focus:outline-none focus:border-primary'>
+          {PERIODS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+        </select>
         <div className='flex rounded-lg border border-gray-200 overflow-hidden text-xs'>
           {METRICS.map((m) => (
             <button key={m.key} onClick={() => setMetric(m.key)}
@@ -49,6 +80,7 @@ export default function PlayerLeaderboard({ endpoint, scope }: { endpoint: strin
               {m.label}
             </button>
           ))}
+        </div>
         </div>
       </div>
 
