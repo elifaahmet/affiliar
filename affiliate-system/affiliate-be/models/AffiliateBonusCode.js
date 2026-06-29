@@ -26,6 +26,8 @@ const affiliateBonusCodeSchema = new mongoose.Schema(
 );
 
 affiliateBonusCodeSchema.index({ offerId: 1, affiliateId: 1 }, { unique: true });
-affiliateBonusCodeSchema.index({ code: 1 }, { unique: true });
+// Not unique: in the pull model casino-sourced offers share one base code
+// across affiliates (attribution comes from the claim's affiliateId).
+affiliateBonusCodeSchema.index({ code: 1 });
 
 module.exports = mongoose.model("AffiliateBonusCode", affiliateBonusCodeSchema);

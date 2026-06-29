@@ -169,10 +169,19 @@ const bonusOfferController = {
       for (const affId of ids) {
         const existing = await AffiliateBonusCode.findOne({ offerId: offer._id, affiliateId: affId });
         if (existing) continue;
+        const isCasino = offer.source === "casino";
         const codeDoc = await AffiliateBonusCode.create({
-          offerId: offer._id, operatorId: user.operatorId, affiliateId: affId, code: makeCode(offer.baseCode, affId),
+          offerId: offer._id, operatorId: user.operatorId, affiliateId: affId,
+          // Casino-sourced: share the real base code (already live in the casino).
+          // Manual: per-affiliate sub-code that gets pushed to the casino.
+          code: isCasino ? offer.baseCode : makeCode(offer.baseCode, affId),
         });
-        await provisionCode(offer, codeDoc);
+        if (isCasino) {
+          codeDoc.provision = { status: "created", externalBonusId: offer.externalBonusId, error: null, syncedAt: new Date() };
+          await codeDoc.save();
+        } else {
+          await provisionCode(offer, codeDoc);
+        }
         created += 1;
         notify({
           userId: affId, operatorId: user.operatorId, type: "bonus_available",
@@ -276,11 +285,23 @@ const bonusOfferController = {
     try {
       const operator = req.affiliateUser;
       if (!operator || operator.role !== "operator") return res.status(403).json({ error: "Operator authentication required" });
-      const { code, playerId, amountCents, currency, status, source } = req.body || {};
+      const { code, playerId, affiliateId, amountCents, currency, status, source } = req.body || {};
       if (!code || !playerId) return res.status(400).json({ error: "code and playerId are required" });
 
-      const codeDoc = await AffiliateBonusCode.findOne({ code: String(code).trim().toUpperCase(), operatorId: operator.operatorId });
-      if (!codeDoc) return res.status(404).json({ error: "Unknown bonus code" });
+      // A code may be shared across affiliates (pull model). Resolve the right
+      // one via the affiliateId the casino attributes the player to; for a
+      // unique (manual) code there's only one, so affiliateId is optional.
+      const codeDocs = await AffiliateBonusCode.find({ code: String(code).trim().toUpperCase(), operatorId: operator.operatorId });
+      if (!codeDocs.length) return res.status(404).json({ error: "Unknown bonus code" });
+      let codeDoc;
+      if (affiliateId) {
+        codeDoc = codeDocs.find((c) => String(c.affiliateId) === String(affiliateId));
+        if (!codeDoc) return res.status(400).json({ error: "affiliateId is not authorized for this code" });
+      } else if (codeDocs.length === 1) {
+        codeDoc = codeDocs[0];
+      } else {
+        return res.status(400).json({ error: "affiliateId is required (code is shared by multiple affiliates)" });
+      }
 
       const existing = await BonusClaim.findOne({ codeId: codeDoc._id, playerId: String(playerId) });
       if (existing) {
