@@ -17,6 +17,8 @@ const METRICS = [
   { key: 'ftdSumCents', label: 'FTD Sum', money: true },
   { key: 'ftdCount', label: 'FTDs', money: false },
   { key: 'depositsSumCents', label: 'Deposits', money: true },
+  { key: 'wagerCents', label: 'Wager', money: true },
+  { key: 'cashoutsSumCents', label: 'Cashout', money: true },
 ] as const;
 
 const eur = (c: number | string | null | undefined) =>
