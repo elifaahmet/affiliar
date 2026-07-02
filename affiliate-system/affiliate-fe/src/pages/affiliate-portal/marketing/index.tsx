@@ -358,7 +358,8 @@ export default function AffiliateMarketing() {
                 value={customCode}
                 maxLength={20}
                 onChange={(e) => setCustomCode(e.target.value.toUpperCase())}
-                placeholder='Custom code (optional)'
+                placeholder='Your own code (optional)'
+                title='Type a memorable code (e.g. your name or brand) to create a referral link with it. Leave empty to auto-generate a random one.'
                 className='w-40 bg-white text-gray-700 text-xs font-mono uppercase tracking-wide rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
               />
               <button
@@ -380,9 +381,16 @@ export default function AffiliateMarketing() {
           )}
         </div>
 
+        {availableBrands.length > 0 && (
+          <p className='text-[11px] text-gray-500 mb-3'>
+            Pick a brand, then either type <span className='font-medium'>your own code</span> (e.g. your name or brand) to create a new
+            referral link with it, or leave it blank to auto-generate one. Codes must be unique within your operator.
+          </p>
+        )}
+
         {generatedCode && (
           <p className='text-xs text-green-700 mb-3'>
-            Referral code ready: <span className='font-mono'>{generatedCode}</span>
+            Referral code ready: <span className='font-mono'>{generatedCode}</span> — it now appears in the list below with its shareable link.
           </p>
         )}
         {generateError && (
