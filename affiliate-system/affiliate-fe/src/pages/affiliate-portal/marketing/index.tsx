@@ -86,6 +86,7 @@ export default function AffiliateMarketing() {
   const [selectedBrandId, setSelectedBrandId] = useState<string>('');
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [customCode, setCustomCode] = useState<string>('');
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useBaseQuery<OverviewResponse>({
@@ -94,12 +95,13 @@ export default function AffiliateMarketing() {
     params: {},
   });
 
-  const generateMutation = useBaseMutation<{ generated: { code: string } }, { brandId: string }>({
+  const generateMutation = useBaseMutation<{ generated: { code: string } }, { brandId: string; code?: string }>({
     endpoint: AFFILIATE_PORTAL_API_URLS.REFERRAL_CODES(),
     method: 'post',
     onSuccess: (res) => {
       setGeneratedCode(res?.generated?.code ?? null);
       setGenerateError(null);
+      setCustomCode('');
       queryClient.invalidateQueries({ queryKey: ['affiliate-overview-marketing'] });
       setTimeout(() => setGeneratedCode(null), 4000);
     },
@@ -351,17 +353,28 @@ export default function AffiliateMarketing() {
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
               </select>
+              <input
+                type='text'
+                value={customCode}
+                maxLength={20}
+                onChange={(e) => setCustomCode(e.target.value.toUpperCase())}
+                placeholder='Custom code (optional)'
+                className='w-40 bg-white text-gray-700 text-xs font-mono uppercase tracking-wide rounded-lg px-2 py-1.5 border border-gray-200 focus:outline-none focus:border-primary shadow-sm'
+              />
               <button
                 type='button'
                 disabled={generateMutation.isPending}
                 onClick={() => {
                   const brandId = selectedBrandId || availableBrands[0]?.id;
                   if (!brandId) return;
-                  generateMutation.mutate({ brandId });
+                  const code = customCode.trim();
+                  generateMutation.mutate(code ? { brandId, code } : { brandId });
                 }}
                 className='shrink-0 px-3 py-1.5 rounded-md text-xs font-medium bg-primary text-white hover:bg-primary-dark disabled:opacity-60 disabled:cursor-not-allowed'
               >
-                {generateMutation.isPending ? 'Generating…' : 'Generate new code'}
+                {generateMutation.isPending
+                  ? (customCode.trim() ? 'Adding…' : 'Generating…')
+                  : (customCode.trim() ? 'Add my code' : 'Generate new code')}
               </button>
             </div>
           )}
@@ -369,7 +382,7 @@ export default function AffiliateMarketing() {
 
         {generatedCode && (
           <p className='text-xs text-green-700 mb-3'>
-            New code generated: <span className='font-mono'>{generatedCode}</span>
+            Referral code ready: <span className='font-mono'>{generatedCode}</span>
           </p>
         )}
         {generateError && (

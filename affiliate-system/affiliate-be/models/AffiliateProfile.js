@@ -130,4 +130,19 @@ const affiliateProfileSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+// Referral codes are unique PER OPERATOR (not globally) — the same code may
+// legitimately exist under two different operators. `operatorUser` is the
+// operator's user id (1:1 with the operator), so this compound multikey index
+// guards against two affiliates under the same operator sharing a code.
+// Partial on `referralCodes.0` so profiles with no codes yet don't collide on
+// the empty-array key.
+affiliateProfileSchema.index(
+  { operatorUser: 1, referralCodes: 1 },
+  {
+    unique: true,
+    name: "op_referralCode_unique",
+    partialFilterExpression: { operatorUser: { $exists: true }, "referralCodes.0": { $exists: true } },
+  },
+);
+
 module.exports = mongoose.model("AffiliateProfile", affiliateProfileSchema);

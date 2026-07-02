@@ -1196,6 +1196,11 @@ async function uniqueAffiliateCode() {
   throw new Error("Failed to generate a unique code after 10 attempts");
 }
 
+// Custom codes the affiliate types in: 3–20 chars, letters/digits plus - and _,
+// must start alphanumeric. Uppercased so lookups (which upper-case the incoming
+// ?affiliate= param) resolve regardless of how the affiliate typed it.
+const CUSTOM_CODE_RE = /^[A-Z0-9][A-Z0-9_-]{2,19}$/;
+
 // POST /affiliate-portal/referral-codes — body: { brandId }
 // Lets the affiliate generate an extra brand-scoped code from the marketing
 // tools page. The new code is pushed onto both `brandCodes` (per-brand
@@ -1231,7 +1236,25 @@ exports.generateReferralCode = async (req, res) => {
       return res.status(403).json({ error: "Brand not available for this affiliate" });
     }
 
-    const code = await uniqueAffiliateCode();
+    // Custom code (optional): the affiliate can type their own; if omitted we
+    // fall back to an auto-generated one. Either way it must be globally unique
+    // across every affiliate's referral codes.
+    let code;
+    const raw = typeof req.body?.code === "string" ? req.body.code.trim().toUpperCase() : "";
+    if (raw) {
+      if (!CUSTOM_CODE_RE.test(raw)) {
+        return res.status(400).json({ error: "Code must be 3–20 characters: letters, numbers, - or _, starting with a letter or number." });
+      }
+      // Uniqueness is scoped per operator (matches the op_referralCode_unique
+      // index), so the same code may exist under a different operator.
+      const collision = await AffiliateProfile.findOne({ operatorUser: profile.operatorUser, referralCodes: raw }).select("_id").lean();
+      if (collision) {
+        return res.status(409).json({ error: "That code is already taken — pick another." });
+      }
+      code = raw;
+    } else {
+      code = await uniqueAffiliateCode();
+    }
 
     profile.brandCodes = profile.brandCodes || [];
     profile.brandCodes.push({ code, brandId: brand._id });
@@ -1249,6 +1272,10 @@ exports.generateReferralCode = async (req, res) => {
       },
     });
   } catch (err) {
+    // Lost a race against the per-operator unique index — surface as a conflict.
+    if (err && err.code === 11000) {
+      return res.status(409).json({ error: "That code is already taken — pick another." });
+    }
     res.status(500).json({ error: err.message });
   }
 };
