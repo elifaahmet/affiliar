@@ -189,13 +189,20 @@ export async function resolveAffiliateIdByPlayer(playerId) {
 }
 
 // Update the affiliateplayers doc's status/flag when a player.flagged
-// event arrives. No-op if the player isn't in our registry.
-export async function updatePlayerFlag(playerId, flag) {
+// event arrives. No-op if the player isn't in our registry. Scoped by operator
+// (tenantId) so a shared playerId can't cross-flag another operator's player.
+// flag="test" is a designation, not a status: it sets isTest (excluded from
+// NGR/commission), cleared only from the operator UI.
+export async function updatePlayerFlag(playerId, flag, tenantId) {
   if (!playerId || !flag) return;
-  await affiliatePlayersCol.updateOne(
-    { playerId: String(playerId) },
-    { $set: { status: flag, statusUpdatedAt: new Date() } },
-  );
+  const filter = { playerId: String(playerId) };
+  const operatorId = tenantId ? toObjectId(tenantId) : null;
+  if (operatorId) filter.operatorId = operatorId;
+  const set =
+    flag === 'test'
+      ? { isTest: true, testMarkedAt: new Date() }
+      : { status: flag, statusUpdatedAt: new Date() };
+  await affiliatePlayersCol.updateOne(filter, { $set: set });
 }
 
 export async function upsertAffiliatePlayer(event, data, affiliateId) {

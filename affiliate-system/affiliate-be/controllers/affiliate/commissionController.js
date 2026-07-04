@@ -6,6 +6,7 @@ const AffiliatePlayer          = require("../../models/AffiliatePlayer");
 const User                     = require("../../models/User");
 const OperatorFinancialSettings = require("../../models/OperatorFinancialSettings");
 const clickhouse               = require("../../config/clickhouse");
+const { testExclusion }         = require("../../utils/testPlayers");
 const { calculate }             = require("../../engine/commissionEngine");
 const { checkCpaQualification } = require("../../engine/cpaQualification");
 const { checkFixedQualification } = require("../../engine/fixedQualification");
@@ -146,6 +147,8 @@ function periodRange(year, month) {
 
 async function fetchAffiliateMetrics(tenantId, year, month) {
   const { fromTs, toTs } = periodRange(year, month);
+  // Commission never pays on test players — always exclude (no include toggle).
+  const tf = await testExclusion(tenantId, { includeTest: false });
 
   const sql = `
     SELECT
@@ -172,12 +175,13 @@ async function fetchAffiliateMetrics(tenantId, year, month) {
       AND from_ts >= {fromTs:DateTime}
       AND from_ts <= {toTs:DateTime}
       AND affiliate_id != ''
+      ${tf.cond ? `AND ${tf.cond}` : ""}
     GROUP BY affiliate_id
   `;
 
   const result = await clickhouse.query({
     query: sql,
-    query_params: { tenantId, fromTs, toTs },
+    query_params: { tenantId, fromTs, toTs, ...tf.params },
     format: "JSONEachRow",
   });
 
@@ -222,6 +226,8 @@ async function fetchAffiliateMetrics(tenantId, year, month) {
  */
 async function fetchFtdContextRows(tenantId, year, month) {
   const { fromTs, toTs } = periodRange(year, month);
+  // Commission never pays on test players — exclude them from the FTD set.
+  const tf = await testExclusion(tenantId, { includeTest: false });
 
   const sql = `
     WITH ftds AS (
@@ -237,6 +243,7 @@ async function fetchFtdContextRows(tenantId, year, month) {
         AND hour_bucket <= {toTs:DateTime}
         AND ftd_count > 0
         AND player_id != '__fees__'
+        ${tf.cond ? `AND ${tf.cond}` : ""}
       GROUP BY affiliate_id, player_id, hour_bucket
     )
     SELECT
@@ -264,7 +271,7 @@ async function fetchFtdContextRows(tenantId, year, month) {
 
   const result = await clickhouse.query({
     query: sql,
-    query_params: { tenantId, fromTs, toTs },
+    query_params: { tenantId, fromTs, toTs, ...tf.params },
     format: "JSONEachRow",
   });
   const rows = await result.json();

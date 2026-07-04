@@ -110,7 +110,7 @@ async function processMessage(rawValue) {
 
   if (event.eventType === 'player.flagged') {
     try {
-      await updatePlayerFlag(event.playerId, data.flag);
+      await updatePlayerFlag(event.playerId, data.flag, event.tenantId);
     } catch (err) {
       console.error(
         '[consumer] Failed to update player flag:',

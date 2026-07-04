@@ -81,6 +81,8 @@ export const affiliateCasinoAggregatedEventSchema = z.object({
       isDisabled: z.boolean().optional(),
       isSelfExcluded: z.boolean().optional(),
       isVerified: z.boolean().optional(),
+      // Test/internal account — excluded from commission (and reporting).
+      isTest: z.boolean().optional(),
     })
     .optional(),
 

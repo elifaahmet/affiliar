@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const clickhouse = require("../../config/clickhouse");
 const Brand = require("../../models/Brand");
 const Click = require("../../models/Click");
+const { testExclusion, parseIncludeTest } = require("../../utils/testPlayers");
 
 function oid(v) {
   try { return new mongoose.Types.ObjectId(String(v)); } catch { return null; }
@@ -140,6 +141,21 @@ function buildWhere(operator, query) {
   return { conditions, params };
 }
 
+// Async variant of buildWhere that also excludes the operator's test players
+// (unless ?includeTest=true). Exclusion is by player_id at query time so it
+// reflects mark/unmark retroactively. Use for every NGR/GGR/FTD report query.
+async function buildWhereWithTest(operator, query) {
+  const { conditions, params } = buildWhere(operator, query);
+  const { cond, params: tp } = await testExclusion(operator.operatorId, {
+    includeTest: parseIncludeTest(query),
+  });
+  if (cond) {
+    conditions.push(cond);
+    Object.assign(params, tp);
+  }
+  return { conditions, params };
+}
+
 /** The SELECT columns for all numeric metrics (used in SUM aggregations) */
 const METRIC_COLS = `
   SUM(registrations)                      AS registrations,
@@ -203,7 +219,7 @@ exports.overview = async (req, res) => {
     return res.status(400).json({ error: "Operator account is not linked to an operator record" });
   }
 
-  const { conditions, params } = buildWhere(operator, req.query);
+  const { conditions, params } = await buildWhereWithTest(operator, req.query);
   const where = conditions.join(" AND ");
 
   try {
@@ -288,7 +304,7 @@ exports.affiliates = async (req, res) => {
   ]);
   const sortBy = ALLOWED_SORT.has(req.query.sortBy) ? req.query.sortBy : "computedNgrCents";
 
-  const { conditions, params } = buildWhere(operator, req.query);
+  const { conditions, params } = await buildWhereWithTest(operator, req.query);
   const where = conditions.join(" AND ");
 
   // ClickHouse aliases can't be used directly in ORDER BY; map to column expression
@@ -355,7 +371,7 @@ exports.campaignReport = async (req, res) => {
     return res.status(400).json({ error: "Operator account is not linked to an operator record" });
   }
 
-  const { conditions, params } = buildWhere(operator, req.query);
+  const { conditions, params } = await buildWhereWithTest(operator, req.query);
   if (req.query.campaign) {
     conditions.push("campaign = {campaign:String}");
     params.campaign = req.query.campaign;
@@ -502,7 +518,7 @@ exports.affiliateQuality = async (req, res) => {
       Object.fromEntries(Object.entries(row).map(([k, v]) => [k, isNaN(Number(v)) ? v : Number(v)]));
 
     // Period funnel + NGR, grouped by affiliate.
-    const { conditions, params } = buildWhere(operator, req.query);
+    const { conditions, params } = await buildWhereWithTest(operator, req.query);
     const where = `${conditions.join(" AND ")} AND affiliate_id != ''`;
     const periodRows = (await queryRows(
       `SELECT
@@ -528,6 +544,8 @@ exports.affiliateQuality = async (req, res) => {
       lifeConds.push("brand_id IN ({brandIds:Array(String)})");
       lifeParams.brandIds = allowed;
     }
+    const lifeTf = await testExclusion(operator.operatorId, { includeTest: parseIncludeTest(req.query) });
+    if (lifeTf.cond) { lifeConds.push(lifeTf.cond); Object.assign(lifeParams, lifeTf.params); }
     const lifeRows = (await queryRows(
       `SELECT
          affiliate_id AS affiliateId,
@@ -637,6 +655,8 @@ exports.cohorts = async (req, res) => {
       scope.push("affiliate_id = {affiliateId:String}");
       params.affiliateId = String(req.query.affiliateId);
     }
+    const cohortTf = await testExclusion(operator.operatorId, { includeTest: parseIncludeTest(req.query) });
+    if (cohortTf.cond) { scope.push(cohortTf.cond); Object.assign(params, cohortTf.params); }
     const where = scope.join(" AND ");
 
     const sql = `
@@ -794,7 +814,7 @@ exports.traffic = async (req, res) => {
   const page  = Math.max(1, parseInt(req.query.page  || "1",   10));
   const limit = Math.min(500, Math.max(1, parseInt(req.query.limit || "100", 10)));
 
-  const { conditions, params } = buildWhere(operator, req.query);
+  const { conditions, params } = await buildWhereWithTest(operator, req.query);
   const where = conditions.join(" AND ");
 
   try {

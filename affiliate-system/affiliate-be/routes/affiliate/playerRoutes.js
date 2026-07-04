@@ -16,6 +16,8 @@ router.get("/detail/:playerId", affiliatePlayerController.detail);
 // Operator-only: pull player_id -> username from the casino. Must precede the
 // parametric "/:adminId" POST route below.
 router.post("/sync-names", affiliatePlayerController.syncNames);
+// Operator-only: mark/unmark a player as a test account { isTest: boolean }.
+router.patch("/:playerId/test", affiliatePlayerController.setTest);
 
 /**
  * @swagger

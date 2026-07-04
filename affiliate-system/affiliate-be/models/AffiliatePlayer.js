@@ -92,6 +92,22 @@ const affiliatePlayerSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Test / internal account marker. Independent of fraud: a test player is
+    // excluded from NGR/FTD reporting and never earns commission, but is not a
+    // fraud signal. Set either by the operator from the players UI, or by a
+    // `player.flagged` event with flag="test" from the casino. Cleared only by
+    // the operator (there is no un-test event). Reports can optionally include
+    // test players via an `includeTest` toggle; commission always excludes them.
+    isTest: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    testMarkedAt: {
+      type: Date,
+      default: null,
+    },
+
     // Anti-abuse fingerprints — hashed by the operator (we never see raw
     // IP / device / wallet). Used by the refer-a-friend track-signup
     // collision check when the brand opts into blockSameSignals.

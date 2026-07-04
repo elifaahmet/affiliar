@@ -266,6 +266,32 @@ const affiliatePlayerController = {
     }
   },
 
+  // PATCH /players/:playerId/test — operator marks/unmarks one of their players
+  // as a test account. Test players are excluded from NGR/FTD reports (unless
+  // includeTest) and never earn commission. Operator-scoped so an operator can
+  // only touch their own players.
+  async setTest(req, res) {
+    try {
+      const user = req.affiliateUser;
+      if (!user || user.role !== "operator") {
+        return res.status(403).json({ error: "Operators only" });
+      }
+      if (!user.operatorId) {
+        return res.status(400).json({ error: "Operator account is not linked to an operator record" });
+      }
+      const isTest = !!req.body?.isTest;
+      const player = await AffiliatePlayer.findOneAndUpdate(
+        { operatorId: user.operatorId, playerId: String(req.params.playerId) },
+        { $set: { isTest, testMarkedAt: isTest ? new Date() : null } },
+        { new: true, select: { playerId: 1, isTest: 1 } },
+      ).lean();
+      if (!player) return res.status(404).json({ error: "Player not found" });
+      res.json({ playerId: player.playerId, isTest: player.isTest });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+
   // GET /players/affiliates-select — dropdown list of affiliates for filter
   async affiliatesSelect(req, res) {
     try {

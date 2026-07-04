@@ -8,7 +8,9 @@ const DiscountCode              = require("../models/DiscountCode");
 const BillingTransaction        = require("../models/BillingTransaction");
 const CommissionPlan            = require("../models/CommissionPlan");
 const AffiliatePayout           = require("../models/AffiliatePayout");
+const AffiliatePlayer           = require("../models/AffiliatePlayer");
 const clickhouse                = require("../config/clickhouse");
+const { getTestPlayerIds, parseIncludeTest } = require("../utils/testPlayers");
 const { PLAN_ORDER }            = require("../utils/planLimits");
 const { sendOperatorInvite }    = require("../utils/mailer");
 const { logger }                = require("../middlewares/logger");
@@ -949,6 +951,17 @@ exports.adminReportsOverview = async (req, res) => {
     if (req.query.to) {
       conditions.push("from_ts <= {toTs:DateTime}");
       params.toTs = `${req.query.to} 23:59:59`;
+    }
+    // Exclude test players unless ?includeTest=true. Scoped to the selected
+    // operator; across-all-operators falls back to the global test set.
+    if (!parseIncludeTest(req.query)) {
+      const testIds = req.query.operatorId
+        ? await getTestPlayerIds(req.query.operatorId)
+        : (await AffiliatePlayer.find({ isTest: true }).distinct("playerId")).map(String);
+      if (testIds.length) {
+        conditions.push("player_id NOT IN {__testIds:Array(String)}");
+        params.__testIds = testIds;
+      }
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";

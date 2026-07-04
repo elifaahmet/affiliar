@@ -369,6 +369,7 @@ export default function Reports() {
   const [dateRange, setDateRange] = useState(defaultRange);
   const [brandId, setBrandId] = useState<string>('');
   const [product, setProduct] = useState<ProductScope>('all');
+  const [includeTest, setIncludeTest] = useState(false);
 
   const { data: brandsData } = useBaseQuery<BrandsResponse>({
     endpoint: BRANDS_API_URLS.LIST(),
@@ -410,6 +411,8 @@ export default function Reports() {
       from: dateRange.from,
       to:   dateRange.to,
       ...(brandId ? { brandId } : {}),
+      // Test players are excluded by default; the toggle opts them back in.
+      ...(includeTest ? { includeTest: 'true' } : {}),
       // The server returns both casino + sportsbook + combined columns in
       // every response — `product` is the client-side picker (handled via
       // pickMetrics in each tab) for which column set to display. Kept in
@@ -417,7 +420,7 @@ export default function Reports() {
       // child tabs trigger a fresh render.
       product,
     }),
-    [dateRange.from, dateRange.to, brandId, product],
+    [dateRange.from, dateRange.to, brandId, product, includeTest],
   );
 
   return (
@@ -427,6 +430,15 @@ export default function Reports() {
         <h1 className='text-xl font-semibold text-gray-800'>Reports</h1>
 
         <div className='flex items-center gap-2'>
+          <label className='flex items-center gap-1.5 text-xs text-gray-600 whitespace-nowrap cursor-pointer select-none' title='Test accounts are excluded from all figures by default.'>
+            <input
+              type='checkbox'
+              checked={includeTest}
+              onChange={(e) => setIncludeTest(e.target.checked)}
+              className='rounded border-gray-300 text-primary focus:ring-primary'
+            />
+            Include test
+          </label>
           <div className='w-56'>
             <BSelectWithSearch
               placeholder='All Brands'

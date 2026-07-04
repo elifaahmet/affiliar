@@ -255,18 +255,17 @@ async function updateAffiliatePlayerKyc(event, data) {
 async function updateAffiliatePlayerFlag(event, data) {
   const flag = String(data?.flag || "").toLowerCase().trim();
   if (!flag) return;
-  const fraudFlagged = flag !== "active";
   const now = new Date(event.occurredAt);
+  // "test" is a designation, not a fraud signal: set isTest and leave the fraud
+  // fields alone. The operator un-marks from the UI (there is no un-test event).
+  const set =
+    flag === "test"
+      ? { isTest: true, testMarkedAt: now }
+      : { fraudFlagged: flag !== "active", lastFraudFlag: flag, lastFraudFlagAt: now };
   try {
     await AffiliatePlayer.updateOne(
       { operatorId: event.tenantId, playerId: event.playerId },
-      {
-        $set: {
-          fraudFlagged,
-          lastFraudFlag: flag,
-          lastFraudFlagAt: now,
-        },
-      },
+      { $set: set },
     );
   } catch (err) {
     logger.error("rawEvent.flagUpdateFailed", {

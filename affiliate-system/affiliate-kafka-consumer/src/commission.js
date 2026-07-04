@@ -56,6 +56,7 @@ export function buildCommissionInput(event, derived) {
       isDisabled: event.playerStatuses?.isDisabled ?? false,
       isSelfExcluded: event.playerStatuses?.isSelfExcluded ?? false,
       isVerified: event.playerStatuses?.isVerified ?? false,
+      isTest: event.playerStatuses?.isTest ?? false,
     },
   };
 }
@@ -68,12 +69,12 @@ export function buildCommissionInput(event, derived) {
  * @param {CommissionInput} input
  */
 export async function calculateCommission(input) {
-  // Skip disqualified players
-  if (input.statuses.isDuplicate || input.statuses.isDisabled || input.statuses.isSelfExcluded) {
+  // Skip disqualified players (fraud statuses) + test accounts
+  if (input.statuses.isDuplicate || input.statuses.isDisabled || input.statuses.isSelfExcluded || input.statuses.isTest) {
     console.log(
       `[commission] Skipping disqualified player ${input.playerId} ` +
       `(duplicate=${input.statuses.isDuplicate}, disabled=${input.statuses.isDisabled}, ` +
-      `selfExcluded=${input.statuses.isSelfExcluded})`
+      `selfExcluded=${input.statuses.isSelfExcluded}, test=${input.statuses.isTest})`
     );
     return;
   }

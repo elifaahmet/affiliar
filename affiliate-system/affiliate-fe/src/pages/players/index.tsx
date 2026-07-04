@@ -21,6 +21,7 @@ interface AffiliatePlayer {
   registeredAt: string | null;
   source: 'realtime' | 'bulk' | 'csv';
   importedAt: string;
+  isTest?: boolean;
 }
 
 interface PlayersResponse {
@@ -45,6 +46,44 @@ function fmt(d: string | null) {
     month: 'short',
     year: 'numeric',
   });
+}
+
+// Toggle a player's test-account flag. Optimistic; on error it reverts.
+// Test players are excluded from NGR/FTD reports (unless "include test") and
+// never earn commission.
+function TestToggle({ player, onChanged }: { player: AffiliatePlayer; onChanged: () => void }) {
+  const [on, setOn] = useState(!!player.isTest);
+  const [busy, setBusy] = useState(false);
+  const toggle = async () => {
+    const next = !on;
+    setOn(next);
+    setBusy(true);
+    try {
+      await axiosInstance.patch(AFFILIATE_PLAYERS_API_URLS.SET_TEST(player.playerId), { isTest: next });
+      onChanged();
+    } catch {
+      setOn(!next); // revert
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button
+      type='button'
+      onClick={toggle}
+      disabled={busy}
+      title={on ? 'Test account — excluded from NGR & commission. Click to unmark.' : 'Mark as test account'}
+      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-50 ${
+        on ? 'bg-primary' : 'bg-gray-300'
+      }`}
+    >
+      <span
+        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+          on ? 'translate-x-4' : 'translate-x-0.5'
+        }`}
+      />
+    </button>
+  );
 }
 
 function sourceBadge(source: string) {
@@ -217,6 +256,7 @@ function PlayersTab() {
                       'Currency',
                       'Registered',
                       'Source',
+                      'Test',
                     ].map((h) => (
                       <th
                         key={h}
@@ -257,8 +297,11 @@ function PlayersTab() {
                       <td className='px-4 py-2.5 text-xs text-gray-700 border-r border-gray-100 whitespace-nowrap'>
                         {fmt(p.registeredAt)}
                       </td>
-                      <td className='px-4 py-2.5'>
+                      <td className='px-4 py-2.5 border-r border-gray-100'>
                         <span className={sourceBadge(p.source)}>{p.source}</span>
+                      </td>
+                      <td className='px-4 py-2.5'>
+                        <TestToggle player={p} onChanged={refetch} />
                       </td>
                     </tr>
                   ))}

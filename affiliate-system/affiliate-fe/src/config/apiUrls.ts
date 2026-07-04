@@ -440,6 +440,7 @@ export const AFFILIATE_PLAYERS_API_URLS = {
   SYNC_NAMES:        () => `${API_BASE_URL}api/players/sync-names`,
   BULK_REGISTER:     () => `${API_BASE_URL}api/integration/player/bulk`,
   AFFILIATES_SELECT: () => `${API_BASE_URL}api/players/affiliates-select`,
+  SET_TEST:          (playerId: string) => `${API_BASE_URL}api/players/${playerId}/test`,
 };
 
 // Hexium-internal platform admin endpoints — guarded server-side by

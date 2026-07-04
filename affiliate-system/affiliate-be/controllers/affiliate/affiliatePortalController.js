@@ -12,6 +12,7 @@ const User               = require("../../models/User");
 const Brand              = require("../../models/Brand");
 const { getDescendantIds } = require("../../utils/affiliateHierarchy");
 const { computeBalance } = require("../../utils/affiliateBalance");
+const { testExclusion } = require("../../utils/testPlayers");
 const { logger }         = require("../../middlewares/logger");
 
 // TRC20 wallet addresses are 34 chars, start with "T", base58 alphabet
@@ -119,6 +120,10 @@ exports.providers = async (req, res) => {
     if (from) { conditions.push("from_ts >= {fromTs:DateTime}"); params.fromTs = chDate(from); }
     if (to)   { conditions.push("from_ts <= {toTs:DateTime}");   params.toTs   = chDate(to, true); }
     if (req.query.brandId)  { conditions.push("brand_id = {brandId:String}"); params.brandId = req.query.brandId; }
+    {
+      const tf = await testExclusion(user.operatorId, { includeTest: false });
+      if (tf.cond) { conditions.push(tf.cond); Object.assign(params, tf.params); }
+    }
     const where = conditions.join(" AND ");
 
     const rows = await queryRows(
@@ -214,6 +219,11 @@ exports.overview = async (req, res) => {
     if (req.query.subId) {
       conditions.push("sub_id = {subId:String}");
       params.subId = String(req.query.subId);
+    }
+    // The affiliate's own dashboard mirrors commission — test players never count.
+    {
+      const tf = await testExclusion(tenantId, { includeTest: false });
+      if (tf.cond) { conditions.push(tf.cond); Object.assign(params, tf.params); }
     }
 
     const where = conditions.join(" AND ");
