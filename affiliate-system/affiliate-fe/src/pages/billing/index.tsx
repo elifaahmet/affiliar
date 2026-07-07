@@ -236,9 +236,13 @@ export default function Billing() {
   // for comparisons. We need the canonical for subscribe(planKey).
   const currentPlanKey =
     PLAN_CARDS.find((p) => p.key.toLowerCase() === currentPlan)?.key ?? null;
+  // "Needs payment now" — the current plan's button turns into a red Renew.
+  // Includes `suspended` (previously omitted, which left a suspended operator
+  // with a disabled "Current plan" button and no way to pay).
   const isOverdue =
     !!billing &&
     (billing.billingStatus === 'past_due' ||
+      billing.billingStatus === 'suspended' ||
       (billing.billingStatus === 'active' &&
         billing.nextBillingDate != null &&
         new Date(billing.nextBillingDate).getTime() < Date.now()));
@@ -581,28 +585,29 @@ export default function Billing() {
               </ul>
 
               {(() => {
-                // When overdue, the operator's current plan needs a renewal
-                // path — disabling its button (the old behaviour) was the
-                // dead-end the banner's Pay now ran into. Show "Renew" and
-                // wire it back to subscribe(); use red so the urgency reads.
+                // Current plan is always payable: red "Renew" when overdue /
+                // suspended, otherwise "Make a payment" so the operator can pay
+                // ahead of the due date. (The old code disabled the current
+                // plan's button when not overdue — the dead-end the banner's
+                // Pay now ran into for suspended operators.)
                 const isRenewable = isCurrent && isOverdue;
+                const isPayAhead = isCurrent && !isOverdue;
                 const buttonDisabled =
-                  (isCurrent && !isOverdue) ||
                   walletsMutation.isPending ||
                   payMutation.isPending ||
                   !!pickerData;
                 const buttonClass = isRenewable
                   ? 'bg-red-600 text-white hover:bg-red-700'
-                  : isCurrent
-                    ? 'bg-gray-100 text-gray-600 cursor-default'
+                  : isPayAhead
+                    ? 'border border-primary text-primary hover:bg-primary/5'
                     : 'bg-primary text-white hover:bg-primary-dark';
                 const buttonLabel =
                   isPending
                     ? 'Starting…'
                     : isRenewable
                       ? 'Renew →'
-                      : isCurrent
-                        ? 'Current plan'
+                      : isPayAhead
+                        ? 'Make a payment'
                         : currentPlan
                           ? 'Switch to this plan'
                           : 'Subscribe';

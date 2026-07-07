@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { BILLING_API_URLS } from 'config/apiUrls';
 
@@ -26,6 +26,11 @@ export default function BillingBanner() {
     queryKey: ['billing-status'],
   });
   const navigate = useNavigate();
+  const location = useLocation();
+  // On the billing page itself the operator is already where they pay — the
+  // full-screen suspended overlay must NOT cover the wallet picker / payment
+  // modal (both z-50). So there we downgrade to the slim, non-blocking banner.
+  const onBillingPage = location.pathname.startsWith('/billing');
 
   if (!data) return null;
 
@@ -52,7 +57,7 @@ export default function BillingBanner() {
     }, 80);
   };
 
-  if (suspended) {
+  if (suspended && !onBillingPage) {
     return (
       <div className='fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4'>
         <div className='max-w-md w-full bg-white rounded-lg shadow-xl border border-red-200 p-6 text-center'>
@@ -82,7 +87,7 @@ export default function BillingBanner() {
   return (
     <div className='bg-red-50 border-b border-red-200 px-4 py-2 flex items-center gap-3'>
       <span className='text-sm text-red-800'>
-        <b>Payment overdue.</b>{' '}
+        <b>{suspended ? 'Service suspended.' : 'Payment overdue.'}</b>{' '}
         {next ? (
           <>
             Your subscription was due{' '}
@@ -94,7 +99,9 @@ export default function BillingBanner() {
         ) : (
           <>Your subscription needs renewing.</>
         )}{' '}
-        Pay now to avoid losing access.
+        {suspended
+          ? 'Complete payment below to restore full access.'
+          : 'Pay now to avoid losing access.'}
       </span>
       <button
         type='button'
