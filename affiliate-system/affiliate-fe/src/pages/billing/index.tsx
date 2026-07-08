@@ -105,6 +105,7 @@ const PLAN_CARDS: PlanCard[] = [
     note: 'Direct referrals only — get your program off the ground.',
     features: [
       'Up to 10 affiliates · 1 brand',
+      'Up to 2,500 monthly active players',
       'Revshare, CPA & fixed commission',
       'Direct referrals — one-at-a-time affiliate add',
       'FAQ & basic email support',
@@ -119,6 +120,7 @@ const PLAN_CARDS: PlanCard[] = [
     features: [
       'Everything in 1-Tier',
       'Up to 50 affiliates · 3 brands',
+      'Up to 10,000 monthly active players',
       'Sub-affiliates (2-tier) with revenue cascading',
       'All commission types: revshare, CPA, hybrid, tiered, fixed',
       'Campaign / sub-id tracking',
@@ -135,6 +137,7 @@ const PLAN_CARDS: PlanCard[] = [
     features: [
       'Everything in 2-Tier',
       'Up to 100 affiliates · 10 brands',
+      'Up to 75,000 monthly active players',
       'Player Bonuses — affiliate-distributed casino bonuses',
       'Player leaderboard (operator + affiliate)',
       'Bulk CSV import (provider fees + affiliates)',
@@ -153,6 +156,7 @@ const PLAN_CARDS: PlanCard[] = [
     features: [
       'Everything in Affiliate Plus',
       'Up to 500 affiliates · 50 brands',
+      'Up to 400,000 monthly active players',
       'API access + webhook events',
       'Player bulk import via API',
       'DWY co-managed sourcing (50 affiliates)',
@@ -167,6 +171,7 @@ const PLAN_CARDS: PlanCard[] = [
     features: [
       'Everything in Affiliate Plus L2',
       'Unlimited affiliates · unlimited brands',
+      'Millions of monthly active players (fair use)',
       'White-label / custom branding on the portal',
       'Refer-a-Friend program with Crew (tiered) rewards',
       'Anti-abuse signals (IP / device / wallet)',
