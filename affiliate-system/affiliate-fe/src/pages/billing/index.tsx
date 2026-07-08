@@ -140,6 +140,8 @@ const PLAN_CARDS: PlanCard[] = [
       'Up to 75,000 monthly active players',
       'Player Bonuses — affiliate-distributed casino bonuses',
       'Player leaderboard (operator + affiliate)',
+      'Team members — multi-user operator access',
+      'Advanced analytics (cohorts & lifetime value)',
       'Bulk CSV import (provider fees + affiliates)',
       'Custom NGR % + Custom Deposit % deductions',
       'KYC level CPA qualification gate',

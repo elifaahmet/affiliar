@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const operatorController = require("../../controllers/affiliate/operatorController");
 const requireOperatorOwner = require("../../middlewares/requireOperatorOwner");
+const { checkTeam } = require("../../middlewares/planGuard");
 
 // GET /operators/plan → current plan details
 router.get("/plan", operatorController.getPlan);
@@ -16,10 +17,11 @@ router.get("/me", operatorController.getMe);
 router.get("/invite-link", operatorController.getInviteLink);
 
 // Team management (brand-scoped operator users). List is readable by any
-// operator user; invite/remove are owner-only.
+// operator user; invite/remove are owner-only AND a Plus+ feature (multi-user
+// team). tier1/tier2 stay single-user (the owner), so listing still works.
 router.get("/team", operatorController.listTeam);
-router.post("/team", requireOperatorOwner, operatorController.inviteTeamMember);
-router.patch("/team/:userId", requireOperatorOwner, operatorController.updateTeamMember);
-router.delete("/team/:userId", requireOperatorOwner, operatorController.removeTeamMember);
+router.post("/team", requireOperatorOwner, checkTeam, operatorController.inviteTeamMember);
+router.patch("/team/:userId", requireOperatorOwner, checkTeam, operatorController.updateTeamMember);
+router.delete("/team/:userId", requireOperatorOwner, checkTeam, operatorController.removeTeamMember);
 
 module.exports = router;

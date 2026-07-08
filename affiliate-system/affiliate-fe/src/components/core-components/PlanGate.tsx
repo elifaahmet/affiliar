@@ -16,6 +16,9 @@ const GATE_INFO: Partial<Record<keyof OperatorPlanLimits, { feature: string; pla
   creatives:     { feature: 'Creatives',       plan: 'the 2-Tier plan' },
   campaignTracking: { feature: 'Campaign tracking', plan: 'the 2-Tier plan' },
   subAffiliates: { feature: 'Sub-affiliates',  plan: 'the 2-Tier plan' },
+  team:          { feature: 'Team members',    plan: 'Affiliate Plus' },
+  advancedReports: { feature: 'Advanced analytics (cohorts & LTV)', plan: 'Affiliate Plus' },
+  antiAbuse:     { feature: 'Anti-abuse signals', plan: 'Affiliate Pro' },
 };
 
 /**

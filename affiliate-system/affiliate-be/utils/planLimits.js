@@ -30,6 +30,9 @@ const PLANS = {
     playerBonuses: false,      // operator bonus offers → affiliate distribution
     creatives: false,          // creative/banner library
     leaderboard: false,        // player leaderboard (operator + affiliate side)
+    team: false,               // multi-user operator team (Plus+)
+    advancedReports: false,    // cohorts + affiliate-quality (Plus+)
+    antiAbuse: false,          // fraud / shared-signal detection (Pro)
   },
   tier2: {
     name: "1-Tier & 2-Tier",
@@ -51,6 +54,9 @@ const PLANS = {
     playerBonuses: false,      // Plus+ only
     creatives: true,           // tier2+
     leaderboard: false,        // Plus+ only
+    team: false,
+    advancedReports: false,
+    antiAbuse: false,
   },
   plus: {
     name: "Affiliate Plus",
@@ -72,6 +78,9 @@ const PLANS = {
     playerBonuses: true,       // Plus+
     creatives: true,
     leaderboard: true,         // Plus+
+    team: true,                // Plus+
+    advancedReports: true,     // Plus+
+    antiAbuse: false,          // Pro-only
   },
   plusL2: {
     name: "Affiliate Plus L2",
@@ -93,6 +102,9 @@ const PLANS = {
     playerBonuses: true,
     creatives: true,
     leaderboard: true,
+    team: true,
+    advancedReports: true,
+    antiAbuse: false,          // Pro-only
   },
   pro: {
     name: "Affiliate Pro",
@@ -114,6 +126,9 @@ const PLANS = {
     playerBonuses: true,
     creatives: true,
     leaderboard: true,
+    team: true,
+    advancedReports: true,
+    antiAbuse: true,           // Pro-only
   },
 };
 

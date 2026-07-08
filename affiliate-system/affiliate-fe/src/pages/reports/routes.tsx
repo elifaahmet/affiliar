@@ -1,4 +1,5 @@
 import { AppRouteProps } from '@components/router/AppRoute';
+import PlanGate from '@components/core-components/PlanGate';
 import Reports from './index';
 import CampaignReports from './campaigns/index';
 import ClicksReport from './clicks/index';
@@ -21,14 +22,14 @@ export const reportsRoutes: AppRouteProps[] = [
   },
   {
     path: 'reports/fraud',
-    element: <FraudReport />,
+    element: <PlanGate flag='antiAbuse'><FraudReport /></PlanGate>,
   },
   {
     path: 'reports/affiliate-quality',
-    element: <AffiliateQuality />,
+    element: <PlanGate flag='advancedReports'><AffiliateQuality /></PlanGate>,
   },
   {
     path: 'reports/cohorts',
-    element: <CohortsReport />,
+    element: <PlanGate flag='advancedReports'><CohortsReport /></PlanGate>,
   },
 ];

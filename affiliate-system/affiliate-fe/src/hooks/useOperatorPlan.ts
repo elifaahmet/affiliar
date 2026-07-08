@@ -27,6 +27,9 @@ export interface OperatorPlanLimits {
   playerBonuses: boolean;
   creatives: boolean;
   leaderboard: boolean;
+  team: boolean;
+  advancedReports: boolean;
+  antiAbuse: boolean;
 }
 
 export interface OperatorPlanResponse {

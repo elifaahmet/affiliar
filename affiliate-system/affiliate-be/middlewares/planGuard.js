@@ -219,6 +219,9 @@ const checkBulkImport    = makeFlagGuard({ flag: "bulkImport",    label: "Bulk C
 const checkApiAccess     = makeFlagGuard({ flag: "apiAccess",     label: "API access" });
 const checkPlayerBonuses = makeFlagGuard({ flag: "playerBonuses", label: "Player Bonuses" });
 const checkCreatives     = makeFlagGuard({ flag: "creatives",     label: "Creatives" });
+const checkTeam            = makeFlagGuard({ flag: "team",            label: "Team members" });
+const checkAdvancedReports = makeFlagGuard({ flag: "advancedReports", label: "Advanced analytics" });
+const checkAntiAbuse       = makeFlagGuard({ flag: "antiAbuse",       label: "Anti-abuse signals" });
 
 module.exports = {
   attachPlan,
@@ -232,6 +235,9 @@ module.exports = {
   checkApiAccess,
   checkPlayerBonuses,
   checkCreatives,
+  checkTeam,
+  checkAdvancedReports,
+  checkAntiAbuse,
   // For controller-level body-conditional checks:
   resolveOperatorPlan,
   planError,
