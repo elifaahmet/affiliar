@@ -8,6 +8,7 @@ import axiosInstance from 'config/axiosInstance';
 import UpgradeBanner from '@components/core-components/UpgradeBanner';
 import PlanBadge from '@components/core-components/PlanBadge';
 import StyledSelect from '@components/core-components/StyledSelect';
+import { useOperatorPlan } from 'hooks/useOperatorPlan';
 
 interface InviteLinkResponse { inviteLink: string; }
 
@@ -830,6 +831,11 @@ jane@example.com,jane_doe,Jane Doe,+905550000000,https://janedoe.com,CODE1
 john@example.com,john_doe,John Doe,,,LEGACY_XYZ`;
 
 function BulkImportTab() {
+  const { limits } = useOperatorPlan();
+  // Bulk affiliate import is an Affiliate Plus+ feature (BE: checkBulkImport).
+  // While the plan loads (`limits` null) we allow it to avoid a flash.
+  const bulkAllowed = limits ? limits.bulkImport : true;
+
   const fileRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview]   = useState<any[]>([]);
   const [result, setResult]     = useState<BulkResult | null>(null);
@@ -901,6 +907,25 @@ function BulkImportTab() {
     a.href = url; a.download = 'affiliate-import-template.csv';
     a.click(); URL.revokeObjectURL(url);
   };
+
+  if (!bulkAllowed) {
+    return (
+      <div className='rounded-xl border border-dashed border-violet-200 bg-violet-50/40 p-8 text-center max-w-xl'>
+        <div className='mx-auto mb-3 inline-flex h-11 w-11 items-center justify-center rounded-full bg-violet-100 text-violet-700 text-xl'>🔒</div>
+        <h3 className='text-sm font-semibold text-gray-800'>Bulk affiliate import is a Plus feature</h3>
+        <p className='mt-1 text-xs text-gray-600'>
+          Upgrade to <b>Affiliate Plus</b> or higher to add affiliates in bulk from a CSV.
+          You can still add affiliates one at a time on the <b>Add</b> tab.
+        </p>
+        <Link
+          to='/billing'
+          className='mt-4 inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark'
+        >
+          Upgrade plan →
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className='space-y-6 max-w-3xl'>
