@@ -15,7 +15,7 @@ const PLANS = {
     priceUsd: 53,
     maxAffiliates: 10,
     maxBrands: 1,
-    commissionTypes: ["revshare", "cpa"],
+    commissionTypes: ["revshare", "cpa", "fixed"],
     subAffiliates: false,      // direct referrals only — no sub-affiliates
     campaignTracking: false,
     referAFriend: false,
