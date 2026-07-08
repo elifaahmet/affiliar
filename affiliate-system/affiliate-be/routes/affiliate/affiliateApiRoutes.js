@@ -4,6 +4,7 @@ const express  = require("express");
 const router   = express.Router();
 
 const apiKeyAuth        = require("../../middlewares/apiKeyAuth");
+const { checkApiAccess } = require("../../middlewares/planGuard");
 const ctrl              = require("../../controllers/affiliate/affiliatePortalController");
 const reportCtrl        = require("../../controllers/affiliate/reportController");
 const marketingCtrl     = require("../../controllers/affiliate/affiliateMarketingController");
@@ -19,6 +20,9 @@ const playerCtrl        = require("../../controllers/affiliate/affiliatePlayerCo
  * so the controllers behave identically. All endpoints are GET (read-only).
  */
 router.use(apiKeyAuth);
+// Pull API is an integration feature — the affiliate's operator must be on a
+// plan with apiAccess (Plus L2+). apiKeyAuth already set req.affiliateUser.
+router.use(checkApiAccess);
 
 // Overview + campaign performance.
 router.get("/overview",         ctrl.overview);

@@ -5,6 +5,7 @@ const reportCtrl     = require("../../controllers/affiliate/reportController");
 const marketingCtrl  = require("../../controllers/affiliate/affiliateMarketingController");
 const creativeCtrl   = require("../../controllers/affiliate/creativeController");
 const { recalculateSubtreePayouts } = require("../../controllers/affiliate/commissionController");
+const { checkApiAccess } = require("../../middlewares/planGuard");
 
 router.get("/overview",            ctrl.overview);
 router.get("/providers",           ctrl.providers);
@@ -32,14 +33,16 @@ router.get   ("/links",            marketingCtrl.listLinks);
 router.post  ("/links",            marketingCtrl.createLink);
 router.delete("/links/:linkId",    marketingCtrl.deleteLink);
 
+// API key + outbound postback are integration features — gated by the
+// operator's plan (apiAccess, Plus L2+), same as the pull API itself.
 // API key for the affiliate's own systems (read-only pull API).
-router.get ("/api-key",            ctrl.getApiKey);
-router.post("/api-key/rotate",     ctrl.rotateApiKey);
+router.get ("/api-key",            checkApiAccess, ctrl.getApiKey);
+router.post("/api-key/rotate",     checkApiAccess, ctrl.rotateApiKey);
 
 // Real-time outbound postback (push conversions to the affiliate's own tracker).
-router.get  ("/postback",            ctrl.getPostbackConfig);
-router.patch("/postback",            ctrl.updatePostbackConfig);
-router.get  ("/postback/deliveries", ctrl.listPostbackDeliveries);
+router.get  ("/postback",            checkApiAccess, ctrl.getPostbackConfig);
+router.patch("/postback",            checkApiAccess, ctrl.updatePostbackConfig);
+router.get  ("/postback/deliveries", checkApiAccess, ctrl.listPostbackDeliveries);
 
 // Affiliate maps a player to their own internal id (sub_id reconciliation).
 router.patch("/players/:playerId/ref", ctrl.setPlayerRef);

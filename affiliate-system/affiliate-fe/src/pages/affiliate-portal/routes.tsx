@@ -1,5 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { AppRouteProps } from '../../components/router/AppRoute';
+import PlanGate from '@components/core-components/PlanGate';
 import AffiliateDashboard from './dashboard';
 import AffiliateReports from './reports';
 import AffiliateMarketing from './marketing';
@@ -22,6 +23,6 @@ export const affiliatePortalRoutes: AppRouteProps[] = [
   { path: '/affiliate/statements',      element: <Outlet />, children: [{ path: '', element: <AffiliateStatements /> }] },
   { path: '/affiliate/sub-affiliates',  element: <Outlet />, children: [{ path: '', element: <AffiliateSubAffiliates /> }] },
   { path: '/affiliate/profile',         element: <Outlet />, children: [{ path: '', element: <AffiliateProfile /> }] },
-  { path: '/affiliate/api-access',      element: <Outlet />, children: [{ path: '', element: <AffiliateApiAccess /> }] },
+  { path: '/affiliate/api-access',      element: <Outlet />, children: [{ path: '', element: <PlanGate flag='apiAccess'><AffiliateApiAccess /></PlanGate> }] },
   { path: '*',                          element: <Navigate to='/affiliate/dashboard' replace /> },
 ];
