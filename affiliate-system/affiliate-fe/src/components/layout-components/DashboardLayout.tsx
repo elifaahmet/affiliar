@@ -177,6 +177,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       href: '/creatives',
       Icon: PhotoIcon,
       current: pathname.startsWith('/creatives'),
+      flag: 'creatives', // tier2+
     },
     {
       key: 'commission',
@@ -191,6 +192,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       href: '/bonus-offers',
       Icon: GiftIcon,
       current: pathname.startsWith('/bonus-offers'),
+      flag: 'playerBonuses', // Plus+
     },
     {
       key: 'payouts',

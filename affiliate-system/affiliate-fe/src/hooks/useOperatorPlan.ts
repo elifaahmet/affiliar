@@ -23,6 +23,8 @@ export interface OperatorPlanLimits {
   apiAccess: boolean;
   whiteLabel: boolean;
   coManaged: boolean;
+  playerBonuses: boolean;
+  creatives: boolean;
 }
 
 export interface OperatorPlanResponse {

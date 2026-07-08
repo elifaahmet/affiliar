@@ -26,6 +26,8 @@ const PLANS = {
     apiAccess: false,
     whiteLabel: false,
     coManaged: false,
+    playerBonuses: false,      // operator bonus offers → affiliate distribution
+    creatives: false,          // creative/banner library
   },
   tier2: {
     name: "1-Tier & 2-Tier",
@@ -43,6 +45,8 @@ const PLANS = {
     apiAccess: false,
     whiteLabel: false,
     coManaged: false,
+    playerBonuses: false,      // Plus+ only
+    creatives: true,           // tier2+
   },
   plus: {
     name: "Affiliate Plus",
@@ -60,6 +64,8 @@ const PLANS = {
     apiAccess: false,
     whiteLabel: false,
     coManaged: true,           // DWY co-management (level 1, 25 sourced)
+    playerBonuses: true,       // Plus+
+    creatives: true,
   },
   plusL2: {
     name: "Affiliate Plus L2",
@@ -77,6 +83,8 @@ const PLANS = {
     apiAccess: true,           // integration + webhook endpoints
     whiteLabel: false,
     coManaged: true,           // DWY co-management (level 2, 50 sourced)
+    playerBonuses: true,
+    creatives: true,
   },
   pro: {
     name: "Affiliate Pro",
@@ -94,6 +102,8 @@ const PLANS = {
     apiAccess: true,
     whiteLabel: true,          // custom branding on the affiliate portal
     coManaged: true,           // DWY co-management (level 3, priority)
+    playerBonuses: true,
+    creatives: true,
   },
 };
 

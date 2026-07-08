@@ -2,9 +2,12 @@ const express = require("express");
 const router = express.Router();
 const ctrl = require("../../controllers/affiliate/bonusOfferController");
 const requireOperatorOwner = require("../../middlewares/requireOperatorOwner");
+const { checkPlayerBonuses } = require("../../middlewares/planGuard");
 
-// Operator-managed player bonus offers (distributed by affiliates). Owner-only.
+// Operator-managed player bonus offers (distributed by affiliates). Owner-only,
+// and a Plus+ plan feature.
 router.use(requireOperatorOwner);
+router.use(checkPlayerBonuses);
 router.get("/", ctrl.list);
 router.get("/casino-config", ctrl.getConfig);
 router.patch("/casino-config", ctrl.setConfig);

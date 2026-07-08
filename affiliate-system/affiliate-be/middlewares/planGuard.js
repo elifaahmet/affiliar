@@ -214,9 +214,11 @@ const checkMaxBrands = async (req, res, next) => {
   }
 };
 
-const checkReferAFriend = makeFlagGuard({ flag: "referAFriend", label: "Refer-a-Friend" });
-const checkBulkImport   = makeFlagGuard({ flag: "bulkImport",   label: "Bulk CSV import" });
-const checkApiAccess    = makeFlagGuard({ flag: "apiAccess",    label: "API access" });
+const checkReferAFriend  = makeFlagGuard({ flag: "referAFriend",  label: "Refer-a-Friend" });
+const checkBulkImport    = makeFlagGuard({ flag: "bulkImport",    label: "Bulk CSV import" });
+const checkApiAccess     = makeFlagGuard({ flag: "apiAccess",     label: "API access" });
+const checkPlayerBonuses = makeFlagGuard({ flag: "playerBonuses", label: "Player Bonuses" });
+const checkCreatives     = makeFlagGuard({ flag: "creatives",     label: "Creatives" });
 
 module.exports = {
   attachPlan,
@@ -228,6 +230,8 @@ module.exports = {
   checkReferAFriend,
   checkBulkImport,
   checkApiAccess,
+  checkPlayerBonuses,
+  checkCreatives,
   // For controller-level body-conditional checks:
   resolveOperatorPlan,
   planError,
