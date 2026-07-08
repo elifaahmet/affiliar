@@ -6,6 +6,7 @@ import BSelectWithSearch from '@components/core-components/selectWithInput/BSele
 import PlayerLeaderboard from '@components/core-components/PlayerLeaderboard';
 import axiosInstance from 'config/axiosInstance';
 import { useOperatorPlan } from 'hooks/useOperatorPlan';
+import PlanGate from '@components/core-components/PlanGate';
 import { Link } from 'react-router-dom';
 
 // ── types ─────────────────────────────────────────────────────────────────────
@@ -635,7 +636,11 @@ export default function Players() {
       </div>
 
       {activeTab === 'Players' && <PlayersTab />}
-      {activeTab === 'Leaderboard' && <PlayerLeaderboard endpoint={AFFILIATE_PLAYERS_API_URLS.LIST()} scope='operator' affiliatesEndpoint={AFFILIATE_PLAYERS_API_URLS.AFFILIATES_SELECT()} />}
+      {activeTab === 'Leaderboard' && (
+        <PlanGate flag='leaderboard'>
+          <PlayerLeaderboard endpoint={AFFILIATE_PLAYERS_API_URLS.LIST()} scope='operator' affiliatesEndpoint={AFFILIATE_PLAYERS_API_URLS.AFFILIATES_SELECT()} />
+        </PlanGate>
+      )}
       {activeTab === 'Import Players' && <ImportPlayersTab />}
     </div>
   );

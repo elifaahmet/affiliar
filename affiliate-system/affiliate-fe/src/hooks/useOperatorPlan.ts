@@ -25,6 +25,7 @@ export interface OperatorPlanLimits {
   coManaged: boolean;
   playerBonuses: boolean;
   creatives: boolean;
+  leaderboard: boolean;
 }
 
 export interface OperatorPlanResponse {

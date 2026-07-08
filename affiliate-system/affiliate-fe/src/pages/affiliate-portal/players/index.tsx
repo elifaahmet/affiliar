@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import PlayerLeaderboard from '@components/core-components/PlayerLeaderboard';
+import PlanGate from '@components/core-components/PlanGate';
 import { useQueryClient } from '@tanstack/react-query';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import axiosInstance from 'config/axiosInstance';
@@ -229,7 +230,9 @@ export default function AffiliatePlayers() {
       </div>
 
       {view === 'leaderboard' && (
-        <PlayerLeaderboard endpoint={AFFILIATE_PORTAL_API_URLS.PLAYERS()} scope='affiliate' />
+        <PlanGate flag='leaderboard'>
+          <PlayerLeaderboard endpoint={AFFILIATE_PORTAL_API_URLS.PLAYERS()} scope='affiliate' />
+        </PlanGate>
       )}
 
       {view === 'list' && (<>
