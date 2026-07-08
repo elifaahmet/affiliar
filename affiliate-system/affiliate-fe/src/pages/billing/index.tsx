@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { useBaseMutation } from 'api/core/useBaseMutation';
-import { BILLING_API_URLS } from 'config/apiUrls';
+import { BILLING_API_URLS, OPERATOR_API_URLS } from 'config/apiUrls';
 
 /* ── Types ──────────────────────────────────────────────────────────── */
 
@@ -193,6 +193,11 @@ export default function Billing() {
   const { data: billing, isLoading } = useBaseQuery<BillingStatus>({
     endpoint: BILLING_API_URLS.STATUS(),
     queryKey: ['billing-status'],
+  });
+
+  const { data: usage } = useBaseQuery<{ activePlayers: number; maxPlayers: number | null; over: boolean }>({
+    endpoint: OPERATOR_API_URLS.PLAYER_USAGE(),
+    queryKey: ['operator-player-usage'],
   });
 
   const walletsMutation = useBaseMutation<
@@ -463,6 +468,15 @@ export default function Billing() {
           {billing.billingStatus === 'trial' && billing.trialEndsAt && (
             <span className='text-sm text-violet-700'>
               Trial ends {new Date(billing.trialEndsAt).toLocaleDateString('en-US')}
+            </span>
+          )}
+          {usage && usage.maxPlayers != null && (
+            <span className={`text-sm ${usage.over ? 'text-amber-700 font-medium' : 'text-gray-600'}`}>
+              Active players this month:{' '}
+              <b className={usage.over ? 'text-amber-800' : 'text-gray-800'}>
+                {usage.activePlayers.toLocaleString('en-US')}
+              </b>{' '}
+              / {usage.maxPlayers.toLocaleString('en-US')}
             </span>
           )}
         </div>

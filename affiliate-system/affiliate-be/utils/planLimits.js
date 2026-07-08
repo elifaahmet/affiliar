@@ -15,6 +15,7 @@ const PLANS = {
     priceUsd: 53,
     maxAffiliates: 10,
     maxBrands: 1,
+    maxPlayers: 2500,          // monthly active players (MAP) — soft cap
     commissionTypes: ["revshare", "cpa", "fixed"],
     subAffiliates: false,      // direct referrals only — no sub-affiliates
     campaignTracking: false,
@@ -35,6 +36,7 @@ const PLANS = {
     priceUsd: 98,
     maxAffiliates: 50,
     maxBrands: 3,
+    maxPlayers: 10000,
     commissionTypes: ["revshare", "cpa", "hybrid", "tiered_revshare", "fixed"],
     subAffiliates: true,       // 2-tier: sub-affiliates per affiliate
     campaignTracking: true,
@@ -55,6 +57,7 @@ const PLANS = {
     priceUsd: 494,
     maxAffiliates: 100,
     maxBrands: 10,
+    maxPlayers: 75000,
     commissionTypes: ["revshare", "cpa", "hybrid", "tiered_revshare", "fixed"],
     subAffiliates: true,
     campaignTracking: true,
@@ -75,6 +78,7 @@ const PLANS = {
     priceUsd: 998,
     maxAffiliates: 500,
     maxBrands: 50,
+    maxPlayers: 400000,
     commissionTypes: ["revshare", "cpa", "hybrid", "tiered_revshare", "fixed"],
     subAffiliates: true,
     campaignTracking: true,
@@ -95,6 +99,7 @@ const PLANS = {
     priceUsd: 1799,
     maxAffiliates: 999999,     // unlimited
     maxBrands: 999999,
+    maxPlayers: 2000000,   // fair-use; beyond = enterprise
     commissionTypes: ["revshare", "cpa", "hybrid", "tiered_revshare", "fixed"],
     subAffiliates: true,
     campaignTracking: true,

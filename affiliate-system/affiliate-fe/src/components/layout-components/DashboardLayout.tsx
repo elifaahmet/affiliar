@@ -19,6 +19,7 @@ import {
 } from '@heroicons/react/24/outline';
 import Icon from '@components/core-components/icon';
 import BillingBanner from '@components/core-components/BillingBanner';
+import PlayerUsageBanner from '@components/core-components/PlayerUsageBanner';
 import cx from 'classnames';
 import { getBrandingConfig } from 'config/brandConfig';
 import { useAppDispatch, useAppSelector } from 'hooks/redux';
@@ -386,6 +387,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
         <div className="mt-[60px] h-[calc(100vh-65px)] flex flex-col">
           <BillingBanner />
+          <PlayerUsageBanner />
           <div className="flex-1 overflow-auto">{children}</div>
         </div>
       </div>

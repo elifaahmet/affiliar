@@ -2,6 +2,7 @@ const Operator = require("../../models/Operator");
 const User = require("../../models/User");
 const Brand = require("../../models/Brand");
 const { getPlan } = require("../../utils/planLimits");
+const { getMonthlyActivePlayers } = require("../../utils/playerUsage");
 const { sendOperatorInvite } = require("../../utils/mailer");
 const { logger } = require("../../middlewares/logger");
 
@@ -59,6 +60,31 @@ const operatorController = {
       const limits = { ...basePlan, ...overrides };
 
       return res.json({ plan: planKey, limits, basePlan, overrides });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  // GET /operators/player-usage → this month's active players vs the plan cap.
+  // Drives the usage meter + over-limit upgrade nudge. lifetimeFree tenants
+  // report a null cap (never limited).
+  playerUsage: async (req, res) => {
+    try {
+      const user = req.affiliateUser;
+      if (!user.operatorId) {
+        return res.status(400).json({ error: "User is not linked to an operator" });
+      }
+      const operator = await Operator.findById(user.operatorId)
+        .select({ plan: 1, lifetimeFree: 1, isDeleted: 1 })
+        .lean();
+      if (!operator || operator.isDeleted) {
+        return res.status(404).json({ error: "Operator not found" });
+      }
+      const planKey = operator.plan || "tier1";
+      const maxPlayers = operator.lifetimeFree ? null : (getPlan(planKey).maxPlayers ?? null);
+      const activePlayers = await getMonthlyActivePlayers(operator._id);
+      const over = maxPlayers != null && activePlayers > maxPlayers;
+      return res.json({ plan: planKey, activePlayers, maxPlayers, over });
     } catch (err) {
       return res.status(500).json({ error: err.message });
     }

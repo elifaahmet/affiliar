@@ -6,6 +6,9 @@ const requireOperatorOwner = require("../../middlewares/requireOperatorOwner");
 // GET /operators/plan → current plan details
 router.get("/plan", operatorController.getPlan);
 
+// GET /operators/player-usage → monthly active players vs plan cap
+router.get("/player-usage", operatorController.playerUsage);
+
 // GET /operators/me → current operator info
 router.get("/me", operatorController.getMe);
 

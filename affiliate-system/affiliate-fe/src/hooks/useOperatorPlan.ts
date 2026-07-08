@@ -13,6 +13,7 @@ export interface OperatorPlanLimits {
   priceUsd: number;
   maxAffiliates: number;
   maxBrands: number;
+  maxPlayers: number;
   commissionTypes: string[];
   subAffiliates: boolean;
   campaignTracking: boolean;
