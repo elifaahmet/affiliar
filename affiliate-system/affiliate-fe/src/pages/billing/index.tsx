@@ -105,8 +105,8 @@ const PLAN_CARDS: PlanCard[] = [
     note: 'Direct referrals only — get your program off the ground.',
     features: [
       'Up to 10 affiliates · 1 brand',
-      'Revshare & CPA commission',
-      'DIY guided setup + 7-day fast-track guide',
+      'Revshare, CPA & fixed commission',
+      'Direct referrals — one-at-a-time affiliate add',
       'FAQ & basic email support',
     ],
   },
@@ -117,10 +117,12 @@ const PLAN_CARDS: PlanCard[] = [
     tagline: 'Up to 50 affiliates · 3 brands',
     note: 'Open up sub-affiliates and the full commission toolkit.',
     features: [
+      'Everything in 1-Tier',
       'Up to 50 affiliates · 3 brands',
       'Sub-affiliates (2-tier) with revenue cascading',
-      'All commission types: revshare, CPA, hybrid, tiered',
+      'All commission types: revshare, CPA, hybrid, tiered, fixed',
       'Campaign / sub-id tracking',
+      'Creative library',
     ],
   },
   {
@@ -133,6 +135,8 @@ const PLAN_CARDS: PlanCard[] = [
     features: [
       'Everything in 2-Tier',
       'Up to 100 affiliates · 10 brands',
+      'Player Bonuses — affiliate-distributed casino bonuses',
+      'Player leaderboard (operator + affiliate)',
       'Bulk CSV import (provider fees + affiliates)',
       'Custom NGR % + Custom Deposit % deductions',
       'KYC level CPA qualification gate',
@@ -150,6 +154,7 @@ const PLAN_CARDS: PlanCard[] = [
       'Everything in Affiliate Plus',
       'Up to 500 affiliates · 50 brands',
       'API access + webhook events',
+      'Player bulk import via API',
       'DWY co-managed sourcing (50 affiliates)',
     ],
   },
