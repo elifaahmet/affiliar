@@ -7,9 +7,18 @@ const { ingestRawEvent } = require("../utils/rawEventIngest");
 const { logger } = require("../middlewares/logger");
 const { checkApiAccess } = require("../middlewares/planGuard");
 
-// API + webhook access is a plan-gated feature — every integration endpoint
-// goes through it. Operators on tier1/tier2/plus get a 403 with the upgrade
-// hint instead of silently using the integration surface.
+// Affiliate bonus distribution: casino verifies a redemption code + reports
+// claims back. Operator-authed and called by the casino for the player-bonus
+// feature — NOT part of the plan-gated API/webhook surface, so it must work on
+// every plan. Mounted BEFORE checkApiAccess so an operator below plusL2 (no
+// apiAccess) doesn't have their casino bonus verify/claim calls 403'd.
+const bonusOfferController = require("../controllers/affiliate/bonusOfferController");
+router.get("/bonus/verify", bonusOfferController.verifyCode);
+router.post("/bonus/claim", bonusOfferController.ingestClaim);
+
+// API + webhook access is a plan-gated feature — the remaining integration
+// endpoints go through it. Operators on tier1/tier2/plus get a 403 with the
+// upgrade hint instead of silently using the integration surface.
 router.use(checkApiAccess);
 
 router.post("/activity", importActivity);
@@ -17,12 +26,6 @@ router.post("/activity", importActivity);
 // Player registration endpoints — called by operator's backend
 router.post("/player/register", playerIntegration.register);
 router.post("/player/bulk", playerIntegration.bulkRegister);
-
-// Affiliate bonus distribution: casino verifies a redemption code + reports
-// claims back. Operator-authed (same as the other integration endpoints).
-const bonusOfferController = require("../controllers/affiliate/bonusOfferController");
-router.get("/bonus/verify", bonusOfferController.verifyCode);
-router.post("/bonus/claim", bonusOfferController.ingestClaim);
 
 // ── Raw event ingestion (single + batch) ─────────────────────────────────────
 

@@ -5,6 +5,8 @@ import { AFFILIATE_PLAYERS_API_URLS } from 'config/apiUrls';
 import BSelectWithSearch from '@components/core-components/selectWithInput/BSelectWithSearch';
 import PlayerLeaderboard from '@components/core-components/PlayerLeaderboard';
 import axiosInstance from 'config/axiosInstance';
+import { useOperatorPlan } from 'hooks/useOperatorPlan';
+import { Link } from 'react-router-dom';
 
 // ── types ─────────────────────────────────────────────────────────────────────
 
@@ -342,6 +344,13 @@ function PlayersTab() {
 // ── Import Players Tab ────────────────────────────────────────────────────────
 
 function ImportPlayersTab() {
+  const { limits } = useOperatorPlan();
+  // Bulk CSV import goes through the plan-gated integration surface
+  // (/integration/player/bulk → checkApiAccess), so it needs `apiAccess`
+  // (Affiliate Plus L2+). While the plan loads (`limits` null) we optimistically
+  // allow it to avoid a flash; the BE is the real gate.
+  const bulkAllowed = limits ? limits.apiAccess : true;
+
   const fileRef = useRef<HTMLInputElement>(null);
   const [rows, setRows]             = useState<Record<string, string>[]>([]);
   const [filename, setFilename]     = useState('');
@@ -425,6 +434,25 @@ function ImportPlayersTab() {
 
   const previewRows = rows.slice(0, 5);
   const headers     = rows.length > 0 ? Object.keys(rows[0]) : [];
+
+  if (!bulkAllowed) {
+    return (
+      <div className='rounded-xl border border-dashed border-violet-200 bg-violet-50/40 p-8 text-center max-w-xl mx-auto'>
+        <div className='mx-auto mb-3 inline-flex h-11 w-11 items-center justify-center rounded-full bg-violet-100 text-violet-700 text-xl'>🔒</div>
+        <h3 className='text-sm font-semibold text-gray-800'>Bulk CSV import is a Plus L2 feature</h3>
+        <p className='mt-1 text-xs text-gray-600'>
+          Upgrade to <b>Affiliate Plus L2</b> or higher to import players in bulk from a CSV.
+          Your current plan supports adding players via real-time attribution.
+        </p>
+        <Link
+          to='/billing'
+          className='mt-4 inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark'
+        >
+          Upgrade plan →
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className='grid grid-cols-2 gap-6 items-start'>
