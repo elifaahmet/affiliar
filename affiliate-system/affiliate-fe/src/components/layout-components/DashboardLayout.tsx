@@ -22,6 +22,7 @@ import BillingBanner from '@components/core-components/BillingBanner';
 import cx from 'classnames';
 import { getBrandingConfig } from 'config/brandConfig';
 import { useAppDispatch, useAppSelector } from 'hooks/redux';
+import { useOperatorPlan, OperatorPlanLimits } from 'hooks/useOperatorPlan';
 import { logoutUser } from 'store/auth/authenticationSlice';
 import { storageHelper } from 'utils/storage/StorageHelper';
 
@@ -41,6 +42,9 @@ interface NavigationItem {
   href: string;
   Icon: IconComponent;
   current: boolean;
+  // Optional plan-flag gate. When set, the item is hidden unless the operator's
+  // resolved plan (base plan + featureOverrides) has this boolean flag on.
+  flag?: keyof OperatorPlanLimits;
 }
 
 interface DashboardLayoutProps {
@@ -123,6 +127,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     | null;
   const hasOperator = !!userInfo?.operatorId;
   const isPlatformAdmin = !!userInfo?.isPlatformAdmin;
+  // Resolved plan flags (base plan + featureOverrides) — gates plan-locked
+  // menu items like Refer-a-Friend.
+  const { limits: planLimits } = useOperatorPlan();
   // Brand-scoped operator users (non-empty brandIds) are restricted to the
   // data-viewing surfaces. Owners (no brandIds) get the full operator menu.
   const isBrandScoped = Array.isArray(userInfo?.brandIds) && (userInfo?.brandIds?.length ?? 0) > 0;
@@ -205,6 +212,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       href: '/refer-a-friend',
       Icon: HeartIcon,
       current: pathname.startsWith('/refer-a-friend'),
+      flag: 'referAFriend', // Pro-only — hidden on lower plans
     },
     {
       key: 'billing',
@@ -229,10 +237,18 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     },
   ] : [];
 
+  // Hide plan-gated items the operator's plan doesn't include (e.g.
+  // Refer-a-Friend on non-Pro). While the plan is still loading, `limits` is
+  // null — we keep gated items hidden until we know, so a forbidden feature
+  // never flashes in the menu.
+  const planFiltered = fullNavigation.filter(
+    (n) => !n.flag || !!planLimits?.[n.flag],
+  );
+
   // Brand-scoped users only see the data-viewing surfaces; owners see all.
   const navigation: NavigationItem[] = isBrandScoped
-    ? fullNavigation.filter((n) => SCOPED_KEYS.includes(n.key))
-    : fullNavigation;
+    ? planFiltered.filter((n) => SCOPED_KEYS.includes(n.key))
+    : planFiltered;
 
   if (isPlatformAdmin) {
     navigation.push({
