@@ -160,6 +160,12 @@ app.listen(PORT, () => {
   const { startBillingExpiryJob } = require("./jobs/billingExpiryJob");
   startBillingExpiryJob();
 
+  // Player usage: warn operators (in-app + email) as monthly active players
+  // approach their plan's maxPlayers cap — graduated thresholds, once each per
+  // month.
+  const { startPlayerUsageJob } = require("./jobs/playerUsageJob");
+  startPlayerUsageJob();
+
   // Outbound affiliate postbacks: deliver queued conversion notifications
   // (enqueued by the raw Kafka consumer) to each affiliate's URL template.
   const { startPostbackDeliveryJob } = require("./jobs/postbackDeliveryJob");

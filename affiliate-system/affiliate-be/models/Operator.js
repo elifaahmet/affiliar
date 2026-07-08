@@ -117,6 +117,15 @@ const operatorSchema = new mongoose.Schema(
       ],
       default: [],
     },
+    // Player-limit warning emails already sent this month, so the usage job
+    // fires each graduated threshold (60/70/80/…/98/100 % of maxPlayers) at
+    // most once. `cycleMonth` is the UTC "YYYY-MM" the alerts belong to — when
+    // the month rolls over the job resets `sent` and re-warns as needed.
+    playerUsageAlerts: {
+      cycleMonth: { type: String, default: null },
+      sent:       { type: [Number], default: [] },
+      _id: false,
+    },
     // Per-operator feature flag overrides on top of the subscription plan.
     // Used for bespoke deals — e.g. a custom-priced Crew refer-a-friend
     // engagement that doesn't belong on the public pricing ladder. Keys
