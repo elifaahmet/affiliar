@@ -166,6 +166,11 @@ app.listen(PORT, () => {
   const { startPlayerUsageJob } = require("./jobs/playerUsageJob");
   startPlayerUsageJob();
 
+  // Weekly report digest: email each operator's owners a Mon–Sun summary
+  // (NGR/FTD/deposits/top affiliates) every Monday.
+  const { startReportDigestJob } = require("./jobs/reportDigestJob");
+  startReportDigestJob();
+
   // Outbound affiliate postbacks: deliver queued conversion notifications
   // (enqueued by the raw Kafka consumer) to each affiliate's URL template.
   const { startPostbackDeliveryJob } = require("./jobs/postbackDeliveryJob");

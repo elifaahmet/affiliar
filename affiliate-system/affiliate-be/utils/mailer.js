@@ -347,9 +347,73 @@ async function sendNotificationEmail({ to, name, title, body, link }) {
   return sendMail({ to, subject, htmlBody, textBody });
 }
 
+// Weekly operator report digest. `summary`/`prev` come from
+// utils/reportDigest.getOperatorSummary; `prev` is the prior week for WoW deltas.
+async function sendWeeklyDigest({ to, name, operatorName, periodLabel, summary, prev }) {
+  const reportsUrl = `${APP_URL}/reports`;
+  const usd = (c) => `$${Math.round((Number(c) || 0) / 100).toLocaleString("en-US")}`;
+  const num = (v) => (Number(v) || 0).toLocaleString("en-US");
+  const delta = (cur, prv) => {
+    if (!prv) return "";
+    const d = ((cur - prv) / prv) * 100;
+    if (!isFinite(d) || Math.abs(d) < 0.5) return "";
+    const up = d >= 0;
+    return ` <span style="color:${up ? "#16a34a" : "#dc2626"};font-size:12px;font-weight:600;">${up ? "▲" : "▼"} ${Math.abs(d).toFixed(0)}%</span>`;
+  };
+  const row = (label, valueHtml) => `
+    <tr>
+      <td style="padding:10px 0;border-bottom:1px solid #F1F5F9;color:#64748B;font-size:14px;">${label}</td>
+      <td style="padding:10px 0;border-bottom:1px solid #F1F5F9;color:#0F172A;font-size:15px;font-weight:700;text-align:right;">${valueHtml}</td>
+    </tr>`;
+  const p = prev || {};
+
+  const topHtml = summary.topAffiliates && summary.topAffiliates.length
+    ? `<p style="color:#334155;font-size:14px;font-weight:700;margin:24px 0 8px;">Top affiliates (by NGR)</p>
+       <table style="width:100%;border-collapse:collapse;">
+         ${summary.topAffiliates.map((a, i) => `
+           <tr>
+             <td style="padding:6px 0;color:#334155;font-size:14px;">${i + 1}. <b>${a.code}</b></td>
+             <td style="padding:6px 0;color:#0F172A;font-size:14px;text-align:right;">${usd(a.ngrCents)} · ${num(a.ftdCount)} FTD</td>
+           </tr>`).join("")}
+       </table>`
+    : "";
+
+  const htmlBody = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; padding: 40px 30px;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <img src="${LOGO_URL}" alt="Affiliar" width="160" style="display: inline-block;" />
+      </div>
+      <h2 style="color:#6D28D9; margin-top:0;">Your weekly report</h2>
+      <p style="color:#334155;font-size:15px;line-height:1.6;">Hi ${name || "there"}, here's how ${operatorName || "your program"} did over <b>${periodLabel}</b>.</p>
+      <table style="width:100%;border-collapse:collapse;margin-top:8px;">
+        ${row("NGR", `${usd(summary.ngrCents)}${delta(summary.ngrCents, p.ngrCents)}`)}
+        ${row("GGR", usd(summary.ggrCents))}
+        ${row("Deposits", `${usd(summary.depositsSumCents)}${delta(summary.depositsSumCents, p.depositsSumCents)}`)}
+        ${row("First-time deposits", `${num(summary.ftdCount)}${delta(summary.ftdCount, p.ftdCount)} · ${usd(summary.ftdSumCents)}`)}
+        ${row("Registrations", `${num(summary.registrations)}${delta(summary.registrations, p.registrations)}`)}
+        ${row("Active players", `${num(summary.activePlayers)}${delta(summary.activePlayers, p.activePlayers)}`)}
+      </table>
+      ${topHtml}
+      <p style="margin:32px 0;text-align:center;">
+        <a href="${reportsUrl}" style="background:#6D28D9;color:white;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;display:inline-block;">Open full reports</a>
+      </p>
+      <hr style="border:none;border-top:1px solid #E2E8F0;margin:32px 0;" />
+      <p style="color:#94A3B8;font-size:12px;text-align:center;">You're receiving your weekly Affiliar digest. Turn it off anytime in your profile settings.</p>
+    </div>`;
+
+  const textBody =
+    `Your weekly Affiliar report — ${periodLabel}\n\n` +
+    `NGR: ${usd(summary.ngrCents)}\nGGR: ${usd(summary.ggrCents)}\nDeposits: ${usd(summary.depositsSumCents)}\n` +
+    `FTDs: ${num(summary.ftdCount)} (${usd(summary.ftdSumCents)})\nRegistrations: ${num(summary.registrations)}\n` +
+    `Active players: ${num(summary.activePlayers)}\n\nFull reports: ${reportsUrl}`;
+
+  return sendMail({ to, subject: `Your weekly Affiliar report — ${periodLabel}`, htmlBody, textBody });
+}
+
 module.exports = {
   sendMail,
   sendNotificationEmail,
+  sendWeeklyDigest,
   sendAffiliateInvite,
   sendOperatorInvite,
   sendPasswordReset,
