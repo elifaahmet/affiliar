@@ -90,6 +90,35 @@ const operatorController = {
     }
   },
 
+  // GET /operators/digest-preference → the current user's report-email cadence.
+  // Works for operators and affiliates (updates their own User).
+  getDigestPreference: async (req, res) => {
+    try {
+      const u = await User.findById(req.affiliateUser._id)
+        .select({ digestFrequency: 1, emailNotifications: 1 }).lean();
+      return res.json({
+        digestFrequency: u?.digestFrequency || "weekly",
+        emailNotifications: u?.emailNotifications !== false,
+      });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  // PATCH /operators/digest-preference { digestFrequency }
+  setDigestPreference: async (req, res) => {
+    try {
+      const val = String(req.body?.digestFrequency || "");
+      if (!["weekly", "monthly", "off"].includes(val)) {
+        return res.status(400).json({ error: "digestFrequency must be weekly, monthly or off" });
+      }
+      await User.updateOne({ _id: req.affiliateUser._id }, { $set: { digestFrequency: val } });
+      return res.json({ digestFrequency: val });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
   getMe: async (req, res) => {
     try {
       const user = req.affiliateUser;

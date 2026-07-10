@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { AFFILIATE_PORTAL_API_URLS } from 'config/apiUrls';
 import axiosInstance from 'config/axiosInstance';
+import DigestPreference from '@components/core-components/DigestPreference';
 
 interface CommissionPlan {
   _id: string;
@@ -161,6 +162,11 @@ export default function AffiliateProfile() {
             </span>
           </div>
         </div>
+      </div>
+
+      {/* Report email cadence */}
+      <div className='max-w-2xl'>
+        <DigestPreference />
       </div>
 
       {/* Editable profile */}

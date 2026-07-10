@@ -10,6 +10,10 @@ router.get("/plan", operatorController.getPlan);
 // GET /operators/player-usage → monthly active players vs plan cap
 router.get("/player-usage", operatorController.playerUsage);
 
+// Report-email cadence (weekly/monthly/off) — self-service, any authed user.
+router.get("/digest-preference", operatorController.getDigestPreference);
+router.patch("/digest-preference", operatorController.setDigestPreference);
+
 // GET /operators/me → current operator info
 router.get("/me", operatorController.getMe);
 

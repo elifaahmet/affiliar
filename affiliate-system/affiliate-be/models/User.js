@@ -57,6 +57,14 @@ const userSchema = new mongoose.Schema(
       of: Boolean,
       default: {},
     },
+    // Cadence for the emailed report digest (operators + affiliates). "weekly"
+    // = Monday pulse, "monthly" = 1st-of-month summary incl. commission, "off"
+    // = no digest. Gated further by emailNotifications (master switch).
+    digestFrequency: {
+      type: String,
+      enum: ["weekly", "monthly", "off"],
+      default: "weekly",
+    },
 
     quickAccessShortcuts: {
       type: [

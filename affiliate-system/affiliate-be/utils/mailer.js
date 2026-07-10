@@ -347,10 +347,16 @@ async function sendNotificationEmail({ to, name, title, body, link }) {
   return sendMail({ to, subject, htmlBody, textBody });
 }
 
-// Weekly operator report digest. `summary`/`prev` come from
-// utils/reportDigest.getOperatorSummary; `prev` is the prior week for WoW deltas.
-async function sendWeeklyDigest({ to, name, operatorName, periodLabel, summary, prev }) {
-  const reportsUrl = `${APP_URL}/reports`;
+// Report digest email — operator or affiliate, weekly or monthly. `summary`/
+// `prev` come from utils/reportDigest; `prev` gives WoW/MoM deltas; monthly runs
+// pass `commissionCents` (operator = owed to affiliates, affiliate = earned).
+async function sendReportDigest({
+  audience = "operator", cadence = "weekly", to, name, operatorName,
+  periodLabel, summary, prev, commissionCents = null,
+}) {
+  const isAff = audience === "affiliate";
+  const link = isAff ? "/affiliate/reports" : "/reports";
+  const reportsUrl = `${APP_URL}${link}`;
   const usd = (c) => `$${Math.round((Number(c) || 0) / 100).toLocaleString("en-US")}`;
   const num = (v) => (Number(v) || 0).toLocaleString("en-US");
   const delta = (cur, prv) => {
@@ -360,14 +366,18 @@ async function sendWeeklyDigest({ to, name, operatorName, periodLabel, summary, 
     const up = d >= 0;
     return ` <span style="color:${up ? "#16a34a" : "#dc2626"};font-size:12px;font-weight:600;">${up ? "▲" : "▼"} ${Math.abs(d).toFixed(0)}%</span>`;
   };
-  const row = (label, valueHtml) => `
+  const row = (label, valueHtml, highlight) => `
     <tr>
-      <td style="padding:10px 0;border-bottom:1px solid #F1F5F9;color:#64748B;font-size:14px;">${label}</td>
-      <td style="padding:10px 0;border-bottom:1px solid #F1F5F9;color:#0F172A;font-size:15px;font-weight:700;text-align:right;">${valueHtml}</td>
+      <td style="padding:10px 0;border-bottom:1px solid #F1F5F9;color:${highlight ? "#6D28D9" : "#64748B"};font-size:14px;font-weight:${highlight ? 700 : 400};">${label}</td>
+      <td style="padding:10px 0;border-bottom:1px solid #F1F5F9;color:${highlight ? "#6D28D9" : "#0F172A"};font-size:15px;font-weight:700;text-align:right;">${valueHtml}</td>
     </tr>`;
   const p = prev || {};
 
-  const topHtml = summary.topAffiliates && summary.topAffiliates.length
+  const commissionRow = commissionCents != null
+    ? row(isAff ? "Your commission earned" : "Commission owed to affiliates", usd(commissionCents), true)
+    : "";
+
+  const topHtml = !isAff && summary.topAffiliates && summary.topAffiliates.length
     ? `<p style="color:#334155;font-size:14px;font-weight:700;margin:24px 0 8px;">Top affiliates (by NGR)</p>
        <table style="width:100%;border-collapse:collapse;">
          ${summary.topAffiliates.map((a, i) => `
@@ -378,14 +388,21 @@ async function sendWeeklyDigest({ to, name, operatorName, periodLabel, summary, 
        </table>`
     : "";
 
+  const cadenceCap = cadence === "monthly" ? "Monthly" : "Weekly";
+  const intro = isAff
+    ? `Hi ${name || "there"}, here's your ${cadence} performance${operatorName ? ` with ${operatorName}` : ""} over <b>${periodLabel}</b>.`
+    : `Hi ${name || "there"}, here's how ${operatorName || "your program"} did over <b>${periodLabel}</b>.`;
+  const subject = `Your ${cadence} Affiliar report — ${periodLabel}`;
+
   const htmlBody = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; padding: 40px 30px;">
       <div style="text-align: center; margin-bottom: 24px;">
         <img src="${LOGO_URL}" alt="Affiliar" width="160" style="display: inline-block;" />
       </div>
-      <h2 style="color:#6D28D9; margin-top:0;">Your weekly report</h2>
-      <p style="color:#334155;font-size:15px;line-height:1.6;">Hi ${name || "there"}, here's how ${operatorName || "your program"} did over <b>${periodLabel}</b>.</p>
+      <h2 style="color:#6D28D9; margin-top:0;">Your ${cadence} report</h2>
+      <p style="color:#334155;font-size:15px;line-height:1.6;">${intro}</p>
       <table style="width:100%;border-collapse:collapse;margin-top:8px;">
+        ${commissionRow}
         ${row("NGR", `${usd(summary.ngrCents)}${delta(summary.ngrCents, p.ngrCents)}`)}
         ${row("GGR", usd(summary.ggrCents))}
         ${row("Deposits", `${usd(summary.depositsSumCents)}${delta(summary.depositsSumCents, p.depositsSumCents)}`)}
@@ -398,22 +415,23 @@ async function sendWeeklyDigest({ to, name, operatorName, periodLabel, summary, 
         <a href="${reportsUrl}" style="background:#6D28D9;color:white;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;display:inline-block;">Open full reports</a>
       </p>
       <hr style="border:none;border-top:1px solid #E2E8F0;margin:32px 0;" />
-      <p style="color:#94A3B8;font-size:12px;text-align:center;">You're receiving your weekly Affiliar digest. Turn it off anytime in your profile settings.</p>
+      <p style="color:#94A3B8;font-size:12px;text-align:center;">You're receiving your ${cadence} Affiliar digest. Change the cadence or turn it off in your profile settings.</p>
     </div>`;
 
   const textBody =
-    `Your weekly Affiliar report — ${periodLabel}\n\n` +
+    `Your ${cadenceCap} Affiliar report — ${periodLabel}\n\n` +
+    (commissionCents != null ? `${isAff ? "Commission earned" : "Commission owed"}: ${usd(commissionCents)}\n` : "") +
     `NGR: ${usd(summary.ngrCents)}\nGGR: ${usd(summary.ggrCents)}\nDeposits: ${usd(summary.depositsSumCents)}\n` +
     `FTDs: ${num(summary.ftdCount)} (${usd(summary.ftdSumCents)})\nRegistrations: ${num(summary.registrations)}\n` +
     `Active players: ${num(summary.activePlayers)}\n\nFull reports: ${reportsUrl}`;
 
-  return sendMail({ to, subject: `Your weekly Affiliar report — ${periodLabel}`, htmlBody, textBody });
+  return sendMail({ to, subject, htmlBody, textBody });
 }
 
 module.exports = {
   sendMail,
   sendNotificationEmail,
-  sendWeeklyDigest,
+  sendReportDigest,
   sendAffiliateInvite,
   sendOperatorInvite,
   sendPasswordReset,

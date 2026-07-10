@@ -129,6 +129,8 @@ const operatorSchema = new mongoose.Schema(
     // Week key ("YYYY-MM-DD" of the reported week's Monday) of the last weekly
     // report digest sent, so the digest job fires once per week per operator.
     digestWeekSent: { type: String, default: null },
+    // Month key ("YYYY-MM" of the reported month) of the last monthly digest.
+    digestMonthSent: { type: String, default: null },
     // Per-operator feature flag overrides on top of the subscription plan.
     // Used for bespoke deals — e.g. a custom-priced Crew refer-a-friend
     // engagement that doesn't belong on the public pricing ladder. Keys

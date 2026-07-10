@@ -10,6 +10,7 @@ import { useAppDispatch, useAppSelector } from 'hooks/redux';
 import { checkAuthStatus } from 'store/auth/authenticationSlice';
 
 import Header from './Header';
+import DigestPreference from '@components/core-components/DigestPreference';
 
 export default function ProfileDetailsTab() {
   const { email, role, name, mobileNumber, mobileCountryCode } = useAppSelector(
@@ -46,6 +47,7 @@ export default function ProfileDetailsTab() {
   };
 
   return (
+    <>
     <form onSubmit={handleSubmit} className="flex flex-col w-full gap-6">
       <div className="flex flex-col w-1/2 ">
         <Header title="Profile Details" />
@@ -113,5 +115,9 @@ export default function ProfileDetailsTab() {
         </button>
       </div>
     </form>
+      <div className="w-1/2 mt-6">
+        <DigestPreference />
+      </div>
+    </>
   );
 }
