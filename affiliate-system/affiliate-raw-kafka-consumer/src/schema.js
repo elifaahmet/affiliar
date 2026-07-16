@@ -38,8 +38,9 @@ const EVENT_DATA_SCHEMAS = {
   }),
   'player.flagged': z.object({
     // "test" marks the player as a test/internal account (excluded from
-    // NGR/FTD reporting + commission); the rest are fraud/status signals.
-    flag: z.enum(['disabled', 'self_excluded', 'unverified', 'duplicate', 'test', 'active']),
+    // NGR/FTD reporting + commission); "untest" promotes it back to a real
+    // account (re-included retroactively); the rest are fraud/status signals.
+    flag: z.enum(['disabled', 'self_excluded', 'unverified', 'duplicate', 'test', 'untest', 'active']),
   }),
   'wallet.deposit.confirmed': z.object({
     amountCents:    z.number().int().min(0),

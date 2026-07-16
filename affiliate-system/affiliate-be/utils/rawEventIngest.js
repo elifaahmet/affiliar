@@ -256,12 +256,13 @@ async function updateAffiliatePlayerFlag(event, data) {
   const flag = String(data?.flag || "").toLowerCase().trim();
   if (!flag) return;
   const now = new Date(event.occurredAt);
-  // "test" is a designation, not a fraud signal: set isTest and leave the fraud
-  // fields alone. The operator un-marks from the UI (there is no un-test event).
-  const set =
-    flag === "test"
-      ? { isTest: true, testMarkedAt: now }
-      : { fraudFlagged: flag !== "active", lastFraudFlag: flag, lastFraudFlagAt: now };
+  // "test"/"untest" are designations, not fraud signals: they only toggle
+  // isTest (untest = casino promoted the account to real → re-included
+  // retroactively since exclusion is query-time). Other flags update fraud.
+  let set;
+  if (flag === "test") set = { isTest: true, testMarkedAt: now };
+  else if (flag === "untest") set = { isTest: false, testMarkedAt: null };
+  else set = { fraudFlagged: flag !== "active", lastFraudFlag: flag, lastFraudFlagAt: now };
   try {
     await AffiliatePlayer.updateOne(
       { operatorId: event.tenantId, playerId: event.playerId },

@@ -191,17 +191,19 @@ export async function resolveAffiliateIdByPlayer(playerId) {
 // Update the affiliateplayers doc's status/flag when a player.flagged
 // event arrives. No-op if the player isn't in our registry. Scoped by operator
 // (tenantId) so a shared playerId can't cross-flag another operator's player.
-// flag="test" is a designation, not a status: it sets isTest (excluded from
-// NGR/commission), cleared only from the operator UI.
+// "test"/"untest" are designations, not statuses: test → isTest=true (excluded
+// from NGR/commission/digests), untest → isTest=false (the casino promoted a
+// test account to real; because exclusion is query-time, their history is
+// re-included retroactively). Other flags update the status as before.
 export async function updatePlayerFlag(playerId, flag, tenantId) {
   if (!playerId || !flag) return;
   const filter = { playerId: String(playerId) };
   const operatorId = tenantId ? toObjectId(tenantId) : null;
   if (operatorId) filter.operatorId = operatorId;
-  const set =
-    flag === 'test'
-      ? { isTest: true, testMarkedAt: new Date() }
-      : { status: flag, statusUpdatedAt: new Date() };
+  let set;
+  if (flag === 'test') set = { isTest: true, testMarkedAt: new Date() };
+  else if (flag === 'untest') set = { isTest: false, testMarkedAt: null, status: 'active', statusUpdatedAt: new Date() };
+  else set = { status: flag, statusUpdatedAt: new Date() };
   await affiliatePlayersCol.updateOne(filter, { $set: set });
 }
 
