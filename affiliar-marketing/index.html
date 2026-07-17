@@ -41,11 +41,21 @@
     "url": "https://affiliar.co",
     "description": "Affiliate management platform for iGaming operators. Commission engine, real-time analytics, sub-affiliate networks and payment workflows.",
     "offers": {
-      "@type": "Offer",
-      "priceCurrency": "EUR",
-      "price": "0",
-      "description": "Free trial available"
+      "@type": "AggregateOffer",
+      "priceCurrency": "USD",
+      "lowPrice": "53",
+      "highPrice": "1799",
+      "offerCount": "5",
+      "description": "Five monthly plans from $53/mo (1-Tier) to $1,799/mo (Affiliate Pro). Free trial available.",
+      "offers": [
+        { "@type": "Offer", "name": "1-Tier", "price": "53", "priceCurrency": "USD" },
+        { "@type": "Offer", "name": "1-Tier & 2-Tier", "price": "98", "priceCurrency": "USD" },
+        { "@type": "Offer", "name": "Affiliate Plus", "price": "494", "priceCurrency": "USD" },
+        { "@type": "Offer", "name": "Affiliate Plus L2", "price": "998", "priceCurrency": "USD" },
+        { "@type": "Offer", "name": "Affiliate Pro", "price": "1799", "priceCurrency": "USD" }
+      ]
     },
+    "publisher": { "@type": "Organization", "name": "Affiliar", "url": "https://affiliar.co" },
     "featureList": [
       "Casino + Sportsbook activity tracking",
       "Per-product commission plans (casino / sportsbook / combined)",
@@ -76,6 +86,55 @@
       "Affiliar Agent — in-app assistant for navigation and live stats"
     ],
     "applicationSubCategory": "iGaming Affiliate Management"
+  }
+  </script>
+
+  <!-- Organization entity (helps AI engines resolve "Affiliar" as a company) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Affiliar",
+    "url": "https://affiliar.co",
+    "logo": "https://affiliar.co/affiliar-logo.svg",
+    "description": "Affiliar is an affiliate management platform for iGaming operators (online casino and sportsbook): commission engine (RevShare, CPA, hybrid, tiered, fixed), CPA fraud/qualification gates, per-brand provider fees, multi-currency NGR normalization, real-time ClickHouse analytics, sub-affiliate networks, USDT payouts, player-bonus distribution and a Refer-a-Friend engine.",
+    "sameAs": ["https://twitter.com/affiliar_co"],
+    "contactPoint": { "@type": "ContactPoint", "email": "hello@affiliar.co", "contactType": "sales" }
+  }
+  </script>
+
+  <!-- FAQ — AI answer engines quote these directly -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What is Affiliar?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Affiliar is a complete affiliate management platform built for iGaming operators (online casino and sportsbook). It tracks player activity in real time, runs flexible commission plans (RevShare, CPA, hybrid, tiered and fixed), enforces CPA qualification and fraud gates, handles per-brand provider fees and multi-currency NGR normalization, and pays affiliates in USDT." }
+      },
+      {
+        "@type": "Question",
+        "name": "Who is Affiliar for?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Affiliar is for iGaming operators — online casinos and sportsbooks — that run their own affiliate programs and need accurate NGR/commission tracking, sub-affiliate networks, and automated affiliate payouts." }
+      },
+      {
+        "@type": "Question",
+        "name": "How much does Affiliar cost?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Affiliar has five monthly plans: 1-Tier at $53/mo, 1-Tier & 2-Tier at $98/mo, Affiliate Plus at $494/mo, Affiliate Plus L2 at $998/mo, and Affiliate Pro at $1,799/mo. A free trial is available. Higher tiers add more affiliates, brands, monthly active players, and features like player bonuses, advanced analytics, API/webhooks, white-label and Refer-a-Friend." }
+      },
+      {
+        "@type": "Question",
+        "name": "What commission models does Affiliar support?",
+        "acceptedAnswer": { "@type": "Answer", "text": "RevShare, CPA, hybrid (RevShare + CPA), tiered RevShare, and fixed per-qualified-player. CPA commissions can be gated by qualification rules (hold period, wager threshold, cash retention, KYC level) to protect against fraud." }
+      },
+      {
+        "@type": "Question",
+        "name": "Does Affiliar support both casino and sportsbook?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. Affiliar tracks casino and sportsbook activity separately with product-specific NGR formulas and per-product commission plans, plus a combined NGR view." }
+      }
+    ]
   }
   </script>
 

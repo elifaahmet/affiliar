@@ -1,0 +1,43 @@
+# Affiliar
+
+> Affiliar is a complete affiliate management platform built for iGaming operators (online casino and sportsbook). It tracks player activity in real time, runs flexible commission plans, enforces CPA fraud/qualification gates, handles multi-brand provider fees and multi-currency NGR, and pays affiliates in USDT.
+
+Affiliar (https://affiliar.co) is SaaS used by online casino and sportsbook operators to run their own affiliate programs. Operators pay a monthly subscription; their affiliates get a portal to track referrals, performance and payouts.
+
+## What it does
+
+- **Real-time tracking**: casino + sportsbook player activity via a Kafka event stream, aggregated in ClickHouse for real-time NGR/GGR/FTD analytics.
+- **Commission engine**: RevShare, CPA, hybrid (RevShare + CPA), tiered RevShare, and fixed per-qualified-player. Per-product plans (casino / sportsbook / combined).
+- **CPA fraud & qualification gates**: hold period, wager threshold, cash-retention, and KYC-level gates so CPA only pays on genuine, retained players. FTD chargeback reversal.
+- **Multi-brand & multi-currency**: per-brand provider fee rules, automatic FX normalization into a base currency, combined NGR across products.
+- **Sub-affiliate networks (2-tier)**: revenue cascading with independent per-edge commission shares.
+- **Affiliate payouts**: USDT (TRC-20) payout workflow.
+- **Player bonuses**: operators define casino bonuses that affiliates distribute to players.
+- **Refer-a-Friend engine**: player-referral program with tiered "Crew" rewards and pull-on-demand reward delivery.
+- **Anti-abuse**: shared IP / device / wallet fraud signals.
+- **Reporting**: overview, per-affiliate, campaign, cohort/LTV, traffic; weekly & monthly email digests.
+- **Test-account exclusion**: internal/test players are excluded from NGR/FTD/commission retroactively.
+
+## Who it is for
+
+iGaming operators — online casinos and sportsbooks — that run in-house affiliate programs and need accurate NGR/commission tracking, sub-affiliate networks, and automated affiliate payouts. Not a consumer product and not an affiliate network; it is software the operator runs for its own affiliates.
+
+## Pricing
+
+Five monthly plans (USD). A free trial is available. Prices as of 2026:
+
+- **1-Tier — $53/mo**: up to 10 affiliates, 1 brand, 2,500 monthly active players; RevShare, CPA & fixed commission; direct referrals only.
+- **1-Tier & 2-Tier — $98/mo**: up to 50 affiliates, 3 brands, 10,000 MAP; adds sub-affiliates (2-tier), all commission types, campaign tracking and the creative library.
+- **Affiliate Plus — $494/mo**: up to 100 affiliates, 10 brands, 75,000 MAP; adds player bonuses, player leaderboard, team members, advanced analytics (cohorts/LTV), bulk CSV import, custom NGR/deposit fees and the KYC CPA gate.
+- **Affiliate Plus L2 — $998/mo**: up to 500 affiliates, 50 brands, 400,000 MAP; adds API access, webhook events and outbound postback.
+- **Affiliate Pro — $1,799/mo**: unlimited affiliates and brands, millions of MAP; adds Refer-a-Friend with Crew rewards, white-label branding and anti-abuse signals.
+
+## Links
+
+- [Home](https://affiliar.co/): product overview and features.
+- [Pricing](https://affiliar.co/pricing): full plan comparison.
+
+## Contact
+
+- Email: hello@affiliar.co
+- Demos and enterprise: contact sales at hello@affiliar.co
