@@ -266,32 +266,6 @@ const affiliatePlayerController = {
     }
   },
 
-  // PATCH /players/:playerId/test — operator marks/unmarks one of their players
-  // as a test account. Test players are excluded from NGR/FTD reports (unless
-  // includeTest) and never earn commission. Operator-scoped so an operator can
-  // only touch their own players.
-  async setTest(req, res) {
-    try {
-      const user = req.affiliateUser;
-      if (!user || user.role !== "operator") {
-        return res.status(403).json({ error: "Operators only" });
-      }
-      if (!user.operatorId) {
-        return res.status(400).json({ error: "Operator account is not linked to an operator record" });
-      }
-      const isTest = !!req.body?.isTest;
-      const player = await AffiliatePlayer.findOneAndUpdate(
-        { operatorId: user.operatorId, playerId: String(req.params.playerId) },
-        { $set: { isTest, testMarkedAt: isTest ? new Date() : null } },
-        { new: true, select: { playerId: 1, isTest: 1 } },
-      ).lean();
-      if (!player) return res.status(404).json({ error: "Player not found" });
-      res.json({ playerId: player.playerId, isTest: player.isTest });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  },
-
   // GET /players/affiliates-select — dropdown list of affiliates for filter
   async affiliatesSelect(req, res) {
     try {
@@ -362,6 +336,53 @@ const affiliatePlayerController = {
         if (writes.length) { await PlayerName.bulkWrite(writes); synced += writes.length; }
       }
       res.json({ synced, total: ids.length });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+
+  // POST /players/sync-test — reconcile AffiliatePlayer.isTest from the casino
+  // (the source of truth). Marks every id the casino returns as test, and
+  // clears isTest on any player we had marked that the casino no longer lists.
+  // Exclusion is query-time, so both directions apply retroactively. Operator-only.
+  async syncTestAccounts(req, res) {
+    try {
+      const user = req.affiliateUser;
+      if (user.role !== "operator") {
+        return res.status(403).json({ error: "Operators only" });
+      }
+      const op = await Operator.findById(user.operatorId).select("casinoBonusApiUrl casinoBonusApiToken").lean();
+      const cfg = {
+        url: op?.casinoBonusApiUrl || process.env.CASINO_BONUS_API_URL || "",
+        token: op?.casinoBonusApiToken || process.env.CASINO_BONUS_API_TOKEN || "",
+      };
+
+      let ids;
+      try { ids = await casinoPlayers.fetchTestIds(cfg); }
+      catch (e) { return res.status(502).json({ error: `Casino test-account fetch failed: ${e.message}` }); }
+      if (ids == null) {
+        return res.status(400).json({ error: "Casino API not configured — set the casino connection first." });
+      }
+
+      const now = new Date();
+      const [markRes, clearRes] = await Promise.all([
+        ids.length
+          ? AffiliatePlayer.updateMany(
+              { operatorId: user.operatorId, playerId: { $in: ids }, isTest: { $ne: true } },
+              { $set: { isTest: true, testMarkedAt: now } },
+            )
+          : Promise.resolve({ modifiedCount: 0 }),
+        AffiliatePlayer.updateMany(
+          { operatorId: user.operatorId, isTest: true, playerId: { $nin: ids } },
+          { $set: { isTest: false, testMarkedAt: null } },
+        ),
+      ]);
+
+      res.json({
+        testAccounts: ids.length,
+        marked: markRes.modifiedCount || 0,
+        unmarked: clearRes.modifiedCount || 0,
+      });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

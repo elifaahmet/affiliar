@@ -51,44 +51,6 @@ function fmt(d: string | null) {
   });
 }
 
-// Toggle a player's test-account flag. Optimistic; on error it reverts.
-// Test players are excluded from NGR/FTD reports (unless "include test") and
-// never earn commission.
-function TestToggle({ player, onChanged }: { player: AffiliatePlayer; onChanged: () => void }) {
-  const [on, setOn] = useState(!!player.isTest);
-  const [busy, setBusy] = useState(false);
-  const toggle = async () => {
-    const next = !on;
-    setOn(next);
-    setBusy(true);
-    try {
-      await axiosInstance.patch(AFFILIATE_PLAYERS_API_URLS.SET_TEST(player.playerId), { isTest: next });
-      onChanged();
-    } catch {
-      setOn(!next); // revert
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <button
-      type='button'
-      onClick={toggle}
-      disabled={busy}
-      title={on ? 'Test account — excluded from NGR & commission. Click to unmark.' : 'Mark as test account'}
-      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-50 ${
-        on ? 'bg-primary' : 'bg-gray-300'
-      }`}
-    >
-      <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-          on ? 'translate-x-4' : 'translate-x-0.5'
-        }`}
-      />
-    </button>
-  );
-}
-
 function sourceBadge(source: string) {
   const map: Record<string, string> = {
     realtime: 'bg-violet-100 text-violet-700',
@@ -304,7 +266,9 @@ function PlayersTab() {
                         <span className={sourceBadge(p.source)}>{p.source}</span>
                       </td>
                       <td className='px-4 py-2.5'>
-                        <TestToggle player={p} onChanged={refetch} />
+                        {p.isTest
+                          ? <span className='inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700'>Test</span>
+                          : <span className='text-gray-300'>—</span>}
                       </td>
                     </tr>
                   ))}
@@ -607,6 +571,16 @@ export default function Players() {
       setSyncMsg(err.response?.data?.error || 'Sync failed');
     } finally { setSyncing(false); setTimeout(() => setSyncMsg(''), 6000); }
   };
+  const syncTest = async () => {
+    setSyncing(true); setSyncMsg('');
+    try {
+      const { data } = await axiosInstance.post(AFFILIATE_PLAYERS_API_URLS.SYNC_TEST(), {});
+      setSyncMsg(`Test accounts synced — ${data.testAccounts} test, +${data.marked} / −${data.unmarked}`);
+    } catch (e) {
+      const err = e as { response?: { data?: { error?: string } } };
+      setSyncMsg(err.response?.data?.error || 'Test sync failed');
+    } finally { setSyncing(false); setTimeout(() => setSyncMsg(''), 6000); }
+  };
 
   return (
     <div className='h-full overflow-auto p-6 pb-24 space-y-5'>
@@ -614,6 +588,11 @@ export default function Players() {
         <h1 className='text-xl font-semibold text-gray-800'>Players</h1>
         <div className='flex items-center gap-2'>
           {syncMsg && <span className='text-xs text-gray-600'>{syncMsg}</span>}
+          <button onClick={syncTest} disabled={syncing}
+            title='Pull test accounts from the casino and exclude them from reports/commission'
+            className='text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg px-4 py-2 disabled:opacity-50'>
+            {syncing ? 'Syncing…' : '↻ Sync test accounts'}
+          </button>
           <button onClick={syncNames} disabled={syncing}
             className='text-sm font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg px-4 py-2 disabled:opacity-50'>
             {syncing ? 'Syncing…' : '↻ Sync usernames'}

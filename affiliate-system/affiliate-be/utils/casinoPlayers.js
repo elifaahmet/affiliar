@@ -31,4 +31,27 @@ async function resolveUsernames(cfg, playerIds) {
   return res.data?.players || [];
 }
 
-module.exports = { playersUrlFrom, resolveUsernames };
+// Test-account id list endpoint sits next to resolve (same casino base URL).
+function testIdsUrlFrom(bonusUrl) {
+  try {
+    const u = new URL(bonusUrl);
+    const swapped = u.pathname.replace(/\/affiliar-bonus\/definitions\/?$/, "/affiliar-players/test-ids");
+    u.pathname = swapped.endsWith("/affiliar-players/test-ids") ? swapped : "/affiliar-players/test-ids";
+    u.search = "";
+    return u.toString();
+  } catch {
+    return "";
+  }
+}
+
+// Fetch the casino tenant's test-account player ids. Returns null when the
+// casino connection isn't configured; an array (possibly empty) on success.
+async function fetchTestIds(cfg) {
+  const url = testIdsUrlFrom(cfg?.url);
+  if (!url || !cfg?.token) return null;
+  const res = await axios.get(url, { timeout: 12000, headers: { "x-affiliar-token": cfg.token } });
+  const ids = res.data?.playerIds;
+  return Array.isArray(ids) ? ids.map(String) : [];
+}
+
+module.exports = { playersUrlFrom, resolveUsernames, testIdsUrlFrom, fetchTestIds };
