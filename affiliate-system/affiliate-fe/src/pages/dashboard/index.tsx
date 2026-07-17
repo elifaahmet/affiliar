@@ -497,6 +497,7 @@ export default function Dashboard() {
   const [customRange, setCustomRange]     = useState<Period | null>(null);
   const [brandId, setBrandId]             = useState<string>('');
   const [product, setProduct]             = useState<ProductScope>('all');
+  const [includeTest, setIncludeTest]     = useState(false);
   const [activeInnerTab, setActiveInnerTab] = useState<'charts' | 'breakdown'>('charts');
 
   const period: Period = useMemo(
@@ -505,8 +506,8 @@ export default function Dashboard() {
   );
 
   const params = useMemo(
-    () => ({ from: period.from, to: period.to, ...(brandId ? { brandId } : {}) }),
-    [period.from, period.to, brandId],
+    () => ({ from: period.from, to: period.to, ...(brandId ? { brandId } : {}), ...(includeTest ? { includeTest: 'true' } : {}) }),
+    [period.from, period.to, brandId, includeTest],
   );
 
   const { data: brandsData } = useBaseQuery<BrandsResponse>({
@@ -579,6 +580,15 @@ export default function Dashboard() {
         </div>
 
         <div className='flex flex-wrap items-center gap-2'>
+          <label className='flex items-center gap-1.5 text-xs text-gray-600 whitespace-nowrap cursor-pointer select-none' title='Test accounts are excluded from all figures by default.'>
+            <input
+              type='checkbox'
+              checked={includeTest}
+              onChange={(e) => setIncludeTest(e.target.checked)}
+              className='rounded border-gray-300 text-primary focus:ring-primary'
+            />
+            Include test
+          </label>
           <div className='w-56'>
             <BSelectWithSearch
               placeholder='All Brands'
