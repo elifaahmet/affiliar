@@ -87,14 +87,14 @@ type Tab = (typeof TABS)[number];
 // ── Players List Tab ──────────────────────────────────────────────────────────
 
 function PlayersTab() {
-  const [affiliateCode, setAffiliateCode] = useState('');
+  const [affiliateId, setAffiliateId]     = useState('');
   const [playerId, setPlayerId]           = useState('');
   const [from, setFrom]                   = useState(monthStartYMD);
   const [to, setTo]                       = useState(todayYMD);
   const [page, setPage]                   = useState(1);
 
   const params: Record<string, any> = { page, limit: PAGE_SIZE };
-  if (affiliateCode) params.affiliateCode = affiliateCode;
+  if (affiliateId) params.affiliateId = affiliateId;
   if (playerId)      params.playerId = playerId;
   if (from)          params.from = from;
   if (to)            params.to = to;
@@ -114,7 +114,7 @@ function PlayersTab() {
     { label: 'All affiliates', value: '' },
     ...(affiliatesRaw ?? []).map((a) => ({
       label: `${a.username} (${a.email})`,
-      value: a.username,
+      value: a._id,
     })),
   ];
 
@@ -136,9 +136,9 @@ function PlayersTab() {
           <label className='text-xs text-gray-700 font-medium'>Affiliate</label>
           <div className='w-72'>
             <BSelectWithSearch
-              value={affiliateCode}
+              value={affiliateId}
               onChange={(v) => {
-                setAffiliateCode(v);
+                setAffiliateId(v);
                 setPage(1);
               }}
               options={affiliateOptions}

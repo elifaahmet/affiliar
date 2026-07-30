@@ -15,8 +15,7 @@ interface PlayerRow {
 const METRICS = [
   { key: 'ngrCents', label: 'NGR', money: true },
   { key: 'ggrCents', label: 'GGR', money: true },
-  { key: 'ftdSumCents', label: 'FTD Sum', money: true },
-  { key: 'ftdCount', label: 'FTDs', money: false },
+  { key: 'ftdSumCents', label: 'FTD', money: true },
   { key: 'depositsSumCents', label: 'Deposits', money: true },
   { key: 'wagerCents', label: 'Wager', money: true },
   { key: 'cashoutsSumCents', label: 'Cashout', money: true },
