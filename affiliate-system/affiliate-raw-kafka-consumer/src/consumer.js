@@ -77,11 +77,12 @@ async function processMessage(rawValue) {
   }
 
   // player.registered carries the affiliateCode inline. Other event types
-  // don't include it, so we look the player up in hexora-db.players to get
-  // their stored affiliateReferralCode.
+  // don't include it, so we resolve the affiliate from our own
+  // affiliateplayers registry (scoped by tenant), which was populated at
+  // registration — works for every operator regardless of casino DB.
   const affiliateId = data.affiliateCode
     ? resolveAffiliateIdByCode(data.affiliateCode)
-    : await resolveAffiliateIdByPlayer(event.playerId);
+    : await resolveAffiliateIdByPlayer(event.playerId, event.tenantId);
 
   console.log(
     `[consumer] ${event.eventType} | player=${event.playerId} tenant=${event.tenantId} affiliate=${affiliateId || '-'}`

@@ -158,9 +158,28 @@ export function resolveAffiliateIdByCode(code) {
   return codeToUserId.get(String(code).toUpperCase()) || '';
 }
 
-export async function resolveAffiliateIdByPlayer(playerId) {
+function cachePlayerAffiliate(key, affiliateId, now) {
+  playerCache.set(key, { affiliateId, expiresAt: now + PLAYER_CACHE_TTL_MS });
+  if (playerCache.size > PLAYER_CACHE_MAX) {
+    const oldest = playerCache.keys().next().value;
+    playerCache.delete(oldest);
+  }
+}
+
+// Resolve the affiliate for an event that doesn't carry the code inline
+// (deposits, bets, cashouts…). Primary source is Affiliar's OWN
+// `affiliateplayers` registry, which is populated at registration
+// (upsertAffiliatePlayer) with the already-resolved affiliateId. That makes
+// attribution work for EVERY tenant regardless of which casino DB the player
+// lives in — the raw consumer no longer needs to reach the casino's players
+// collection. The casino-DB lookup is kept only as a fallback for the rare
+// case where a non-register event lands before its registration (or a
+// pre-integration player), and only resolves for the casino this consumer is
+// wired to.
+export async function resolveAffiliateIdByPlayer(playerId, tenantId) {
   if (!playerId) return '';
-  const key = String(playerId);
+  const operatorId = tenantId ? toObjectId(tenantId) : null;
+  const key = `${operatorId ? operatorId.toString() : '*'}:${String(playerId)}`;
   const now = Date.now();
 
   const cached = playerCache.get(key);
@@ -171,20 +190,35 @@ export async function resolveAffiliateIdByPlayer(playerId) {
     return cached.affiliateId;
   }
 
+  // Primary: our own registry. Scoped by operator so a playerId shared across
+  // operators can't cross-attribute.
+  if (affiliatePlayersCol) {
+    const q = { playerId: String(playerId) };
+    if (operatorId) q.operatorId = operatorId;
+    const ap = await affiliatePlayersCol.findOne(q, {
+      projection: { affiliateId: 1 },
+    });
+    if (ap) {
+      // A doc exists → attribution is settled (affiliateId may be null when the
+      // player registered without a code). Cache and return definitively.
+      const affiliateId = ap.affiliateId ? ap.affiliateId.toString() : '';
+      cachePlayerAffiliate(key, affiliateId, now);
+      return affiliateId;
+    }
+  }
+
+  // Fallback: no registry doc yet. Look the code up on the casino player
+  // record (only the casino this consumer connects to). Don't cache a negative
+  // here so the next event picks up the registry doc once registration lands.
   const _id = toObjectId(playerId);
-  if (!_id) return '';
+  if (!_id || !playersCol) return '';
   const player = await playersCol.findOne(
     { _id },
     { projection: { affiliateReferralCode: 1 } },
   );
   const code = player?.affiliateReferralCode;
   const affiliateId = code ? resolveAffiliateIdByCode(code) : '';
-
-  playerCache.set(key, { affiliateId, expiresAt: now + PLAYER_CACHE_TTL_MS });
-  if (playerCache.size > PLAYER_CACHE_MAX) {
-    const oldest = playerCache.keys().next().value;
-    playerCache.delete(oldest);
-  }
+  if (affiliateId) cachePlayerAffiliate(key, affiliateId, now);
   return affiliateId;
 }
 
