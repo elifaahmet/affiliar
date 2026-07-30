@@ -113,7 +113,7 @@ function PlayersTab() {
   const affiliateOptions = [
     { label: 'All affiliates', value: '' },
     ...(affiliatesRaw ?? []).map((a) => ({
-      label: `${a.username} (${a.email})`,
+      label: a.username,
       value: a._id,
     })),
   ];
