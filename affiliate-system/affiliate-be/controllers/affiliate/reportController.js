@@ -324,15 +324,21 @@ exports.affiliates = async (req, res) => {
         Object.entries(row).map(([k, v]) => [k, isNaN(Number(v)) ? v : Number(v)])
       );
 
+    // Group by affiliate_id only — one row per affiliate with ALL their
+    // metrics. Grouping by affiliate_code/campaign fragments every affiliate,
+    // because deposit/bet/FTD rows carry an empty affiliate_code (only the
+    // registration row carries the code), so the money would split off into a
+    // separate blank-code row and the named row would show 0 FTD/deposits.
+    // Per-code / per-campaign breakdown lives in the Campaigns report.
     const baseSql = `
       SELECT
         affiliate_id   AS affiliateId,
-        affiliate_code AS affiliateCode,
-        campaign,
+        anyIf(affiliate_code, affiliate_code != '') AS affiliateCode,
+        anyIf(campaign, campaign != '')             AS campaign,
         ${METRIC_COLS}
       FROM affiliate.activity
       WHERE ${where}
-      GROUP BY affiliate_id, affiliate_code, campaign
+      GROUP BY affiliate_id
     `;
 
     const [rows, countRows] = await Promise.all([
@@ -523,7 +529,7 @@ exports.affiliateQuality = async (req, res) => {
     const periodRows = (await queryRows(
       `SELECT
          affiliate_id   AS affiliateId,
-         affiliate_code AS affiliateCode,
+         anyIf(affiliate_code, affiliate_code != '') AS affiliateCode,
          SUM(registrations)        AS registrations,
          SUM(ftd_count)            AS ftdCount,
          SUM(deposits_sum_cents)   AS depositsCents,
@@ -531,7 +537,7 @@ exports.affiliateQuality = async (req, res) => {
          uniqExactIf(player_id, player_id != '__fees__') AS playerCount
        FROM affiliate.activity
        WHERE ${where}
-       GROUP BY affiliate_id, affiliate_code`,
+       GROUP BY affiliate_id`,
       params,
     )).map(coerce);
 
