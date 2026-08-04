@@ -64,6 +64,7 @@ const publicAuthPaths = new Set([
   `${prefix}/auth/reset-password`,
   `${prefix}/auth/dev-token`,
   `${prefix}/billing/sans/callback`,
+  `${prefix}/billing/coinflux/callback`,
 ]);
 
 // Affiliate read-only pull API — authenticated by a per-affiliate API key, not

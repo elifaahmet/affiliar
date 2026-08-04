@@ -21,6 +21,13 @@ router.post("/discount/validate", billingController.validateDiscount);
 // Provider-namespaced so we can add /stripe/callback etc. later.
 router.post("/sans/callback", billingController.handleSansCallback);
 
+// POST /billing/coinflux/callback → Coinflux withdrawal webhook (public;
+// whitelisted in index.js). HMAC-verified inside the handler.
+router.post(
+  "/coinflux/callback",
+  require("../../controllers/affiliate/affiliatePayoutController").handleCoinfluxWithdrawCallback,
+);
+
 // GET /billing/transactions → list transactions
 router.get("/transactions", billingController.getTransactions);
 

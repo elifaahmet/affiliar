@@ -318,7 +318,7 @@ exports.batchCreate = async (req, res) => {
       createdPayouts.push(payout._id);
 
       if (dispatch) {
-        const r = await dispatchToSans(payout, operator);
+        const r = await dispatchProvider(payout, operator);
         if (r.ok) stats.dispatched++;
         else {
           stats.failed++;
@@ -645,6 +645,142 @@ async function dispatchToSans(payout, operator) {
   };
 }
 
+// ── Coinflux provider (opt-in via PAYOUT_PROVIDER=coinflux) ───────────────────
+//
+// Coinflux mirrors the Sans withdrawal model: POST /withdrawals to open a
+// payout request, then an approve/reject webhook flips it. So we reuse the same
+// payout persistence + the shared handleStatusFlip. The Coinflux withdrawalId
+// is stored in `sansTransactionId` (generic "provider tx id") for matching.
+const axios = require("axios");
+const crypto = require("crypto");
+const PAYOUT_PROVIDER         = (process.env.PAYOUT_PROVIDER || "sans").toLowerCase();
+const COINFLUX_API_URL        = process.env.COINFLUX_API_URL || "https://api.coinflux.cash";
+const COINFLUX_API_KEY        = process.env.COINFLUX_API_KEY || "";
+const COINFLUX_WEBHOOK_SECRET = process.env.COINFLUX_WEBHOOK_SECRET || "";
+const coinflux = axios.create({
+  baseURL: COINFLUX_API_URL,
+  timeout: 30000,
+  headers: { "Content-Type": "application/json", "X-Api-Key": COINFLUX_API_KEY },
+});
+
+// Same normalized return shape as executeSansWithdraw.
+async function executeCoinfluxWithdraw({ amountCents, payoutAddress, payoutId, affiliateId }) {
+  const amountUsdt = Number((amountCents / 100).toFixed(8));
+  if (!(amountUsdt > 0)) return { ok: false, failureReason: "zero_amount" };
+  if (!payoutAddress)    return { ok: false, failureReason: "no_wallet" };
+
+  const payload = {
+    playerId: String(affiliateId),   // just a label — the affiliate this payout is for
+    amount: amountUsdt,
+    address: payoutAddress,
+    reference: String(payoutId),     // echoed back in the webhook to match this payout
+  };
+  const resp = await coinflux.post("/withdrawals", payload, { validateStatus: () => true });
+  if (resp.status < 200 || resp.status >= 300) {
+    return {
+      ok: false,
+      failureReason: `coinflux: HTTP ${resp.status}`,
+      sansRequestPayload: payload,
+      sansResponse: { stage: "create", provider: "coinflux", upstream: resp.data, status: resp.status },
+      httpStatus: 502,
+      upstream: resp.data,
+    };
+  }
+  return {
+    ok: true,
+    sansTransactionId: resp?.data?.withdrawalId || null,
+    sansRequestPayload: payload,
+    sansResponse: { stage: "create", provider: "coinflux", upstream: resp.data },
+  };
+}
+
+// AffiliatePayout-shaped wrapper (mirrors dispatchToSans persistence).
+async function dispatchToCoinflux(payout, operator) {
+  const result = await executeCoinfluxWithdraw({
+    amountCents:   payout.amountCents,
+    payoutAddress: payout.payoutAddress,
+    payoutId:      String(payout._id),
+    affiliateId:   String(payout.affiliateId),
+  });
+
+  if (result.sansRequestPayload) payout.sansRequestPayload = result.sansRequestPayload;
+  if (result.sansResponse)       payout.sansResponse       = result.sansResponse;
+
+  if (result.ok) {
+    payout.status = "processing";
+    payout.dispatchedAt = new Date();
+    payout.sansTransactionId = result.sansTransactionId;
+    await payout.save();
+    logger.info("affiliate.payout.dispatched", {
+      provider: "coinflux", payoutId: String(payout._id),
+      sansTransactionId: result.sansTransactionId, amountCents: payout.amountCents,
+    });
+    return { ok: true, payout };
+  }
+
+  payout.status = "failed";
+  payout.failedAt = new Date();
+  payout.failureReason = result.failureReason;
+  await payout.save();
+  logger.error("affiliate.payout.dispatch.failed", {
+    provider: "coinflux", payoutId: String(payout._id), reason: result.failureReason,
+  });
+  return { ok: false, payout, error: result.failureReason, status: result.httpStatus || 502, upstream: result.upstream };
+}
+
+// Provider-agnostic dispatch entry point — flip PAYOUT_PROVIDER to migrate.
+function dispatchProvider(payout, operator) {
+  return PAYOUT_PROVIDER === "coinflux"
+    ? dispatchToCoinflux(payout, operator)
+    : dispatchToSans(payout, operator);
+}
+
+// POST /billing/coinflux/callback — Coinflux withdrawal webhook (HMAC-signed).
+// Whitelisted in index.js publicAuthPaths. Reuses handleStatusFlip.
+exports.handleCoinfluxWithdrawCallback = async (req, res) => {
+  try {
+    const sig = req.get("X-Coinflux-Signature") || "";
+    const expected = crypto
+      .createHmac("sha256", COINFLUX_WEBHOOK_SECRET)
+      .update(JSON.stringify(req.body || {}))
+      .digest("hex");
+    const valid =
+      sig.length === expected.length &&
+      crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+    if (!valid) {
+      logger.warn("affiliate.payout.coinflux.bad_sig");
+      return res.status(401).json({ success: false, message: "bad signature" });
+    }
+
+    const { event, withdrawalId, reference, note } = req.body || {};
+    const status =
+      event === "withdrawal.approved" ? "APPROVED" :
+      event === "withdrawal.declined" ? "REJECTED" : null;
+    if (!status) return res.json({ success: true, status: "ignored" });
+
+    // Match by our reference (=payoutId) first, then by the provider tx id.
+    let payout = null;
+    let sub = null;
+    if (reference) {
+      payout = await AffiliatePayout.findById(reference).catch(() => null);
+      if (!payout) sub = await SubAffiliatePayout.findById(reference).catch(() => null);
+    }
+    if (!payout && !sub && withdrawalId) {
+      payout = await AffiliatePayout.findOne({ sansTransactionId: withdrawalId });
+      if (!payout) sub = await SubAffiliatePayout.findOne({ sansTransactionId: withdrawalId });
+    }
+
+    if (sub)    return handleSubStatusFlip(sub, status, note, res);
+    if (payout) return handleStatusFlip(payout, status, note, res);
+
+    logger.warn("affiliate.payout.coinflux.no_match", { withdrawalId, reference });
+    return res.status(404).json({ success: false, message: "Payout not found" });
+  } catch (err) {
+    logger.error("affiliate.payout.coinflux.err", { error: err?.message });
+    return res.status(500).json({ success: false, message: err?.message });
+  }
+};
+
 // POST /api/affiliate/payouts/:id/dispatch  — single-payout dispatch.
 exports.dispatchPayout = async (req, res) => {
   try {
@@ -660,7 +796,7 @@ exports.dispatchPayout = async (req, res) => {
       return res.status(409).json({ error: "not_pending", status: payout.status });
     }
 
-    const r = await dispatchToSans(payout, operator);
+    const r = await dispatchProvider(payout, operator);
     if (!r.ok) {
       return res.status(r.status || 502).json({
         error: r.error, upstream: r.upstream || null, payout: r.payout?.toObject?.() || r.payout,
