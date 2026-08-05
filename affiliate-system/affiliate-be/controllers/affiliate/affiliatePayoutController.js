@@ -1134,3 +1134,5 @@ exports.updateSettings = async (req, res) => {
 // Pure Sans-withdraw helper, exposed for the affiliate-portal controller
 // which uses the same merchant flow to settle sub-affiliate payouts.
 exports.executeSansWithdraw = executeSansWithdraw;
+exports.executeCoinfluxWithdraw = executeCoinfluxWithdraw;
+exports.PAYOUT_PROVIDER = PAYOUT_PROVIDER;

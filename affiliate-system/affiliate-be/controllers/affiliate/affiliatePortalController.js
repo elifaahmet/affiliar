@@ -806,22 +806,30 @@ exports.dispatchSubPayout = async (req, res) => {
     payout.failureReason = null;
     await payout.save();
 
-    // Reach into the payout controller's pure Sans helper — shared with the
-    // operator → affiliate flow so the merchant integration stays in one
-    // place.
-    const { executeSansWithdraw } = require("./affiliatePayoutController");
-    const result = await executeSansWithdraw({
-      operator: operatorUser,
-      amountCents:   payout.payableCents,
-      payoutAddress: payout.payoutAddress,
-      payoutNetwork: payout.payoutNetwork,
-      extraData: {
-        subPayoutId: String(payout._id),
-        parentId:    String(payout.parentId),
-        subId:       String(payout.subId),
-        operatorId:  String(payout.operatorId),
-      },
-    });
+    // Reach into the payout controller's provider helpers — shared with the
+    // operator → affiliate flow so the merchant integration stays in one place.
+    // Follows the same PAYOUT_PROVIDER switch; the Coinflux callback matches
+    // sub-payouts by reference = subPayoutId (SubAffiliatePayout.findById).
+    const payoutCtl = require("./affiliatePayoutController");
+    const result = payoutCtl.PAYOUT_PROVIDER === "coinflux"
+      ? await payoutCtl.executeCoinfluxWithdraw({
+          amountCents:   payout.payableCents,
+          payoutAddress: payout.payoutAddress,
+          payoutId:      String(payout._id),   // = reference echoed back in the webhook
+          affiliateId:   String(payout.subId),
+        })
+      : await payoutCtl.executeSansWithdraw({
+          operator: operatorUser,
+          amountCents:   payout.payableCents,
+          payoutAddress: payout.payoutAddress,
+          payoutNetwork: payout.payoutNetwork,
+          extraData: {
+            subPayoutId: String(payout._id),
+            parentId:    String(payout.parentId),
+            subId:       String(payout.subId),
+            operatorId:  String(payout.operatorId),
+          },
+        });
 
     if (result.sansRequestPayload) payout.sansRequestPayload = result.sansRequestPayload;
     if (result.sansResponse)       payout.sansResponse       = result.sansResponse;
