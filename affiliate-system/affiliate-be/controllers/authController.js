@@ -12,8 +12,15 @@ const { sendPasswordReset } = require("../utils/mailer");
 const { isPlatformAdminUser } = require("../utils/platformAdmin");
 
 const findUserByCredential = async (identifier) => {
+  // Case-insensitive exact match on email OR username so caps/casing in the
+  // typed identifier never blocks a valid login — usernames are stored with
+  // mixed case (e.g. "StefanDelic"), and email is case-insensitive by spec.
+  // Escape regex metacharacters (emails contain ".", usernames may contain
+  // "-", "+", etc.) and anchor so it's an exact, not substring, match.
+  const escaped = String(identifier).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const rx = new RegExp(`^${escaped}$`, "i");
   return User.findOne({
-    $or: [{ email: identifier }, { username: identifier }],
+    $or: [{ email: rx }, { username: rx }],
     isDeleted: false,
   });
 };
