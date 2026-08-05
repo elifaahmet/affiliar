@@ -55,6 +55,34 @@ const provider = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+// ── Coinflux provider (opt-in via BILLING_PROVIDER=coinflux) ──────────────────
+// Subscription payments as Coinflux manual-mode deposits: we ask Coinflux for a
+// receive address (from the operator's own wallet pool), show it, and the
+// deposit.credited webhook (once the payment is approved) activates the plan.
+const BILLING_PROVIDER   = (process.env.BILLING_PROVIDER || "sans").toLowerCase();
+const COINFLUX_API_URL   = process.env.COINFLUX_API_URL || "https://api.coinflux.cash";
+const COINFLUX_API_KEY   = process.env.COINFLUX_API_KEY || "";
+const coinflux = axios.create({
+  baseURL: COINFLUX_API_URL,
+  timeout: 30000,
+  headers: { "Content-Type": "application/json", "X-Api-Key": COINFLUX_API_KEY },
+});
+
+// Open a Coinflux deposit → returns { depositId, address } (manual wallet mode).
+async function coinfluxCreateDeposit({ operatorId, amount, referenceId }) {
+  const r = await coinflux.post(
+    "/deposits",
+    { playerId: String(operatorId), amount, reference: referenceId, currency: "USDT", network: "TRC20" },
+    { validateStatus: () => true },
+  );
+  if (r.status < 200 || r.status >= 300) {
+    const e = new Error(r.data?.error || `coinflux deposit HTTP ${r.status}`);
+    e.status = 502;
+    throw e;
+  }
+  return { depositId: r.data.depositId, address: r.data.address };
+}
+
 // In-memory session-token cache: operatorId → { token, expiresAt }. TTL
 // padded to 18 min so we don't hand out a token that's about to expire
 // on the upstream's 20-min window.
@@ -249,6 +277,25 @@ const billingController = {
           discountCode: req.body.discountCode,
         });
 
+      // Coinflux: open a deposit and surface its address as the single wallet.
+      if (BILLING_PROVIDER === "coinflux") {
+        const referenceId = `affiliar_${user.operatorId}_${Date.now()}`;
+        const { depositId, address } = await coinfluxCreateDeposit({
+          operatorId: user.operatorId, amount, referenceId,
+        });
+        return res.json({
+          amount, planPrice, discountUsd, discountCode: resolvedCode,
+          wallets: [{
+            id: depositId,               // used as walletId in initPayment
+            cryptoCurrency: "USDT",
+            network: "TRC20",
+            address,
+            label: "USDT · TRC20",
+            logo: "",
+          }],
+        });
+      }
+
       const token = await getSansToken(user.operatorId, user);
       const listResp = await provider.get("/deposit", {
         params: { amount },
@@ -344,6 +391,33 @@ const billingController = {
       });
 
       const referenceId = `affiliar_${user.operatorId}_${Date.now()}`;
+
+      // Coinflux: the deposit was already opened in listWallets; walletId IS the
+      // Coinflux depositId. Just record the BillingTransaction keyed on it — the
+      // deposit.credited webhook activates the plan once the payment is approved.
+      if (BILLING_PROVIDER === "coinflux") {
+        const transaction = await BillingTransaction.create({
+          operatorId:     user.operatorId,
+          operatorUser:   user._id,
+          plan,
+          amountUsd:      amount,
+          discountCode:   resolvedCode,
+          discountUsd,
+          discountFx:     discountFx || undefined,
+          providerTxId:   String(walletId),        // = Coinflux depositId
+          referenceId,
+          walletId:       String(walletId),
+          cryptoCurrency: cryptoCurrency || "USDT",
+          network:        network || "TRC20",
+          address:        address || "",
+          status:         "pending",
+        });
+        if (resolvedCode) {
+          await Operator.updateOne({ _id: user.operatorId }, { $set: { activeDiscountCode: resolvedCode } });
+        }
+        return res.json({ transaction, address: transaction.address });
+      }
+
       const token = await getSansToken(user.operatorId, user);
 
       const providerReq = {
@@ -653,5 +727,57 @@ module.exports = billingController;
 // Internals exposed for sibling controllers (affiliatePayoutController) that
 // need to drive the same Sans Getirsin merchant session — keeps the token
 // cache shared instead of duplicating /payment/json calls per controller.
+// Coinflux deposit webhook → activate (or fail) the subscription. Called from
+// the unified Coinflux callback in affiliatePayoutController when event starts
+// with "deposit.". Matches the BillingTransaction on providerTxId = depositId.
+// Idempotent on terminal statuses so webhook re-deliveries are safe.
+async function handleCoinfluxDeposit({ depositId, event, note }, res) {
+  const transaction = await BillingTransaction.findOne({ providerTxId: depositId });
+  if (!transaction) {
+    logger.warn("billing.coinflux.callback.no_match", { depositId });
+    return res.status(404).json({ success: false, message: "Transaction not found" });
+  }
+  if (["paid", "failed", "expired"].includes(transaction.status)) {
+    return res.json({ success: true, status: `Deposit already ${transaction.status}` });
+  }
+
+  if (event === "deposit.credited") {
+    transaction.status = "paid";
+    transaction.paidAt = new Date();
+    await transaction.save();
+    if (transaction.discountCode) {
+      await DiscountCode.updateOne(
+        { code: transaction.discountCode },
+        { $inc: { redemptionCount: 1 } },
+      );
+    }
+    const now = new Date();
+    const next = new Date(now);
+    next.setMonth(next.getMonth() + 1);
+    await Operator.findByIdAndUpdate(transaction.operatorId, {
+      plan: transaction.plan,
+      billingStatus: "active",
+      billingCycle: now,
+      nextBillingDate: next,
+      pastDueAt: null,
+    });
+    logger.info("billing.coinflux.callback.approved", {
+      depositId, plan: transaction.plan, amountUsd: transaction.amountUsd,
+    });
+    return res.json({ success: true, status: "Deposit approved" });
+  }
+
+  if (event === "deposit.rejected") {
+    transaction.status = "failed";
+    transaction.failureReason = note || "rejected";
+    await transaction.save();
+    logger.info("billing.coinflux.callback.rejected", { depositId, note: note || null });
+    return res.json({ success: true, status: "Deposit rejected" });
+  }
+
+  return res.json({ success: true, status: "Ok" });
+}
+
 module.exports.getSansToken = getSansToken;
 module.exports.sansProvider = provider;
+module.exports.handleCoinfluxDeposit = handleCoinfluxDeposit;

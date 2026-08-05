@@ -752,7 +752,14 @@ exports.handleCoinfluxWithdrawCallback = async (req, res) => {
       return res.status(401).json({ success: false, message: "bad signature" });
     }
 
-    const { event, withdrawalId, reference, note } = req.body || {};
+    const { event, withdrawalId, reference, note, depositId } = req.body || {};
+
+    // Deposit events (subscription billing) → hand off to the billing controller.
+    if (event === "deposit.credited" || event === "deposit.rejected") {
+      const billingCtl = require("./billingController");
+      return billingCtl.handleCoinfluxDeposit({ depositId, event, note }, res);
+    }
+
     const status =
       event === "withdrawal.approved" ? "APPROVED" :
       event === "withdrawal.declined" ? "REJECTED" : null;
