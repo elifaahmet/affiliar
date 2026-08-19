@@ -21,7 +21,7 @@ interface Statement {
   issuedAt: string;
   currency: string;
   payer: { name: string };
-  payee: { name: string; email: string; payoutAddress: string | null; payoutNetwork: string | null };
+  payee: { name: string; email: string; payoutAddress: string | null; payoutNetwork: string | null; payoutCurrency: string | null };
   lineItems: LineItem[];
   subIncome: { totalCents: number; count: number };
   grandTotalCents: number;
@@ -121,7 +121,7 @@ export default function AffiliateStatements() {
               <p className='text-gray-600'>{data.payee.email}</p>
               {data.payee.payoutAddress && (
                 <p className='text-gray-500 font-mono text-[11px] mt-0.5 break-all'>
-                  {data.payee.payoutNetwork || ''} {data.payee.payoutAddress}
+                  {[data.payee.payoutCurrency, data.payee.payoutNetwork].filter(Boolean).join('-')} {data.payee.payoutAddress}
                 </p>
               )}
             </div>

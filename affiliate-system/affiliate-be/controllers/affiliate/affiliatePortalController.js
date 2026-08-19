@@ -15,10 +15,17 @@ const { computeBalance } = require("../../utils/affiliateBalance");
 const { testExclusion } = require("../../utils/testPlayers");
 const { logger }         = require("../../middlewares/logger");
 
-// TRC20 wallet addresses are 34 chars, start with "T", base58 alphabet
-// (excludes 0 O I l). This isn't a checksum verification — that lives at the
-// payment provider side. It just catches obvious typos at the form layer.
-const TRC20_RE = /^T[1-9A-HJ-NP-Za-km-z]{33}$/;
+const {
+  PAYOUT_PAIRS,
+  NETWORK_LABELS,
+  DEFAULT_NETWORK,
+  DEFAULT_CURRENCY,
+  isPayoutPair,
+  addressMatchesNetwork,
+  addressHint,
+  normNetwork,
+  normCurrency,
+} = require("../../utils/payoutNetworks");
 
 async function buildBrandCodes(profile) {
   const brandCodes = profile?.brandCodes ?? [];
@@ -456,8 +463,9 @@ exports.statement = async (req, res) => {
       payee: {
         name: affiliate.name || affiliate.username || affiliate.email,
         email: affiliate.email,
-        payoutAddress: affiliate.payoutAddress || null,
-        payoutNetwork: affiliate.payoutNetwork || null,
+        payoutAddress:  affiliate.payoutAddress || null,
+        payoutNetwork:  affiliate.payoutNetwork || null,
+        payoutCurrency: affiliate.payoutCurrency || null,
       },
       lineItems,
       subIncome: { totalCents: subIncomeTotal, count: subPayouts.length },
@@ -765,7 +773,7 @@ exports.dispatchSubPayout = async (req, res) => {
 
     // Sub must have a wallet on file.
     const sub = await User.findById(payout.subId)
-      .select("payoutAddress payoutNetwork email username")
+      .select("payoutAddress payoutNetwork payoutCurrency email username")
       .lean();
     if (!sub?.payoutAddress) {
       return res.status(409).json({ error: "sub_has_no_wallet" });
@@ -788,11 +796,12 @@ exports.dispatchSubPayout = async (req, res) => {
     // Snapshot the sub's wallet onto the payout row before the network call —
     // if the sub edits their wallet later we still have the audit trail of
     // where the money went.
-    payout.payoutAddress = sub.payoutAddress;
-    payout.payoutNetwork = sub.payoutNetwork || "TRC20";
-    payout.status        = "pending";
-    payout.initiatedAt   = new Date();
-    payout.failureReason = null;
+    payout.payoutAddress  = sub.payoutAddress;
+    payout.payoutNetwork  = sub.payoutNetwork  || DEFAULT_NETWORK;
+    payout.payoutCurrency = sub.payoutCurrency || DEFAULT_CURRENCY;
+    payout.status         = "pending";
+    payout.initiatedAt    = new Date();
+    payout.failureReason  = null;
     await payout.save();
 
     // Reach into the payout controller's provider helper — shared with the
@@ -801,10 +810,12 @@ exports.dispatchSubPayout = async (req, res) => {
     // (SubAffiliatePayout.findById).
     const payoutCtl = require("./affiliatePayoutController");
     const result = await payoutCtl.executeCoinfluxWithdraw({
-      amountCents:   payout.payableCents,
-      payoutAddress: payout.payoutAddress,
-      payoutId:      String(payout._id),   // = reference echoed back in the webhook
-      affiliateId:   String(payout.subId),
+      amountCents:    payout.payableCents,
+      payoutAddress:  payout.payoutAddress,
+      payoutNetwork:  payout.payoutNetwork,
+      payoutCurrency: payout.payoutCurrency,
+      payoutId:       String(payout._id),   // = reference echoed back in the webhook
+      affiliateId:    String(payout.subId),
     });
 
     if (result.providerRequestPayload) payout.providerRequestPayload = result.providerRequestPayload;
@@ -1289,8 +1300,13 @@ exports.getPayoutInfo = async (req, res) => {
     }
     return res.json({
       payoutAddress:      affiliate.payoutAddress || null,
-      payoutNetwork:      affiliate.payoutNetwork || "TRC20",
+      payoutNetwork:      affiliate.payoutNetwork  || DEFAULT_NETWORK,
+      payoutCurrency:     affiliate.payoutCurrency || DEFAULT_CURRENCY,
       payoutAddressSetAt: affiliate.payoutAddressSetAt || null,
+      // The form renders its network/asset options from this rather than
+      // hard-coding a list that drifts from what we can actually pay.
+      options:            PAYOUT_PAIRS,
+      networkLabels:      NETWORK_LABELS,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1298,9 +1314,16 @@ exports.getPayoutInfo = async (req, res) => {
 };
 
 // PUT /api/affiliate-portal/payout-info
-// Body: { payoutAddress }  — TRC20 USDT address. payoutNetwork is implicit
-// (only TRC20 supported today); enforced server-side so a misbehaving client
-// can't try to slip in a different network.
+// Body: { payoutAddress, payoutNetwork?, payoutCurrency? }
+//
+// Network and currency default to TRC20/USDT, which is what every affiliate
+// who set a wallet before this existed already has — an old client that only
+// sends payoutAddress keeps working unchanged.
+//
+// Three things have to agree and all three are checked server-side, because
+// getting any of them wrong sends real money somewhere unrecoverable:
+// the pair must be one Coinflux can pay, and the address must have the shape
+// that chain uses.
 exports.updatePayoutInfo = async (req, res) => {
   try {
     const affiliate = req.affiliateUser;
@@ -1313,9 +1336,19 @@ exports.updatePayoutInfo = async (req, res) => {
     if (!address) {
       return res.status(400).json({ error: "payoutAddress is required" });
     }
-    if (!TRC20_RE.test(address)) {
+
+    const network  = normNetwork(req.body?.payoutNetwork  || DEFAULT_NETWORK);
+    const currency = normCurrency(req.body?.payoutCurrency || DEFAULT_CURRENCY);
+
+    if (!isPayoutPair(network, currency)) {
       return res.status(400).json({
-        error: "Invalid TRC20 address — must be 34 chars starting with T",
+        error: `${currency} is not available on ${network}`,
+        options: PAYOUT_PAIRS,
+      });
+    }
+    if (!addressMatchesNetwork(network, address)) {
+      return res.status(400).json({
+        error: `Invalid ${network} address — ${addressHint(network)}`,
       });
     }
 
@@ -1324,16 +1357,21 @@ exports.updatePayoutInfo = async (req, res) => {
       {
         $set: {
           payoutAddress: address,
-          payoutNetwork: "TRC20",
+          payoutNetwork: network,
+          payoutCurrency: currency,
           payoutAddressSetAt: new Date(),
         },
       },
-      { new: true, select: "payoutAddress payoutNetwork payoutAddressSetAt" },
+      {
+        new: true,
+        select: "payoutAddress payoutNetwork payoutCurrency payoutAddressSetAt",
+      },
     ).lean();
 
     return res.json({
       payoutAddress:      updated.payoutAddress,
       payoutNetwork:      updated.payoutNetwork,
+      payoutCurrency:     updated.payoutCurrency,
       payoutAddressSetAt: updated.payoutAddressSetAt,
     });
   } catch (err) {

@@ -1,4 +1,10 @@
 const mongoose = require("mongoose");
+const {
+  PAYOUT_NETWORKS,
+  PAYOUT_CURRENCIES,
+  DEFAULT_NETWORK,
+  DEFAULT_CURRENCY,
+} = require("../utils/payoutNetworks");
 
 const userSchema = new mongoose.Schema(
   {
@@ -127,13 +133,16 @@ const userSchema = new mongoose.Schema(
     // ── Affiliate payout wallet ──────────────────────────────────────────────
     //
     // Only meaningful when role === "affiliate". The operator's payout flow
-    // dispatches USDT-TRC20 transfers via Coinflux to this address.
+    // dispatches stablecoin transfers via Coinflux to this address.
     // Captured here (not on AffiliateProfile) so that any auth/identity layer
     // changes won't strand the wallet — payout is a fundamental account
     // property, like an email.
     //
-    // Network is enumerated even though we only support TRC20 today, so the
-    // schema doesn't fight us when we add ERC20/BEP20 later.
+    // Address, network and currency travel together: an address is only
+    // meaningful on the chain it was issued for, and not every asset exists on
+    // every chain (no USDC on Tron). `utils/payoutNetworks.js` owns the valid
+    // combinations and both this model's writers and the portal form check
+    // against it.
     payoutAddress: {
       type: String,
       default: null,
@@ -141,8 +150,13 @@ const userSchema = new mongoose.Schema(
     },
     payoutNetwork: {
       type: String,
-      enum: ["TRC20"],
-      default: "TRC20",
+      enum: PAYOUT_NETWORKS,
+      default: DEFAULT_NETWORK,
+    },
+    payoutCurrency: {
+      type: String,
+      enum: PAYOUT_CURRENCIES,
+      default: DEFAULT_CURRENCY,
     },
     // Last time the affiliate confirmed / updated the address. We snapshot
     // this onto each AffiliatePayout row so historical payouts remember which

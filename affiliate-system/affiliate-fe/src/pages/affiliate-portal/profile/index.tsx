@@ -3,6 +3,7 @@ import { useBaseQuery } from 'api/core/useBaseQuery';
 import { AFFILIATE_PORTAL_API_URLS } from 'config/apiUrls';
 import axiosInstance from 'config/axiosInstance';
 import DigestPreference from '@components/core-components/DigestPreference';
+import PayoutWallet from '@components/core-components/PayoutWallet';
 
 interface CommissionPlan {
   _id: string;
@@ -30,9 +31,6 @@ interface ProfileResponse {
   referralCodes: BrandReferralCode[];
   commissionPlan: CommissionPlan | null;
 }
-
-// TRC20 addresses are 34 chars starting with "T", base58 (no 0 O I l).
-const TRC20_RE = /^T[1-9A-HJ-NP-Za-km-z]{33}$/;
 
 interface BrandReferralCode {
   code: string;
@@ -66,19 +64,12 @@ export default function AffiliateProfile() {
   const [saving, setSaving]                   = useState(false);
   const [saveMsg, setSaveMsg]                 = useState<string | null>(null);
 
-  // Payout wallet form state. Kept in its own state slice + save handler so
-  // a typo on the address doesn't get bundled with a name change.
-  const [walletAddress, setWalletAddress] = useState('');
-  const [walletSaving, setWalletSaving]   = useState(false);
-  const [walletMsg, setWalletMsg]         = useState<string | null>(null);
-
   useEffect(() => {
     if (data?.user) {
       setName(data.user.name ?? '');
       setMobileNumber(data.user.mobileNumber ?? '');
       setMobileCountryCode(data.user.mobileCountryCode ?? '');
       setWebsite(data.user.website ?? '');
-      setWalletAddress(data.user.payoutAddress ?? '');
     }
   }, [data]);
 
@@ -99,30 +90,6 @@ export default function AffiliateProfile() {
     }
   };
 
-  const handleSaveWallet = async () => {
-    const addr = walletAddress.trim();
-    if (!TRC20_RE.test(addr)) {
-      setWalletMsg('Invalid TRC20 address — must be 34 chars starting with T.');
-      setTimeout(() => setWalletMsg(null), 4000);
-      return;
-    }
-    setWalletSaving(true);
-    setWalletMsg(null);
-    try {
-      await axiosInstance.put(AFFILIATE_PORTAL_API_URLS.PAYOUT_INFO(), {
-        payoutAddress: addr,
-      });
-      setWalletMsg('Wallet saved.');
-      refetch();
-    } catch (err: any) {
-      setWalletMsg(err?.response?.data?.error || 'Failed to save wallet.');
-    } finally {
-      setWalletSaving(false);
-      setTimeout(() => setWalletMsg(null), 3000);
-    }
-  };
-
-  const walletDirty = walletAddress.trim() !== (data?.user.payoutAddress ?? '');
 
   const plan = data?.commissionPlan;
 
@@ -226,68 +193,8 @@ export default function AffiliateProfile() {
         </div>
       </div>
 
-      {/* Payout wallet (USDT-TRC20) */}
-      <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-6 max-w-2xl'>
-        <div className='flex items-start justify-between mb-4'>
-          <div>
-            <h2 className='text-sm font-semibold text-gray-800'>Payout Wallet</h2>
-            <p className='text-xs text-gray-600 mt-0.5'>
-              Where your operator sends commissions. USDT on the TRON (TRC20) network.
-            </p>
-          </div>
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${
-            data?.user.payoutAddress
-              ? 'bg-green-50 text-green-700 border border-green-100'
-              : 'bg-amber-50 text-amber-700 border border-amber-100'
-          }`}>
-            {data?.user.payoutAddress ? 'Wallet set' : 'No wallet yet'}
-          </span>
-        </div>
-
-        <div className='space-y-3'>
-          <div>
-            <label className='block text-xs font-medium text-gray-600 mb-1'>
-              USDT-TRC20 address
-            </label>
-            <input
-              type='text'
-              value={walletAddress}
-              onChange={(e) => setWalletAddress(e.target.value)}
-              className='w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono text-gray-700 focus:outline-none focus:border-primary'
-              placeholder='TXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
-              autoComplete='off'
-              spellCheck={false}
-            />
-            <p className='text-[11px] text-gray-500 mt-1'>
-              Double-check the address — payouts to a wrong wallet can&apos;t be recovered.
-            </p>
-          </div>
-
-          {data?.user.payoutAddressSetAt && (
-            <p className='text-[11px] text-gray-500'>
-              Last updated:{' '}
-              {new Date(data.user.payoutAddressSetAt).toLocaleDateString(undefined, {
-                year: 'numeric', month: 'short', day: '2-digit',
-              })}
-            </p>
-          )}
-
-          <div className='flex items-center gap-3 pt-1'>
-            <button
-              onClick={handleSaveWallet}
-              disabled={walletSaving || !walletDirty}
-              className='px-5 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors'
-            >
-              {walletSaving ? 'Saving...' : data?.user.payoutAddress ? 'Update wallet' : 'Save wallet'}
-            </button>
-            {walletMsg && (
-              <p className={`text-xs ${walletMsg.toLowerCase().includes('saved') ? 'text-green-600' : 'text-red-500'}`}>
-                {walletMsg}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* Payout wallet — network + asset chosen by the affiliate */}
+      <PayoutWallet />
 
       {/* Commission plan (read-only) */}
       <div className='bg-white/80 backdrop-blur-sm rounded-xl border border-violet-100 p-6 max-w-2xl'>

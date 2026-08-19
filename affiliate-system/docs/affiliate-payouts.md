@@ -1,4 +1,4 @@
-# Affiliate Payouts (USDT-TRC20 via Coinflux)
+# Affiliate Payouts (USD stablecoins via Coinflux)
 
 This doc covers the two real-money outflow paths the affiliate-be drives
 through Coinflux: operator → affiliate (`AffiliatePayout`) and affiliate →
@@ -12,7 +12,7 @@ outcome. No key or balance of ours ever sits at the provider.
 ## Why one Coinflux tenant funds both
 
 Affiliates and sub-affiliates aren't Coinflux tenants — they're end-users with
-a USDT wallet. Every outbound transfer therefore originates from the
+a stablecoin wallet. Every outbound transfer therefore originates from the
 operator's own funds. The platform keeps the books straight with an
 **internal balance ledger** so the operator never funds the same commission
 dollar twice.
@@ -45,15 +45,21 @@ Used by:
 
 Both `AffiliatePayout` and `SubAffiliatePayout` use the **same** Coinflux
 withdrawal call. Lives in [`controllers/affiliate/affiliatePayoutController.js`](../affiliate-be/controllers/affiliate/affiliatePayoutController.js)
-as `executeCoinfluxWithdraw({ amountCents, payoutAddress, payoutId, affiliateId })`:
+as `executeCoinfluxWithdraw({ amountCents, payoutAddress, payoutNetwork,
+payoutCurrency, payoutId, affiliateId })`:
 
 ```
 POST {COINFLUX_API_URL}/withdrawals
   X-Api-Key: {COINFLUX_API_KEY}
-  { playerId, amount, address, reference }
+  { playerId, amount, address, currency, network, reference }
 → { withdrawalId, status: "pending" }
 ```
 
+- `currency` / `network` come from the affiliate's saved wallet. Before the
+  call we re-check the pair against
+  [`utils/payoutNetworks.js`](../affiliate-be/utils/payoutNetworks.js) and
+  re-check that the address shape matches the chain — Coinflux validates too,
+  but a 400 there costs a failed payout row and an affiliate asking why.
 - `reference` is our own row id (`payoutId` or `subPayoutId`) — echoed back in
   the webhook, and the primary match key on the way home.
 - `playerId` is just a label: the affiliate this payout is for.
@@ -64,9 +70,10 @@ On success the row moves to `processing` and we wait for the webhook.
 
 ### Amount conversion
 
-`amountCents` is USD-pegged fiat cents on the row. Coinflux expects whole USDT
-formatted to 8 decimals. We assume **USDT ≈ USD 1:1** (`amountCents / 100`).
-If commission is ever denominated in a non-USD currency we'll need an FX
+`amountCents` is USD-pegged fiat cents on the row. Coinflux expects whole
+token units formatted to 8 decimals. Every asset we pay in is a USD
+stablecoin, so we assume **1:1** (`amountCents / 100`) whether it's USDT or
+USDC. If commission is ever denominated in a non-USD currency we'll need an FX
 conversion step before the network call.
 
 ### Webhook callback (single URL)
@@ -151,11 +158,35 @@ by `recalculateSubtreePayouts`) transitions through `pending` → `processing` �
   `paid` without a network call. Useful when reconciling off-platform
   transfers.
 
+## Which networks and assets
+
+[`utils/payoutNetworks.js`](../affiliate-be/utils/payoutNetworks.js) is the
+single source of truth; it mirrors what Coinflux will accept
+(`coinflux/src/chains.js`).
+
+| Network | Assets |
+|---|---|
+| `TRC20` — Tron | USDT |
+| `ERC20` — Ethereum | USDT, USDC |
+| `BEP20` — BNB Smart Chain | USDT, USDC |
+
+USDC has no Tron contract, which is why TRC20 is USDT-only. Defaults are
+TRC20/USDT, so an affiliate who set their wallet before the other chains
+existed keeps working untouched.
+
+The affiliate picks their own network and asset in the portal under
+**Profile → Payout Wallet**
+([`PayoutWallet.tsx`](../affiliate-fe/src/components/core-components/PayoutWallet.tsx)),
+which renders its options from `GET /payout-info` rather than hard-coding a
+list. Switching network clears an address that doesn't match the new chain —
+an EVM address is meaningless on Tron and vice versa, and funds sent to the
+wrong chain do not come back.
+
 ## Models
 
 - [`AffiliatePayout`](../affiliate-be/models/AffiliatePayout.js)
 - [`SubAffiliatePayout`](../affiliate-be/models/SubAffiliatePayout.js)
-- [`User.payoutAddress` + `payoutNetwork`](../affiliate-be/models/User.js)
+- [`User.payoutAddress` + `payoutNetwork` + `payoutCurrency`](../affiliate-be/models/User.js)
 - [`Operator.affiliatePayoutSettings.minPayoutCents`](../affiliate-be/models/Operator.js)
 
 ## Related endpoints

@@ -1,6 +1,12 @@
 "use strict";
 
 const mongoose = require("mongoose");
+const {
+  PAYOUT_NETWORKS,
+  PAYOUT_CURRENCIES,
+  DEFAULT_NETWORK,
+  DEFAULT_CURRENCY,
+} = require("../utils/payoutNetworks");
 
 /**
  * What a parent affiliate owes one of their direct children for a given
@@ -99,8 +105,11 @@ const subAffiliatePayoutSchema = new mongoose.Schema(
     // amount, and the operator's eventual net payout to the affiliate is
     // reduced by paid/processing/pending sub-payouts so the operator
     // never funds the same dollar twice.
-    payoutAddress: { type: String, default: null }, // sub's TRC20 wallet at dispatch
-    payoutNetwork: { type: String, enum: ["TRC20"], default: "TRC20" },
+    // Snapshotted from the sub's profile at dispatch — they may switch chains
+    // later and this row has to keep saying where the money actually went.
+    payoutAddress:  { type: String, default: null },
+    payoutNetwork:  { type: String, enum: PAYOUT_NETWORKS,   default: DEFAULT_NETWORK },
+    payoutCurrency: { type: String, enum: PAYOUT_CURRENCIES, default: DEFAULT_CURRENCY },
     providerTransactionId:   { type: String, default: null, index: true },
     providerRequestPayload:  { type: mongoose.Schema.Types.Mixed, default: null },
     providerResponse:        { type: mongoose.Schema.Types.Mixed, default: null },

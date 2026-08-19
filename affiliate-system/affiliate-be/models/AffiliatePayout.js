@@ -1,6 +1,12 @@
 "use strict";
 
 const mongoose = require("mongoose");
+const {
+  PAYOUT_NETWORKS,
+  PAYOUT_CURRENCIES,
+  DEFAULT_NETWORK,
+  DEFAULT_CURRENCY,
+} = require("../utils/payoutNetworks");
 
 /**
  * One row per real-money transfer from an operator to one of their
@@ -60,18 +66,21 @@ const affiliatePayoutSchema = new mongoose.Schema(
     },
     currency: {
       type: String,
-      default: "USDT",
+      enum: PAYOUT_CURRENCIES,
+      default: DEFAULT_CURRENCY,
     },
 
-    // Wallet snapshot — see header comment.
+    // Wallet snapshot — see header comment. Address, network and currency are
+    // all frozen at create time: the affiliate may switch chains later, and a
+    // settled payout has to keep saying where the money actually went.
     payoutAddress: {
       type: String,
       required: true,
     },
     payoutNetwork: {
       type: String,
-      enum: ["TRC20"],
-      default: "TRC20",
+      enum: PAYOUT_NETWORKS,
+      default: DEFAULT_NETWORK,
     },
 
     /**

@@ -15,6 +15,7 @@ interface PendingRow {
   wallet: {
     address: string | null;
     network: string;
+    currency: string;
     setAt: string | null;
     ready: boolean;
   };
@@ -251,7 +252,7 @@ function PendingRow({
             <span className='text-xs font-mono text-gray-700' title={row.wallet.address}>
               {shortAddr(row.wallet.address)}
             </span>
-            <span className='text-[10px] text-gray-500'>{row.wallet.network}</span>
+            <span className='text-[10px] text-gray-500'>{row.wallet.currency} · {row.wallet.network}</span>
           </div>
         ) : (
           <span className='inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-100'>
@@ -394,9 +395,12 @@ function HistoryRow({
         {aff?.email && <div className='text-[11px] text-gray-600'>{aff.email}</div>}
       </td>
       <td className='px-4 py-2.5'>
-        <span className='text-xs font-mono text-gray-700' title={payout.payoutAddress}>
-          {shortAddr(payout.payoutAddress)}
-        </span>
+        <div className='flex flex-col gap-0.5'>
+          <span className='text-xs font-mono text-gray-700' title={payout.payoutAddress}>
+            {shortAddr(payout.payoutAddress)}
+          </span>
+          <span className='text-[10px] text-gray-500'>{payout.currency} · {payout.payoutNetwork}</span>
+        </div>
       </td>
       <td className='px-4 py-2.5 text-right tabular-nums font-semibold text-gray-900'>
         {fmtCents(payout.amountCents, payout.currency)}
@@ -428,7 +432,7 @@ function HistoryRow({
               <button
                 onClick={() => handleAction(
                   () => axiosInstance.post(AFFILIATE_PAYOUT_API_URLS.DISPATCH(payout._id)),
-                  `Dispatch ${fmtCents(payout.amountCents)} to ${payout.payoutAddress}?`,
+                  `Dispatch ${fmtCents(payout.amountCents, payout.currency)} on ${payout.payoutNetwork} to ${payout.payoutAddress}?`,
                 )}
                 className='px-2.5 py-1 text-xs font-medium rounded-md bg-primary text-white hover:bg-primary-dark'
               >

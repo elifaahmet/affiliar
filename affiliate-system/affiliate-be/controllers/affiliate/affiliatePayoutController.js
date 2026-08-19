@@ -44,6 +44,14 @@ const { logger }        = require("../../middlewares/logger");
 const { notify }        = require("../../utils/notify");
 const SubAffiliatePayout = require("../../models/SubAffiliatePayout");
 const { RESERVED_SUB_PAYOUT_STATUSES } = require("../../utils/affiliateBalance");
+const {
+  DEFAULT_NETWORK,
+  DEFAULT_CURRENCY,
+  isPayoutPair,
+  addressMatchesNetwork,
+  normNetwork,
+  normCurrency,
+} = require("../../utils/payoutNetworks");
 
 // ── Auth helper ──────────────────────────────────────────────────────────────
 
@@ -102,7 +110,7 @@ exports.listPending = async (req, res) => {
     // Hydrate affiliate identity + wallet info.
     const affiliateIds = grouped.map((g) => g._id);
     const users = await User.find({ _id: { $in: affiliateIds } })
-      .select("email username name payoutAddress payoutNetwork payoutAddressSetAt")
+      .select("email username name payoutAddress payoutNetwork payoutCurrency payoutAddressSetAt")
       .lean();
     const userMap = new Map(users.map((u) => [String(u._id), u]));
 
@@ -147,7 +155,8 @@ exports.listPending = async (req, res) => {
         oldestPeriod:   g.oldestPeriod,
         wallet: {
           address:   u.payoutAddress || null,
-          network:   u.payoutNetwork || "TRC20",
+          network:   u.payoutNetwork  || DEFAULT_NETWORK,
+          currency:  u.payoutCurrency || DEFAULT_CURRENCY,
           setAt:     u.payoutAddressSetAt || null,
           ready:     !!u.payoutAddress, // affiliate hasn't given us an address yet?
         },
@@ -235,7 +244,7 @@ exports.batchCreate = async (req, res) => {
 
     const groupedAffiliateIds = grouped.map((g) => g._id);
     const affiliates = await User.find({ _id: { $in: groupedAffiliateIds } })
-      .select("payoutAddress payoutNetwork")
+      .select("payoutAddress payoutNetwork payoutCurrency")
       .lean();
     const affMap = new Map(affiliates.map((a) => [String(a._id), a]));
 
@@ -295,9 +304,9 @@ exports.batchCreate = async (req, res) => {
         affiliateId: g._id,
         sourceReportIds: g.reportIds,
         amountCents: netCents,
-        currency: "USDT",
+        currency: aff.payoutCurrency || DEFAULT_CURRENCY,
         payoutAddress: aff.payoutAddress,
-        payoutNetwork: aff.payoutNetwork || "TRC20",
+        payoutNetwork: aff.payoutNetwork || DEFAULT_NETWORK,
         status: "pending",
         initiatedBy: operator._id,
       });
@@ -434,9 +443,9 @@ exports.createPayout = async (req, res) => {
       affiliateId,
       sourceReportIds: reports.map((r) => r._id),
       amountCents,
-      currency: "USDT",
+      currency: affiliate.payoutCurrency || DEFAULT_CURRENCY,
       payoutAddress: affiliate.payoutAddress,
-      payoutNetwork: affiliate.payoutNetwork || "TRC20",
+      payoutNetwork: affiliate.payoutNetwork || DEFAULT_NETWORK,
       status: "pending",
       initiatedBy: operator._id,
     });
@@ -476,15 +485,39 @@ const coinflux = axios.create({
 //   { ok: true,  providerTransactionId, providerRequestPayload, providerResponse }
 //   { ok: false, failureReason, providerResponse, httpStatus, upstream? }
 // Doesn't touch any Mongoose document — callers handle persistence.
-async function executeCoinfluxWithdraw({ amountCents, payoutAddress, payoutId, affiliateId }) {
-  const amountUsdt = Number((amountCents / 100).toFixed(8));
-  if (!(amountUsdt > 0)) return { ok: false, failureReason: "zero_amount" };
-  if (!payoutAddress)    return { ok: false, failureReason: "no_wallet" };
+async function executeCoinfluxWithdraw({
+  amountCents,
+  payoutAddress,
+  payoutNetwork,
+  payoutCurrency,
+  payoutId,
+  affiliateId,
+}) {
+  // Every asset we pay in is a USD stablecoin, so cents → units is 1:1
+  // whether it's USDT or USDC.
+  const amount = Number((amountCents / 100).toFixed(8));
+  if (!(amount > 0))  return { ok: false, failureReason: "zero_amount" };
+  if (!payoutAddress) return { ok: false, failureReason: "no_wallet" };
+
+  const network  = normNetwork(payoutNetwork   || DEFAULT_NETWORK);
+  const currency = normCurrency(payoutCurrency || DEFAULT_CURRENCY);
+
+  // Last gate before real money moves. Coinflux checks this too, but a 400
+  // there costs a failed payout row and an affiliate asking why; catching it
+  // here means the row never leaves `pending`.
+  if (!isPayoutPair(network, currency)) {
+    return { ok: false, failureReason: `unsupported_pair: ${currency} on ${network}` };
+  }
+  if (!addressMatchesNetwork(network, payoutAddress)) {
+    return { ok: false, failureReason: `address_network_mismatch: not a ${network} address` };
+  }
 
   const payload = {
     playerId: String(affiliateId),   // just a label — the affiliate this payout is for
-    amount: amountUsdt,
+    amount,
     address: payoutAddress,
+    currency,
+    network,
     reference: String(payoutId),     // echoed back in the webhook to match this payout
   };
   const resp = await coinflux.post("/withdrawals", payload, { validateStatus: () => true });
@@ -510,10 +543,12 @@ async function executeCoinfluxWithdraw({ amountCents, payoutAddress, payoutId, a
 // result so callers can ignore the persistence churn.
 async function dispatchToCoinflux(payout, operator) {
   const result = await executeCoinfluxWithdraw({
-    amountCents:   payout.amountCents,
-    payoutAddress: payout.payoutAddress,
-    payoutId:      String(payout._id),
-    affiliateId:   String(payout.affiliateId),
+    amountCents:    payout.amountCents,
+    payoutAddress:  payout.payoutAddress,
+    payoutNetwork:  payout.payoutNetwork,
+    payoutCurrency: payout.currency,
+    payoutId:       String(payout._id),
+    affiliateId:    String(payout.affiliateId),
   });
 
   if (result.providerRequestPayload) payout.providerRequestPayload = result.providerRequestPayload;
