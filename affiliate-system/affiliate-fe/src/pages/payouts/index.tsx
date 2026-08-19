@@ -36,7 +36,7 @@ interface PayoutRow {
   payoutNetwork: string;
   status: 'pending' | 'processing' | 'paid' | 'failed' | 'cancelled';
   failureReason: string | null;
-  sansTransactionId: string | null;
+  providerTransactionId: string | null;
   paymentNote: string | null;
   initiatedAt: string;
   paidAt: string | null;
@@ -112,7 +112,7 @@ export default function PayoutsPage() {
         </h1>
         <p className='text-sm text-gray-700 max-w-2xl'>
           Send approved commissions to your affiliates&apos; USDT-TRC20 wallets via
-          Sans Getirsin. Affiliates set their wallet on their profile page; you
+          Coinflux. Affiliates set their wallet on their profile page; you
           settle from here.
         </p>
       </header>

@@ -5,7 +5,7 @@ const mongoose = require("mongoose");
 /**
  * One row per real-money transfer from an operator to one of their
  * affiliates. Created when the operator clicks "Pay" on the pending-payouts
- * screen; advanced by the Sans Getirsin webhook callback (or by a manual
+ * screen; advanced by the Coinflux webhook callback (or by a manual
  * status flip if the operator is reconciling an out-of-band transfer).
  *
  * Why a dedicated model rather than a status flip on CommissionReport
@@ -13,7 +13,7 @@ const mongoose = require("mongoose");
  * A single payout often consolidates *multiple* CommissionReports — an
  * affiliate may have an unpaid October casino report, a November casino
  * report, and a November sportsbook report all in `approved`, and the
- * operator typically pays them in one Sans transaction. This row anchors
+ * operator typically pays them in one Coinflux transaction. This row anchors
  * the transaction and links back to all the reports it settles via
  * `sourceReportIds`. When the payout succeeds, every linked report flips
  * to `paid` together.
@@ -76,7 +76,7 @@ const affiliatePayoutSchema = new mongoose.Schema(
 
     /**
      * pending     — created locally, not yet dispatched to provider
-     * processing  — dispatched to Sans, awaiting webhook confirmation
+     * processing  — dispatched to Coinflux, awaiting webhook confirmation
      * paid        — provider confirmed transfer (or operator marked paid)
      * failed      — provider reported failure (insufficient funds, invalid
      *               address, rate-limit, etc). Operator can retry by
@@ -91,13 +91,13 @@ const affiliatePayoutSchema = new mongoose.Schema(
     },
     failureReason: { type: String, default: null },
 
-    // Sans Getirsin integration metadata. `sansTransactionId` is the
+    // Coinflux integration metadata. `providerTransactionId` is the
     // provider's transaction id; we use it to match webhook callbacks back
-    // to this row. `sansRequestPayload` + `sansResponse` are kept for
-    // debugging — Sans's error envelopes don't always survive into logs.
-    sansTransactionId:   { type: String, default: null, index: true },
-    sansRequestPayload:  { type: mongoose.Schema.Types.Mixed, default: null },
-    sansResponse:        { type: mongoose.Schema.Types.Mixed, default: null },
+    // to this row. `providerRequestPayload` + `providerResponse` are kept for
+    // debugging — Coinflux's error envelopes don't always survive into logs.
+    providerTransactionId:   { type: String, default: null, index: true },
+    providerRequestPayload:  { type: mongoose.Schema.Types.Mixed, default: null },
+    providerResponse:        { type: mongoose.Schema.Types.Mixed, default: null },
 
     initiatedAt:    { type: Date, default: Date.now },
     dispatchedAt:   { type: Date, default: null },

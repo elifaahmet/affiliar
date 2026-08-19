@@ -7,7 +7,7 @@
 // Allowed-through prefixes (the operator still needs to log in, pay, and
 // see their billing history while suspended):
 //   /auth/*     — login, logout, 2fa, etc.
-//   /billing/*  — status, wallets, pay, sans callback
+//   /billing/*  — status, wallets, pay, provider callback
 //   /admin/*    — platform admin acts on suspended operators
 //
 // Affiliates of a suspended operator are not blocked — they didn't fail to

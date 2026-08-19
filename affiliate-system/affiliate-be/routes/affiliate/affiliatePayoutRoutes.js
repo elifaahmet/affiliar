@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * Operator-side endpoints for paying affiliates via Sans Getirsin
+ * Operator-side endpoints for paying affiliates via Coinflux
  * (USDT-TRC20). Mounted at /api/affiliate/payouts.
  *
  * Affiliate-side equivalents (set wallet, see own history) live on

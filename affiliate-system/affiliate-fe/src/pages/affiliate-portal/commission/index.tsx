@@ -448,7 +448,7 @@ function BalanceTile({
 
 // Translate the API's machine-readable error codes into a sentence the
 // affiliate can act on. Anything not in the table falls through to the
-// raw string (preserves Sans/network messages we haven't seen yet).
+// raw string (preserves provider/network messages we haven't seen yet).
 function friendlySubPayoutError(err: any): string {
   const data = err?.response?.data;
   const code: string = data?.error || err?.message || 'Something went wrong.';
@@ -469,22 +469,20 @@ function friendlySubPayoutError(err: any): string {
       return `Only payouts that are still pending can be cancelled (current status: ${data?.status || 'unknown'}).`;
     case 'payout_not_found':
       return 'Payout not found. It may have been removed — refresh the page.';
-    case 'operator_user_not_found':
-      return 'Couldn’t reach your operator’s payment account. Contact support.';
+    case 'no_wallet':
+      return 'No wallet address on this payout. Ask the sub-affiliate to set one on their Profile page before retrying.';
   }
 
-  // Sans-side failures bubble up with prefixes like "token: …", "list: …",
-  // "create: HTTP 502". Surface a readable variant.
-  if (typeof code === 'string') {
-    if (code.startsWith('token:')) return 'Payment provider session couldn’t be opened. Try again in a moment.';
-    if (code.startsWith('list:'))  return 'The payment provider returned no withdraw account for this amount. Try a different amount or contact support.';
-    if (code.startsWith('create:')) return 'The payment provider rejected the transfer. Check the sub-affiliate’s wallet address and try again.';
+  // Provider-side failures bubble up as "coinflux: HTTP 502". Surface a
+  // readable variant.
+  if (typeof code === 'string' && code.startsWith('coinflux:')) {
+    return 'The payment provider rejected the transfer. Check the sub-affiliate’s wallet address and try again.';
   }
 
   return typeof code === 'string' ? code : 'Something went wrong.';
 }
 
-// Per-row action group. `draft`/`failed` rows can be Paid (Sans dispatch).
+// Per-row action group. `draft`/`failed` rows can be Paid (dispatch).
 // `pending` rows can be Cancelled. Manual Mark-Paid remains for out-of-band
 // reconciliation across draft/failed.
 function SubPayoutActions({
@@ -515,7 +513,7 @@ function SubPayoutActions({
 
   const handlePay = () => {
     const ok = window.confirm(
-      `Send ${fmt(payout.payableCents)} USDT-TRC20 to ${payout.sub?.username ?? 'sub-affiliate'} via Sans NOW?\n\n` +
+      `Send ${fmt(payout.payableCents)} USDT-TRC20 to ${payout.sub?.username ?? 'sub-affiliate'} via Coinflux NOW?\n\n` +
       `This will debit your internal balance and dispatch a real transfer. ` +
       `Your operator pays out the rest of your commission net of this.`,
     );

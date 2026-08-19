@@ -14,13 +14,12 @@
  *                                                 that bundles all of the
  *                                                 affiliate's approved
  *                                                 CommissionReports into a
- *                                                 single transaction. Sans
+ *                                                 single transaction. Provider
  *                                                 dispatch happens in a
  *                                                 follow-up step.
- *   - POST   /api/affiliate/payouts/:id/dispatch — push to Sans (placeholder
- *                                                 until the withdrawal API
- *                                                 surface is probed +
- *                                                 wired).
+ *   - POST   /api/affiliate/payouts/:id/dispatch — push to Coinflux, which
+ *                                                 opens a withdrawal for
+ *                                                 operator approval.
  *   - POST   /api/affiliate/payouts/:id/cancel  — operator-side cancel
  *                                                 before dispatch.
  *   - GET    /api/affiliate/payouts/settings    — per-operator policy
@@ -43,20 +42,8 @@ const CommissionReport  = require("../../models/CommissionReport");
 const AffiliatePayout   = require("../../models/AffiliatePayout");
 const { logger }        = require("../../middlewares/logger");
 const { notify }        = require("../../utils/notify");
-// Re-use the Sans token cache + axios instance from billingController so
-// deposits and payouts share the same per-operator merchant session.
-const { getSansToken, sansProvider } = require("./billingController");
 const SubAffiliatePayout = require("../../models/SubAffiliatePayout");
 const { RESERVED_SUB_PAYOUT_STATUSES } = require("../../utils/affiliateBalance");
-
-// Sans's chain label mapping — the withdraw fields list returns the network
-// in their long form (e.g. "Tron.network (TRC20)") so we translate from our
-// short enum when populating fields.
-const SANS_NETWORK_LABEL = {
-  TRC20: "Tron.network (TRC20)",
-  ERC20: "Ethereum Mainnet (ERC20)",
-  BEP20: "BNB Smart Chain",
-};
 
 // ── Auth helper ──────────────────────────────────────────────────────────────
 
@@ -119,10 +106,10 @@ exports.listPending = async (req, res) => {
       .lean();
     const userMap = new Map(users.map((u) => [String(u._id), u]));
 
-    // Sum each affiliate's outstanding sub-payouts (reserved against Sans)
-    // so we can show net payable, not gross. The operator never funds
-    // commission twice: subs paid by the parent already came out of the
-    // operator's Sans balance.
+    // Sum each affiliate's outstanding sub-payouts (already reserved) so we
+    // can show net payable, not gross. The operator never funds commission
+    // twice: subs paid by the parent already came out of the operator's
+    // balance.
     const subPaidByParent = await SubAffiliatePayout.aggregate([
       {
         $match: {
@@ -151,7 +138,7 @@ exports.listPending = async (req, res) => {
           name:     u.name || null,
         },
         // grossCents = full approved commission this affiliate earned.
-        // paidToSubsCents = already routed to their children via Sans.
+        // paidToSubsCents = already routed to their children.
         // payableCents (= net) is what the operator will actually transfer.
         grossCents,
         paidToSubsCents,
@@ -318,7 +305,7 @@ exports.batchCreate = async (req, res) => {
       createdPayouts.push(payout._id);
 
       if (dispatch) {
-        const r = await dispatchProvider(payout, operator);
+        const r = await dispatchToCoinflux(payout, operator);
         if (r.ok) stats.dispatched++;
         else {
           stats.failed++;
@@ -347,7 +334,7 @@ exports.batchCreate = async (req, res) => {
 
 // POST /api/affiliate/payouts   body: { affiliateId }
 // Bundles every approved CommissionReport for this affiliate into a single
-// pending AffiliatePayout row. Does NOT call Sans — dispatch is a separate
+// pending AffiliatePayout row. Does NOT call Coinflux — dispatch is a separate
 // step so the operator can review the bundle, see the wallet snapshot, and
 // then commit.
 exports.createPayout = async (req, res) => {
@@ -404,7 +391,7 @@ exports.createPayout = async (req, res) => {
     );
 
     // Net payable = gross commission − whatever this affiliate has already
-    // routed to their own subs via Sans. Keeps the operator from funding
+    // routed to their own subs via Coinflux. Keeps the operator from funding
     // the same commission dollar twice (once to affiliate, once to sub).
     const subPaidAgg = await SubAffiliatePayout.aggregate([
       {
@@ -468,192 +455,14 @@ exports.createPayout = async (req, res) => {
   }
 };
 
-// ── Dispatch to Sans (placeholder until the withdrawal surface is wired) ─────
-
-// POST /api/affiliate/payouts/:id/dispatch
-// Real Sans Getirsin withdrawal — mirrors the 3-step dance the player-side
-// service uses (see new-pixup/.../sans-getirsin/sans-server.js for the
-// reference). On success the payout moves to `processing` and we wait for
-// the Sans webhook to flip it to `paid` or `failed`.
+// ── Coinflux provider ────────────────────────────────────────────────────────
 //
-//   1) GET /payment/withdraw?amount=X  — list withdraw accounts for this
-//      amount. Returns `data[0]._id` (the bankAccount id we'll post against)
-//      and `data[0].withdrawFields` (the fields we have to populate).
-//   2) POST /payment/withdraw         — body {
-//                                        bank, amount, fields[], extraData
-//                                      }. Returns the provider's
-//                                        transactionId.
-//
-// Step (1) reuses the cached merchant token from billingController. If the
-// operator has never paid via Sans for their own subscription the token
-// fetch still works — we just call /payment/json on first use.
-// Pure 3-step Sans withdrawal dispatcher. Doesn't touch any Mongoose
-// document — callers handle persistence. Returns a normalized result:
-//   { ok: true,  sansTransactionId, sansRequestPayload, sansResponse }
-//   { ok: false, failureReason, sansResponse, httpStatus, upstream? }
-//
-// Shared between AffiliatePayout (operator → affiliate) and
-// SubAffiliatePayout (affiliate → sub) — both use the operator's Sans
-// merchant account, so the integration is identical.
-async function executeSansWithdraw({
-  operator,         // operator user obj — passed to getSansToken
-  amountCents,      // USD-pegged cents
-  payoutAddress,    // destination wallet
-  payoutNetwork,    // "TRC20" today
-  extraData,        // surfaced into Sans payload's extraData for callback round-trip
-}) {
-  // USDT ≈ USD 1:1 for USDT-TRC20.
-  const amountUsdt = Number((amountCents / 100).toFixed(8));
-  if (!(amountUsdt > 0)) {
-    return { ok: false, failureReason: "zero_amount" };
-  }
-
-  let token;
-  try {
-    token = await getSansToken(operator.operatorId, operator);
-  } catch (err) {
-    return {
-      ok: false,
-      failureReason: `token: ${err?.message || "no token"}`,
-      sansResponse: { stage: "token", upstream: err?.upstream || null },
-      httpStatus: err?.status || 502,
-    };
-  }
-
-  // STEP 1 — list withdraw accounts for this amount.
-  const listResp = await sansProvider.get("/withdraw", {
-    params: { amount: amountUsdt.toFixed(8) },
-    headers: { Authorization: `Bearer ${token}` },
-    validateStatus: () => true,
-  });
-  if (listResp.status < 200 || listResp.status >= 300) {
-    return {
-      ok: false,
-      failureReason: `list: HTTP ${listResp.status}`,
-      sansResponse: { stage: "list", upstream: listResp.data },
-      httpStatus: 502,
-      upstream: listResp.data,
-    };
-  }
-  const account = listResp?.data?.data?.[0];
-  if (!account?._id) {
-    return {
-      ok: false,
-      failureReason: "list: no withdraw account returned",
-      sansResponse: { stage: "list", upstream: listResp.data },
-      httpStatus: 502,
-    };
-  }
-
-  const networkLabel = SANS_NETWORK_LABEL[payoutNetwork] || payoutNetwork;
-  const fields = (account.withdrawFields || []).map((f) => {
-    if (f.name === "Wallet") return { name: f.name, value: payoutAddress };
-    if (f.name === "Chain")  return { name: f.name, value: networkLabel };
-    return { name: f.name, value: "" };
-  });
-
-  // STEP 2 — create withdrawal.
-  const payload = {
-    bank: account._id,
-    amount: amountUsdt,
-    fields,
-    extraData: { ...extraData, network: networkLabel },
-  };
-  const createResp = await sansProvider.post("/withdraw", payload, {
-    headers: { Authorization: `Bearer ${token}` },
-    validateStatus: () => true,
-  });
-
-  const sansResponse = {
-    stage: "create",
-    upstream: createResp.data,
-    status: createResp.status,
-  };
-
-  if (createResp.status < 200 || createResp.status >= 300) {
-    return {
-      ok: false,
-      failureReason: `create: HTTP ${createResp.status}`,
-      sansRequestPayload: payload,
-      sansResponse,
-      httpStatus: 502,
-      upstream: createResp.data,
-    };
-  }
-
-  const sansTxId =
-    createResp?.data?.data?.transactionId ||
-    createResp?.data?.transactionId ||
-    createResp?.data?.data?._id ||
-    null;
-
-  return {
-    ok: true,
-    sansTransactionId: sansTxId,
-    sansRequestPayload: payload,
-    sansResponse,
-  };
-}
-
-// AffiliatePayout-shaped wrapper around executeSansWithdraw. Mutates +
-// saves the AffiliatePayout doc based on the result so callers can ignore
-// the persistence churn.
-async function dispatchToSans(payout, operator) {
-  const result = await executeSansWithdraw({
-    operator,
-    amountCents:   payout.amountCents,
-    payoutAddress: payout.payoutAddress,
-    payoutNetwork: payout.payoutNetwork,
-    extraData: {
-      payoutId:    String(payout._id),
-      operatorId:  String(payout.operatorId),
-      affiliateId: String(payout.affiliateId),
-    },
-  });
-
-  if (result.sansRequestPayload) payout.sansRequestPayload = result.sansRequestPayload;
-  if (result.sansResponse)       payout.sansResponse       = result.sansResponse;
-
-  if (result.ok) {
-    payout.status = "processing";
-    payout.dispatchedAt = new Date();
-    payout.sansTransactionId = result.sansTransactionId;
-    await payout.save();
-    logger.info("affiliate.payout.dispatched", {
-      payoutId: String(payout._id),
-      sansTransactionId: result.sansTransactionId,
-      amountCents: payout.amountCents,
-      payoutAddress: payout.payoutAddress,
-    });
-    return { ok: true, payout };
-  }
-
-  payout.status = "failed";
-  payout.failedAt = new Date();
-  payout.failureReason = result.failureReason;
-  await payout.save();
-  logger.error("affiliate.payout.dispatch.failed", {
-    payoutId: String(payout._id),
-    reason: result.failureReason,
-    status: result.httpStatus,
-  });
-  return {
-    ok: false, payout,
-    error: result.failureReason,
-    status: result.httpStatus || 502,
-    upstream: result.upstream,
-  };
-}
-
-// ── Coinflux provider (opt-in via PAYOUT_PROVIDER=coinflux) ───────────────────
-//
-// Coinflux mirrors the Sans withdrawal model: POST /withdrawals to open a
-// payout request, then an approve/reject webhook flips it. So we reuse the same
-// payout persistence + the shared handleStatusFlip. The Coinflux withdrawalId
-// is stored in `sansTransactionId` (generic "provider tx id") for matching.
+// The only payout rail. POST /withdrawals opens a payout request, then an
+// approve/reject webhook flips it — Coinflux is the approval desk; the
+// operator pays out from their own wallet once approved. The Coinflux
+// withdrawalId lands in `providerTransactionId` for callback matching.
 const axios = require("axios");
 const crypto = require("crypto");
-const PAYOUT_PROVIDER         = (process.env.PAYOUT_PROVIDER || "sans").toLowerCase();
 const COINFLUX_API_URL        = process.env.COINFLUX_API_URL || "https://api.coinflux.cash";
 const COINFLUX_API_KEY        = process.env.COINFLUX_API_KEY || "";
 const COINFLUX_WEBHOOK_SECRET = process.env.COINFLUX_WEBHOOK_SECRET || "";
@@ -663,7 +472,10 @@ const coinflux = axios.create({
   headers: { "Content-Type": "application/json", "X-Api-Key": COINFLUX_API_KEY },
 });
 
-// Same normalized return shape as executeSansWithdraw.
+// Normalized return shape:
+//   { ok: true,  providerTransactionId, providerRequestPayload, providerResponse }
+//   { ok: false, failureReason, providerResponse, httpStatus, upstream? }
+// Doesn't touch any Mongoose document — callers handle persistence.
 async function executeCoinfluxWithdraw({ amountCents, payoutAddress, payoutId, affiliateId }) {
   const amountUsdt = Number((amountCents / 100).toFixed(8));
   if (!(amountUsdt > 0)) return { ok: false, failureReason: "zero_amount" };
@@ -680,21 +492,22 @@ async function executeCoinfluxWithdraw({ amountCents, payoutAddress, payoutId, a
     return {
       ok: false,
       failureReason: `coinflux: HTTP ${resp.status}`,
-      sansRequestPayload: payload,
-      sansResponse: { stage: "create", provider: "coinflux", upstream: resp.data, status: resp.status },
+      providerRequestPayload: payload,
+      providerResponse: { stage: "create", provider: "coinflux", upstream: resp.data, status: resp.status },
       httpStatus: 502,
       upstream: resp.data,
     };
   }
   return {
     ok: true,
-    sansTransactionId: resp?.data?.withdrawalId || null,
-    sansRequestPayload: payload,
-    sansResponse: { stage: "create", provider: "coinflux", upstream: resp.data },
+    providerTransactionId: resp?.data?.withdrawalId || null,
+    providerRequestPayload: payload,
+    providerResponse: { stage: "create", provider: "coinflux", upstream: resp.data },
   };
 }
 
-// AffiliatePayout-shaped wrapper (mirrors dispatchToSans persistence).
+// AffiliatePayout-shaped wrapper: mutates + saves the doc based on the
+// result so callers can ignore the persistence churn.
 async function dispatchToCoinflux(payout, operator) {
   const result = await executeCoinfluxWithdraw({
     amountCents:   payout.amountCents,
@@ -703,17 +516,17 @@ async function dispatchToCoinflux(payout, operator) {
     affiliateId:   String(payout.affiliateId),
   });
 
-  if (result.sansRequestPayload) payout.sansRequestPayload = result.sansRequestPayload;
-  if (result.sansResponse)       payout.sansResponse       = result.sansResponse;
+  if (result.providerRequestPayload) payout.providerRequestPayload = result.providerRequestPayload;
+  if (result.providerResponse)       payout.providerResponse       = result.providerResponse;
 
   if (result.ok) {
     payout.status = "processing";
     payout.dispatchedAt = new Date();
-    payout.sansTransactionId = result.sansTransactionId;
+    payout.providerTransactionId = result.providerTransactionId;
     await payout.save();
     logger.info("affiliate.payout.dispatched", {
       provider: "coinflux", payoutId: String(payout._id),
-      sansTransactionId: result.sansTransactionId, amountCents: payout.amountCents,
+      providerTransactionId: result.providerTransactionId, amountCents: payout.amountCents,
     });
     return { ok: true, payout };
   }
@@ -726,13 +539,6 @@ async function dispatchToCoinflux(payout, operator) {
     provider: "coinflux", payoutId: String(payout._id), reason: result.failureReason,
   });
   return { ok: false, payout, error: result.failureReason, status: result.httpStatus || 502, upstream: result.upstream };
-}
-
-// Provider-agnostic dispatch entry point — flip PAYOUT_PROVIDER to migrate.
-function dispatchProvider(payout, operator) {
-  return PAYOUT_PROVIDER === "coinflux"
-    ? dispatchToCoinflux(payout, operator)
-    : dispatchToSans(payout, operator);
 }
 
 // POST /billing/coinflux/callback — Coinflux withdrawal webhook (HMAC-signed).
@@ -773,8 +579,8 @@ exports.handleCoinfluxWithdrawCallback = async (req, res) => {
       if (!payout) sub = await SubAffiliatePayout.findById(reference).catch(() => null);
     }
     if (!payout && !sub && withdrawalId) {
-      payout = await AffiliatePayout.findOne({ sansTransactionId: withdrawalId });
-      if (!payout) sub = await SubAffiliatePayout.findOne({ sansTransactionId: withdrawalId });
+      payout = await AffiliatePayout.findOne({ providerTransactionId: withdrawalId });
+      if (!payout) sub = await SubAffiliatePayout.findOne({ providerTransactionId: withdrawalId });
     }
 
     if (sub)    return handleSubStatusFlip(sub, status, note, res);
@@ -803,7 +609,7 @@ exports.dispatchPayout = async (req, res) => {
       return res.status(409).json({ error: "not_pending", status: payout.status });
     }
 
-    const r = await dispatchProvider(payout, operator);
+    const r = await dispatchToCoinflux(payout, operator);
     if (!r.ok) {
       return res.status(r.status || 502).json({
         error: r.error, upstream: r.upstream || null, payout: r.payout?.toObject?.() || r.payout,
@@ -818,61 +624,8 @@ exports.dispatchPayout = async (req, res) => {
   }
 };
 
-// ── Sans webhook (withdraw branch) ───────────────────────────────────────────
-//
-// Called from billingController.handleSansCallback when `type === "WITHDRAW"`.
-// Matches the inbound `transactionId` against EITHER an AffiliatePayout
-// (operator → affiliate) OR a SubAffiliatePayout (affiliate → sub) — both
-// flow through the same operator-merchant Sans hesabı, so the same callback
-// URL serves both. We discriminate by extraData hints (`subPayoutId` vs
-// `payoutId`), with a fallback DB lookup on each collection.
-exports.handleSansWithdrawCallback = async (req, res) => {
-  const body = req.body || {};
-  const { action, transactionId, status, rejectReason, extraData } = body;
-
-  try {
-    // Sub-payout? Prefer the extraData hint we set when dispatching, fall
-    // back to a sansTransactionId match.
-    if (extraData?.subPayoutId) {
-      const subById = await SubAffiliatePayout.findById(extraData.subPayoutId);
-      if (subById) {
-        if (!subById.sansTransactionId) {
-          subById.sansTransactionId = transactionId;
-          await subById.save();
-        }
-        return handleSubStatusFlip(subById, status, rejectReason, res);
-      }
-    }
-    const subByTx = await SubAffiliatePayout.findOne({ sansTransactionId: transactionId });
-    if (subByTx) return handleSubStatusFlip(subByTx, status, rejectReason, res);
-
-    // Otherwise treat as a top-level affiliate payout.
-    const payout = await AffiliatePayout.findOne({ sansTransactionId: transactionId });
-    if (!payout) {
-      const fallbackId = extraData?.payoutId;
-      const byId = fallbackId
-        ? await AffiliatePayout.findById(fallbackId)
-        : null;
-      if (!byId) {
-        logger.warn("affiliate.payout.callback.no_match", { transactionId, action });
-        return res.status(404).json({ success: false, message: "Payout not found" });
-      }
-      byId.sansTransactionId = transactionId;
-      await byId.save();
-      return handleStatusFlip(byId, status, rejectReason, res);
-    }
-
-    return handleStatusFlip(payout, status, rejectReason, res);
-  } catch (err) {
-    logger.error("affiliate.payout.callback.err", {
-      transactionId, action, status, error: err?.message,
-    });
-    return res.status(500).json({ success: false, message: err?.message });
-  }
-};
-
-// Shared status-flip routine used by handleSansWithdrawCallback. Idempotent
-// on terminal statuses so retries are safe.
+// Shared status-flip routine used by the Coinflux withdrawal callback.
+// Idempotent on terminal statuses so retries are safe.
 async function handleStatusFlip(payout, status, rejectReason, res) {
   if (["paid", "failed", "cancelled"].includes(payout.status)) {
     return res.json({ success: true, status: `Payout already ${payout.status}` });
@@ -891,7 +644,7 @@ async function handleStatusFlip(payout, status, rejectReason, res) {
       );
     }
     logger.info("affiliate.payout.callback.approved", {
-      payoutId: String(payout._id), sansTransactionId: payout.sansTransactionId,
+      payoutId: String(payout._id), providerTransactionId: payout.providerTransactionId,
     });
     return res.json({ success: true, status: "Payout approved" });
   }
@@ -907,7 +660,7 @@ async function handleStatusFlip(payout, status, rejectReason, res) {
     return res.json({ success: true, status: "Payout rejected" });
   }
 
-  // Unfamiliar status — ack so Sans doesn't retry, but log so we can iterate.
+  // Unfamiliar status — ack so Coinflux doesn't retry, but log so we can iterate.
   logger.info("affiliate.payout.callback.unknown_status", {
     payoutId: String(payout._id), status,
   });
@@ -928,7 +681,7 @@ async function handleSubStatusFlip(payout, status, rejectReason, res) {
     payout.paidAt = new Date();
     await payout.save();
     logger.info("sub_payout.callback.approved", {
-      subPayoutId: String(payout._id), sansTransactionId: payout.sansTransactionId,
+      subPayoutId: String(payout._id), providerTransactionId: payout.providerTransactionId,
     });
     return res.json({ success: true, status: "Sub-payout approved" });
   }
@@ -1131,8 +884,6 @@ exports.updateSettings = async (req, res) => {
   }
 };
 
-// Pure Sans-withdraw helper, exposed for the affiliate-portal controller
-// which uses the same merchant flow to settle sub-affiliate payouts.
-exports.executeSansWithdraw = executeSansWithdraw;
+// Pure withdraw helper, exposed for the affiliate-portal controller which
+// uses the same rail to settle sub-affiliate payouts.
 exports.executeCoinfluxWithdraw = executeCoinfluxWithdraw;
-exports.PAYOUT_PROVIDER = PAYOUT_PROVIDER;

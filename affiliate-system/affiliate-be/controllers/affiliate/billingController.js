@@ -35,31 +35,10 @@ async function fetchFxToUsd(currency) {
   return { value, date: doc.exchange_rate_date || null };
 }
 
-// Sans Getirsin payment gateway — mirrors the player-side dance:
-//   1) POST /payment/json   { username, apiKey, additionalData }  → { token }
-//   2) GET  /payment/deposit?amount=X   (Bearer token)            → wallet list
-//   3) POST /payment/deposit { bankAccount, amount, extraData }   → transactionId
-// The token is per-session (20 min upstream) so we cache it in-process per
-// operator. Redis would be better for multi-instance deploys but the
-// affiliate-be currently runs single-PM2-fork with Redis disabled.
-// Sans's prod host is merchant-specific (the subdomain is per-account).
-// Always set BILLING_PROVIDER_URL via env in deployed configs; the literal
-// here is the placeholder used in playlike/pixupplay configs.
-const PROVIDER_BASE_URL    = process.env.BILLING_PROVIDER_URL || "https://api-kev9ubrxgt3p9i4a.sansgetirsin.com";
-const PROVIDER_API_KEY     = process.env.BILLING_PROVIDER_API_KEY || "";
-const BILLING_CALLBACK_URL = process.env.BILLING_CALLBACK_URL || "http://localhost:4100/billing/sans/callback";
-
-const provider = axios.create({
-  baseURL: PROVIDER_BASE_URL + "/payment",
-  timeout: 30000,
-  headers: { "Content-Type": "application/json" },
-});
-
-// ── Coinflux provider (opt-in via BILLING_PROVIDER=coinflux) ──────────────────
-// Subscription payments as Coinflux manual-mode deposits: we ask Coinflux for a
+// ── Coinflux provider ─────────────────────────────────────────────────────────
+// Subscription payments are Coinflux manual-mode deposits: we ask Coinflux for a
 // receive address (from the operator's own wallet pool), show it, and the
 // deposit.credited webhook (once the payment is approved) activates the plan.
-const BILLING_PROVIDER   = (process.env.BILLING_PROVIDER || "sans").toLowerCase();
 const COINFLUX_API_URL   = process.env.COINFLUX_API_URL || "https://api.coinflux.cash";
 const COINFLUX_API_KEY   = process.env.COINFLUX_API_KEY || "";
 const coinflux = axios.create({
@@ -81,69 +60,6 @@ async function coinfluxCreateDeposit({ operatorId, amount, referenceId }) {
     throw e;
   }
   return { depositId: r.data.depositId, address: r.data.address };
-}
-
-// In-memory session-token cache: operatorId → { token, expiresAt }. TTL
-// padded to 18 min so we don't hand out a token that's about to expire
-// on the upstream's 20-min window.
-const TOKEN_TTL_MS = 18 * 60 * 1000;
-const sansTokens = new Map();
-
-async function getSansToken(operatorId, operatorUser) {
-  const key = String(operatorId);
-  const cached = sansTokens.get(key);
-  if (cached && cached.expiresAt > Date.now()) return cached.token;
-
-  if (!PROVIDER_API_KEY) {
-    throw new Error("BILLING_PROVIDER_API_KEY not configured");
-  }
-
-  // Mirrors the player-side payload — Sans 400s when additionalData is
-  // missing userId / maxWithdrawLimit / paymentMethod. paymentMethod = 1 is
-  // the default the player flow uses; if Sans rejects, the response body
-  // is now logged so we can iterate without guessing.
-  const body = {
-    username: operatorUser?.email || String(operatorId),
-    apiKey: PROVIDER_API_KEY,
-    additionalData: {
-      userId: String(operatorId),
-      maxWithdrawLimit: 6000.0,
-      // 9 = crypto / USDT for our merchant. Sans accepts 1..22 (codes are
-      // merchant-config-driven); probe showed 1/2/3 return zero wallets,
-      // 9 returns the USDT-TRC20 receiver. Override via env when the right
-      // value differs per environment.
-      paymentMethod: Number(process.env.BILLING_PAYMENT_METHOD) || 9,
-    },
-  };
-  const resp = await provider.post("/json", body, {
-    validateStatus: () => true,
-  });
-  if (resp.status < 200 || resp.status >= 300) {
-    logger.error("billing.sans.token.failed", {
-      operatorId: key,
-      status: resp.status,
-      body: resp.data,
-      requestPreview: {
-        username: body.username,
-        additionalData: body.additionalData,
-      },
-    });
-    const err = new Error(
-      resp.data?.error ||
-        resp.data?.message ||
-        `Sans /payment/json failed with ${resp.status}`,
-    );
-    err.status = resp.status === 401 ? 401 : 502;
-    err.upstream = resp.data;
-    throw err;
-  }
-  const token = resp.data?.data?.token || resp.data?.token;
-  if (!token) {
-    logger.error("billing.sans.token.no_token", { operatorId: key, body: resp.data });
-    throw new Error("Sans /payment/json returned no token");
-  }
-  sansTokens.set(key, { token, expiresAt: Date.now() + TOKEN_TTL_MS });
-  return token;
 }
 
 // Net price for a plan after an optional discount code (same rules as the
@@ -201,7 +117,7 @@ async function resolvePlanAmount({ plan, discountCode }) {
       err.status = 503;
       throw err;
     }
-    // Whole-dollar rounding keeps the Sans payment amount integer-friendly.
+    // Whole-dollar rounding keeps the deposit amount integer-friendly.
     const amount = Math.round((codeDoc.priceAmountCents / 100) * fx.value);
     return {
       planPrice,
@@ -261,10 +177,9 @@ const billingController = {
   },
 
   // POST /billing/wallets — body { plan, discountCode? }
-  // Step 1 of the Sans flow: open a session token for this operator and
-  // return the list of receiving wallets Sans will accept for the net
-  // amount. The FE renders these as a picker; the operator's choice is
-  // posted back to /billing/pay.
+  // Step 1 of the checkout: open a Coinflux deposit for the net amount and
+  // return its receive address. The FE renders the (single-entry) list as a
+  // picker; the operator's choice is posted back to /billing/pay.
   listWallets: async (req, res) => {
     try {
       const user = req.affiliateUser;
@@ -277,93 +192,21 @@ const billingController = {
           discountCode: req.body.discountCode,
         });
 
-      // Coinflux: open a deposit and surface its address as the single wallet.
-      if (BILLING_PROVIDER === "coinflux") {
-        const referenceId = `affiliar_${user.operatorId}_${Date.now()}`;
-        const { depositId, address } = await coinfluxCreateDeposit({
-          operatorId: user.operatorId, amount, referenceId,
-        });
-        return res.json({
-          amount, planPrice, discountUsd, discountCode: resolvedCode,
-          wallets: [{
-            id: depositId,               // used as walletId in initPayment
-            cryptoCurrency: "USDT",
-            network: "TRC20",
-            address,
-            label: "USDT · TRC20",
-            logo: "",
-          }],
-        });
-      }
-
-      const token = await getSansToken(user.operatorId, user);
-      const listResp = await provider.get("/deposit", {
-        params: { amount },
-        headers: { Authorization: `Bearer ${token}` },
-        validateStatus: () => true,
+      // Open a deposit and surface its address as the single wallet.
+      const referenceId = `affiliar_${user.operatorId}_${Date.now()}`;
+      const { depositId, address } = await coinfluxCreateDeposit({
+        operatorId: user.operatorId, amount, referenceId,
       });
-      if (listResp.status < 200 || listResp.status >= 300) {
-        logger.error("billing.sans.list_wallets.failed", {
-          operatorId: String(user.operatorId),
-          status: listResp.status,
-          body: listResp.data,
-        });
-        return res.status(502).json({
-          error: listResp.data?.error || listResp.data?.message ||
-                 "Failed to fetch wallets from provider",
-        });
-      }
-
-      // Sans returns nested wallets:
-      //   [{ _id, name, logo, accounts: [{ _id, fields: [{name,value}] }] }]
-      // The operator actually picks one *account* (a specific deposit
-      // address on a chain), not the wallet group, so flatten to one item
-      // per account. Each account's `fields` is a free-form key/value list
-      // ("Wallet", "Chain", "Address", "Network" — varies). Read case-
-      // insensitively and accept a few synonyms.
-      const d = listResp.data;
-      const raw =
-        (Array.isArray(d?.data) && d.data) ||
-        (Array.isArray(d?.data?.wallets) && d.data.wallets) ||
-        (Array.isArray(d?.data?.data) && d.data.data) ||
-        (Array.isArray(d?.wallets) && d.wallets) ||
-        (Array.isArray(d) && d) ||
-        [];
-
-      const wallets = [];
-      for (const w of raw) {
-        const accounts = Array.isArray(w?.accounts) ? w.accounts : [];
-        for (const acc of accounts) {
-          const f = {};
-          for (const kv of acc?.fields || []) {
-            if (kv?.name != null) f[String(kv.name).toLowerCase()] = kv.value;
-          }
-          const network = f.chain || f.network || "";
-          const address = f.wallet || f.address || "";
-          wallets.push({
-            id:             String(acc?._id || ""),
-            cryptoCurrency: w?.name || "",
-            network,
-            address,
-            label:          [w?.name, network].filter(Boolean).join(" · "),
-            logo:           w?.logo || "",
-          });
-        }
-      }
-
-      if (wallets.length === 0) {
-        logger.warn("billing.sans.list_wallets.empty", {
-          operatorId: String(user.operatorId),
-          amount,
-          status: listResp.status,
-          body_preview: JSON.stringify(d ?? null).slice(0, 800),
-        });
-      }
-
       return res.json({
-        amount, planPrice, discountUsd,
-        discountCode: resolvedCode,
-        wallets,
+        amount, planPrice, discountUsd, discountCode: resolvedCode,
+        wallets: [{
+          id: depositId,               // used as walletId in initPayment
+          cryptoCurrency: "USDT",
+          network: "TRC20",
+          address,
+          label: "USDT · TRC20",
+          logo: "",
+        }],
       });
     } catch (err) {
       return res.status(err.status || 500).json({ error: err.message });
@@ -371,10 +214,9 @@ const billingController = {
   },
 
   // POST /billing/pay — body { plan, walletId, cryptoCurrency?, network?, address?, discountCode? }
-  // Step 2 of the Sans flow: with the wallet the operator picked, ask Sans
-  // to create a deposit session and store our BillingTransaction keyed on
-  // its transactionId. The callback (/billing/sans/callback) finalizes the
-  // status when Sans confirms the payment.
+  // Step 2 of the checkout: record the BillingTransaction against the deposit
+  // opened in step 1. The callback (/billing/coinflux/callback) finalizes the
+  // status when Coinflux credits the deposit.
   initPayment: async (req, res) => {
     try {
       const user = req.affiliateUser;
@@ -392,84 +234,9 @@ const billingController = {
 
       const referenceId = `affiliar_${user.operatorId}_${Date.now()}`;
 
-      // Coinflux: the deposit was already opened in listWallets; walletId IS the
-      // Coinflux depositId. Just record the BillingTransaction keyed on it — the
+      // The deposit was already opened in listWallets; walletId IS the Coinflux
+      // depositId. Just record the BillingTransaction keyed on it — the
       // deposit.credited webhook activates the plan once the payment is approved.
-      if (BILLING_PROVIDER === "coinflux") {
-        const transaction = await BillingTransaction.create({
-          operatorId:     user.operatorId,
-          operatorUser:   user._id,
-          plan,
-          amountUsd:      amount,
-          discountCode:   resolvedCode,
-          discountUsd,
-          discountFx:     discountFx || undefined,
-          providerTxId:   String(walletId),        // = Coinflux depositId
-          referenceId,
-          walletId:       String(walletId),
-          cryptoCurrency: cryptoCurrency || "USDT",
-          network:        network || "TRC20",
-          address:        address || "",
-          status:         "pending",
-        });
-        if (resolvedCode) {
-          await Operator.updateOne({ _id: user.operatorId }, { $set: { activeDiscountCode: resolvedCode } });
-        }
-        return res.json({ transaction, address: transaction.address });
-      }
-
-      const token = await getSansToken(user.operatorId, user);
-
-      const providerReq = {
-        bankAccount: walletId,
-        amount,
-        extraData: {
-          service: "affiliar",
-          plan,
-          operatorId: String(user.operatorId),
-          operatorUser: String(user._id),
-          referenceId,
-          callbackUrl: BILLING_CALLBACK_URL,
-          cryptoCurrency: cryptoCurrency || null,
-          network: network || null,
-        },
-      };
-
-      const providerResp = await provider.post("/deposit", providerReq, {
-        headers: { Authorization: `Bearer ${token}` },
-        validateStatus: () => true,
-      });
-      if (
-        providerResp.status < 200 ||
-        providerResp.status >= 300 ||
-        providerResp.data?.error
-      ) {
-        // Session expired? Clear the cached token so the next call refreshes.
-        if (providerResp.status === 401) sansTokens.delete(String(user.operatorId));
-        logger.error("billing.sans.deposit.failed", {
-          operatorId: String(user.operatorId),
-          status: providerResp.status,
-          body: providerResp.data,
-        });
-        return res.status(providerResp.status === 401 ? 400 : 502).json({
-          error: providerResp.data?.error || providerResp.data?.message ||
-                 "Deposit declined by provider",
-          ...(providerResp.status === 401 && { errorCode: "SANS_SESSION_EXPIRED" }),
-        });
-      }
-
-      const externalId =
-        providerResp.data?.data?.transactionId ||
-        providerResp.data?.transactionId ||
-        providerResp.data?.id || "";
-      if (!externalId) {
-        logger.error("billing.sans.deposit.no_tx_id", {
-          operatorId: String(user.operatorId),
-          body: providerResp.data,
-        });
-        return res.status(502).json({ error: "Provider did not return a transactionId" });
-      }
-
       const transaction = await BillingTransaction.create({
         operatorId:     user.operatorId,
         operatorUser:   user._id,
@@ -478,176 +245,21 @@ const billingController = {
         discountCode:   resolvedCode,
         discountUsd,
         discountFx:     discountFx || undefined,
-        providerTxId:   externalId,
+        providerTxId:   String(walletId),        // = Coinflux depositId
         referenceId,
-        walletId,
-        cryptoCurrency: cryptoCurrency || "",
-        network:        network || "",
-        address:        address || providerResp.data?.data?.address || "",
-        paymentUrl:     providerResp.data?.data?.paymentUrl || "",
-        qrCode:         providerResp.data?.data?.qrCode || "",
+        walletId:       String(walletId),
+        cryptoCurrency: cryptoCurrency || "USDT",
+        network:        network || "TRC20",
+        address:        address || "",
         status:         "pending",
       });
-
-      // Sticky for the next cycle's pre-fill. Cleared on the day the deal
-      // ends (manual operation, or by an admin endpoint we can add later).
+      // Sticky for the next cycle's pre-fill.
       if (resolvedCode) {
-        await Operator.updateOne(
-          { _id: user.operatorId },
-          { $set: { activeDiscountCode: resolvedCode } },
-        );
+        await Operator.updateOne({ _id: user.operatorId }, { $set: { activeDiscountCode: resolvedCode } });
       }
-
-      return res.json({
-        transaction,
-        paymentUrl: transaction.paymentUrl,
-        qrCode:     transaction.qrCode,
-        address:    transaction.address,
-      });
+      return res.json({ transaction, address: transaction.address });
     } catch (err) {
       return res.status(err.status || 500).json({ error: err.message });
-    }
-  },
-
-  // Sans Getirsin webhook handler. Mirrors the player-side dispatch in
-  //   new-pixup/player-system/.../transactionsRoute.js  POST /player/transactions/sans/callback
-  // so the same upstream payloads work here.
-  //
-  // Sans posts: { action, type?, transactionId, status, amount?,
-  //               rejectReason?, extraData?, ... }
-  //   - action: "TRANSACTION_STATUS_CHANGE" | "CHANGED_TRANSACTION_AMOUNT" | …
-  //   - type:   "DEPOSIT" | "WITHDRAW"  (case-insensitive — discriminator)
-  //   - status: "APPROVED" | "REJECTED"   (case-sensitive on Sans's side)
-  //   - transactionId: Sans's own id (we stored it as providerTxId on create
-  //                    for deposits, or sansTransactionId for AffiliatePayout)
-  //
-  // Provider-namespaced (/billing/sans/callback) so future gateways (Stripe,
-  // etc.) can mount alongside without colliding. Single endpoint —
-  // discriminate on payload.type because Sans only supports one callback URL.
-  handleSansCallback: async (req, res) => {
-    const body = req.body || {};
-    const { action, type, transactionId, status, amount, rejectReason, extraData } = body;
-
-    if (!action || !transactionId) {
-      return res.status(400).json({
-        success: false,
-        message: "Missing required fields: action or transactionId",
-      });
-    }
-
-    // Withdraw callbacks land here too — branch before touching BillingTransaction
-    // (which is deposit-only). The handler lives on the payout controller so
-    // both halves of the Sans surface stay close to their respective ledgers.
-    if ((type || "").toString().toUpperCase() === "WITHDRAW") {
-      const payoutCtl = require("./affiliatePayoutController");
-      return payoutCtl.handleSansWithdrawCallback(req, res);
-    }
-
-    try {
-      const transaction = await BillingTransaction.findOne({
-        providerTxId: transactionId,
-      });
-      if (!transaction) {
-        return res.status(404).json({
-          success: false,
-          message: "Transaction not found",
-        });
-      }
-
-      // Idempotent: re-deliveries of the same callback don't re-flip state
-      // and (importantly) don't double-burn a discount redemption.
-      if (transaction.status === "paid") {
-        return res.json({ success: true, status: "Deposit already approved" });
-      }
-      if (transaction.status === "failed") {
-        return res.json({ success: true, status: "Deposit already rejected" });
-      }
-      if (transaction.status === "expired") {
-        return res.json({ success: true, status: "Transaction already expired" });
-      }
-
-      const knownAction =
-        action === "TRANSACTION_STATUS_CHANGE" ||
-        action === "CHANGED_TRANSACTION_AMOUNT";
-
-      if (!knownAction) {
-        logger.info("billing.sans.callback.unknown_action", {
-          transactionId, action, status,
-        });
-        return res.json({ success: true, status: "Ok" });
-      }
-
-      // Amount may have been corrected by the provider/back-office on the
-      // CHANGED_TRANSACTION_AMOUNT path. Record it so the receipt matches
-      // what was actually charged.
-      if (action === "CHANGED_TRANSACTION_AMOUNT" && amount != null) {
-        const n = Number(amount);
-        if (Number.isFinite(n) && n >= 0) transaction.amountUsd = n;
-      }
-
-      if (status === "APPROVED") {
-        transaction.status = "paid";
-        transaction.paidAt = new Date();
-        await transaction.save();
-
-        // Burn the discount only on confirmed payment — abandoned/rejected
-        // checkouts never reach this branch.
-        if (transaction.discountCode) {
-          await DiscountCode.updateOne(
-            { code: transaction.discountCode },
-            { $inc: { redemptionCount: 1 } },
-          );
-        }
-
-        // Roll the cycle forward by one calendar month, not 30 days, so the
-        // anniversary doesn't drift back ~5 days a year.
-        const now = new Date();
-        const next = new Date(now);
-        next.setMonth(next.getMonth() + 1);
-        // Payment also lifts a `suspended` operator back to `active` — the
-        // suspended-panel middleware reads billingStatus on every request,
-        // so the panel unlocks immediately. Clear pastDueAt so the next
-        // cycle starts with a clean overdue anchor.
-        await Operator.findByIdAndUpdate(transaction.operatorId, {
-          plan: transaction.plan,
-          billingStatus: "active",
-          billingCycle: now,
-          nextBillingDate: next,
-          pastDueAt: null,
-        });
-
-        logger.info("billing.sans.callback.approved", {
-          transactionId, plan: transaction.plan, amountUsd: transaction.amountUsd,
-        });
-        return res.json({ success: true, status: "Deposit approved" });
-      }
-
-      if (status === "REJECTED") {
-        transaction.status = "failed";
-        await transaction.save();
-        logger.info("billing.sans.callback.rejected", {
-          transactionId, rejectReason: rejectReason || null,
-        });
-        return res.json({ success: true, status: "Deposit rejected" });
-      }
-
-      // Known action but an unfamiliar status — ack and log so we can
-      // iterate without dropping callbacks.
-      logger.info("billing.sans.callback.unknown_status", {
-        transactionId, action, status,
-        extraData_preview: extraData ? JSON.stringify(extraData).slice(0, 200) : null,
-      });
-      return res.json({ success: true, status: "Ok" });
-    } catch (err) {
-      logger.error("billing.sans.callback.handler_err", {
-        transactionId, action, status,
-        error_message: err?.message,
-        error_stack: err?.stack,
-      });
-      return res.status(500).json({
-        success: false,
-        message: err?.message || "Internal error",
-      });
     }
   },
 
@@ -724,9 +336,7 @@ const billingController = {
 };
 
 module.exports = billingController;
-// Internals exposed for sibling controllers (affiliatePayoutController) that
-// need to drive the same Sans Getirsin merchant session — keeps the token
-// cache shared instead of duplicating /payment/json calls per controller.
+
 // Coinflux deposit webhook → activate (or fail) the subscription. Called from
 // the unified Coinflux callback in affiliatePayoutController when event starts
 // with "deposit.". Matches the BillingTransaction on providerTxId = depositId.
@@ -778,6 +388,4 @@ async function handleCoinfluxDeposit({ depositId, event, note }, res) {
   return res.json({ success: true, status: "Ok" });
 }
 
-module.exports.getSansToken = getSansToken;
-module.exports.sansProvider = provider;
 module.exports.handleCoinfluxDeposit = handleCoinfluxDeposit;

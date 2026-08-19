@@ -127,7 +127,7 @@ const userSchema = new mongoose.Schema(
     // ── Affiliate payout wallet ──────────────────────────────────────────────
     //
     // Only meaningful when role === "affiliate". The operator's payout flow
-    // dispatches USDT-TRC20 transfers via Sans Getirsin to this address.
+    // dispatches USDT-TRC20 transfers via Coinflux to this address.
     // Captured here (not on AffiliateProfile) so that any auth/identity layer
     // changes won't strand the wallet — payout is a fundamental account
     // property, like an email.

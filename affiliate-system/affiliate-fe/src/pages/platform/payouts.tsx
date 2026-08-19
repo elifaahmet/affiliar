@@ -13,7 +13,7 @@ interface PayoutRow {
   payoutNetwork: string;
   status: 'pending' | 'processing' | 'paid' | 'failed' | 'cancelled';
   failureReason: string | null;
-  sansTransactionId: string | null;
+  providerTransactionId: string | null;
   initiatedAt: string | null;
   dispatchedAt: string | null;
   paidAt: string | null;

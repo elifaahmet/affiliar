@@ -1093,7 +1093,7 @@ function ReportsTab() {
   });
 
   // Batch payout creation. Bundles each selected affiliate's approved
-  // reports into a `pending` AffiliatePayout (no Sans dispatch yet —
+  // reports into a `pending` AffiliatePayout (no dispatch yet —
   // operator confirms each one on the /payouts page).
   const { mutate: batchPay, isPending: batchPaying } = useBaseMutation({
     endpoint: AFFILIATE_PAYOUT_API_URLS.BATCH_CREATE(),
@@ -1161,7 +1161,7 @@ function ReportsTab() {
     if (selectedAffiliateIds.size === 0) return;
     const ok = window.confirm(
       `Send ${cents(selectedPayableCents)} to ${selectedAffiliateIds.size} affiliate` +
-      `${selectedAffiliateIds.size === 1 ? '' : 's'} via Sans Getirsin (USDT-TRC20) NOW?\n\n` +
+      `${selectedAffiliateIds.size === 1 ? '' : 's'} via Coinflux (USDT-TRC20) NOW?\n\n` +
       `Each affiliate's approved commissions will be bundled into one transfer to their wallet. ` +
       `This is a real money transfer and cannot be undone once confirmed.`,
     );
@@ -1260,7 +1260,7 @@ function ReportsTab() {
         }`}>
           <span>
             <span className='font-semibold'>{payResult.dispatched ?? payResult.created}</span>{' '}
-            of {payResult.created} payout{payResult.created === 1 ? '' : 's'} sent to Sans
+            of {payResult.created} payout{payResult.created === 1 ? '' : 's'} sent to Coinflux
           </span>
           {payResult.failed > 0 && (
             <span className='text-red-700'>

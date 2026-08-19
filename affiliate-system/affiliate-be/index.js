@@ -63,7 +63,6 @@ const publicAuthPaths = new Set([
   `${prefix}/auth/forgot-password`,
   `${prefix}/auth/reset-password`,
   `${prefix}/auth/dev-token`,
-  `${prefix}/billing/sans/callback`,
   `${prefix}/billing/coinflux/callback`,
 ]);
 

@@ -69,7 +69,7 @@ const operatorSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
-    // Affiliate payout policy. The operator pays affiliates via Sans
+    // Affiliate payout policy. The operator pays affiliates via Coinflux
     // Getirsin (USDT-TRC20); these settings shape what shows up on the
     // "Pending payouts" screen.
     //

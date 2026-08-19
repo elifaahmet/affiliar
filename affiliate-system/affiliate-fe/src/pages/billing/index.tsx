@@ -22,9 +22,9 @@ interface PayResponse {
   address: string;
 }
 
-// Shape of a Sans receiving wallet. The provider's response is best-effort
+// Shape of a receiving wallet. The provider's response is best-effort
 // flexible — we render any field that's there, no schema commitment.
-interface SansWallet {
+interface ProviderWallet {
   id?: string;
   walletId?: string;
   address?: string;
@@ -43,7 +43,7 @@ interface WalletsResponse {
   planPrice: number;
   discountUsd: number;
   discountCode: string;
-  wallets: SansWallet[];
+  wallets: ProviderWallet[];
 }
 
 interface DiscountResult {
@@ -317,9 +317,9 @@ export default function Billing() {
     setDiscountError(null);
   };
 
-  // Step 1: open the wallet picker. Asks the BE to fetch Sans's receiving
-  // wallets for the net amount of this plan. On success the picker modal
-  // takes over; the operator's choice triggers step 2.
+  // Step 1: open the wallet picker. Asks the BE to open a deposit for the
+  // net amount of this plan and return its receive address. On success the
+  // picker modal takes over; the operator's choice triggers step 2.
   const subscribe = (planKey: string) => {
     setPendingKey(planKey);
     setPickError(null);
@@ -393,10 +393,9 @@ export default function Billing() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, currentPlanKey]);
 
-  // Step 2: operator picked a wallet — actually open the deposit session
-  // and show the payment modal. SANS_SESSION_EXPIRED means the token timed
-  // out between list and pay; reopening the picker refreshes it.
-  const confirmWallet = (wallet: SansWallet) => {
+  // Step 2: operator picked a wallet — record the transaction against the
+  // deposit and show the payment modal.
+  const confirmWallet = (wallet: ProviderWallet) => {
     if (!pickerData) return;
     const walletId = String(wallet.id ?? wallet.walletId ?? '');
     if (!walletId) {
@@ -418,14 +417,10 @@ export default function Billing() {
           setPayData(data);
         },
         onError: (err: any) => {
-          if (err?.response?.data?.errorCode === 'SANS_SESSION_EXPIRED') {
-            setPickError('Session expired — close and click Subscribe again to refresh wallets.');
-          } else {
-            setPickError(
-              err?.response?.data?.error ??
-                'Could not start the payment — please try again.',
-            );
-          }
+          setPickError(
+            err?.response?.data?.error ??
+              'Could not start the payment — please try again.',
+          );
         },
       },
     );
@@ -682,7 +677,7 @@ function WalletPickerModal({
   data: WalletsResponse & { plan: string };
   submitting: boolean;
   error: string | null;
-  onPick: (w: SansWallet) => void;
+  onPick: (w: ProviderWallet) => void;
   onClose: () => void;
 }) {
   const [chosenIdx, setChosenIdx] = useState<number | null>(null);

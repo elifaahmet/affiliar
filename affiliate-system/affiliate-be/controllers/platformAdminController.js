@@ -1349,7 +1349,7 @@ exports.adminListPayouts = async (req, res) => {
         payoutNetwork: p.payoutNetwork,
         status: p.status,
         failureReason: p.failureReason,
-        sansTransactionId: p.sansTransactionId,
+        providerTransactionId: p.providerTransactionId,
         initiatedAt: p.initiatedAt,
         dispatchedAt: p.dispatchedAt,
         paidAt: p.paidAt,

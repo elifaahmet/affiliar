@@ -663,7 +663,7 @@ exports.listSubPayouts = async (req, res) => {
 // to the affiliate hierarchy).
 //
 // This is the *manual* path — out-of-band settlement (paid the sub by some
-// other means and just want to close the books). For a real Sans transfer
+// other means and just want to close the books). For a real transfer
 // use POST /sub-payouts/:id/dispatch.
 exports.markSubPayoutPaid = async (req, res) => {
   try {
@@ -698,7 +698,7 @@ exports.markSubPayoutPaid = async (req, res) => {
   }
 };
 
-// ── Payout balance + Sans dispatch (affiliate → sub) ─────────────────────────
+// ── Payout balance + payout dispatch (affiliate → sub) ─────────────────────────
 
 // GET /affiliate-portal/payout-balance
 // Returns the affiliate's internal commission ledger:
@@ -737,11 +737,11 @@ exports.getPayoutBalance = async (req, res) => {
 };
 
 // POST /affiliate-portal/sub-payouts/:payoutId/dispatch
-// Parent affiliate triggers a real USDT-TRC20 transfer to a child via the
-// operator's Sans merchant balance. The sub-affiliate's internal balance
-// debits by `payableCents`, but the *cash* originates from the operator's
-// Sans hesabı — operationally the operator's net to the parent is reduced
-// by anything already paid to the parent's subs (see listPending).
+// Parent affiliate triggers a real USDT-TRC20 transfer to a child through the
+// operator's Coinflux tenant. The sub-affiliate's internal balance debits by
+// `payableCents`, but the *cash* originates from the operator — operationally
+// the operator's net to the parent is reduced by anything already paid to the
+// parent's subs (see listPending).
 exports.dispatchSubPayout = async (req, res) => {
   try {
     const affiliate = req.affiliateUser;
@@ -771,7 +771,7 @@ exports.dispatchSubPayout = async (req, res) => {
       return res.status(409).json({ error: "sub_has_no_wallet" });
     }
 
-    // Balance gate — affiliate can't overdraft the operator's Sans by paying
+    // Balance gate — affiliate can't overdraft the operator's balance by paying
     // more to subs than their own commission warrants.
     const balance = await computeBalance({
       operatorId: payout.operatorId,
@@ -785,17 +785,6 @@ exports.dispatchSubPayout = async (req, res) => {
       });
     }
 
-    // Resolve an operator user under the same tenant so we can grab a Sans
-    // token through the cached getSansToken machinery.
-    const operatorUser = await User.findOne({
-      operatorId: payout.operatorId,
-      role: "operator",
-      isDeleted: false,
-    });
-    if (!operatorUser) {
-      return res.status(500).json({ error: "operator_user_not_found" });
-    }
-
     // Snapshot the sub's wallet onto the payout row before the network call —
     // if the sub edits their wallet later we still have the audit trail of
     // where the money went.
@@ -806,42 +795,29 @@ exports.dispatchSubPayout = async (req, res) => {
     payout.failureReason = null;
     await payout.save();
 
-    // Reach into the payout controller's provider helpers — shared with the
-    // operator → affiliate flow so the merchant integration stays in one place.
-    // Follows the same PAYOUT_PROVIDER switch; the Coinflux callback matches
-    // sub-payouts by reference = subPayoutId (SubAffiliatePayout.findById).
+    // Reach into the payout controller's provider helper — shared with the
+    // operator → affiliate flow so the integration stays in one place. The
+    // Coinflux callback matches sub-payouts by reference = subPayoutId
+    // (SubAffiliatePayout.findById).
     const payoutCtl = require("./affiliatePayoutController");
-    const result = payoutCtl.PAYOUT_PROVIDER === "coinflux"
-      ? await payoutCtl.executeCoinfluxWithdraw({
-          amountCents:   payout.payableCents,
-          payoutAddress: payout.payoutAddress,
-          payoutId:      String(payout._id),   // = reference echoed back in the webhook
-          affiliateId:   String(payout.subId),
-        })
-      : await payoutCtl.executeSansWithdraw({
-          operator: operatorUser,
-          amountCents:   payout.payableCents,
-          payoutAddress: payout.payoutAddress,
-          payoutNetwork: payout.payoutNetwork,
-          extraData: {
-            subPayoutId: String(payout._id),
-            parentId:    String(payout.parentId),
-            subId:       String(payout.subId),
-            operatorId:  String(payout.operatorId),
-          },
-        });
+    const result = await payoutCtl.executeCoinfluxWithdraw({
+      amountCents:   payout.payableCents,
+      payoutAddress: payout.payoutAddress,
+      payoutId:      String(payout._id),   // = reference echoed back in the webhook
+      affiliateId:   String(payout.subId),
+    });
 
-    if (result.sansRequestPayload) payout.sansRequestPayload = result.sansRequestPayload;
-    if (result.sansResponse)       payout.sansResponse       = result.sansResponse;
+    if (result.providerRequestPayload) payout.providerRequestPayload = result.providerRequestPayload;
+    if (result.providerResponse)       payout.providerResponse       = result.providerResponse;
 
     if (result.ok) {
       payout.status = "processing";
       payout.dispatchedAt = new Date();
-      payout.sansTransactionId = result.sansTransactionId;
+      payout.providerTransactionId = result.providerTransactionId;
       await payout.save();
       logger.info("sub_payout.dispatched", {
         subPayoutId: String(payout._id),
-        sansTransactionId: result.sansTransactionId,
+        providerTransactionId: result.providerTransactionId,
         amountCents: payout.payableCents,
       });
       return res.json({ payout: payout.toObject() });
@@ -870,7 +846,7 @@ exports.dispatchSubPayout = async (req, res) => {
 };
 
 // POST /affiliate-portal/sub-payouts/:payoutId/cancel
-// Cancel a pending sub-payout before Sans dispatch (typo on wallet, wrong
+// Cancel a pending sub-payout before dispatch (typo on wallet, wrong
 // sub, etc.). Once it's processing/paid/failed it's beyond rollback here.
 exports.cancelSubPayout = async (req, res) => {
   try {

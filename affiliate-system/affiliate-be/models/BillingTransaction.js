@@ -47,9 +47,9 @@ const billingTransactionSchema = new mongoose.Schema({
     type: String,
     default: "",
   },
-  // Sans `bankAccount` (one of the merchant's receiving wallets) the operator
-  // picked at checkout — together with cryptoCurrency/network these identify
-  // exactly where the operator was told to send the payment.
+  // The Coinflux deposit the operator was given at checkout — together with
+  // cryptoCurrency/network this identifies exactly where the operator was
+  // told to send the payment.
   walletId: {
     type: String,
     default: "",

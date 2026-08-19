@@ -77,10 +77,10 @@ const subAffiliatePayoutSchema = new mongoose.Schema(
     /**
      * draft       — calculated, not actioned. The affiliate's audit of
      *               "what I'll owe my subs this period".
-     * pending     — affiliate clicked Pay but Sans dispatch hasn't run yet.
-     * processing  — Sans accepted the withdrawal; awaiting webhook ack.
-     * paid        — Sans confirmed delivery (or operator manually marked).
-     * failed      — Sans rejected / on-chain failure. Affiliate can retry by
+     * pending     — affiliate clicked Pay but Coinflux dispatch hasn't run yet.
+     * processing  — Coinflux accepted the withdrawal; awaiting webhook ack.
+     * paid        — Coinflux confirmed delivery (or operator manually marked).
+     * failed      — Coinflux rejected / on-chain failure. Affiliate can retry by
      *               creating a fresh payout (this row stays for audit).
      * cancelled   — affiliate cancelled a pending payout before dispatch.
      */
@@ -91,9 +91,9 @@ const subAffiliatePayoutSchema = new mongoose.Schema(
       index: true,
     },
 
-    // ── Sans transfer metadata ────────────────────────────────────────────
+    // ── Coinflux transfer metadata ────────────────────────────────────────────
     //
-    // Sub-affiliate payouts dispatch via the *operator's* Sans merchant
+    // Sub-affiliate payouts dispatch via the *operator's* Coinflux merchant
     // account (sub-affiliates aren't merchants themselves). The platform
     // tracks accounting: the affiliate's internal balance debits by this
     // amount, and the operator's eventual net payout to the affiliate is
@@ -101,9 +101,9 @@ const subAffiliatePayoutSchema = new mongoose.Schema(
     // never funds the same dollar twice.
     payoutAddress: { type: String, default: null }, // sub's TRC20 wallet at dispatch
     payoutNetwork: { type: String, enum: ["TRC20"], default: "TRC20" },
-    sansTransactionId:   { type: String, default: null, index: true },
-    sansRequestPayload:  { type: mongoose.Schema.Types.Mixed, default: null },
-    sansResponse:        { type: mongoose.Schema.Types.Mixed, default: null },
+    providerTransactionId:   { type: String, default: null, index: true },
+    providerRequestPayload:  { type: mongoose.Schema.Types.Mixed, default: null },
+    providerResponse:        { type: mongoose.Schema.Types.Mixed, default: null },
 
     calculatedAt:  { type: Date, default: null },
     initiatedAt:   { type: Date, default: null },

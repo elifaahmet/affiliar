@@ -10,7 +10,7 @@
  *     paidToMe               = sum of AffiliatePayout sent to *me* (the
  *                              affiliate) — pending + processing + paid all
  *                              count, because pending/processing already
- *                              earmark operator's Sans balance
+ *                              earmark operator's Coinflux balance
  *     paidToMySubs           = sum of SubAffiliatePayout I (parent) have
  *                              committed to my children — same rule: any
  *                              row that isn't draft/failed/cancelled is
@@ -33,7 +33,7 @@ const CommissionReport  = require("../models/CommissionReport");
 const AffiliatePayout   = require("../models/AffiliatePayout");
 const SubAffiliatePayout = require("../models/SubAffiliatePayout");
 
-// Statuses where the cash is already reserved against the operator's Sans
+// Statuses where the cash is already reserved against the operator's Coinflux
 // balance. draft (sub-payouts only), failed, and cancelled never lock
 // funds.
 const RESERVED_AFFILIATE_PAYOUT_STATUSES = ["pending", "processing", "paid"];

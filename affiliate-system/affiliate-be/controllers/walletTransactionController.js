@@ -283,22 +283,6 @@ exports.getAllTransactionsWithCasinoByWalletId = async (req, res) => {
       if (paymentSystemNormalized === "by admin") {
         depositQuery.paymentType = "Offline";
         withdrawalQuery.paymentType = "Offline";
-      } else if (
-        paymentSystemNormalized === "sans getirsin" ||
-        paymentSystemNormalized === "sans-getirsin"
-      ) {
-        const providerRegex = new RegExp(
-          `^(${escapeRegExp(titleCase)}|Payzeasy)$`,
-          "i",
-        );
-        depositQuery.$or = [
-          { provider: providerRegex },
-          { paymentType: "Offline" },
-        ];
-        withdrawalQuery.$or = [
-          { provider: providerRegex },
-          { paymentType: "Offline" },
-        ];
       } else {
         const providerRegex = new RegExp(`^${escapeRegExp(titleCase)}$`, "i");
         depositQuery.provider = providerRegex;
