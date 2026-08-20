@@ -1,4 +1,5 @@
 import { consumer } from './kafka.js';
+import { config } from './config.js';
 import { parseRawEvent } from './schema.js';
 import { addEvent } from './clickhouse.js';
 import {
@@ -61,7 +62,7 @@ async function maybeEnqueuePostback(event, data, affiliateId) {
   }
 }
 
-async function processMessage(rawValue) {
+async function processMessage(rawValue, topic) {
   let parsed;
   try {
     parsed = JSON.parse(rawValue);
@@ -73,6 +74,22 @@ async function processMessage(rawValue) {
   const { success, event, data, error } = parseRawEvent(parsed);
   if (!success) {
     console.error('[consumer] Validation failed:', error, '| eventId:', parsed?.eventId);
+    return;
+  }
+
+  // On a tenant-scoped topic the broker already authenticated who may write
+  // there, so the topic outranks the payload. A mismatch is either a producer
+  // deployed with the wrong AFFILIATE_TENANT_ID or one claiming somebody
+  // else's tenant; neither should be counted, and both need to be loud —
+  // silently attributing an operator's deposits to a competitor is the kind
+  // of error nobody notices until the commission run.
+  const expectedTenant = config.kafka.topicTenants.get(topic);
+  if (expectedTenant && event.tenantId !== expectedTenant) {
+    console.error(
+      '[consumer] Tenant mismatch, event dropped |',
+      `topic: ${topic} | expected tenantId: ${expectedTenant} |`,
+      `event tenantId: ${event.tenantId} | eventId: ${event.eventId}`,
+    );
     return;
   }
 
@@ -127,10 +144,10 @@ async function processMessage(rawValue) {
 
 export async function startConsuming() {
   await consumer.run({
-    eachMessage: async ({ message }) => {
+    eachMessage: async ({ topic, message }) => {
       const rawValue = message.value?.toString();
       if (!rawValue) return;
-      await processMessage(rawValue);
+      await processMessage(rawValue, topic);
     },
   });
   console.log('[consumer] Listening for raw events...');
