@@ -1,4 +1,4 @@
-CREATE DATABASE IF NOT EXISTS affiliar;
+CREATE DATABASE IF NOT EXISTS affiliate;
 
 -- activity_hourly: canonical reporting table for aggregated casino activity events.
 -- One row per tenant + brand + player + currency + period.
@@ -6,7 +6,7 @@ CREATE DATABASE IF NOT EXISTS affiliar;
 -- ReplacingMergeTree deduplicates by (tenant_id, brand_id, from_ts, to_ts, player_id, currency)
 -- on merge — source_event_id is the version column (latest wins).
 
-CREATE TABLE IF NOT EXISTS affiliar.activity_hourly
+CREATE TABLE IF NOT EXISTS affiliate.activity_hourly
 (
     -- Identity
     source_event_id             String,
@@ -25,8 +25,8 @@ CREATE TABLE IF NOT EXISTS affiliar.activity_hourly
     country                     LowCardinality(String),
 
     -- Affiliate
-    affiliar_id                String,
-    affiliar_code              String,
+    affiliate_id                String,
+    affiliate_code              String,
     campaign                    String,
     sub_id                      String,
 
@@ -63,6 +63,12 @@ CREATE TABLE IF NOT EXISTS affiliar.activity_hourly
     rounds_count    UInt32,
     wager_cents     UInt64,
 
+    -- Never written by this consumer; present so the activity view's UNION ALL
+    -- matches the delta branch, which does carry them.
+    provider                    LowCardinality(String) DEFAULT '',
+    corrections_up_sum_cents    Int64 DEFAULT 0,
+    corrections_down_sum_cents  Int64 DEFAULT 0,
+
     -- Derived metrics (server-computed)
     casino_ggr_cents    Int64,
     casino_ngr_cents    Int64,
@@ -82,9 +88,9 @@ CREATE TABLE IF NOT EXISTS affiliar.activity_hourly
     source_trace_id     String,
     source_produced_at  DateTime64(0, 'UTC'),
 
-    INDEX idx_affiliar_id  affiliar_id    TYPE bloom_filter(0.01) GRANULARITY 8,
+    INDEX idx_affiliate_id  affiliate_id    TYPE bloom_filter(0.01) GRANULARITY 8,
     INDEX idx_player_id     player_id       TYPE bloom_filter(0.01) GRANULARITY 8,
-    INDEX idx_affiliar_code affiliar_code TYPE bloom_filter(0.01) GRANULARITY 8,
+    INDEX idx_affiliate_code affiliate_code TYPE bloom_filter(0.01) GRANULARITY 8,
     INDEX idx_campaign      campaign        TYPE bloom_filter(0.01) GRANULARITY 8
 )
 ENGINE = ReplacingMergeTree(source_produced_at)
