@@ -35,15 +35,18 @@ export async function connectMongo() {
   affiliatePlayersCol = affiliateDb.collection('affiliateplayers');
   _affiliateDb = affiliateDb;
 
-  hexoraClient = new MongoClient(config.hexoraMongo.uri, {
-    directConnection: true,
-  });
-  await hexoraClient.connect();
-  const hexoraDb = hexoraClient.db(config.hexoraMongo.database);
-  playersCol = hexoraDb.collection('players');
-  // Cache the db on the module so other files (fxRates) can reuse the
-  // connection without opening a second client.
-  _hexoraDb = hexoraDb;
+  // Optional: see config.hexoraMongo. Without it playersCol stays undefined
+  // and resolvePlayerAffiliate()'s back-fill branch already returns '' on its
+  // own guard, so the consumer runs on our own registry alone.
+  if (config.hexoraMongo.uri && config.hexoraMongo.database) {
+    hexoraClient = new MongoClient(config.hexoraMongo.uri, {
+      directConnection: true,
+    });
+    await hexoraClient.connect();
+    const hexoraDb = hexoraClient.db(config.hexoraMongo.database);
+    playersCol = hexoraDb.collection('players');
+    _hexoraDb = hexoraDb;
+  }
 
   await refreshCache();
   refreshTimer = setInterval(() => {
@@ -52,7 +55,8 @@ export async function connectMongo() {
     );
   }, config.mongo.refreshMs);
   console.log(
-    `[resolver] Connected (affiliate + hexora), ${codeToUserId.size} codes cached`,
+    `[resolver] Connected (affiliate${playersCol ? ' + platform back-fill' : ', no back-fill'}), ` +
+      `${codeToUserId.size} codes cached`,
   );
 }
 

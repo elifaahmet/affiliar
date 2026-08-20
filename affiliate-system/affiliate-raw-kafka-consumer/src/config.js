@@ -31,9 +31,20 @@ export const config = {
     database: requireEnv('MONGODB_DATABASE'),
     refreshMs: parseInt(optionalEnv('AFFILIATE_CACHE_REFRESH_MS', '60000'), 10),
   },
+  // Optional back-fill only. This is a second platform's production database,
+  // and reaching into it is not how attribution is meant to work: the
+  // registration event carries affiliateCode, and upsertAffiliatePlayer()
+  // records it in our own affiliateplayers collection, which is the path
+  // resolvePlayerAffiliate() takes first. The lookup here only ever covered
+  // players who registered before Affiliar was integrated.
+  //
+  // Left unset, the back-fill is skipped and those players resolve to no
+  // affiliate — the same answer we would give if the platform were
+  // unreachable, except the consumer keeps running instead of refusing to
+  // start. Requiring it meant losing that platform took this pipeline with it.
   hexoraMongo: {
-    uri: requireEnv('HEXORA_MONGODB_URI'),
-    database: requireEnv('HEXORA_MONGODB_DATABASE'),
+    uri: optionalEnv('HEXORA_MONGODB_URI', ''),
+    database: optionalEnv('HEXORA_MONGODB_DATABASE', ''),
   },
   playerCache: {
     maxSize: parseInt(optionalEnv('PLAYER_CACHE_MAX_SIZE', '10000'), 10),
