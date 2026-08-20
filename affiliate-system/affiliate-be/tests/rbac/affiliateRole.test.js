@@ -2,11 +2,15 @@ const { test, beforeEach, afterEach } = require("node:test");
 const assert = require("node:assert/strict");
 const jwt = require("jsonwebtoken");
 
+// Set before requiring the middleware: utils/jwtSecret reads JWT_SECRET at
+// require time and throws when it is missing, which is what stops the app
+// booting without a real key in production.
+const SECRET_KEY = process.env.JWT_SECRET || "a".repeat(64);
+process.env.JWT_SECRET = SECRET_KEY;
+
 const authorize = require("../../middlewares/auth");
 const AffiliateUser = require("../../models/AffiliateUser");
 const Role = require("../../models/Role");
-
-const SECRET_KEY = "your_secret_key";
 
 const affiliateRole = {
   roleName: "affiliate",

@@ -30,7 +30,7 @@ const findUserById = async (id) => {
 };
 const { PASSWORD_REGEX } = require("../utils/constants");
 const { MSG } = require("../middlewares/log-messages");
-const SECRET_KEY = "your_secret_key";
+const { SECRET_KEY } = require("../utils/jwtSecret");
 const { logger } = require("../middlewares/logger");
 
 const DEFAULT_BRAND_NAME = "Pixupplay";

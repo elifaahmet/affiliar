@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
-const SECRET_KEY = "your_secret_key";
+const { SECRET_KEY } = require("../utils/jwtSecret");
 
 const authorize = (requiredPermissions = []) => {
   return async (req, res, next) => {
