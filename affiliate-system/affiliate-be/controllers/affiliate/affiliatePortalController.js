@@ -1291,6 +1291,39 @@ exports.generateReferralCode = async (req, res) => {
 // operator will dispatch payouts to. Kept separate from /profile so the form
 // state, error handling, and re-fetch cadence can live on its own component.
 
+// GET /api/affiliate-portal/account-status
+//
+// Always reachable — `billingGate` lets this through even while the operator
+// is suspended, because it is what tells the affiliate's UI *why* everything
+// else is returning 402. Without it the panel could only show a bare error
+// and the affiliate would blame us rather than their operator.
+exports.getAccountStatus = async (req, res) => {
+  try {
+    const user = req.affiliateUser;
+    // Affiliates only, so the portal's suspended screen hides itself for
+    // every other role the same way BillingBanner does.
+    if (user.role !== "affiliate") {
+      return res.status(403).json({ error: "Affiliates only" });
+    }
+    const operator = await Operator.findById(user.operatorId)
+      .select({ billingStatus: 1, lifetimeFree: 1, name: 1 })
+      .lean();
+
+    const suspended =
+      !!operator && !operator.lifetimeFree && operator.billingStatus === "suspended";
+
+    return res.json({
+      operatorName:      operator?.name || null,
+      operatorSuspended: suspended,
+      // Affiliates keep these while suspended; the UI uses the flag to decide
+      // what it is still allowed to render.
+      earningsVisible:   true,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // GET /api/affiliate-portal/payout-info
 exports.getPayoutInfo = async (req, res) => {
   try {

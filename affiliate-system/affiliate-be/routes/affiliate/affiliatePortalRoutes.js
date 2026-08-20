@@ -7,6 +7,10 @@ const creativeCtrl   = require("../../controllers/affiliate/creativeController")
 const { recalculateSubtreePayouts } = require("../../controllers/affiliate/commissionController");
 const { checkApiAccess } = require("../../middlewares/planGuard");
 
+// Always reachable, even while the operator is suspended — it is what
+// tells the portal why the rest of the panel is returning 402.
+router.get("/account-status",      ctrl.getAccountStatus);
+
 router.get("/overview",            ctrl.overview);
 router.get("/providers",           ctrl.providers);
 router.get("/commission",          ctrl.commissionReports);

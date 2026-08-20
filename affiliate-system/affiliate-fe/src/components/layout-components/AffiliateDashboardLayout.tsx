@@ -21,6 +21,7 @@ import { storageHelper } from 'utils/storage/StorageHelper';
 import UserProfile from './UserProfile';
 import NotificationBell from './NotificationBell';
 import AffiliarAgent from './AffiliarAgent';
+import AffiliateSuspendedGate from '@components/core-components/AffiliateSuspendedGate';
 
 type IconComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>;
 
@@ -99,61 +100,63 @@ export default function AffiliateDashboardLayout({ children }: { children: React
     );
 
   return (
-    <div
-      className='flex h-screen w-full overflow-hidden'
-      style={{
-        backgroundImage: `
-          radial-gradient(60% 50% at 0% 0%, rgba(139, 92, 246, 0.10) 0%, rgba(139, 92, 246, 0) 60%),
-          radial-gradient(50% 40% at 100% 100%, rgba(124, 58, 237, 0.06) 0%, rgba(124, 58, 237, 0) 60%),
-          linear-gradient(180deg, #fafaff 0%, #ffffff 100%)
-        `,
-      }}
-    >
+    <AffiliateSuspendedGate>
       <div
-        ref={sidebarRef}
-        onMouseEnter={onEnter}
-        onMouseLeave={onLeave}
-        className={sidebarCls}
-        role='navigation'
+        className='flex h-screen w-full overflow-hidden'
+        style={{
+          backgroundImage: `
+            radial-gradient(60% 50% at 0% 0%, rgba(139, 92, 246, 0.10) 0%, rgba(139, 92, 246, 0) 60%),
+            radial-gradient(50% 40% at 100% 100%, rgba(124, 58, 237, 0.06) 0%, rgba(124, 58, 237, 0) 60%),
+            linear-gradient(180deg, #fafaff 0%, #ffffff 100%)
+          `,
+        }}
       >
-        <div className='mb-8 flex h-9 items-center px-1'>
-          {collapsed ? (
-            <Icon iconName='affiliarMark' className='shrink-0' svgProps={{ width: 36, height: 36 }} />
-          ) : (
-            <Icon iconName='affiliarDark' className='shrink-0' svgProps={{ width: 130, height: 28 }} />
-          )}
-        </div>
-
-        <nav className='flex flex-1 flex-col'>
-          <ul className='space-y-1'>
-            {NAV.map(({ key, label, href, Icon: NavIcon }) => {
-              const current = pathname.startsWith(href);
-              return (
-                <li key={key}>
-                  <Link to={href} className={linkCls(current)}>
-                    <NavIcon className='h-5 w-5 shrink-0 stroke-[1.6]' aria-hidden='true' />
-                    {!collapsed && <span className='truncate'>{label}</span>}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-      </div>
-
-      <div className='flex-grow flex flex-col relative ml-[78px] overflow-y-auto'>
-        <div className='fixed top-0 right-0 left-[78px] z-10 flex h-[60px] items-center justify-between border-b border-violet-100 bg-white/70 pl-8 backdrop-blur-md'>
-          <p className='text-sm font-semibold text-gray-700'>
-            {NAV.find((n) => pathname.startsWith(n.href))?.label ?? 'Affiliate Panel'}
-          </p>
-          <div className='flex items-center gap-3 pr-8'>
-            <NotificationBell />
-            <UserProfile />
+        <div
+          ref={sidebarRef}
+          onMouseEnter={onEnter}
+          onMouseLeave={onLeave}
+          className={sidebarCls}
+          role='navigation'
+        >
+          <div className='mb-8 flex h-9 items-center px-1'>
+            {collapsed ? (
+              <Icon iconName='affiliarMark' className='shrink-0' svgProps={{ width: 36, height: 36 }} />
+            ) : (
+              <Icon iconName='affiliarDark' className='shrink-0' svgProps={{ width: 130, height: 28 }} />
+            )}
           </div>
+
+          <nav className='flex flex-1 flex-col'>
+            <ul className='space-y-1'>
+              {NAV.map(({ key, label, href, Icon: NavIcon }) => {
+                const current = pathname.startsWith(href);
+                return (
+                  <li key={key}>
+                    <Link to={href} className={linkCls(current)}>
+                      <NavIcon className='h-5 w-5 shrink-0 stroke-[1.6]' aria-hidden='true' />
+                      {!collapsed && <span className='truncate'>{label}</span>}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
         </div>
-        <div className='h-[calc(100vh-65px)] mt-[60px]'>{children}</div>
+
+        <div className='flex-grow flex flex-col relative ml-[78px] overflow-y-auto'>
+          <div className='fixed top-0 right-0 left-[78px] z-10 flex h-[60px] items-center justify-between border-b border-violet-100 bg-white/70 pl-8 backdrop-blur-md'>
+            <p className='text-sm font-semibold text-gray-700'>
+              {NAV.find((n) => pathname.startsWith(n.href))?.label ?? 'Affiliate Panel'}
+            </p>
+            <div className='flex items-center gap-3 pr-8'>
+              <NotificationBell />
+              <UserProfile />
+            </div>
+          </div>
+          <div className='h-[calc(100vh-65px)] mt-[60px]'>{children}</div>
+        </div>
+        <AffiliarAgent role="affiliate" />
       </div>
-      <AffiliarAgent role="affiliate" />
-    </div>
+    </AffiliateSuspendedGate>
   );
 }

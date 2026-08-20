@@ -355,6 +355,9 @@ export const FEES_API_URLS = {
 };
 
 export const AFFILIATE_PORTAL_API_URLS = {
+  // Stays reachable while the operator is suspended — it is what tells the
+  // portal why every other call is returning 402.
+  ACCOUNT_STATUS:   () => `${API_BASE_URL}api/affiliate-portal/account-status`,
   OVERVIEW:         () => `${API_BASE_URL}api/affiliate-portal/overview`,
   COMMISSION:       () => `${API_BASE_URL}api/affiliate-portal/commission`,
   STATEMENT:        () => `${API_BASE_URL}api/affiliate-portal/statement`,
