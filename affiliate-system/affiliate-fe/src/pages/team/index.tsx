@@ -14,6 +14,7 @@ interface TeamUser {
   isOwner: boolean;
   isSelf: boolean;
   isLastOwner?: boolean;
+  canRemove?: boolean;
   brands: TeamBrand[];
 }
 interface TeamResponse { users: TeamUser[] }
@@ -121,16 +122,20 @@ export default function Team() {
                             Edit brands
                           </button>
                         )}
-                        {/* Owner-level accounts are removable too — every
-                            operator user starts as one, so hiding this left
-                            teams unable to clean up. The last owner is the
-                            only one that must stay. */}
+                        {/* canRemove mirrors the controller's rule, so the
+                            button never offers something the API will refuse:
+                            owner accounts are Affiliar-support only, and the
+                            last owner can't go at all. */}
                         <button
                           onClick={() => remove(u)}
-                          disabled={u.isLastOwner}
-                          title={u.isLastOwner
-                            ? 'This is the only owner account — promote another member first'
-                            : undefined}
+                          disabled={u.canRemove === false}
+                          title={
+                            u.canRemove !== false
+                              ? undefined
+                              : u.isLastOwner
+                                ? 'This is the only owner account — promote another member first'
+                                : 'Owner accounts can only be removed by Affiliar support'
+                          }
                           className='px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-100 disabled:hover:text-gray-700'
                         >
                           Remove

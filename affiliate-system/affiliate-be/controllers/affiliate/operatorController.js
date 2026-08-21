@@ -2,6 +2,7 @@ const Operator = require("../../models/Operator");
 const User = require("../../models/User");
 const Brand = require("../../models/Brand");
 const { getPlan } = require("../../utils/planLimits");
+const { isPlatformAdminUser } = require("../../utils/platformAdmin");
 const { getMonthlyActivePlayers } = require("../../utils/playerUsage");
 const { sendOperatorInvite } = require("../../utils/mailer");
 const { logger } = require("../../middlewares/logger");
@@ -177,6 +178,15 @@ const operatorController = {
           isLastOwner:
             !(u.brandIds && u.brandIds.length) &&
             users.filter((x) => !(x.brandIds && x.brandIds.length)).length === 1,
+          // Whether the caller may remove this particular row, so the UI
+          // reflects the same rule the controller enforces instead of
+          // guessing at it.
+          canRemove:
+            String(u._id) !== String(user._id) &&
+            (!(u.brandIds && u.brandIds.length)
+              ? isPlatformAdminUser(user) &&
+                users.filter((x) => !(x.brandIds && x.brandIds.length)).length > 1
+              : true),
           brands: (u.brandIds || []).map((id) => ({
             _id: String(id),
             name: brandName.get(String(id)) || "—",
@@ -338,9 +348,19 @@ const operatorController = {
       if (String(target._id) === String(owner._id)) {
         return res.status(400).json({ error: "You cannot remove yourself" });
       }
-      // Owner-level accounts (no brandIds) can be removed, but never the last
-      // one: that would leave the operator with nobody able to invite, pay or
-      // manage anything, recoverable only from the database.
+      // Removing an owner-level account is a platform-admin action, not
+      // something an operator does to its own team. Owners are peers — one
+      // could otherwise remove the others and take sole control of the
+      // account, and there is nobody above them to undo it.
+      if (isOwner(target) && !isPlatformAdminUser(owner)) {
+        return res.status(403).json({
+          error: "Owner accounts can only be removed by Affiliar support.",
+        });
+      }
+
+      // Even for a platform admin: never the last owner. That leaves the
+      // operator with nobody able to invite, pay or manage anything,
+      // recoverable only from the database.
       if (isOwner(target)) {
         const remainingOwners = await User.countDocuments({
           operatorId: owner.operatorId,

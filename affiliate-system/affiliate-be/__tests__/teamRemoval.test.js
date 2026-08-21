@@ -23,8 +23,8 @@ describe("ownership is derived from brand scoping", () => {
 });
 
 describe("last-owner rule", () => {
-  // What removeTeamMember enforces: an owner may be removed only while
-  // another owner-level account survives.
+  // What removeTeamMember enforces for a platform admin: an owner may go only
+  // while another owner-level account survives.
   const canRemove = (target, others) =>
     !isOwner(target) || others.filter(isOwner).length > 0;
 
@@ -39,5 +39,28 @@ describe("last-owner rule", () => {
 
   it("never blocks removing a scoped member, even as the only one left", () => {
     expect(canRemove(SCOPED, [])).toBe(true);
+  });
+});
+
+describe("who may remove an owner", () => {
+  // Owners are peers. Without this an operator owner could remove the others
+  // and take sole control, and there is no one above them to reverse it — so
+  // owner removal is a platform-admin action.
+  const mayRemove = (target, caller) =>
+    !isOwner(target) || caller.isPlatformAdmin === true;
+
+  const OPERATOR_OWNER = { isPlatformAdmin: false };
+  const PLATFORM_ADMIN = { isPlatformAdmin: true };
+
+  it("stops an operator owner removing a fellow owner", () => {
+    expect(mayRemove(OWNER, OPERATOR_OWNER)).toBe(false);
+  });
+
+  it("lets a platform admin remove an owner", () => {
+    expect(mayRemove(OWNER, PLATFORM_ADMIN)).toBe(true);
+  });
+
+  it("still lets an operator owner remove a scoped member", () => {
+    expect(mayRemove(SCOPED, OPERATOR_OWNER)).toBe(true);
   });
 });
