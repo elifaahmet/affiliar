@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { useQueryClient } from '@tanstack/react-query';
-import { BRANDS_API_URLS, REFER_API_URLS } from 'config/apiUrls';
+import axiosInstance from 'config/axiosInstance';
+import { BRANDS_API_URLS, REFER_API_URLS, AFFILIATE_PLAYERS_API_URLS } from 'config/apiUrls';
 
 import ConfigurationTab from './components/ConfigurationTab';
 import ActivityTab from './components/ActivityTab';
@@ -40,16 +41,53 @@ export default function ReferAFriendPage() {
     queryClient.invalidateQueries({ queryKey: ['refer-configs'] });
   };
 
+  // Referrers and referees are listed by player id until the casino tells us
+  // their usernames. Same pull as the Players page — offered here too because
+  // this is where you actually read those tables.
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState('');
+  const syncNames = async () => {
+    setSyncing(true); setSyncMsg('');
+    try {
+      const { data } = await axiosInstance.post(AFFILIATE_PLAYERS_API_URLS.SYNC_NAMES(), {});
+      setSyncMsg(`Synced ${data.synced}/${data.total} usernames`);
+      // The names live in a separate cache from the referral rows, so the
+      // tables need re-fetching before the sync shows up in them.
+      for (const key of [
+        'refer-referrals',
+        'refer-referrals-by-player',
+        'refer-top-referrers',
+        'refer-deliveries',
+        'refer-fraud-flagged',
+      ]) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
+    } catch (e) {
+      const err = e as { response?: { data?: { error?: string } } };
+      setSyncMsg(err.response?.data?.error || 'Sync failed');
+    } finally { setSyncing(false); setTimeout(() => setSyncMsg(''), 6000); }
+  };
+
   return (
     <div className='h-full overflow-auto p-6 pb-24 space-y-6'>
-      <header className='space-y-1'>
-        <h1 className='text-2xl font-semibold tracking-tight text-gray-900'>
-          Refer-a-Friend
-        </h1>
-        <p className='text-sm text-gray-700 max-w-2xl'>
-          Player-to-player referral engine. Configure rewards and qualification gates per brand;
-          Affiliar fires a signed webhook to your wallet system when a friend qualifies.
-        </p>
+      <header className='flex items-start justify-between gap-3 flex-wrap'>
+        <div className='space-y-1'>
+          <h1 className='text-2xl font-semibold tracking-tight text-gray-900'>
+            Refer-a-Friend
+          </h1>
+          <p className='text-sm text-gray-700 max-w-2xl'>
+            Player-to-player referral engine. Configure rewards and qualification gates per brand;
+            Affiliar fires a signed webhook to your wallet system when a friend qualifies.
+          </p>
+        </div>
+        <div className='flex items-center gap-2 shrink-0'>
+          {syncMsg && <span className='text-xs text-gray-600'>{syncMsg}</span>}
+          <button onClick={syncNames} disabled={syncing}
+            title='Pull player usernames from the casino so referrers and referees show names instead of ids'
+            className='text-sm font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg px-4 py-2 disabled:opacity-50'>
+            {syncing ? 'Syncing…' : '↻ Sync usernames'}
+          </button>
+        </div>
       </header>
 
       <div className='flex gap-1 bg-white/80 backdrop-blur-sm rounded-xl p-1 border border-violet-100 w-fit'>
