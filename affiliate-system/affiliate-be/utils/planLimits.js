@@ -84,15 +84,15 @@ const PLANS = {
   },
   plusL2: {
     name: "Affiliate Plus L2",
-    priceUsd: 998,
+    priceUsd: 935,
     maxAffiliates: 500,
     maxBrands: 50,
     maxPlayers: 400000,
     commissionTypes: ["revshare", "cpa", "hybrid", "tiered_revshare", "fixed"],
     subAffiliates: true,
     campaignTracking: true,
-    referAFriend: false,
-    crewSystem: false,
+    referAFriend: true,
+    crewSystem: true,
     bulkImport: true,
     customFees: true,
     kycGate: true,
@@ -104,11 +104,11 @@ const PLANS = {
     leaderboard: true,
     team: true,
     advancedReports: true,
-    antiAbuse: false,          // Pro-only
+    antiAbuse: true,
   },
   pro: {
     name: "Affiliate Pro",
-    priceUsd: 1799,
+    priceUsd: 1430,
     maxAffiliates: 999999,     // unlimited
     maxBrands: 999999,
     maxPlayers: 2000000,   // fair-use; beyond = enterprise

@@ -29,8 +29,8 @@ Five monthly plans (USD). A free trial is available. Prices as of 2026:
 - **1-Tier — $53/mo**: up to 10 affiliates, 1 brand, 2,500 monthly active players; RevShare, CPA & fixed commission; direct referrals only.
 - **1-Tier & 2-Tier — $98/mo**: up to 50 affiliates, 3 brands, 10,000 MAP; adds sub-affiliates (2-tier), all commission types, campaign tracking and the creative library.
 - **Affiliate Plus — $494/mo**: up to 100 affiliates, 10 brands, 75,000 MAP; adds player bonuses, player leaderboard, team members, advanced analytics (cohorts/LTV), bulk CSV import, custom NGR/deposit fees and the KYC CPA gate.
-- **Affiliate Plus L2 — $998/mo**: up to 500 affiliates, 50 brands, 400,000 MAP; adds API access, webhook events and outbound postback.
-- **Affiliate Pro — $1,799/mo**: unlimited affiliates and brands, millions of MAP; adds Refer-a-Friend with Crew rewards, white-label branding and anti-abuse signals.
+- **Affiliate Plus L2 — $935/mo**: up to 500 affiliates, 50 brands, 400,000 MAP; adds API access, webhook events and outbound postback, plus Refer-a-Friend with Crew rewards and anti-abuse signals.
+- **Affiliate Pro — $1,430/mo**: unlimited affiliates and brands, millions of MAP; adds white-label branding, priority co-managed sourcing and a dedicated account manager.
 
 ## Links
 
