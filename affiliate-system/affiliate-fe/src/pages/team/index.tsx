@@ -13,6 +13,7 @@ interface TeamUser {
   status: 'active' | 'pending' | 'inactive';
   isOwner: boolean;
   isSelf: boolean;
+  isLastOwner?: boolean;
   brands: TeamBrand[];
 }
 interface TeamResponse { users: TeamUser[] }
@@ -110,17 +111,27 @@ export default function Team() {
                     </span>
                   </td>
                   <td className='px-4 py-2.5 text-right'>
-                    {!u.isOwner && !u.isSelf && (
+                    {!u.isSelf && (
                       <div className='flex items-center justify-end gap-1.5'>
-                        <button
-                          onClick={() => setEditing(u)}
-                          className='px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-violet-50 hover:text-violet-700'
-                        >
-                          Edit brands
-                        </button>
+                        {!u.isOwner && (
+                          <button
+                            onClick={() => setEditing(u)}
+                            className='px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-violet-50 hover:text-violet-700'
+                          >
+                            Edit brands
+                          </button>
+                        )}
+                        {/* Owner-level accounts are removable too — every
+                            operator user starts as one, so hiding this left
+                            teams unable to clean up. The last owner is the
+                            only one that must stay. */}
                         <button
                           onClick={() => remove(u)}
-                          className='px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-700'
+                          disabled={u.isLastOwner}
+                          title={u.isLastOwner
+                            ? 'This is the only owner account — promote another member first'
+                            : undefined}
+                          className='px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-100 disabled:hover:text-gray-700'
                         >
                           Remove
                         </button>

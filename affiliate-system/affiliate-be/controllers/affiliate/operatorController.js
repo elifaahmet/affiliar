@@ -171,6 +171,12 @@ const operatorController = {
           status: u.status,
           isOwner: !(u.brandIds && u.brandIds.length),
           isSelf: String(u._id) === String(user._id),
+          // Owner-level accounts are removable unless this is the only one
+          // left; the UI uses this to disable the button with a reason rather
+          // than hiding it and leaving the operator wondering why.
+          isLastOwner:
+            !(u.brandIds && u.brandIds.length) &&
+            users.filter((x) => !(x.brandIds && x.brandIds.length)).length === 1,
           brands: (u.brandIds || []).map((id) => ({
             _id: String(id),
             name: brandName.get(String(id)) || "—",
@@ -332,8 +338,22 @@ const operatorController = {
       if (String(target._id) === String(owner._id)) {
         return res.status(400).json({ error: "You cannot remove yourself" });
       }
+      // Owner-level accounts (no brandIds) can be removed, but never the last
+      // one: that would leave the operator with nobody able to invite, pay or
+      // manage anything, recoverable only from the database.
       if (isOwner(target)) {
-        return res.status(400).json({ error: "Cannot remove an owner account here" });
+        const remainingOwners = await User.countDocuments({
+          operatorId: owner.operatorId,
+          role: "operator",
+          isDeleted: false,
+          _id: { $ne: target._id },
+          $or: [{ brandIds: { $exists: false } }, { brandIds: { $size: 0 } }],
+        });
+        if (remainingOwners === 0) {
+          return res.status(400).json({
+            error: "Cannot remove the last owner account — promote another member first.",
+          });
+        }
       }
 
       target.isDeleted = true;
