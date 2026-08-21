@@ -649,12 +649,30 @@ exports.getSettings = async (req, res) => {
   if (!operatorId) return;
 
   const brandId = req.query && req.query.brandId;
-  const cfgFilter = { operatorId };
-  if (brandId) cfgFilter.brandId = brandId;
 
-  const config = await ReferAFriendConfig.findOne(cfgFilter)
-    .sort({ enabled: -1, updatedAt: -1 })
-    .lean();
+  // A brand-specific config wins; failing that we fall back to the operator's
+  // brandId:null row, which is what that row means — the default for every
+  // brand that hasn't been given its own.
+  //
+  // Without the fallback a caller that sends its brandId gets 404 whenever the
+  // operator configured refer-a-friend at the operator level, and the casino
+  // renders an empty crew page with nothing in any log to explain it.
+  let config = null;
+  if (brandId) {
+    config = await ReferAFriendConfig.findOne({ operatorId, brandId })
+      .sort({ enabled: -1, updatedAt: -1 })
+      .lean();
+  }
+  if (!config) {
+    config = await ReferAFriendConfig.findOne({ operatorId, brandId: null })
+      .sort({ enabled: -1, updatedAt: -1 })
+      .lean();
+  }
+  if (!config && !brandId) {
+    config = await ReferAFriendConfig.findOne({ operatorId })
+      .sort({ enabled: -1, updatedAt: -1 })
+      .lean();
+  }
   if (!config) return res.status(404).json({ error: "config_not_found" });
 
   const reward = config.reward || {};
