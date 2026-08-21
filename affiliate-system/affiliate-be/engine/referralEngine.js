@@ -115,7 +115,10 @@ async function trackSignup({ brandId, referrerPlayerId, refereePlayerId, refCode
   }
 
   const referral = await PlayerReferral.create({
-    brandId: config.brandId,
+    // The brand the signup actually happened on, not the config's own brandId
+    // — an operator-level config carries null there, and the referral must
+    // still record which brand it belongs to.
+    brandId,
     operatorId,
     referrerPlayerId,
     refereePlayerId,
@@ -477,7 +480,13 @@ async function loadEnabledConfig(brandId, { allowDisabled = false } = {}) {
     throw new ReferralEngineError("brand_not_found", "brand not found", 404);
   }
   const operatorId = brand.operatorId;
-  const config = await ReferAFriendConfig.findOne({ brandId });
+  // Brand-specific config wins; otherwise the operator's brandId:null row,
+  // which exists to be the default for brands that don't have their own.
+  // Without the fallback an operator-level setup reads as "not enabled" for
+  // every one of its brands, and the engine rejects perfectly valid signups.
+  const config =
+    (await ReferAFriendConfig.findOne({ brandId })) ||
+    (await ReferAFriendConfig.findOne({ operatorId, brandId: null }));
 
   if (!allowDisabled) {
     if (!config || !config.enabled) {

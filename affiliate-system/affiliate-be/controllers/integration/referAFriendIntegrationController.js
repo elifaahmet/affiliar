@@ -678,8 +678,9 @@ exports.getSettings = async (req, res) => {
   const reward = config.reward || {};
   const refereeReward = config.refereeReward || {};
   const recurringReward = config.recurringReward || {};
+  const qualification = config.qualification || {};
 
-  return res.status(200).json({
+  const settings = {
     brandId: String(config.brandId),
     enabled: !!config.enabled,
     reward: {
@@ -726,7 +727,24 @@ exports.getSettings = async (req, res) => {
           rewardKind: recurringReward.rewardKind ?? null,
         }
       : { enabled: false },
-  });
+
+    // How many deposits a referee needs before they count. The casino shows
+    // this in its own copy ("bring a friend who deposits twice"), and without
+    // it the page falls back to a hard-coded 2 that silently disagrees with
+    // whatever the operator actually configured.
+    qualificationDeposits: qualification.minActiveDeposits ?? 0,
+    qualificationRequiresPositiveNgr: !!qualification.requirePositiveNgr,
+    qualificationHoldDays: qualification.holdDays ?? 0,
+  };
+
+  // Wrapped in { ok, settings }: that is the shape the casino's
+  // ReferralSettingsResponse declares and what its crew page reads
+  // (`data?.settings`). The bare object it used to return left that undefined,
+  // so the page treated a perfectly good config as no config at all.
+  //
+  // The plan's fields are also spread at the top level so anything written
+  // against the old flat shape keeps working.
+  return res.status(200).json({ ok: true, settings, ...settings });
 };
 
 // POST /api/v1/refer/player/:playerId/rewards/claim
