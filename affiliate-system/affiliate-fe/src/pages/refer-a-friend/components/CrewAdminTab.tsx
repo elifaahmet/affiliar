@@ -120,6 +120,7 @@ export default function CrewAdminTab({ brands }: Props) {
                 <tr className='bg-violet-50/60 text-left text-[11px] uppercase tracking-wider text-gray-700'>
                   <th className='px-4 py-2.5 font-semibold'>Rank</th>
                   <th className='px-4 py-2.5 font-semibold'>Referrer</th>
+                  <th className='px-4 py-2.5 font-semibold'>Username</th>
                   <th className='px-4 py-2.5 font-semibold text-right'>Active crew</th>
                   <th className='px-4 py-2.5 font-semibold text-right'>Pending</th>
                   <th className='px-4 py-2.5 font-semibold text-right'>Total</th>
@@ -208,7 +209,8 @@ function TopRow({
       className='cursor-pointer hover:bg-violet-50/30'
     >
       <td className='px-4 py-2.5 text-gray-700 tabular-nums'>{idx + 1}</td>
-      <td className='px-4 py-2.5'><PlayerCell id={row.referrerPlayerId} username={row.referrerPlayerIdUsername} /></td>
+      <td className='px-4 py-2.5 font-mono text-[11px] text-gray-700'>{row.referrerPlayerId}</td>
+      <td className='px-4 py-2.5'><PlayerCell username={row.referrerPlayerIdUsername} /></td>
       <td className='px-4 py-2.5 text-right tabular-nums font-semibold text-violet-700'>
         {row.activeReferrals}
       </td>

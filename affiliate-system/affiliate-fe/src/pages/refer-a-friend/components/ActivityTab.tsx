@@ -124,7 +124,9 @@ export default function ActivityTab({ brands }: Props) {
               <tr className='bg-violet-50/60 text-left text-[11px] uppercase tracking-wider text-gray-700'>
                 <th className='px-4 py-2.5 font-semibold'>Brand</th>
                 <th className='px-4 py-2.5 font-semibold'>Referrer</th>
+                <th className='px-4 py-2.5 font-semibold'>Username</th>
                 <th className='px-4 py-2.5 font-semibold'>Referee</th>
+                <th className='px-4 py-2.5 font-semibold'>Username</th>
                 <th className='px-4 py-2.5 font-semibold'>Status</th>
                 <th className='px-4 py-2.5 font-semibold text-right'>FTD</th>
                 <th className='px-4 py-2.5 font-semibold text-right'>NGR</th>
@@ -141,8 +143,10 @@ export default function ActivityTab({ brands }: Props) {
                   onClick={() => setSelected(r)}
                 >
                   <td className='px-4 py-2.5 text-gray-700'>{brandName(r.brandId)}</td>
-                  <td className='px-4 py-2.5'><PlayerCell id={r.referrerPlayerId} username={r.referrerPlayerIdUsername} /></td>
-                  <td className='px-4 py-2.5'><PlayerCell id={r.refereePlayerId} username={r.refereePlayerIdUsername} /></td>
+                  <td className='px-4 py-2.5 font-mono text-[11px] text-gray-700'>{r.referrerPlayerId}</td>
+                  <td className='px-4 py-2.5'><PlayerCell username={r.referrerPlayerIdUsername} /></td>
+                  <td className='px-4 py-2.5 font-mono text-[11px] text-gray-700'>{r.refereePlayerId}</td>
+                  <td className='px-4 py-2.5'><PlayerCell username={r.refereePlayerIdUsername} /></td>
                   <td className='px-4 py-2.5'>
                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${STATUS_BADGE[r.status]}`}>
                       {STATUS_LABEL[r.status]}
