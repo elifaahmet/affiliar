@@ -259,18 +259,29 @@ async function sendBillingDueToday({ to, name, planName, dueDate }) {
 
 // Sparse post-due reminders at +2 / +4 days overdue. The "service will be
 // suspended in N days" countdown anchors against SUSPEND_AFTER_DAYS (+7d).
-async function sendBillingPastDueReminder({ to, name, planName, dueDate, daysOverdue, daysUntilSuspension }) {
+async function sendBillingPastDueReminder({ to, name, planName, dueDate, daysOverdue, daysUntilSuspension, interestCents = 0, dailyInterestPercent = 0, suspendAfterDays = 10 }) {
   const billingUrl = `${APP_URL}/billing`;
   const logoUrl = LOGO_URL;
   const niceDate = fmtDate(dueDate);
+  // Spell out the calendar date service stops, not just "in N days" — a
+  // recipient reading this a day later would otherwise count from the wrong day.
+  const suspendOn = fmtDate(new Date(new Date(dueDate).getTime() + suspendAfterDays * 86400000));
+  const interestLine = interestCents > 0
+    ? `<p style="color: #334155; font-size: 15px; line-height: 1.6;">Late interest of <b>${dailyInterestPercent}% per day</b> has been applied since the due date, currently <b>$${(interestCents / 100).toFixed(2)}</b>, and continues to accrue daily until the invoice is settled.</p>`
+    : "";
+  const interestText = interestCents > 0
+    ? `\n\nLate interest of ${dailyInterestPercent}% per day has been applied since the due date, currently $${(interestCents / 100).toFixed(2)}, and continues to accrue daily.`
+    : "";
   const subject = `Payment overdue — service will be suspended in ${daysUntilSuspension} day${daysUntilSuspension === 1 ? "" : "s"}`;
 
   const bodyHtml = `
     <p style="color: #334155; font-size: 15px; line-height: 1.6;">Hi ${name || "there"},</p>
     <p style="color: #334155; font-size: 15px; line-height: 1.6;">Your Affiliar subscription${planName ? ` (${planName})` : ""} was due on <b>${niceDate}</b> and is now <b>${daysOverdue} day${daysOverdue === 1 ? "" : "s"} overdue</b>.</p>
     <div style="background: #FEF3C7; border-left: 4px solid #D97706; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
-      <p style="color: #92400E; font-size: 14px; line-height: 1.5; margin: 0;">Service will be suspended in <b>${daysUntilSuspension} day${daysUntilSuspension === 1 ? "" : "s"}</b> if payment isn't received. Once suspended, your affiliates will not be able to track new conversions.</p>
+      <p style="color: #92400E; font-size: 14px; line-height: 1.5; margin: 0;">Service will be suspended on <b>${suspendOn}</b>, in ${daysUntilSuspension} day${daysUntilSuspension === 1 ? "" : "s"}, if payment isn't received.</p>
+      <p style="color: #92400E; font-size: 14px; line-height: 1.5; margin: 8px 0 0;">From that date <b>no further activity is recorded</b> — clicks, registrations, deposits and player activity that happen while suspended are not captured and cannot be recovered afterwards, so any commission owed for that period cannot be reconstructed.</p>
     </div>
+    ${interestLine}
   `;
   const footerHtml = `<p style="color: #94A3B8; font-size: 12px; text-align: center;">Already paid? Provider confirmations can take a few minutes — you can ignore this email if so.</p>`;
   const htmlBody = billingShell({
@@ -282,7 +293,7 @@ async function sendBillingPastDueReminder({ to, name, planName, dueDate, daysOve
     ctaColor: "#B91C1C",
     footerHtml,
   });
-  const textBody = `Hi ${name || "there"},\n\nYour Affiliar subscription${planName ? ` (${planName})` : ""} was due on ${niceDate} and is now ${daysOverdue} day${daysOverdue === 1 ? "" : "s"} overdue.\n\nService will be suspended in ${daysUntilSuspension} day${daysUntilSuspension === 1 ? "" : "s"} if payment isn't received.\n\nPay now: ${billingUrl}`;
+  const textBody = `Hi ${name || "there"},\n\nYour Affiliar subscription${planName ? ` (${planName})` : ""} was due on ${niceDate} and is now ${daysOverdue} day${daysOverdue === 1 ? "" : "s"} overdue.${interestText}\n\nService will be suspended on ${suspendOn}, in ${daysUntilSuspension} day${daysUntilSuspension === 1 ? "" : "s"}, if payment isn't received. From that date no further activity is recorded — clicks, registrations, deposits and player activity during suspension are not captured and cannot be recovered.\n\nPay now: ${billingUrl}`;
 
   return sendMail({ to, subject, htmlBody, textBody });
 }
@@ -291,18 +302,27 @@ async function sendBillingPastDueReminder({ to, name, planName, dueDate, daysOve
 // the operator has already been flipped to `billingStatus: 'suspended'`
 // and the panel gate is blocking their requests; this email tells them
 // what happened and how to restore service.
-async function sendBillingSuspendedNotice({ to, name, planName, dueDate }) {
+async function sendBillingSuspendedNotice({ to, name, planName, dueDate, daysOverdue = 10, interestCents = 0, dailyInterestPercent = 0 }) {
   const billingUrl = `${APP_URL}/billing`;
   const logoUrl = LOGO_URL;
   const niceDate = fmtDate(dueDate);
+  const suspendedOn = fmtDate(new Date());
+  const interestLine = interestCents > 0
+    ? `<p style="color: #334155; font-size: 15px; line-height: 1.6;">Late interest of <b>${dailyInterestPercent}% per day</b> has accrued since ${niceDate} and now stands at <b>$${(interestCents / 100).toFixed(2)}</b>. It continues to accrue daily until the invoice is settled.</p>`
+    : "";
+  const interestText = interestCents > 0
+    ? ` Late interest of ${dailyInterestPercent}% per day has accrued since ${niceDate} and now stands at $${(interestCents / 100).toFixed(2)}, continuing daily until settled.`
+    : "";
   const subject = "Affiliar service suspended — pay to restore";
 
   const bodyHtml = `
     <p style="color: #334155; font-size: 15px; line-height: 1.6;">Hi ${name || "there"},</p>
-    <p style="color: #334155; font-size: 15px; line-height: 1.6;">Your Affiliar subscription${planName ? ` (${planName})` : ""} has been overdue since <b>${niceDate}</b> and is now 7 days past due, so we've suspended your operator panel.</p>
+    <p style="color: #334155; font-size: 15px; line-height: 1.6;">Your Affiliar subscription${planName ? ` (${planName})` : ""} has been overdue since <b>${niceDate}</b> and is now <b>${daysOverdue} days past due</b>, so as of <b>${suspendedOn}</b> your operator panel is suspended.</p>
     <div style="background: #FEE2E2; border-left: 4px solid #B91C1C; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
-      <p style="color: #7F1D1D; font-size: 14px; line-height: 1.5; margin: 0;"><b>Your data and affiliates are preserved.</b> Pay now to restore full access — the suspension lifts immediately once the payment is confirmed.</p>
+      <p style="color: #7F1D1D; font-size: 14px; line-height: 1.5; margin: 0;"><b>From ${suspendedOn}, no further activity is recorded.</b> Clicks, registrations, deposits and player activity occurring while suspended are not captured, and that period cannot be reconstructed once service resumes — so commission for it cannot be calculated either.</p>
+      <p style="color: #7F1D1D; font-size: 14px; line-height: 1.5; margin: 8px 0 0;">Everything recorded up to ${suspendedOn} is preserved. Paying restores access immediately, but only from the payment date onward.</p>
     </div>
+    ${interestLine}
   `;
   const footerHtml = `<p style="color: #94A3B8; font-size: 12px; text-align: center;">Already paid? Provider confirmations can take a few minutes — access restores as soon as we receive the callback.</p>`;
   const htmlBody = billingShell({
@@ -314,7 +334,7 @@ async function sendBillingSuspendedNotice({ to, name, planName, dueDate }) {
     ctaColor: "#7F1D1D",
     footerHtml,
   });
-  const textBody = `Hi ${name || "there"},\n\nYour Affiliar subscription${planName ? ` (${planName})` : ""} has been overdue since ${niceDate} and is now 7 days past due, so we've suspended your operator panel. Your data and affiliates are preserved — pay now to restore full access.\n\nPay now: ${billingUrl}`;
+  const textBody = `Hi ${name || "there"},\n\nYour Affiliar subscription${planName ? ` (${planName})` : ""} has been overdue since ${niceDate} and is now ${daysOverdue} days past due, so as of ${suspendedOn} your operator panel is suspended.${interestText}\n\nFrom ${suspendedOn}, no further activity is recorded — clicks, registrations, deposits and player activity during suspension are not captured and cannot be reconstructed, so commission for that period cannot be calculated. Everything recorded up to ${suspendedOn} is preserved. Paying restores access immediately, but only from the payment date onward.\n\nPay now: ${billingUrl}`;
 
   return sendMail({ to, subject, htmlBody, textBody });
 }

@@ -9,8 +9,7 @@
  *
  *   -7d / -3d   →  upcoming     (monthly cycle heads-up, one-shot each)
  *    0d         →  due_today    (trial end / paid grace expires today)
- *   +2d         →  past_due_2d  (one-shot)
- *   +4d         →  past_due_4d  (one-shot)
+ *   +1/3/5/7d   →  past_due_Nd  (one-shot each, counting down to suspension)
  *   +7d         →  suspended    (one-shot, flips status to 'suspended')
  *
  * Trial flow: at signup we set `nextBillingDate = trialEndsAt`, so a
@@ -55,7 +54,30 @@ const INITIAL_DELAY_MS = parseInt(
 
 // Cut-off threshold: at +N days overdue the operator flips to 'suspended'
 // and panel access is blocked until they pay.
-const SUSPEND_AFTER_DAYS = 7;
+const SUSPEND_AFTER_DAYS = 10;
+
+// Reminder cadence, in days relative to the due date. Positive = before due,
+// negative = after. Adding or moving a reminder is a one-line edit here; the
+// picker below is generic over this table.
+const PRE_DUE_DAYS  = [7, 5, 3, 1];
+const POST_DUE_DAYS = [1, 3, 5, 7];
+
+// Daily interest charged on the outstanding invoice once it is overdue.
+//
+// Deliberately 0 until an operator sets it: this puts a real number on a real
+// invoice, and a plausible-looking default would start charging customers a
+// rate nobody chose. With 0 the emails simply omit the interest line.
+const DAILY_INTEREST_PERCENT = parseFloat(
+  process.env.BILLING_DAILY_INTEREST_PERCENT || "0",
+);
+
+// What the operator owes today: the plan price plus interest accrued per day
+// of delay. Returns whole cents.
+function accruedInterestCents(plan, daysOverdue) {
+  const priceUsd = PLANS[plan]?.priceUsd;
+  if (!priceUsd || !(DAILY_INTEREST_PERCENT > 0) || !(daysOverdue > 0)) return 0;
+  return Math.round(priceUsd * 100 * (DAILY_INTEREST_PERCENT / 100) * daysOverdue);
+}
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -69,48 +91,46 @@ let scheduledTimer = null;
 //
 // Trial signups use the same machinery: at signup, nextBillingDate is set
 // to trialEndsAt (= signup + 3d), so a trial maps to due_today on day 3,
-// past_due_2d on day 5, past_due_4d on day 7, suspended on day 10.
+// the post-due cadence after that, and suspension on day 13.
 function pickStage(nextBillingDate, now) {
   const deltaMs = nextBillingDate.getTime() - now.getTime();
   const deltaDays = deltaMs / ONE_DAY_MS;
 
-  // ── Pre-due reminders. We use ±0.5-day windows so the daily job fires
-  // exactly once per stage regardless of when in the day it runs. These
-  // only fire on monthly cycles — a 3-day trial doesn't reach -7/-3d.
-  if (deltaDays > 6.5 && deltaDays <= 7.5) {
-    return { kind: "upcoming_7d", daysUntilDue: 7 };
-  }
-  if (deltaDays > 2.5 && deltaDays <= 3.5) {
-    return { kind: "upcoming_3d", daysUntilDue: 3 };
-  }
-  if (deltaDays > -0.5 && deltaDays <= 0.5) {
-    return { kind: "due_today", daysUntilDue: 0 };
-  }
+  // ±0.5-day windows so the daily job fires exactly once per stage no matter
+  // what time of day it runs.
+  const within = (target) => deltaDays > target - 0.5 && deltaDays <= target + 0.5;
 
-  // ── Post-due reminders: sparse one-shots at +2 / +4, suspend at +7.
-  // Use ±0.5-day windows mirroring the pre-due logic so the daily job
-  // catches each stage exactly once.
-  if (deltaDays <= -6.5) {
+  // ── Pre-due reminders. Only monthly cycles reach the far ones; a 3-day
+  // trial simply never sits 7 days from its due date.
+  for (const d of PRE_DUE_DAYS) {
+    if (within(d)) return { kind: `upcoming_${d}d`, daysUntilDue: d };
+  }
+  if (within(0)) return { kind: "due_today", daysUntilDue: 0 };
+
+  // ── Suspension. Checked before the post-due reminders so that an operator
+  // who is far past due lands here rather than on a reminder window.
+  if (deltaDays <= -(SUSPEND_AFTER_DAYS - 0.5)) {
     const daysOverdue = Math.max(SUSPEND_AFTER_DAYS, Math.ceil(-deltaDays));
     return { kind: "suspended", daysOverdue };
   }
-  if (deltaDays > -4.5 && deltaDays <= -3.5) {
-    return {
-      kind: "past_due_4d",
-      daysOverdue: 4,
-      daysUntilSuspension: SUSPEND_AFTER_DAYS - 4,
-    };
-  }
-  if (deltaDays > -2.5 && deltaDays <= -1.5) {
-    return {
-      kind: "past_due_2d",
-      daysOverdue: 2,
-      daysUntilSuspension: SUSPEND_AFTER_DAYS - 2,
-    };
+
+  // ── Post-due reminders, counting down to suspension.
+  for (const d of POST_DUE_DAYS) {
+    if (within(-d)) {
+      return {
+        kind: `past_due_${d}d`,
+        daysOverdue: d,
+        daysUntilSuspension: SUSPEND_AFTER_DAYS - d,
+      };
+    }
   }
 
-  return null; // overdue but not on a reminder day (e.g. +1, +3, +5, +6)
+  return null; // overdue but not on a reminder day (e.g. +2, +4, +6)
 }
+
+// Stage kinds grouped, so callers don't re-derive them from string shapes.
+const PRE_DUE_KINDS  = PRE_DUE_DAYS.map((d) => `upcoming_${d}d`);
+const POST_DUE_KINDS = POST_DUE_DAYS.map((d) => `past_due_${d}d`);
 
 // Cycle dedup: an `entry.cycleAnchor` matches when it equals the operator's
 // current `nextBillingDate`. Once payment bumps the cycle, old entries are
@@ -142,17 +162,14 @@ async function processOperator(operator, now) {
   // they just signed up and don't need "renewing soon" emails. They'll get
   // due_today on day 3 and the post-due cadence after that.
   if (operator.billingStatus === "trial"
-      && (stage.kind === "upcoming_7d" || stage.kind === "upcoming_3d")) {
+      && PRE_DUE_KINDS.includes(stage.kind)) {
     return { skipped: "trial_pre_due_suppressed" };
   }
 
   // If still `trial` or `active` but we're past due, flip to past_due
   // first so the suspension countdown anchor is recorded (pastDueAt).
   // Pre-due stages (upcoming/due_today) don't trigger the flip.
-  const isPostDue =
-    stage.kind === "past_due_2d" ||
-    stage.kind === "past_due_4d" ||
-    stage.kind === "suspended";
+  const isPostDue = POST_DUE_KINDS.includes(stage.kind) || stage.kind === "suspended";
   if (isPostDue
       && (operator.billingStatus === "active" || operator.billingStatus === "trial")) {
     const fromStatus = operator.billingStatus;
@@ -199,25 +216,26 @@ async function processOperator(operator, now) {
         planName,
         dueDate,
       };
-      switch (stage.kind) {
-        case "upcoming_7d":
-        case "upcoming_3d":
-          await sendBillingUpcoming({ ...args, daysUntilDue: stage.daysUntilDue });
-          break;
-        case "due_today":
-          await sendBillingDueToday(args);
-          break;
-        case "past_due_2d":
-        case "past_due_4d":
-          await sendBillingPastDueReminder({
-            ...args,
-            daysOverdue: stage.daysOverdue,
-            daysUntilSuspension: stage.daysUntilSuspension,
-          });
-          break;
-        case "suspended":
-          await sendBillingSuspendedNotice(args);
-          break;
+      if (PRE_DUE_KINDS.includes(stage.kind)) {
+        await sendBillingUpcoming({ ...args, daysUntilDue: stage.daysUntilDue });
+      } else if (stage.kind === "due_today") {
+        await sendBillingDueToday(args);
+      } else if (POST_DUE_KINDS.includes(stage.kind)) {
+        await sendBillingPastDueReminder({
+          ...args,
+          daysOverdue: stage.daysOverdue,
+          daysUntilSuspension: stage.daysUntilSuspension,
+          interestCents: accruedInterestCents(operator.plan, stage.daysOverdue),
+          dailyInterestPercent: DAILY_INTEREST_PERCENT,
+          suspendAfterDays: SUSPEND_AFTER_DAYS,
+        });
+      } else if (stage.kind === "suspended") {
+        await sendBillingSuspendedNotice({
+          ...args,
+          daysOverdue: stage.daysOverdue,
+          interestCents: accruedInterestCents(operator.plan, stage.daysOverdue),
+          dailyInterestPercent: DAILY_INTEREST_PERCENT,
+        });
       }
       emailed++;
     } catch (err) {
@@ -253,7 +271,9 @@ async function processOperator(operator, now) {
 async function runOnce({ now = new Date() } = {}) {
   const stats = {
     candidates: 0,
-    sent: { upcoming_7d: 0, upcoming_3d: 0, due_today: 0, past_due_2d: 0, past_due_4d: 0, suspended: 0 },
+    sent: Object.fromEntries(
+      [...PRE_DUE_KINDS, "due_today", ...POST_DUE_KINDS, "suspended"].map((k) => [k, 0]),
+    ),
     flipped: 0,
     suspended: 0,
     skipped: 0,
@@ -321,4 +341,4 @@ function stopBillingExpiryJob() {
   }
 }
 
-module.exports = { startBillingExpiryJob, stopBillingExpiryJob, runOnce, pickStage };
+module.exports = { startBillingExpiryJob, stopBillingExpiryJob, runOnce, pickStage, accruedInterestCents };
