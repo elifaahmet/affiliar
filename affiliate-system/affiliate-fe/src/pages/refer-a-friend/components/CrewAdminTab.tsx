@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import PlayerCell from './PlayerCell';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import { useBaseMutation } from 'api/core/useBaseMutation';
 import { useQueryClient } from '@tanstack/react-query';
@@ -207,7 +208,7 @@ function TopRow({
       className='cursor-pointer hover:bg-violet-50/30'
     >
       <td className='px-4 py-2.5 text-gray-700 tabular-nums'>{idx + 1}</td>
-      <td className='px-4 py-2.5 font-medium text-gray-900'>{row.referrerPlayerId}</td>
+      <td className='px-4 py-2.5'><PlayerCell id={row.referrerPlayerId} username={row.referrerPlayerIdUsername} /></td>
       <td className='px-4 py-2.5 text-right tabular-nums font-semibold text-violet-700'>
         {row.activeReferrals}
       </td>

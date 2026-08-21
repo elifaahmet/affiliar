@@ -15,6 +15,7 @@
 
 const mongoose           = require("mongoose");
 const Brand              = require("../../models/Brand");
+const { attachPlayerUsernames } = require("../../utils/playerNames");
 const ReferAFriendConfig = require("../../models/ReferAFriendConfig");
 const PlayerReferral     = require("../../models/PlayerReferral");
 const RewardDelivery     = require("../../models/RewardDelivery");
@@ -181,6 +182,13 @@ exports.listReferrals = async (req, res) => {
     };
   });
 
+  // Both sides of a referral are casino player ids; without their names the
+  // activity table is a wall of hex.
+  await attachPlayerUsernames(operatorId, referrals, [
+    "referrerPlayerId",
+    "refereePlayerId",
+  ]);
+
   return res.status(200).json({ referrals, count: referrals.length });
 };
 
@@ -300,6 +308,10 @@ exports.listTopReferrers = async (req, res) => {
     },
     { $limit: lim },
   ]);
+
+  // Same reason as the activity table: this is the crew leaderboard, and a
+  // leaderboard of player ids tells the operator nothing.
+  await attachPlayerUsernames(operatorId, rows, ["referrerPlayerId"]);
 
   return res.status(200).json({ referrers: rows, count: rows.length });
 };

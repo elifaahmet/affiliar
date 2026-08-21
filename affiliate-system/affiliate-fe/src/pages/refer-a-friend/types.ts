@@ -98,7 +98,9 @@ export interface PlayerReferral {
   brandId: string;
   operatorId: string;
   referrerPlayerId: string;
+  referrerPlayerIdUsername?: string | null;
   refereePlayerId: string;
+  refereePlayerIdUsername?: string | null;
   refCode: string | null;
   status: ReferralStatus;
   rejectionReason: string | null;
@@ -210,6 +212,7 @@ export interface ReferralDetailResponse {
 
 export interface TopReferrerRow {
   referrerPlayerId: string;
+  referrerPlayerIdUsername?: string | null;
   totalReferrals: number;
   activeReferrals: number;
   pendingReferrals: number;

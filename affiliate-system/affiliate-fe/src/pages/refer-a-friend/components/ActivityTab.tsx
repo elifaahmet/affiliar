@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import PlayerCell from './PlayerCell';
 import { useBaseQuery } from 'api/core/useBaseQuery';
 import StyledSelect from '@components/core-components/StyledSelect';
 import { REFER_API_URLS } from 'config/apiUrls';
@@ -140,8 +141,8 @@ export default function ActivityTab({ brands }: Props) {
                   onClick={() => setSelected(r)}
                 >
                   <td className='px-4 py-2.5 text-gray-700'>{brandName(r.brandId)}</td>
-                  <td className='px-4 py-2.5 font-medium text-gray-900'>{r.referrerPlayerId}</td>
-                  <td className='px-4 py-2.5 text-gray-700'>{r.refereePlayerId}</td>
+                  <td className='px-4 py-2.5'><PlayerCell id={r.referrerPlayerId} username={r.referrerPlayerIdUsername} /></td>
+                  <td className='px-4 py-2.5'><PlayerCell id={r.refereePlayerId} username={r.refereePlayerIdUsername} /></td>
                   <td className='px-4 py-2.5'>
                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${STATUS_BADGE[r.status]}`}>
                       {STATUS_LABEL[r.status]}
