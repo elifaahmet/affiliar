@@ -93,12 +93,18 @@ let scheduledTimer = null;
 // to trialEndsAt (= signup + 3d), so a trial maps to due_today on day 3,
 // the post-due cadence after that, and suspension on day 13.
 function pickStage(nextBillingDate, now) {
-  const deltaMs = nextBillingDate.getTime() - now.getTime();
-  const deltaDays = deltaMs / ONE_DAY_MS;
+  // Compare calendar days, not elapsed hours. With fractional days a job
+  // running at noon against a midnight due date lands half a day early, so
+  // "due today" went out the day before the invoice was actually due.
+  // Normalising both ends to UTC midnight makes each stage fire on its real
+  // date whatever time the job happens to run.
+  const startOfDayUtc = (d) =>
+    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  const deltaDays = Math.round(
+    (startOfDayUtc(nextBillingDate) - startOfDayUtc(now)) / ONE_DAY_MS,
+  );
 
-  // ±0.5-day windows so the daily job fires exactly once per stage no matter
-  // what time of day it runs.
-  const within = (target) => deltaDays > target - 0.5 && deltaDays <= target + 0.5;
+  const within = (target) => deltaDays === target;
 
   // ── Pre-due reminders. Only monthly cycles reach the far ones; a 3-day
   // trial simply never sits 7 days from its due date.
@@ -109,8 +115,8 @@ function pickStage(nextBillingDate, now) {
 
   // ── Suspension. Checked before the post-due reminders so that an operator
   // who is far past due lands here rather than on a reminder window.
-  if (deltaDays <= -(SUSPEND_AFTER_DAYS - 0.5)) {
-    const daysOverdue = Math.max(SUSPEND_AFTER_DAYS, Math.ceil(-deltaDays));
+  if (deltaDays <= -SUSPEND_AFTER_DAYS) {
+    const daysOverdue = Math.max(SUSPEND_AFTER_DAYS, -deltaDays);
     return { kind: "suspended", daysOverdue };
   }
 

@@ -97,3 +97,27 @@ describe("late interest", () => {
     expect(accruedInterestCents("no-such-plan", 5)).toBe(0);
   });
 });
+
+describe("run time does not shift the calendar", () => {
+  // The job runs once a day at whatever hour the scheduler wakes it. A stage
+  // must land on its real date either way — an earlier version compared
+  // elapsed hours and sent "due today" the day before the invoice was due.
+  const DUE = new Date("2026-09-01T00:00:00Z");
+
+  it("fires due_today on the due date itself, at any hour", () => {
+    for (const hour of ["00:01", "06:00", "12:00", "23:59"]) {
+      const now = new Date(`2026-09-01T${hour}:00Z`);
+      expect(pickStage(DUE, now).kind).toBe("due_today");
+    }
+  });
+
+  it("does not call the day before due 'due today'", () => {
+    expect(pickStage(DUE, new Date("2026-08-31T12:00:00Z")).kind).toBe("upcoming_1d");
+    expect(pickStage(DUE, new Date("2026-08-31T23:59:00Z")).kind).toBe("upcoming_1d");
+  });
+
+  it("suspends on day 10 after the due date, not day 9", () => {
+    expect(pickStage(DUE, new Date("2026-09-10T12:00:00Z"))).toBeNull();
+    expect(pickStage(DUE, new Date("2026-09-11T00:00:00Z")).kind).toBe("suspended");
+  });
+});
