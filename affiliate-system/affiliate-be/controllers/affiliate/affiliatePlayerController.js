@@ -1,4 +1,5 @@
 const AffiliatePlayer = require("../../models/AffiliatePlayer");
+const PlayerReferral = require("../../models/PlayerReferral");
 const User = require("../../models/User");
 const Operator = require("../../models/Operator");
 const PlayerName = require("../../models/PlayerName");
@@ -315,7 +316,24 @@ const affiliatePlayerController = {
          GROUP BY player_id LIMIT 5000`,
         cp,
       );
-      const ids = rows.map((r) => String(r.id)).filter(Boolean);
+
+      // Refer-a-friend participants are casino players like any other, but a
+      // referrer who has never been attributed to an affiliate does not appear
+      // in affiliate.activity — so syncing from activity alone left every crew
+      // table showing ids no matter how often it was run.
+      const referralPlayerIds = await PlayerReferral.aggregate([
+        { $match: { operatorId: user.operatorId } },
+        { $project: { ids: ["$referrerPlayerId", "$refereePlayerId"] } },
+        { $unwind: "$ids" },
+        { $group: { _id: "$ids" } },
+        { $limit: 5000 },
+      ]);
+      for (const r of referralPlayerIds) {
+        if (r._id) rows.push({ id: r._id });
+      }
+      // Deduped: a player can appear in both sources, and asking the casino
+      // for the same id twice would inflate the reported total.
+      const ids = [...new Set(rows.map((r) => String(r.id)).filter(Boolean))];
       if (!ids.length) return res.json({ synced: 0, total: 0 });
 
       let synced = 0;
