@@ -12,7 +12,11 @@ const AffiliatePlayer           = require("../models/AffiliatePlayer");
 const clickhouse                = require("../config/clickhouse");
 const { getTestPlayerIds, parseIncludeTest } = require("../utils/testPlayers");
 const { PLAN_ORDER, PLANS }     = require("../utils/planLimits");
-const { sendOperatorInvite }    = require("../utils/mailer");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
+const { SECRET_KEY } = require("../utils/jwtSecret");
+const { sendOperatorInvite, sendOperatorApproved } = require("../utils/mailer");
 const { logger }                = require("../middlewares/logger");
 
 // POST /admin/operators
@@ -256,6 +260,66 @@ exports.approveApplication = async (req, res) => {
     });
 
     const brand = await Brand.findOne({ operatorId: operator._id }).select({ _id: 1, name: 1 }).lean();
+
+    // A machine account for the integration, separate from the owner's login.
+    // Tying the API token to a person means their password change, 2FA reset
+    // or departure silently breaks the casino's event stream — and revoking
+    // the integration would mean locking a human out.
+    const serviceEmail = `integration+${operator._id}@affiliar.co`;
+    const serviceUser = await User.findOneAndUpdate(
+      { email: serviceEmail },
+      {
+        email: serviceEmail,
+        username: `svc-${operator.id}`,
+        name: `${operator.name} Integration`,
+        role: "operator",
+        status: "active",
+        operatorId: operator._id,
+        isDeleted: false,
+        twoFactorEnabled: false,
+        // Never logged into directly — the token is the only way in, and it
+        // is what we rotate if the operator asks.
+        password: await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 10),
+      },
+      { upsert: true, new: true },
+    );
+
+    // Credentials go into a one-time grant, not into the email. What the
+    // operator needs to start sending is the pair of ids plus a token; the
+    // Kafka user, if they asked for Kafka, is provisioned separately on the
+    // broker and added to the same grant when it exists.
+    const credentials = {
+      operatorName: operator.name,
+      tenantId: String(operator._id),
+      brandId: brand ? String(brand._id) : null,
+      mode: operator.integration?.mode || "raw",
+      transport: operator.integration?.transport || "rest",
+      restBaseUrl: `${process.env.APP_URL || "https://app.affiliar.co"}/api`,
+      // Issued at approval so the operator can integrate immediately; the
+      // owner's own login is separate and still set through the invite.
+      apiToken: jwt.sign(
+        { sub: String(serviceUser._id), role: "operator", ip: "", country: "",
+          exp: Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60 },
+        SECRET_KEY,
+      ),
+    };
+
+    const GRANT_HOURS = 72;
+    const grantToken = await CredentialGrant.issue(operator._id, credentials, GRANT_HOURS);
+    const revealUrl = `${process.env.APP_URL || "https://app.affiliar.co"}/credentials/${grantToken}`;
+
+    if (owner) {
+      sendOperatorApproved({
+        to: owner.email,
+        name: owner.name,
+        operatorName: operator.name,
+        revealUrl,
+        expiresHours: GRANT_HOURS,
+        mode: credentials.mode,
+        transport: credentials.transport,
+      }).catch((err) => logger.error("operator.approve.credentials_mail_failed", { error: err?.message }));
+    }
+
     return res.json({
       ok: true,
       operator: { _id: String(operator._id), name: operator.name, plan: operator.plan },

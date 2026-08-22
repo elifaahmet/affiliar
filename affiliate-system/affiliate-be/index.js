@@ -76,9 +76,15 @@ app.use(`${prefix}/affiliate-api/v1`, require("./routes/affiliate/affiliateApiRo
 // before the global auth gate, like the pull API above.
 app.use(`${prefix}/r`, require("./routes/affiliate/clickRoutes"));
 
+// Public paths whose last segment is a secret, so they can't be listed
+// exactly. The token in the URL is the credential; the endpoint behind it is
+// single-use and reveals nothing for an unknown or spent token.
+const publicAuthPrefixes = [`${prefix}/auth/credentials/`];
+
 app.use((req, res, next) => {
   if (req.method === "OPTIONS") return next();
   if (publicAuthPaths.has(req.path)) return next();
+  if (publicAuthPrefixes.some((p) => req.path.startsWith(p))) return next();
   return authorize()(req, res, next);
 });
 

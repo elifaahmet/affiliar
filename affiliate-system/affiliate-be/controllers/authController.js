@@ -7,6 +7,7 @@ const User = require("../models/User");
 const Role = require("../models/Role");
 const Operator = require("../models/Operator");
 const Brand = require("../models/Brand");
+const CredentialGrant = require("../models/CredentialGrant");
 const AffiliateProfile = require("../models/AffiliateProfile");
 const PasswordResetToken = require("../models/PasswordResetToken");
 const { sendPasswordReset } = require("../utils/mailer");
@@ -459,6 +460,32 @@ function generateAffiliateCode() {
 // login stays closed until a platform admin approves. Credentials are issued
 // at approval, not here — otherwise a signup form would mint working access to
 // a multi-tenant platform.
+// GET /auth/credentials/:token — public, single use.
+//
+// The approval email links here. Reading it consumes the grant: a second
+// request gets nothing, and so does an expired or unknown token. They are not
+// distinguished on purpose — telling a caller which tokens exist is the whole
+// attack against a URL-shaped secret.
+exports.revealCredentials = async (req, res) => {
+  try {
+    const payload = await CredentialGrant.reveal(
+      String(req.params.token || ""),
+      req.headers["x-forwarded-for"] || req.ip,
+    );
+    if (!payload) {
+      return res.status(410).json({
+        error: "This link has already been used or has expired. Ask your account manager to issue new credentials.",
+      });
+    }
+    // Deliberately not logged: the point of the grant is that the secret
+    // exists in exactly two places, the operator's config and this response.
+    return res.json({ credentials: payload });
+  } catch (err) {
+    logger.error("credentials.reveal.failed", { error: err?.message });
+    return res.status(500).json({ error: "Could not read the credentials" });
+  }
+};
+
 exports.operatorRegister = async (req, res) => {
   try {
     const {

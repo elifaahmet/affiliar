@@ -70,6 +70,44 @@ async function sendAffiliateInvite({ to, name, userId, operatorName }) {
   return sendMail({ to, subject, htmlBody, textBody });
 }
 
+// Sent on approval, alongside the invite. Carries a link to a one-time
+// credential grant rather than the credentials themselves — a secret pasted
+// into an email outlives the integration, gets forwarded, and ends up in
+// backups and shared inboxes.
+async function sendOperatorApproved({ to, name, operatorName, revealUrl, expiresHours, mode, transport }) {
+  const logoUrl = LOGO_URL;
+  const subject = `${operatorName || "Your"} Affiliar account is approved`;
+
+  const modeLabel = mode === "aggregated" ? "aggregated activity" : "raw events";
+  const transportLabel = transport === "kafka" ? "Kafka" : "REST";
+
+  const bodyHtml = `
+    <p style="color: #334155; font-size: 15px; line-height: 1.6;">Hi ${name || "there"},</p>
+    <p style="color: #334155; font-size: 15px; line-height: 1.6;">Your application for <b>${operatorName}</b> has been approved. You're set up to send <b>${modeLabel}</b> over <b>${transportLabel}</b>.</p>
+    <p style="color: #334155; font-size: 15px; line-height: 1.6;">Two things to do:</p>
+    <ol style="color: #334155; font-size: 15px; line-height: 1.7; padding-left: 20px;">
+      <li>Set your password using the separate invite email we've just sent.</li>
+      <li>Collect your integration credentials from the link below.</li>
+    </ol>
+    <div style="background: #FEF3C7; border-left: 4px solid #D97706; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
+      <p style="color: #92400E; font-size: 14px; line-height: 1.5; margin: 0;">The credentials link opens <b>once</b> and expires in ${expiresHours} hours. Copy what it shows straight into your configuration — we can't show it again, and we'd have to issue new credentials instead.</p>
+    </div>
+  `;
+  const htmlBody = billingShell({
+    logoUrl,
+    billingUrl: revealUrl,
+    headline: "Approved — collect your credentials",
+    headlineColor: "#166534",
+    bodyHtml,
+    ctaLabel: "Show my credentials",
+    ctaColor: "#166534",
+    footerHtml: `<p style="color: #94A3B8; font-size: 12px; text-align: center;">Didn't apply for this? Reply to this email and we'll remove the account.</p>`,
+  });
+  const textBody = `Hi ${name || "there"},\n\nYour application for ${operatorName} has been approved. You're set up to send ${modeLabel} over ${transportLabel}.\n\n1. Set your password using the separate invite email.\n2. Collect your integration credentials here — the link opens once and expires in ${expiresHours} hours:\n\n${revealUrl}\n\nCopy what it shows straight into your configuration; we can't show it again.`;
+
+  return sendMail({ to, subject, htmlBody, textBody });
+}
+
 async function sendOperatorInvite({ to, name, userId, operatorName, planName }) {
   const activateUrl = `${APP_URL}/activate?userId=${userId}`;
   const logoUrl = LOGO_URL;
@@ -469,6 +507,7 @@ module.exports = {
   sendReportDigest,
   sendAffiliateInvite,
   sendOperatorInvite,
+  sendOperatorApproved,
   sendPasswordReset,
   sendBillingPastDue,             // legacy single transition email (kept for safety)
   sendBillingUpcoming,            // -7d / -3d
