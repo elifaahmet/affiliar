@@ -28,12 +28,17 @@ const encrypt = (value) => {
   ]);
   const authTag = cipher.getAuthTag();
 
-  return [
-    ENCRYPTION_PREFIX,
-    iv.toString("base64"),
-    authTag.toString("base64"),
-    encrypted.toString("base64"),
-  ].join(":");
+  // ENCRYPTION_PREFIX already ends in ':', so the parts are joined onto it
+  // rather than through it — joining the prefix as a element produced
+  // "enc:v1::iv:tag:data", which decrypt() then mis-parsed.
+  return (
+    ENCRYPTION_PREFIX +
+    [
+      iv.toString("base64"),
+      authTag.toString("base64"),
+      encrypted.toString("base64"),
+    ].join(":")
+  );
 };
 
 const decrypt = (value) => {
@@ -41,8 +46,14 @@ const decrypt = (value) => {
   if (typeof value !== "string") return value;
   if (!value.startsWith(ENCRYPTION_PREFIX)) return value;
 
-  const [, ivB64, tagB64, dataB64] = value.split(":");
-  if (!ivB64 || !tagB64 || !dataB64) return value;
+  // Parse after the prefix instead of counting fields from the start: the
+  // prefix contains a ':' of its own, so splitting the whole string shifted
+  // every field by one and left the auth tag empty. The guard below then
+  // returned the ciphertext unchanged — decryption failing silently, which
+  // is worse than throwing.
+  const parts = value.slice(ENCRYPTION_PREFIX.length).split(":");
+  if (parts.length !== 3) return value;
+  const [ivB64, tagB64, dataB64] = parts;
 
   const key = getKey();
   const decipher = crypto.createDecipheriv(
