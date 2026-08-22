@@ -35,6 +35,7 @@
 const Operator = require("../models/Operator");
 const User     = require("../models/User");
 const { PLANS } = require("../utils/planLimits");
+const interestRate = require("../utils/interestRate");
 const {
   sendBillingUpcoming,
   sendBillingDueToday,
@@ -62,21 +63,13 @@ const SUSPEND_AFTER_DAYS = 10;
 const PRE_DUE_DAYS  = [7, 5, 3, 1];
 const POST_DUE_DAYS = [1, 3, 5, 7];
 
-// Daily interest charged on the outstanding invoice once it is overdue.
-//
-// Deliberately 0 until an operator sets it: this puts a real number on a real
-// invoice, and a plausible-looking default would start charging customers a
-// rate nobody chose. With 0 the emails simply omit the interest line.
-const DAILY_INTEREST_PERCENT = parseFloat(
-  process.env.BILLING_DAILY_INTEREST_PERCENT || "0",
-);
-
-// What the operator owes today: the plan price plus interest accrued per day
-// of delay. Returns whole cents.
+// Interest accrued on an overdue invoice, at the daily rate derived from SOFR
+// plus a margin (see utils/interestRate). Returns whole cents.
 function accruedInterestCents(plan, daysOverdue) {
   const priceUsd = PLANS[plan]?.priceUsd;
-  if (!priceUsd || !(DAILY_INTEREST_PERCENT > 0) || !(daysOverdue > 0)) return 0;
-  return Math.round(priceUsd * 100 * (DAILY_INTEREST_PERCENT / 100) * daysOverdue);
+  const daily = interestRate.dailyPercent();
+  if (!priceUsd || !(daily > 0) || !(daysOverdue > 0)) return 0;
+  return Math.round(priceUsd * 100 * (daily / 100) * daysOverdue);
 }
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -232,7 +225,7 @@ async function processOperator(operator, now) {
           daysOverdue: stage.daysOverdue,
           daysUntilSuspension: stage.daysUntilSuspension,
           interestCents: accruedInterestCents(operator.plan, stage.daysOverdue),
-          dailyInterestPercent: DAILY_INTEREST_PERCENT,
+          rate: interestRate.describe(),
           suspendAfterDays: SUSPEND_AFTER_DAYS,
         });
       } else if (stage.kind === "suspended") {
@@ -240,7 +233,7 @@ async function processOperator(operator, now) {
           ...args,
           daysOverdue: stage.daysOverdue,
           interestCents: accruedInterestCents(operator.plan, stage.daysOverdue),
-          dailyInterestPercent: DAILY_INTEREST_PERCENT,
+          rate: interestRate.describe(),
         });
       }
       emailed++;

@@ -259,7 +259,22 @@ async function sendBillingDueToday({ to, name, planName, dueDate }) {
 
 // Sparse post-due reminders at +2 / +4 days overdue. The "service will be
 // suspended in N days" countdown anchors against SUSPEND_AFTER_DAYS (+7d).
-async function sendBillingPastDueReminder({ to, name, planName, dueDate, daysOverdue, daysUntilSuspension, interestCents = 0, dailyInterestPercent = 0, suspendAfterDays = 10 }) {
+// How the daily rate was arrived at, in one sentence. Spelled out because an
+// unexplained percentage on an invoice is the kind of thing that gets disputed
+// — and because it is derived from a benchmark that moves.
+function rateBasis(rate) {
+  if (!rate) return "";
+  if (rate.source === "fixed") return `${fmtRate(rate.dailyPercent)}% per day`;
+  const on = rate.effectiveDate ? ` (SOFR as of ${fmtDate(rate.effectiveDate)})` : "";
+  return `${fmtRate(rate.dailyPercent)}% per day — the US overnight rate of ${rate.benchmarkPercent}% plus ${rate.marginPercent}%, divided over 365 days${on}`;
+}
+
+// Daily rates are small; two decimals would render most of them as 0.03%.
+function fmtRate(p) {
+  return Number(p).toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+async function sendBillingPastDueReminder({ to, name, planName, dueDate, daysOverdue, daysUntilSuspension, interestCents = 0, rate = null, suspendAfterDays = 10 }) {
   const billingUrl = `${APP_URL}/billing`;
   const logoUrl = LOGO_URL;
   const niceDate = fmtDate(dueDate);
@@ -267,10 +282,10 @@ async function sendBillingPastDueReminder({ to, name, planName, dueDate, daysOve
   // recipient reading this a day later would otherwise count from the wrong day.
   const suspendOn = fmtDate(new Date(new Date(dueDate).getTime() + suspendAfterDays * 86400000));
   const interestLine = interestCents > 0
-    ? `<p style="color: #334155; font-size: 15px; line-height: 1.6;">Late interest of <b>${dailyInterestPercent}% per day</b> has been applied since the due date, currently <b>$${(interestCents / 100).toFixed(2)}</b>, and continues to accrue daily until the invoice is settled.</p>`
+    ? `<p style="color: #334155; font-size: 15px; line-height: 1.6;">Late interest has been applied since the due date — <b>${rateBasis(rate)}</b> — currently <b>$${(interestCents / 100).toFixed(2)}</b>, and it continues to accrue daily until the invoice is settled.</p>`
     : "";
   const interestText = interestCents > 0
-    ? `\n\nLate interest of ${dailyInterestPercent}% per day has been applied since the due date, currently $${(interestCents / 100).toFixed(2)}, and continues to accrue daily.`
+    ? `\n\nLate interest has been applied since the due date — ${rateBasis(rate)} — currently $${(interestCents / 100).toFixed(2)}, and it continues to accrue daily.`
     : "";
   const subject = `Payment overdue — service will be suspended in ${daysUntilSuspension} day${daysUntilSuspension === 1 ? "" : "s"}`;
 
@@ -302,16 +317,16 @@ async function sendBillingPastDueReminder({ to, name, planName, dueDate, daysOve
 // the operator has already been flipped to `billingStatus: 'suspended'`
 // and the panel gate is blocking their requests; this email tells them
 // what happened and how to restore service.
-async function sendBillingSuspendedNotice({ to, name, planName, dueDate, daysOverdue = 10, interestCents = 0, dailyInterestPercent = 0 }) {
+async function sendBillingSuspendedNotice({ to, name, planName, dueDate, daysOverdue = 10, interestCents = 0, rate = null }) {
   const billingUrl = `${APP_URL}/billing`;
   const logoUrl = LOGO_URL;
   const niceDate = fmtDate(dueDate);
   const suspendedOn = fmtDate(new Date());
   const interestLine = interestCents > 0
-    ? `<p style="color: #334155; font-size: 15px; line-height: 1.6;">Late interest of <b>${dailyInterestPercent}% per day</b> has accrued since ${niceDate} and now stands at <b>$${(interestCents / 100).toFixed(2)}</b>. It continues to accrue daily until the invoice is settled.</p>`
+    ? `<p style="color: #334155; font-size: 15px; line-height: 1.6;">Late interest has accrued since ${niceDate} — <b>${rateBasis(rate)}</b> — and now stands at <b>$${(interestCents / 100).toFixed(2)}</b>. It continues to accrue daily until the invoice is settled.</p>`
     : "";
   const interestText = interestCents > 0
-    ? ` Late interest of ${dailyInterestPercent}% per day has accrued since ${niceDate} and now stands at $${(interestCents / 100).toFixed(2)}, continuing daily until settled.`
+    ? ` Late interest has accrued since ${niceDate} — ${rateBasis(rate)} — and now stands at $${(interestCents / 100).toFixed(2)}, continuing daily until settled.`
     : "";
   const subject = "Affiliar service suspended — pay to restore";
 

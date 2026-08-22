@@ -80,12 +80,17 @@ describe("firing window", () => {
 describe("late interest", () => {
   const { accruedInterestCents } = require("../jobs/billingExpiryJob");
 
-  // The rate is read from the environment at module load, and the default is
-  // 0 on purpose: this figure lands on a real invoice, so nothing is charged
-  // until an operator picks a rate.
-  it("charges nothing by default", () => {
-    expect(accruedInterestCents("tier1", 5)).toBe(0);
-    expect(accruedInterestCents("pro", 30)).toBe(0);
+  // The rate now comes from SOFR plus a margin (utils/interestRate) rather
+  // than a configured constant, so the assertion worth making is that the
+  // amount is real but proportionate — a month of delay on the cheapest plan
+  // costs cents, not dollars.
+  it("charges a proportionate amount once overdue", () => {
+    const tier1 = accruedInterestCents("tier1", 30);   // $53 plan
+    expect(tier1).toBeGreaterThan(0);
+    expect(tier1).toBeLessThan(200);                    // under $2
+
+    // Bigger plan, bigger charge, same rate.
+    expect(accruedInterestCents("pro", 30)).toBeGreaterThan(tier1);
   });
 
   it("charges nothing before the due date passes", () => {

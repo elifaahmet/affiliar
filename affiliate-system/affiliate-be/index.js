@@ -158,6 +158,10 @@ app.listen(PORT, () => {
   // Billing: flip subscriptions past_due once nextBillingDate passes
   // (transition-only) and email the operator's users.
   const { startBillingExpiryJob } = require("./jobs/billingExpiryJob");
+  // Benchmark for late-payment interest; refreshed on a timer so an overdue
+  // invoice is charged against a current rate, not one from install day.
+  const { startInterestRateJob } = require("./utils/interestRate");
+  startInterestRateJob();
   startBillingExpiryJob();
 
   // Player usage: warn operators (in-app + email) as monthly active players
