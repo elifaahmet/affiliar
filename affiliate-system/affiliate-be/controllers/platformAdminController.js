@@ -167,6 +167,92 @@ exports.createOperator = async (req, res) => {
 // admin UI can show a quick directory. Optional `q` filters by operator
 // name OR any owner-user email/username/name (case-insensitive substring).
 // GET /admin/applications — operators awaiting review.
+// Provision (or re-provision) an operator's integration credentials and hand
+// them over through a one-time grant. Used by approval, and on its own when a
+// link expires unopened, a credential leaks, or an approval failed part-way —
+// which is otherwise unrecoverable without editing the database.
+async function issueCredentialsFor(operator, { notify = true, ttlHours = 72 } = {}) {
+  const brand = await Brand.findOne({ operatorId: operator._id }).select({ _id: 1 }).lean();
+
+  // A machine account for the integration, separate from the owner's login:
+  // tying the token to a person means their password change or departure
+  // silently breaks the event stream.
+  const serviceEmail = `integration+${operator._id}@affiliar.co`;
+  const serviceUser = await User.findOneAndUpdate(
+    { email: serviceEmail },
+    {
+      email: serviceEmail,
+      username: `svc-${operator.id}`,
+      name: `${operator.name} Integration`,
+      role: "operator",
+      status: "active",
+      operatorId: operator._id,
+      isDeleted: false,
+      twoFactorEnabled: false,
+      password: await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 10),
+    },
+    { upsert: true, new: true },
+  );
+
+  const credentials = {
+    operatorName: operator.name,
+    tenantId: String(operator._id),
+    brandId: brand ? String(brand._id) : null,
+    mode: operator.integration?.mode || "raw",
+    transport: operator.integration?.transport || "rest",
+    restBaseUrl: `${process.env.APP_URL || "https://app.affiliar.co"}/api`,
+    apiToken: jwt.sign(
+      { sub: String(serviceUser._id), role: "operator", ip: "", country: "",
+        exp: Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60 },
+      SECRET_KEY,
+    ),
+  };
+
+  const token = await CredentialGrant.issue(operator._id, credentials, ttlHours);
+  const revealUrl = `${process.env.APP_URL || "https://app.affiliar.co"}/credentials/${token}`;
+
+  if (notify) {
+    const owner = await User.findOne({
+      operatorId: operator._id, role: "operator", isDeleted: false,
+      email: { $ne: serviceEmail },
+    });
+    if (owner) {
+      sendOperatorApproved({
+        to: owner.email,
+        name: owner.name,
+        operatorName: operator.name,
+        revealUrl,
+        expiresHours: ttlHours,
+        mode: credentials.mode,
+        transport: credentials.transport,
+      }).catch((err) => logger.error("operator.credentials.mail_failed", { error: err?.message }));
+    }
+  }
+
+  return { revealUrl, mode: credentials.mode, transport: credentials.transport, brandId: credentials.brandId };
+}
+
+// POST /admin/operators/:id/credentials — issue a fresh grant.
+exports.issueOperatorCredentials = async (req, res) => {
+  try {
+    const operator = await Operator.findById(req.params.id);
+    if (!operator) return res.status(404).json({ error: "Operator not found" });
+    if (operator.approvalStatus === "pending") {
+      return res.status(409).json({ error: "Approve the application first" });
+    }
+    const out = await issueCredentialsFor(operator, { notify: req.body?.notify !== false });
+    logger.info("operator.credentials.issued", {
+      operatorId: String(operator._id),
+      by: String(req.affiliateUser._id),
+    });
+    // The URL is returned so it can be handed over another way if the
+    // operator's email is bouncing — it is single-use either way.
+    return res.json({ ok: true, ...out });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
 exports.listApplications = async (req, res) => {
   try {
     const operators = await Operator.find({ approvalStatus: "pending" })
@@ -262,63 +348,20 @@ exports.approveApplication = async (req, res) => {
 
     const brand = await Brand.findOne({ operatorId: operator._id }).select({ _id: 1, name: 1 }).lean();
 
-    // A machine account for the integration, separate from the owner's login.
-    // Tying the API token to a person means their password change, 2FA reset
-    // or departure silently breaks the casino's event stream — and revoking
-    // the integration would mean locking a human out.
-    const serviceEmail = `integration+${operator._id}@affiliar.co`;
-    const serviceUser = await User.findOneAndUpdate(
-      { email: serviceEmail },
-      {
-        email: serviceEmail,
-        username: `svc-${operator.id}`,
-        name: `${operator.name} Integration`,
-        role: "operator",
-        status: "active",
-        operatorId: operator._id,
-        isDeleted: false,
-        twoFactorEnabled: false,
-        // Never logged into directly — the token is the only way in, and it
-        // is what we rotate if the operator asks.
-        password: await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 10),
-      },
-      { upsert: true, new: true },
-    );
-
-    // Credentials go into a one-time grant, not into the email. What the
-    // operator needs to start sending is the pair of ids plus a token; the
-    // Kafka user, if they asked for Kafka, is provisioned separately on the
-    // broker and added to the same grant when it exists.
-    const credentials = {
-      operatorName: operator.name,
-      tenantId: String(operator._id),
-      brandId: brand ? String(brand._id) : null,
-      mode: operator.integration?.mode || "raw",
-      transport: operator.integration?.transport || "rest",
-      restBaseUrl: `${process.env.APP_URL || "https://app.affiliar.co"}/api`,
-      // Issued at approval so the operator can integrate immediately; the
-      // owner's own login is separate and still set through the invite.
-      apiToken: jwt.sign(
-        { sub: String(serviceUser._id), role: "operator", ip: "", country: "",
-          exp: Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60 },
-        SECRET_KEY,
-      ),
-    };
-
-    const GRANT_HOURS = 72;
-    const grantToken = await CredentialGrant.issue(operator._id, credentials, GRANT_HOURS);
-    const revealUrl = `${process.env.APP_URL || "https://app.affiliar.co"}/credentials/${grantToken}`;
-
-    if (owner) {
-      sendOperatorApproved({
-        to: owner.email,
-        name: owner.name,
-        operatorName: operator.name,
-        revealUrl,
-        expiresHours: GRANT_HOURS,
-        mode: credentials.mode,
-        transport: credentials.transport,
-      }).catch((err) => logger.error("operator.approve.credentials_mail_failed", { error: err?.message }));
+    // Same provisioning as the standalone re-issue endpoint, so there is one
+    // definition of what an operator's credentials are.
+    //
+    // Deliberately after the operator has been saved as approved: if this
+    // throws, the approval still stands and credentials can be re-issued,
+    // rather than the approval being lost and needing to be repeated.
+    let issued = null;
+    try {
+      issued = await issueCredentialsFor(operator);
+    } catch (err) {
+      logger.error("operator.approve.credentials_failed", {
+        operatorId: String(operator._id),
+        error: err?.message,
+      });
     }
 
     return res.json({
@@ -330,8 +373,11 @@ exports.approveApplication = async (req, res) => {
         mode: operator.integration?.mode,
         transport: operator.integration?.transport,
         tenantId: String(operator._id),
-        brandId: brand ? String(brand._id) : null,
+        brandId: issued ? issued.brandId : null,
       },
+      // Null when provisioning failed — the approval stands and credentials
+      // can be issued again from the operator page.
+      credentialsIssued: !!issued,
       trialEndsAt,
       invitedOwner: owner ? owner.email : null,
     });

@@ -13,6 +13,11 @@ router.get("/applications",              ctrl.listApplications);
 router.post("/applications/:id/approve", ctrl.approveApplication);
 router.post("/applications/:id/reject",  ctrl.rejectApplication);
 
+// Re-issue an approved operator's integration credentials. Needed when a grant
+// link expires unopened, a credential leaks, or provisioning failed part-way
+// through an approval.
+router.post("/operators/:id/credentials", ctrl.issueOperatorCredentials);
+
 router.get("/operators",  ctrl.listOperators);
 router.post("/operators", ctrl.createOperator);
 
