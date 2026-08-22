@@ -188,7 +188,7 @@
         </div>
 
         <div>
-          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Payouts (USDT-TRC20)</p>
+          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Payouts (stablecoin)</p>
           <a href="#payouts-wallet"        class="nav-link">Affiliate wallet setup</a>
           <a href="#payouts-operator"      class="nav-link">Pay your affiliates</a>
           <a href="#payouts-sub"           class="nav-link">Sub-affiliate payouts</a>
@@ -2022,12 +2022,12 @@ maria_g,maria@example.com,Maria Garcia,CPA $50</code></pre>
           </div>
         </section>
 
-        <!-- ═══════════ AFFILIATE PAYOUTS (USDT-TRC20) ═══════════ -->
+        <!-- ═══════════ AFFILIATE PAYOUTS (STABLECOIN) ═══════════ -->
 
         <section id="payouts-wallet">
           <h2 class="text-2xl font-bold text-gray-900 mb-2">43. Affiliate wallet setup</h2>
-          <p class="text-gray-500 mb-6">Before an operator can pay them, each affiliate sets a <strong>USDT-TRC20</strong>
-          wallet address on their profile. Without a wallet, the operator's Pay button stays disabled for that
+          <p class="text-gray-500 mb-6">Before an operator can pay them, each affiliate sets a <strong>payout wallet</strong>
+          on their profile &mdash; USDT or USDC, on TRC20, ERC20 or BEP20, their choice. Without a wallet, the operator's Pay button stays disabled for that
           affiliate.</p>
 
           <h3 class="font-semibold text-gray-900 mb-2">Affiliate-side flow</h3>
@@ -2039,15 +2039,16 @@ maria_g,maria@example.com,Maria Garcia,CPA $50</code></pre>
           </ol>
 
           <div class="callout-warn">
-            <strong>Double-check the address.</strong> Crypto transfers are irreversible. Sans Getirsin doesn't validate the recipient address against the chain — a typo means the funds land in a wrong wallet (if the address even exists).
+            <strong>Double-check the address.</strong> Crypto transfers are irreversible. Coinflux doesn't validate the recipient address against the chain — a typo means the funds land in a wrong wallet (if the address even exists).
           </div>
         </section>
 
         <section id="payouts-operator">
           <h2 class="text-2xl font-bold text-gray-900 mb-2">44. Operator pays affiliates</h2>
-          <p class="text-gray-500 mb-6">All affiliate payouts flow through the operator's Sans Getirsin
-          merchant account as USDT-TRC20 transfers. The platform handles the 3-step dance (token &rarr;
-          list withdraw accounts &rarr; create withdrawal) and matches the callback back to the right payout.</p>
+          <p class="text-gray-500 mb-6">All affiliate payouts flow through Coinflux, in whichever stablecoin
+          and network the affiliate chose &mdash; USDT or USDC, on TRC20, ERC20 or BEP20. Coinflux is
+          non-custodial: the platform opens the withdrawal, you approve and fund it from your own wallet,
+          and a signed callback is matched back to the right payout.</p>
 
           <h3 class="font-semibold text-gray-900 mb-2">From the Commission page</h3>
           <ol class="list-decimal list-inside space-y-1 text-sm text-gray-600 mb-6">
@@ -2072,7 +2073,7 @@ maria_g,maria@example.com,Maria Garcia,CPA $50</code></pre>
 
         <section id="payouts-sub">
           <h2 class="text-2xl font-bold text-gray-900 mb-2">45. Sub-affiliate payouts</h2>
-          <p class="text-gray-500 mb-6">An affiliate can dispatch USDT-TRC20 payments to their own direct
+          <p class="text-gray-500 mb-6">An affiliate can dispatch stablecoin payments to their own direct
           sub-affiliates from the Commission → "To my subs" tab. The transfer is funded by the
           operator's Sans account but accounted against the parent affiliate's <em>internal balance</em>,
           so the operator never funds the same dollar twice.</p>

@@ -115,6 +115,7 @@
         <div>
           <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Getting Started</p>
           <a href="#overview"        class="nav-link active">Overview</a>
+          <a href="#integration-overview" class="nav-link">Planning your integration</a>
           <a href="#quickstart"      class="nav-link">Quickstart</a>
           <a href="#concepts"        class="nav-link">Core Concepts</a>
         </div>
@@ -222,11 +223,84 @@
               <p class="font-semibold text-gray-900 mb-1 group-hover:text-primary transition-colors">Kafka Integration →</p>
               <p class="text-xs text-gray-400">High-throughput real-time event streaming</p>
             </a>
-            <a href="#plans" class="border border-gray-200 rounded-xl p-4 hover:border-primary/40 hover:bg-primary-light/30 transition-colors group">
-              <p class="font-semibold text-gray-900 mb-1 group-hover:text-primary transition-colors">Commission Plans →</p>
-              <p class="text-xs text-gray-400">RevShare, CPA, Hybrid, Tiered</p>
+            <a href="#integration-overview" class="border border-gray-200 rounded-xl p-4 hover:border-primary/40 hover:bg-primary-light/30 transition-colors group">
+              <p class="font-semibold text-gray-900 mb-1 group-hover:text-primary transition-colors">Planning your integration →</p>
+              <p class="text-xs text-gray-400">What to decide, what you need, in what order</p>
             </a>
           </div>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── INTEGRATION OVERVIEW ──────────────────────────────────────── -->
+
+        <section id="integration-overview">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Planning your integration</h2>
+          <p class="text-gray-500 mb-6">
+            Affiliar sits beside your platform: your system stays the source of truth for players and
+            money, and tells Affiliar what happened. Everything else &mdash; attribution, commission,
+            payouts, reporting &mdash; is derived from that stream. Getting the stream right is the
+            whole integration; the rest is configuration in the dashboard.
+          </p>
+
+          <h3 class="font-semibold text-gray-900 mb-2">What you need before you start</h3>
+          <div class="overflow-x-auto rounded-xl border border-gray-100 mb-4">
+            <table>
+              <thead><tr><th>Value</th><th>Where it comes from</th><th>Used for</th></tr></thead>
+              <tbody>
+                <tr><td><code>tenantId</code></td><td>Your operator record in Affiliar</td><td>Every event &mdash; which operator the activity belongs to</td></tr>
+                <tr><td><code>brandId</code></td><td>The brand under that operator</td><td>Every event &mdash; one operator can run several brands</td></tr>
+                <tr><td>Credentials</td><td>A Kafka SASL user, or an operator JWT for REST</td><td>Authenticating the stream</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-gray-500 mb-6">
+            Send these exactly as issued. A wrong <code>tenantId</code> does not raise an error &mdash; the
+            event is attributed elsewhere or dropped, and the first sign of trouble is a report that
+            never fills up. Confirm the first few events land before wiring the rest.
+          </p>
+
+          <h3 class="font-semibold text-gray-900 mb-2">Kafka or REST?</h3>
+          <div class="overflow-x-auto rounded-xl border border-gray-100 mb-4">
+            <table>
+              <thead><tr><th></th><th>Kafka</th><th>REST</th></tr></thead>
+              <tbody>
+                <tr><td>Best for</td><td>Continuous production traffic</td><td>Low volume, backfills, getting started</td></tr>
+                <tr><td>Delivery</td><td>Buffered and retried by the broker</td><td>Your code owns the retry</td></tr>
+                <tr><td>If Affiliar is unreachable</td><td>Events wait in the topic</td><td>You must queue them yourself</td></tr>
+                <tr><td>Setup</td><td>Broker credentials, a topic, TLS</td><td>An HTTP call</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-gray-500 mb-6">
+            Both accept the same event shape, so starting on REST and moving to Kafka later costs
+            nothing &mdash; the payloads do not change.
+          </p>
+
+          <h3 class="font-semibold text-gray-900 mb-2">The order that works</h3>
+          <ol class="text-gray-500 space-y-2 mb-4 list-decimal pl-5">
+            <li><b>Registrations first.</b> <code>player.registered</code> carries the referral code and is
+                what creates the attribution. A deposit for a player Affiliar has never seen cannot be
+                credited to anyone, and sending it later will not fix the reports in between.</li>
+            <li><b>Then money.</b> <code>wallet.deposit.confirmed</code> with <code>isFirstDeposit</code> set
+                correctly &mdash; FTD counts and CPA qualification both hang off it.</li>
+            <li><b>Then play.</b> Bets and wins, which produce GGR and therefore RevShare.</li>
+            <li><b>Then the rest.</b> Withdrawals, bonuses, corrections and fees refine NGR, but nothing
+                depends on them being there from day one.</li>
+          </ol>
+          <p class="text-gray-500 mb-6">
+            Use each event's real timestamp in <code>occurredAt</code>, not the time you send it. Reports
+            bucket by that field, so replaying history with today's date collapses months of activity
+            into a single hour.
+          </p>
+
+          <h3 class="font-semibold text-gray-900 mb-2">Testing before you go live</h3>
+          <p class="text-gray-500">
+            Every event carries an <code>eventId</code> you choose and duplicates are rejected, so replaying
+            a batch is safe while you get it right. Send a handful of registrations, confirm they appear
+            against the right affiliate under <b>Players</b>, then let the rest follow. If they arrive
+            unattributed, the referral code in the payload is the first thing to check.
+          </p>
         </section>
 
         <hr class="border-gray-100" />
