@@ -12,6 +12,7 @@ const AffiliatePlayer           = require("../models/AffiliatePlayer");
 const clickhouse                = require("../config/clickhouse");
 const { getTestPlayerIds, parseIncludeTest } = require("../utils/testPlayers");
 const { PLAN_ORDER, PLANS }     = require("../utils/planLimits");
+const CredentialGrant = require("../models/CredentialGrant");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
