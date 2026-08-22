@@ -13,6 +13,7 @@ const clickhouse                = require("../config/clickhouse");
 const { getTestPlayerIds, parseIncludeTest } = require("../utils/testPlayers");
 const { PLAN_ORDER, PLANS }     = require("../utils/planLimits");
 const CredentialGrant = require("../models/CredentialGrant");
+const { planKafkaAccess } = require("../utils/kafkaProvision");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
@@ -208,6 +209,26 @@ async function issueCredentialsFor(operator, { notify = true, ttlHours = 72 } = 
     ),
   };
 
+  // Kafka, when they asked for it. The broker commands come back for a human
+  // to run — see utils/kafkaProvision for why the API doesn't run them itself.
+  let kafkaPlan = null;
+  if (credentials.transport === "kafka") {
+    kafkaPlan = planKafkaAccess({
+      operatorName: operator.name,
+      operatorId: operator._id,
+      mode: credentials.mode,
+    });
+    if (kafkaPlan) {
+      credentials.kafka = kafkaPlan.credentials;
+    } else {
+      // No public broker configured. Better to hand over working REST
+      // credentials and say so than to ship Kafka settings pointing nowhere.
+      logger.warn("operator.credentials.kafka_unavailable", {
+        operatorId: String(operator._id),
+      });
+    }
+  }
+
   const token = await CredentialGrant.issue(operator._id, credentials, ttlHours);
   const revealUrl = `${process.env.APP_URL || "https://app.affiliar.co"}/credentials/${token}`;
 
@@ -229,7 +250,16 @@ async function issueCredentialsFor(operator, { notify = true, ttlHours = 72 } = 
     }
   }
 
-  return { revealUrl, mode: credentials.mode, transport: credentials.transport, brandId: credentials.brandId };
+  return {
+    revealUrl,
+    mode: credentials.mode,
+    transport: credentials.transport,
+    brandId: credentials.brandId,
+    // Surfaced to the admin, never to the operator: these are run on the
+    // broker to make the credentials in the grant actually work.
+    kafkaSetupCommands: kafkaPlan ? kafkaPlan.commands : null,
+    kafkaConfigured: !!kafkaPlan,
+  };
 }
 
 // POST /admin/operators/:id/credentials — issue a fresh grant.

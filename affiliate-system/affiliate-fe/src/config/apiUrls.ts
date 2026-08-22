@@ -263,6 +263,9 @@ export const AFFILIATES_API_URLS = {
   REGISTER:        () => `${API_BASE_URL}api/auth/affiliate-register`,
   // Public operator application — creates nothing usable until approved.
   OPERATOR_REGISTER: () => `${API_BASE_URL}api/auth/operator-register`,
+  // One-time credential grant. Reading it consumes it, so the page must not
+  // call this twice.
+  REVEAL_CREDENTIALS: (token: string) => `${API_BASE_URL}api/auth/credentials/${token}`,
   CREATE:          () => `${API_BASE_URL}api/affiliates`,
   BULK_CREATE:     () => `${API_BASE_URL}api/affiliates/bulk`,
   ACTIVATE:        () => `${API_BASE_URL}api/auth/activate`,
