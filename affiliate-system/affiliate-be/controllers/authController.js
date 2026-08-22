@@ -6,6 +6,7 @@ const qrcode = require("qrcode");
 const User = require("../models/User");
 const Role = require("../models/Role");
 const Operator = require("../models/Operator");
+const Brand = require("../models/Brand");
 const AffiliateProfile = require("../models/AffiliateProfile");
 const PasswordResetToken = require("../models/PasswordResetToken");
 const { sendPasswordReset } = require("../utils/mailer");
@@ -450,6 +451,105 @@ function generateAffiliateCode() {
   }
   return code;
 }
+
+// POST /auth/operator-register — public.
+//
+// An operator applies for an account. Nothing is usable yet: the operator is
+// created in `pending`, the owner account in `pending` with no password, and
+// login stays closed until a platform admin approves. Credentials are issued
+// at approval, not here — otherwise a signup form would mint working access to
+// a multi-tenant platform.
+exports.operatorRegister = async (req, res) => {
+  try {
+    const {
+      companyName, contactName, email, website, notes,
+      brandName, integrationMode, transport, callbackUrl,
+    } = req.body || {};
+
+    if (!companyName || !email || !contactName) {
+      return res.status(400).json({ error: "companyName, contactName and email are required" });
+    }
+    const cleanEmail = String(email).toLowerCase().trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cleanEmail)) {
+      return res.status(400).json({ error: "A valid email is required" });
+    }
+    if (integrationMode && !["raw", "aggregated"].includes(integrationMode)) {
+      return res.status(400).json({ error: "integrationMode must be 'raw' or 'aggregated'" });
+    }
+    if (transport && !["kafka", "rest"].includes(transport)) {
+      return res.status(400).json({ error: "transport must be 'kafka' or 'rest'" });
+    }
+
+    // Same answer whether or not the email is already known: a public form
+    // that distinguishes them tells anyone who asks which companies are on
+    // the platform.
+    const generic = {
+      ok: true,
+      message: "Application received. We'll email you once it has been reviewed.",
+    };
+    if (await User.findOne({ email: cleanEmail })) return res.status(202).json(generic);
+
+    // Operator.id and Brand.id are human-readable numeric ids, globally
+    // unique — derived the same way platformAdminController does.
+    const lastOp = await Operator.findOne({}).sort({ id: -1 }).select({ id: 1 }).lean();
+    const nextId = (lastOp?.id ?? 0) + 1;
+    const operator = await Operator.create({
+      id: nextId,
+      name: String(companyName).trim(),
+      approvalStatus: "pending",
+      approvalRequestedAt: new Date(),
+      // No trial clock starts until someone approves — otherwise an
+      // unreviewed application quietly burns its trial and lands past_due.
+      billingStatus: "trial",
+      nextBillingDate: null,
+      integration: {
+        mode: integrationMode || "raw",
+        transport: transport || "rest",
+        callbackUrl: callbackUrl || "",
+      },
+      applicant: {
+        contactName: String(contactName).trim(),
+        contactEmail: cleanEmail,
+        website: website || "",
+        notes: notes || "",
+      },
+    });
+
+    if (brandName) {
+      await Brand.create({
+        operatorId: operator._id,
+        id: ((await Brand.findOne({}).sort({ id: -1 }).select({ id: 1 }).lean())?.id ?? 0) + 1,
+        name: String(brandName).trim(),
+      });
+    }
+
+    // "PENDING" password + pending status: the same shape /auth/activate
+    // expects, so approval can reuse the existing invite flow rather than
+    // inventing a second way to set a first password.
+    await User.create({
+      email: cleanEmail,
+      username: cleanEmail.split("@")[0],
+      name: String(contactName).trim(),
+      password: "PENDING",
+      role: "operator",
+      status: "pending",
+      operatorId: operator._id,
+      isDeleted: false,
+    });
+
+    logger.info("operator.application.received", {
+      operatorId: String(operator._id),
+      name: operator.name,
+      mode: operator.integration.mode,
+      transport: operator.integration.transport,
+    });
+
+    return res.status(202).json(generic);
+  } catch (err) {
+    logger.error("operator.application.failed", { error: err?.message });
+    return res.status(500).json({ error: "Could not submit the application" });
+  }
+};
 
 exports.affiliateRegister = async (req, res) => {
   try {

@@ -46,6 +46,7 @@ const authorize = require("../middlewares/auth");
  *         description: Admin user not found
  */
 router.post("/affiliate-register", authController.affiliateRegister);
+router.post("/operator-register",  authController.operatorRegister);
 router.post("/activate", authController.activate);
 router.post("/forgot-password", authController.forgotPassword);
 router.post("/reset-password", authController.resetPassword);

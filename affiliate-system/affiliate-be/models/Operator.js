@@ -31,6 +31,57 @@ const operatorSchema = new mongoose.Schema(
       enum: ["trial", "active", "past_due", "suspended", "cancelled"],
       default: "trial",
     },
+
+    // ── Onboarding ───────────────────────────────────────────────────────────
+    //
+    // Deliberately separate from billingStatus: whether we have accepted this
+    // operator and whether they are paid up are different questions, and an
+    // operator can be approved but still on trial, or approved and later
+    // suspended for non-payment without that revisiting the approval.
+    //
+    // Operators created by a platform admin are approved by definition —
+    // hence the default. Only self-registration starts at "pending".
+    approvalStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "approved",
+      index: true,
+    },
+    approvalRequestedAt: { type: Date, default: null },
+    approvedAt:          { type: Date, default: null },
+    approvedBy:          { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    // Shown back to the applicant, so a rejection is not a silent dead end.
+    rejectionReason:     { type: String, default: "" },
+
+    // How this operator intends to send us activity. Recorded at signup
+    // because it decides which topic they produce to and what their events
+    // look like — and because it is the first thing support needs to know.
+    integration: {
+      // raw        — one event per bet/win; Affiliar aggregates.
+      // aggregated — the platform sends hourly casino activity already summed.
+      mode: {
+        type: String,
+        enum: ["raw", "aggregated"],
+        default: "raw",
+      },
+      // Kafka for continuous production traffic, REST to get started. Both
+      // carry the same event shape, so this can change without a rewrite.
+      transport: {
+        type: String,
+        enum: ["kafka", "rest"],
+        default: "rest",
+      },
+      // Where the operator wants outbound callbacks delivered. Theirs to set.
+      callbackUrl: { type: String, default: "" },
+    },
+
+    // Free-text captured at signup so an approver has something to judge.
+    applicant: {
+      contactName:  { type: String, default: "" },
+      contactEmail: { type: String, default: "" },
+      website:      { type: String, default: "" },
+      notes:        { type: String, default: "" },
+    },
     // Carved-out operator (e.g. our own Hexora tenant) — the billing job,
     // the past-due gate, and the operator-side billing banner all treat
     // them as if subscription rules don't apply. Set via the admin's

@@ -161,6 +161,151 @@ exports.createOperator = async (req, res) => {
 // Hexium-internal list. Returns every operator + their owner user(s) so the
 // admin UI can show a quick directory. Optional `q` filters by operator
 // name OR any owner-user email/username/name (case-insensitive substring).
+// GET /admin/applications — operators awaiting review.
+exports.listApplications = async (req, res) => {
+  try {
+    const operators = await Operator.find({ approvalStatus: "pending" })
+      .sort({ approvalRequestedAt: 1 })
+      .lean();
+
+    const ids = operators.map((o) => o._id);
+    const [owners, brands] = await Promise.all([
+      User.find({ operatorId: { $in: ids }, role: "operator", isDeleted: false })
+        .select({ operatorId: 1, email: 1, name: 1, status: 1 })
+        .lean(),
+      Brand.find({ operatorId: { $in: ids } }).select({ operatorId: 1, name: 1 }).lean(),
+    ]);
+    const ownerBy = new Map(owners.map((u) => [String(u.operatorId), u]));
+    const brandBy = new Map();
+    for (const b of brands) {
+      if (!brandBy.has(String(b.operatorId))) brandBy.set(String(b.operatorId), []);
+      brandBy.get(String(b.operatorId)).push(b.name);
+    }
+
+    return res.json({
+      applications: operators.map((o) => ({
+        _id: String(o._id),
+        name: o.name,
+        requestedAt: o.approvalRequestedAt,
+        applicant: o.applicant || {},
+        integration: o.integration || {},
+        brands: brandBy.get(String(o._id)) || [],
+        owner: ownerBy.get(String(o._id)) || null,
+      })),
+      count: operators.length,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /admin/applications/:id/approve
+//
+// Approval is what starts everything: the trial clock, the owner's invite, and
+// the credentials. Until then the account exists but cannot be used, which is
+// the point of having an approval step at all.
+exports.approveApplication = async (req, res) => {
+  try {
+    const operator = await Operator.findById(req.params.id);
+    if (!operator) return res.status(404).json({ error: "Application not found" });
+    if (operator.approvalStatus === "approved") {
+      return res.status(409).json({ error: "Already approved" });
+    }
+
+    const { plan, trialDays = 14 } = req.body || {};
+    if (plan && !PLANS[plan]) return res.status(400).json({ error: "Unknown plan" });
+
+    const now = new Date();
+    const trialEndsAt = new Date(now.getTime() + Number(trialDays) * 24 * 60 * 60 * 1000);
+
+    operator.approvalStatus = "approved";
+    operator.approvedAt = now;
+    operator.approvedBy = req.affiliateUser._id;
+    operator.rejectionReason = "";
+    if (plan) operator.plan = plan;
+    // The trial only starts now — an application that sat unreviewed for a
+    // week shouldn't arrive with half its trial already spent.
+    operator.billingStatus = "trial";
+    operator.trialEndsAt = trialEndsAt;
+    operator.nextBillingDate = trialEndsAt;
+    await operator.save();
+
+    await OperatorFinancialSettings.findOneAndUpdate(
+      { operatorId: operator._id, brandId: null },
+      { operatorId: operator._id, brandId: null },
+      { upsert: true },
+    );
+
+    // The owner still sets their own password through /auth/activate; the
+    // invite is what carries the link. We never mint one for them.
+    const owner = await User.findOne({ operatorId: operator._id, role: "operator", isDeleted: false });
+    if (owner) {
+      sendOperatorInvite({
+        to: owner.email,
+        name: owner.name,
+        userId: owner._id.toString(),
+        operatorName: operator.name,
+        planName: operator.plan,
+      }).catch((err) => logger.error("operator.approve.mail_failed", { error: err?.message }));
+    }
+
+    logger.info("operator.application.approved", {
+      operatorId: String(operator._id),
+      approvedBy: String(req.affiliateUser._id),
+      plan: operator.plan,
+    });
+
+    const brand = await Brand.findOne({ operatorId: operator._id }).select({ _id: 1, name: 1 }).lean();
+    return res.json({
+      ok: true,
+      operator: { _id: String(operator._id), name: operator.name, plan: operator.plan },
+      // What the operator needs to start sending events. The credential
+      // itself is issued separately — this is the identifying half.
+      integration: {
+        mode: operator.integration?.mode,
+        transport: operator.integration?.transport,
+        tenantId: String(operator._id),
+        brandId: brand ? String(brand._id) : null,
+      },
+      trialEndsAt,
+      invitedOwner: owner ? owner.email : null,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /admin/applications/:id/reject
+exports.rejectApplication = async (req, res) => {
+  try {
+    const { reason } = req.body || {};
+    const operator = await Operator.findById(req.params.id);
+    if (!operator) return res.status(404).json({ error: "Application not found" });
+    if (operator.approvalStatus === "approved") {
+      return res.status(409).json({ error: "Already approved — remove the operator instead" });
+    }
+
+    operator.approvalStatus = "rejected";
+    operator.rejectionReason = String(reason || "").trim();
+    await operator.save();
+
+    // The owner account goes with it: leaving a pending login behind means an
+    // applicant can keep trying a password reset on an account we declined.
+    await User.updateMany(
+      { operatorId: operator._id, role: "operator" },
+      { $set: { isDeleted: true } },
+    );
+
+    logger.info("operator.application.rejected", {
+      operatorId: String(operator._id),
+      reason: operator.rejectionReason || null,
+    });
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
 exports.listOperators = async (req, res) => {
   try {
     const q = String(req.query.q || "").trim();

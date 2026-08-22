@@ -59,6 +59,7 @@ const publicAuthPaths = new Set([
   `${prefix}/auth/verify-2fa`,
   `${prefix}/auth/generate-2fa-qr`,
   `${prefix}/auth/affiliate-register`,
+  `${prefix}/auth/operator-register`,
   `${prefix}/auth/activate`,
   `${prefix}/auth/forgot-password`,
   `${prefix}/auth/reset-password`,

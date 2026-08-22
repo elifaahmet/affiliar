@@ -6,6 +6,13 @@ const requirePlatformAdmin = require("../middlewares/requirePlatformAdmin");
 router.use(requirePlatformAdmin);
 
 // Operators list + create
+// Self-service applications awaiting review. Approval is what issues
+// credentials and starts the trial, so it sits behind the platform-admin gate
+// the rest of this router uses.
+router.get("/applications",              ctrl.listApplications);
+router.post("/applications/:id/approve", ctrl.approveApplication);
+router.post("/applications/:id/reject",  ctrl.rejectApplication);
+
 router.get("/operators",  ctrl.listOperators);
 router.post("/operators", ctrl.createOperator);
 
