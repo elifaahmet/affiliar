@@ -11,7 +11,7 @@ const AffiliatePayout           = require("../models/AffiliatePayout");
 const AffiliatePlayer           = require("../models/AffiliatePlayer");
 const clickhouse                = require("../config/clickhouse");
 const { getTestPlayerIds, parseIncludeTest } = require("../utils/testPlayers");
-const { PLAN_ORDER }            = require("../utils/planLimits");
+const { PLAN_ORDER, PLANS }     = require("../utils/planLimits");
 const { sendOperatorInvite }    = require("../utils/mailer");
 const { logger }                = require("../middlewares/logger");
 
