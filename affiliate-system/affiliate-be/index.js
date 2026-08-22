@@ -81,18 +81,6 @@ app.use(`${prefix}/r`, require("./routes/affiliate/clickRoutes"));
 // single-use and reveals nothing for an unknown or spent token.
 const publicAuthPrefixes = [`${prefix}/auth/credentials/`];
 
-app.use((req, res, next) => {
-  if (req.method === "OPTIONS") return next();
-  if (publicAuthPaths.has(req.path)) return next();
-  if (publicAuthPrefixes.some((p) => req.path.startsWith(p))) return next();
-  return authorize()(req, res, next);
-});
-
-// Hard cut-off for `suspended` operators on every authed route except the
-// pay-to-restore loop (/auth, /billing, /admin). Runs after authorize() so
-// req.affiliateUser is populated.
-app.use(blockSuspendedOperator);
-
 // Documentation, readable only once signed in. Mounted before the global
 // authorize() gate because it authenticates differently — see
 // middlewares/docsAccess for why the cookie is accepted here and nowhere else.
@@ -107,6 +95,18 @@ app.get("/docs", require("./middlewares/docsAccess"), (req, res) => {
     }
   });
 });
+
+app.use((req, res, next) => {
+  if (req.method === "OPTIONS") return next();
+  if (publicAuthPaths.has(req.path)) return next();
+  if (publicAuthPrefixes.some((p) => req.path.startsWith(p))) return next();
+  return authorize()(req, res, next);
+});
+
+// Hard cut-off for `suspended` operators on every authed route except the
+// pay-to-restore loop (/auth, /billing, /admin). Runs after authorize() so
+// req.affiliateUser is populated.
+app.use(blockSuspendedOperator);
 
 app.use(`${prefix}/auth`, authRoutes);
 app.use(`${prefix}/dashboard`, affiliateRoutes.dashboardRoutes);
