@@ -261,6 +261,8 @@ export const BETSLIP_CONFIGURER_URLS = {
 export const AFFILIATES_API_URLS = {
   LIST:            () => `${API_BASE_URL}api/affiliates`,
   REGISTER:        () => `${API_BASE_URL}api/auth/affiliate-register`,
+  // Public operator application — creates nothing usable until approved.
+  OPERATOR_REGISTER: () => `${API_BASE_URL}api/auth/operator-register`,
   CREATE:          () => `${API_BASE_URL}api/affiliates`,
   BULK_CREATE:     () => `${API_BASE_URL}api/affiliates/bulk`,
   ACTIVATE:        () => `${API_BASE_URL}api/auth/activate`,

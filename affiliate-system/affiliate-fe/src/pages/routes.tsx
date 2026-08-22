@@ -25,6 +25,7 @@ import { teamRoutes } from './team/routes';
 import { settingsRoutes } from './settings/routes';
 import { platformRoutes } from './platform/routes';
 import { registerRoutes } from './register/routes';
+import { applyRoutes } from './apply/routes';
 import { activateRoutes } from './activate/routes';
 import { resetPasswordRoutes } from './reset-password/routes';
 import { affiliatePortalRoutes } from './affiliate-portal/routes';
@@ -76,6 +77,7 @@ export default function Router() {
       ),
       children: [
         ...registerRoutes,
+        ...applyRoutes,
         ...activateRoutes,
         ...resetPasswordRoutes,
       ],
@@ -110,6 +112,7 @@ export default function Router() {
       ),
       children: [
         ...registerRoutes,
+        ...applyRoutes,
         ...activateRoutes,
         ...resetPasswordRoutes,
       ],
