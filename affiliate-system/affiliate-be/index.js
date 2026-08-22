@@ -93,6 +93,21 @@ app.use((req, res, next) => {
 // req.affiliateUser is populated.
 app.use(blockSuspendedOperator);
 
+// Documentation, readable only once signed in. Mounted before the global
+// authorize() gate because it authenticates differently — see
+// middlewares/docsAccess for why the cookie is accepted here and nowhere else.
+app.get("/docs", require("./middlewares/docsAccess"), (req, res) => {
+  const docsPath =
+    process.env.DOCS_HTML_PATH ||
+    require("path").join(__dirname, "..", "..", "affiliar-marketing", "docs.html");
+  return res.sendFile(docsPath, (err) => {
+    if (err) {
+      logger.error("docs.serve.failed", { error: err?.message, docsPath });
+      if (!res.headersSent) res.status(404).send("Documentation is unavailable right now.");
+    }
+  });
+});
+
 app.use(`${prefix}/auth`, authRoutes);
 app.use(`${prefix}/dashboard`, affiliateRoutes.dashboardRoutes);
 app.use(`${prefix}/players`, affiliateRoutes.playerRoutes);
