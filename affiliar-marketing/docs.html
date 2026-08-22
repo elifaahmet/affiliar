@@ -167,10 +167,18 @@
         </div>
 
         <div>
-          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Payouts (Sans Getirsin)</p>
+          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Payouts (Coinflux)</p>
           <a href="#payouts-overview"  class="nav-link">Overview</a>
-          <a href="#payouts-flow"      class="nav-link">3-step withdrawal flow</a>
-          <a href="#payouts-callback"  class="nav-link">Callback (deposit + withdraw)</a>
+          <a href="#payouts-networks"  class="nav-link">Networks &amp; assets</a>
+          <a href="#payouts-flow"      class="nav-link">Dispatch</a>
+          <a href="#payouts-callback"  class="nav-link">Webhook</a>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">Billing</p>
+          <a href="#billing-overview" class="nav-link">Subscription &amp; plans</a>
+          <a href="#billing-reminders" class="nav-link">Reminders &amp; suspension</a>
+          <a href="#billing-interest" class="nav-link">Late interest</a>
         </div>
 
         <div>
@@ -1009,7 +1017,7 @@ NGR = GGR
         <!-- ─── CREW (TIERED) ENDPOINT ─────────────────────────────────────── -->
         <section id="raf-crew-api">
           <h2 class="text-2xl font-bold text-gray-900 mb-2">Crew (tiered) endpoint</h2>
-          <p class="text-gray-500 mb-4">For operators on Affiliate Pro who run the <strong>Crew</strong> reward shape, a pull-model endpoint returns the inviter's current tier, active referral count, and earnings ledger — so your casino frontend can render a player-facing "Crew" widget without webhook plumbing.</p>
+          <p class="text-gray-500 mb-4">For operators on Affiliate Plus L2 or Affiliate Pro who run the <strong>Crew</strong> reward shape, a pull-model endpoint returns the inviter's current tier, active referral count, and earnings ledger — so your casino frontend can render a player-facing "Crew" widget without webhook plumbing.</p>
 
           <div class="rounded-xl border border-gray-200 overflow-hidden bg-gray-900 text-gray-200 text-xs font-mono mb-4">
             <div class="flex items-center justify-between px-4 py-2 border-b border-gray-800 bg-gray-800/60">
@@ -1043,80 +1051,133 @@ NGR = GGR
 
         <!-- ─── PAYOUTS (SANS GETIRSIN) ────────────────────────────────────── -->
         <section id="payouts-overview">
-          <h2 class="text-2xl font-bold text-gray-900 mb-2">Payouts via Sans Getirsin</h2>
-          <p class="text-gray-500 mb-4">Affiliar dispatches USDT-TRC20 transfers to affiliates and sub-affiliates through the operator's Sans Getirsin merchant account. The integration mirrors the deposit flow that powers operator subscription billing — same token cache, same axios instance — and uses a single webhook URL for both directions, discriminated by the payload's <code>type</code> field.</p>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Payouts via Coinflux</h2>
+          <p class="text-gray-500 mb-4">Affiliar dispatches stablecoin transfers to affiliates and sub-affiliates through Coinflux. Coinflux is <b>non-custodial</b>: it is the approval desk and the record, not a wallet. Affiliar opens a withdrawal request, the operator approves it in the Coinflux dashboard and pays from their own funds, and a signed webhook reports the outcome. No key or balance of yours ever sits at the provider.</p>
 
           <div class="overflow-x-auto rounded-xl border border-gray-100">
             <table>
               <thead><tr><th>Flow</th><th>Funded by</th><th>Tracked on</th></tr></thead>
               <tbody>
-                <tr><td>Operator &rarr; Affiliate</td><td>Operator's Sans balance</td><td><code>AffiliatePayout</code></td></tr>
-                <tr><td>Affiliate &rarr; Sub-affiliate</td><td>Operator's Sans balance (debited from affiliate's internal ledger)</td><td><code>SubAffiliatePayout</code></td></tr>
-                <tr><td>Player &rarr; Operator (subscription)</td><td>Player wallet</td><td><code>BillingTransaction</code></td></tr>
+                <tr><td>Operator &rarr; Affiliate</td><td>Operator's own funds</td><td><code>AffiliatePayout</code></td></tr>
+                <tr><td>Affiliate &rarr; Sub-affiliate</td><td>Operator's own funds (debited from the affiliate's internal ledger)</td><td><code>SubAffiliatePayout</code></td></tr>
+                <tr><td>Operator &rarr; Affiliar (subscription)</td><td>Operator's own funds</td><td><code>BillingTransaction</code></td></tr>
               </tbody>
             </table>
           </div>
+
+          <p class="text-gray-500 mt-4 mb-2">Affiliates and sub-affiliates are not Coinflux tenants — they are end users with a stablecoin wallet, so every outbound transfer originates from the operator's own funds. Affiliar keeps an <b>internal balance ledger</b> so the same commission dollar is never funded twice.</p>
+        </section>
+
+        <section id="payouts-networks">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Networks &amp; assets</h2>
+          <p class="text-gray-500 mb-4">Each affiliate chooses the chain and stablecoin they want to be paid in, under <b>Profile &rarr; Payout Wallet</b> in their portal. The list below is the single source of truth (<code>utils/payoutNetworks.js</code>) and mirrors what Coinflux will accept.</p>
+
+          <div class="overflow-x-auto rounded-xl border border-gray-100">
+            <table>
+              <thead><tr><th>Network</th><th>Assets</th><th>Address shape</th></tr></thead>
+              <tbody>
+                <tr><td><code>TRC20</code> &mdash; Tron</td><td>USDT</td><td>34 chars starting <code>T</code></td></tr>
+                <tr><td><code>ERC20</code> &mdash; Ethereum</td><td>USDT, USDC</td><td>42 chars starting <code>0x</code></td></tr>
+                <tr><td><code>BEP20</code> &mdash; BNB Smart Chain</td><td>USDT, USDC</td><td>42 chars starting <code>0x</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p class="text-gray-500 mt-4">USDC has no Tron contract, which is why TRC20 is USDT-only — the portal will not offer that pair. Defaults are TRC20/USDT, so an affiliate who set their wallet before the other chains existed keeps working untouched. Before a transfer is dispatched Affiliar re-checks both the network/asset pair and that the address shape matches the chain; funds sent to the wrong chain do not come back.</p>
         </section>
 
         <section id="payouts-flow">
-          <h2 class="text-2xl font-bold text-gray-900 mb-2">3-step withdrawal flow</h2>
-          <p class="text-gray-500 mb-4">Each affiliate or sub-affiliate dispatch runs the same three Sans calls. The token is cached in-process per operator (18-minute TTL) so a batch of payouts only hits <code>/payment/json</code> once.</p>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Dispatch</h2>
+          <p class="text-gray-500 mb-4">Both <code>AffiliatePayout</code> and <code>SubAffiliatePayout</code> use the same withdrawal call.</p>
 
-          <ol class="list-decimal list-inside space-y-3 text-sm text-gray-700 mb-4">
-            <li>
-              <strong>POST /payment/json</strong> &mdash; merchant token.
-              <pre class="mt-1 bg-gray-50 border border-gray-100 rounded p-3 text-xs text-gray-700 overflow-x-auto">{ "username": "ops@operator.com", "apiKey": "&lt;…&gt;",
-  "additionalData": { "userId": "&lt;operatorId&gt;",
-                      "maxWithdrawLimit": 6000.0,
-                      "paymentMethod": 9 } }</pre>
-            </li>
-            <li>
-              <strong>GET /payment/withdraw?amount=78.12000000</strong> &mdash; list withdraw accounts. Sans returns the bank account <code>_id</code> + a <code>withdrawFields</code> spec (<em>Wallet</em>, <em>Chain</em>, …).
-            </li>
-            <li>
-              <strong>POST /payment/withdraw</strong> &mdash; create the transfer.
-              <pre class="mt-1 bg-gray-50 border border-gray-100 rounded p-3 text-xs text-gray-700 overflow-x-auto">{ "bank": "&lt;account._id&gt;", "amount": 78.12,
-  "fields": [
-    { "name": "Wallet", "value": "TXXX…" },
-    { "name": "Chain",  "value": "Tron.network (TRC20)" }
-  ],
-  "extraData": { "payoutId": "…", "operatorId": "…", "affiliateId": "…" } }</pre>
-            </li>
-          </ol>
+          <pre><code>POST {COINFLUX_API_URL}/withdrawals
+  X-Api-Key: {COINFLUX_API_KEY}
 
-          <p class="text-sm text-gray-500">Response carries the <code>transactionId</code> we'll receive back on the webhook. The platform stores it as <code>sansTransactionId</code> on the <code>AffiliatePayout</code> (or <code>SubAffiliatePayout</code>) row so the callback can route back deterministically.</p>
+  {
+    "playerId":  "&lt;affiliateId&gt;",   // a label: who this payout is for
+    "amount":    78.12,               // whole token units, 8dp
+    "address":   "0x…",               // the affiliate's payout wallet
+    "currency":  "USDC",              // USDT | USDC
+    "network":   "ERC20",             // TRC20 | ERC20 | BEP20
+    "reference": "&lt;payoutId&gt;"       // our row id, echoed back on the webhook
+  }
+
+&rarr; { "withdrawalId": "…", "status": "pending" }</code></pre>
+
+          <p class="text-gray-500 mt-4">The returned <code>withdrawalId</code> is stored on the row as <code>providerTransactionId</code> and the payout moves to <code>processing</code> until the webhook arrives. <code>amountCents</code> is USD-pegged fiat cents; every asset paid in is a USD stablecoin, so the conversion is 1:1 (<code>amountCents / 100</code>) whether it is USDT or USDC.</p>
         </section>
 
         <section id="payouts-callback">
-          <h2 class="text-2xl font-bold text-gray-900 mb-2">Webhook (deposit + withdraw)</h2>
-          <p class="text-gray-500 mb-4"><strong>Sans only supports one callback URL per merchant.</strong> Affiliar uses <code>https://app.affiliar.co/api/billing/sans/callback</code> for everything and branches on the payload's <code>type</code> field.</p>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Webhook</h2>
+          <p class="text-gray-500 mb-4">One signed callback reports the outcome of every withdrawal. <code>reference</code> is the primary match key on the way home.</p>
 
-          <div class="rounded-xl border border-gray-200 overflow-hidden bg-gray-900 text-gray-200 text-xs font-mono mb-4">
-            <div class="px-4 py-2 border-b border-gray-800 bg-gray-800/60 text-gray-400">POST /api/billing/sans/callback</div>
-            <pre class="px-4 py-3 leading-relaxed overflow-x-auto">{
-  <span class="tok-key">"action"</span>:        <span class="tok-str">"TRANSACTION_STATUS_CHANGE"</span>,
-  <span class="tok-key">"type"</span>:          <span class="tok-str">"WITHDRAW"</span>,    <span class="tok-comment">// or "DEPOSIT"</span>
-  <span class="tok-key">"transactionId"</span>: <span class="tok-str">"6a1330a3…"</span>,
-  <span class="tok-key">"status"</span>:        <span class="tok-str">"APPROVED"</span>,   <span class="tok-comment">// or REJECTED / FAILED / DECLINED</span>
-  <span class="tok-key">"rejectReason"</span>:  <span class="tok-str">null</span>,
-  <span class="tok-key">"extraData"</span>: {
-    <span class="tok-key">"payoutId"</span>:    <span class="tok-str">"…"</span>,           <span class="tok-comment">// AffiliatePayout._id (operator → affiliate)</span>
-    <span class="tok-key">"subPayoutId"</span>: <span class="tok-str">"…"</span>            <span class="tok-comment">// SubAffiliatePayout._id (affiliate → sub)</span>
-  }
-}</pre>
-          </div>
+          <pre><code>POST /api/billing/coinflux/callback
+  X-Signature: HMAC-SHA256 over the raw body, keyed with COINFLUX_WEBHOOK_SECRET
 
-          <ul class="list-disc list-inside space-y-1 text-sm text-gray-600 mb-4">
-            <li>If <code>type === "WITHDRAW"</code> the handler matches against <code>SubAffiliatePayout</code> first (via <code>extraData.subPayoutId</code> hint), then <code>AffiliatePayout</code> (via <code>extraData.payoutId</code> or <code>sansTransactionId</code>).</li>
-            <li>On <code>APPROVED</code>/<code>SUCCESS</code>/<code>COMPLETED</code> the payout flips to <em>paid</em>; <code>REJECTED</code>/<code>FAILED</code>/<code>DECLINED</code> flips to <em>failed</em> with the <code>rejectReason</code> stored on the row.</li>
-            <li>Top-level affiliate payouts also propagate <em>paid</em> to every underlying <code>CommissionReport</code> in <code>sourceReportIds</code>.</li>
-            <li>Re-deliveries are idempotent — terminal statuses don't re-flip.</li>
-          </ul>
+  {
+    "withdrawalId": "…",
+    "reference":    "&lt;payoutId | subPayoutId&gt;",
+    "status":       "completed",   // or failed / rejected
+    "txHash":       "0x…"
+  }</code></pre>
+
+          <p class="text-gray-500 mt-4">A bad or missing signature is rejected and logged as <code>affiliate.payout.coinflux.bad_sig</code> — the payout is left untouched rather than trusted. The handler matches <code>SubAffiliatePayout</code> first, then <code>AffiliatePayout</code>. On success the row flips to <code>paid</code> and a top-level affiliate payout propagates <code>paid</code> to every <code>CommissionReport</code> in <code>sourceReportIds</code>; on failure it flips to <code>failed</code> with the provider reason. Re-deliveries are idempotent — terminal statuses do not re-flip.</p>
         </section>
 
-        <hr class="border-gray-100" />
 
         <!-- ─── AFFILIATE PORTAL ───────────────────────────────────────────── -->
+        <section id="billing-overview">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Subscription &amp; plans</h2>
+          <p class="text-gray-500 mb-4">Operators are billed monthly for their Affiliar plan, paid in stablecoin through the same Coinflux rail as affiliate payouts. Each charge is recorded as a <code>BillingTransaction</code>.</p>
+
+          <div class="overflow-x-auto rounded-xl border border-gray-100">
+            <table>
+              <thead><tr><th>Plan</th><th>Monthly</th><th>Affiliates</th><th>Notable</th></tr></thead>
+              <tbody>
+                <tr><td>1-Tier</td><td>$53</td><td>10</td><td>RevShare, CPA, Fixed</td></tr>
+                <tr><td>1-Tier &amp; 2-Tier</td><td>$98</td><td>25</td><td>Sub-affiliates, campaign tracking, creatives</td></tr>
+                <tr><td>Affiliate Plus</td><td>$494</td><td>100</td><td>Leaderboard, team members, advanced analytics, custom fees</td></tr>
+                <tr><td>Affiliate Plus L2</td><td>$935</td><td>500</td><td>API access, Refer-a-Friend with Crew, anti-abuse signals</td></tr>
+                <tr><td>Affiliate Pro</td><td>$1,430</td><td>unlimited</td><td>White-label branding, priority co-managed sourcing</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p class="text-gray-500 mt-4">Plan flags gate features at the API, not only in the UI — a route belonging to a plan you are not on returns <code>403</code> with the plan you would need. Individual flags can be granted on top of any plan via <code>Operator.featureOverrides</code> for a custom deal, without moving the operator's plan.</p>
+        </section>
+
+        <section id="billing-reminders">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Reminders &amp; suspension</h2>
+          <p class="text-gray-500 mb-4">A daily job emails every operator user on a fixed cadence around the due date. Each stage fires once per billing cycle, on the calendar date itself regardless of what time the job runs.</p>
+
+          <div class="overflow-x-auto rounded-xl border border-gray-100">
+            <table>
+              <thead><tr><th>When</th><th>Stage</th></tr></thead>
+              <tbody>
+                <tr><td>7, 5, 3 and 1 days before</td><td>Upcoming renewal</td></tr>
+                <tr><td>Due date</td><td>Payment due today</td></tr>
+                <tr><td>1, 3, 5 and 7 days after</td><td>Overdue, counting down to suspension</td></tr>
+                <tr><td><b>10 days after</b></td><td><b>Suspended</b></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p class="text-gray-500 mt-4 mb-2">Suspension closes the operator panel. Affiliates are cut off from reports, links and creatives too, but keep access to their balance, payout history and payout wallet — they did not fail to pay, and commission already earned is theirs regardless.</p>
+
+          <p class="text-gray-500"><b>While suspended, no activity is recorded.</b> Clicks, registrations, deposits and player activity occurring during suspension are not captured and cannot be reconstructed once service resumes, so commission for that period cannot be calculated either. Everything recorded up to the suspension date is preserved, and paying restores access immediately — but only from the payment date onward.</p>
+        </section>
+
+        <section id="billing-interest">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Late interest</h2>
+          <p class="text-gray-500 mb-4">Interest accrues daily on an overdue invoice, derived from a published benchmark rather than a flat number:</p>
+
+          <pre><code>daily % = (SOFR annual % + margin %) / 365</code></pre>
+
+          <p class="text-gray-500 mt-4">SOFR is the US overnight funding rate published each business day by the New York Fed; Affiliar refreshes it on a timer so an overdue invoice is charged against a current rate. The margin defaults to 8%, the middle of ordinary commercial terms. At a SOFR of 3.63% that is roughly <b>0.032% per day</b> — about $3 on a $935 invoice left unpaid for ten days.</p>
+
+          <p class="text-gray-500 mt-2">Every overdue email states the rate, the benchmark it sits on, the margin and the date SOFR was read, so the figure can be checked rather than taken on trust. If the benchmark cannot be fetched the last known value stands.</p>
+        </section>
+
         <section id="portal-overview">
           <h2 class="text-2xl font-bold text-gray-900 mb-2">Affiliate Portal</h2>
           <p class="text-gray-500 mb-4">Affiliates log in to their own self-service portal with a separate role-scoped session. The portal exposes read-only analytics and commission data scoped strictly to the authenticated affiliate.</p>
