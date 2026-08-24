@@ -146,7 +146,35 @@ export type DeliveryEventType =
   | 'referral.reward.referee.reversed'
   | 'referral.reward.recurring.issued';
 
+/**
+ * Human labels for the reward events. The wire values are dotted machine
+ * strings, and stripping the `referral.reward.` prefix off them leaves
+ * readable text only for the two simple cases — the compound ones came out as
+ * "referee.issued" and "recurring.issued" on screen. Each label names who is
+ * affected and whether it credits or takes back, which is what an operator
+ * scanning the ledger actually needs.
+ */
+export const DELIVERY_EVENT_LABEL: Record<DeliveryEventType, string> = {
+  'referral.reward.issued':           'Referrer reward',
+  'referral.reward.reversed':         'Referrer reversal',
+  'referral.reward.referee.issued':   'Friend reward',
+  'referral.reward.referee.reversed': 'Friend reversal',
+  'referral.reward.recurring.issued': 'Monthly share',
+};
+
 export type DeliveryStatus = 'pending' | 'delivered' | 'failed';
+
+/**
+ * Wording that holds for both delivery paths. "Claimed" used to be accurate
+ * when the casino could only pull rewards; a brand with a webhook enabled now
+ * has them pushed instead, and the row lands in the same `delivered` state
+ * either way.
+ */
+export const DELIVERY_STATUS_LABEL: Record<DeliveryStatus, string> = {
+  pending:   'Awaiting delivery',
+  delivered: 'Delivered',
+  failed:    'Failed',
+};
 
 export interface RewardDeliveryPayloadData {
   brandId?: string;

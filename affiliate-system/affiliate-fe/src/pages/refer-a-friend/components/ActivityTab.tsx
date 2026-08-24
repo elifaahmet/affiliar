@@ -11,6 +11,7 @@ import type {
   ReferralsResponse,
   ReferralDetailResponse,
 } from '../types';
+import { DELIVERY_EVENT_LABEL, DELIVERY_STATUS_LABEL } from '../types';
 
 interface Props {
   brands: Brand[];
@@ -261,10 +262,10 @@ function ReferralDetailModal({
                               ? 'bg-red-100 text-red-700'
                               : 'bg-yellow-100 text-yellow-700'
                         }`}>
-                          {d.status}
+                          {DELIVERY_STATUS_LABEL[d.status] ?? d.status}
                         </span>
                         <span className='text-xs text-gray-600'>
-                          {d.eventType.replace('referral.reward.', '')} · attempt {d.attempts}/6
+                          {DELIVERY_EVENT_LABEL[d.eventType] ?? d.eventType} · attempt {d.attempts}/7
                         </span>
                       </div>
                       <span className='text-[11px] text-gray-600'>{fmtDate(d.createdAt)}</span>

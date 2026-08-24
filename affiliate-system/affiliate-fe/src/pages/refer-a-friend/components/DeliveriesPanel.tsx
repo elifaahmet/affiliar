@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
 
 import { REFER_API_URLS } from 'config/apiUrls';
+import { DELIVERY_EVENT_LABEL, DELIVERY_STATUS_LABEL as STATUS_LABEL } from '../types';
 import type { DeliveriesResponse, DeliveryStatus } from '../types';
 
 interface Props {
@@ -18,12 +19,6 @@ const STATUS_BADGE: Record<DeliveryStatus, string> = {
   pending:   'bg-yellow-100 text-yellow-700',
   delivered: 'bg-green-100 text-green-700',
   failed:    'bg-red-100 text-red-700',
-};
-
-const STATUS_LABEL: Record<DeliveryStatus, string> = {
-  pending:   'Awaiting pickup',
-  delivered: 'Claimed',
-  failed:    'Failed',
 };
 
 const EVENT_BADGE: Record<string, string> = {
@@ -81,7 +76,7 @@ export default function DeliveriesPanel({ brandId }: Props) {
 
       {!isLoading && deliveries.length === 0 && (
         <p className='text-xs text-gray-700'>
-          No rewards yet. Rows show up here when a referral qualifies — the casino backend pulls them on the player&rsquo;s next visit.
+          No rewards yet. Rows show up here when a referral qualifies, then clear once the casino receives them — pulled on the player&rsquo;s next visit, or pushed if this brand has a webhook.
         </p>
       )}
 
@@ -112,7 +107,7 @@ export default function DeliveriesPanel({ brandId }: Props) {
                   <tr key={d._id} className='hover:bg-violet-50/30'>
                     <td className='px-3 py-2'>
                       <span className={`inline-flex items-center px-2 py-0.5 rounded font-medium ${EVENT_BADGE[d.eventType] ?? 'bg-gray-100 text-gray-600'}`}>
-                        {d.eventType.replace('referral.reward.', '')}
+                        {DELIVERY_EVENT_LABEL[d.eventType] ?? d.eventType}
                       </span>
                     </td>
                     <td className='px-3 py-2'>

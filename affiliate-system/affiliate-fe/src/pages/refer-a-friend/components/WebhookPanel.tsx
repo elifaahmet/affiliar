@@ -11,6 +11,8 @@ import {
 } from '@heroicons/react/24/outline';
 
 import { REFER_API_URLS } from 'config/apiUrls';
+import { DELIVERY_EVENT_LABEL } from '../types';
+import type { DeliveryEventType } from '../types';
 
 interface Props {
   brandId: string;
@@ -36,12 +38,17 @@ interface TestResult {
   errorMessage?: string;
 }
 
-const TEST_EVENTS = [
-  { value: 'referral.reward.issued', label: 'Reward issued' },
-  { value: 'referral.reward.reversed', label: 'Reward reversed' },
-  { value: 'referral.reward.referee.issued', label: 'Referee reward issued' },
-  { value: 'referral.reward.recurring.issued', label: 'Recurring reward issued' },
-];
+// Same vocabulary the reward ledger uses, so one event isn't called two
+// different things on the same screen.
+const TEST_EVENTS: { value: DeliveryEventType; label: string }[] = [
+  'referral.reward.issued',
+  'referral.reward.reversed',
+  'referral.reward.referee.issued',
+  'referral.reward.recurring.issued',
+].map((value) => ({
+  value: value as DeliveryEventType,
+  label: DELIVERY_EVENT_LABEL[value as DeliveryEventType],
+}));
 
 function formatDate(iso: string | null) {
   if (!iso) return '—';
@@ -298,7 +305,7 @@ export default function WebhookPanel({ brandId }: Props) {
           <div className="mt-2 flex items-center gap-2">
             <select
               value={testEvent}
-              onChange={(e) => setTestEvent(e.target.value)}
+              onChange={(e) => setTestEvent(e.target.value as DeliveryEventType)}
               className="rounded-md border border-gray-300 px-2 py-1.5 text-xs"
             >
               {TEST_EVENTS.map((e) => (
