@@ -17,13 +17,13 @@ function ForgotPasswordSection(props: ForgotPasswordSectionProps) {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
-    const email = (form.elements.namedItem('email') as HTMLInputElement)?.value?.trim();
-    if (!email) return;
+    const identifier = (form.elements.namedItem('identifier') as HTMLInputElement)?.value?.trim();
+    if (!identifier) return;
 
     setError(null);
     setSubmitting(true);
     try {
-      await axiosInstance.post('auth/forgot-password', { email });
+      await axiosInstance.post('auth/forgot-password', { identifier });
       setSubmitted(true);
     } catch (err: unknown) {
       const message =
@@ -52,25 +52,25 @@ function ForgotPasswordSection(props: ForgotPasswordSectionProps) {
           Forgot your <span className="italic text-primary">password</span>?
         </h1>
         <p className="mt-3 text-sm text-gray-700">
-          Enter the email tied to your operator account and we&apos;ll send you a reset link.
+          Enter the username or email you sign in with and we&apos;ll send a reset link to the account&apos;s email address.
         </p>
       </div>
 
       {submitted ? (
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-          If an account exists for that email, a reset link is on its way. Check your inbox.
+          If an account exists, a reset link is on its way to its email address. Check your inbox.
         </div>
       ) : (
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="email" className="mb-1.5 block text-xs font-semibold text-gray-700">
-              Email
+            <label htmlFor="identifier" className="mb-1.5 block text-xs font-semibold text-gray-700">
+              Username or email
             </label>
             <PInput
-              placeholder="you@operator.com"
-              id="email"
-              name="email"
-              type="email"
+              placeholder="yourname or you@operator.com"
+              id="identifier"
+              name="identifier"
+              type="text"
               required
               className="w-full bg-white h-[44px]"
             />

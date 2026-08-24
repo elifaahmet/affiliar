@@ -70,7 +70,7 @@ function MainSection(props: ForgotPasswordSectionProps) {
             Username or email
           </label>
           <PInput
-            placeholder="you@operator.com"
+            placeholder="yourname or you@operator.com"
             id="identifier"
             type="text"
             register={register}

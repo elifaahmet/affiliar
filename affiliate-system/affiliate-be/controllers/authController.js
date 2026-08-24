@@ -788,13 +788,20 @@ exports.devToken = async (req, res) => {
  * Always returns 200 to prevent email enumeration.
  */
 exports.forgotPassword = async (req, res) => {
-  const email = ((req.body.email || "") + "").trim().toLowerCase();
-  if (!email) {
-    return res.status(400).json({ error: "email is required" });
+  // Accepts whatever the user signs in with. `email` is the legacy body key and
+  // still works; `identifier` is the accurate name now that a username is
+  // equally valid here.
+  const identifier = ((req.body.identifier || req.body.email || "") + "").trim();
+  if (!identifier) {
+    return res.status(400).json({ error: "A username or email is required" });
   }
 
   try {
-    const user = await User.findOne({ email, isDeleted: false });
+    // Same lookup as login. The previous exact-match on a lowercased email
+    // silently found nothing for a username, and would also have missed any
+    // address stored with uppercase — in both cases the caller still got the
+    // "if an account exists" reply, so the failure was invisible from outside.
+    const user = await findUserByCredential(identifier);
     if (user) {
       const token = crypto.randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
@@ -818,7 +825,7 @@ exports.forgotPassword = async (req, res) => {
     }
 
     return res.status(200).json({
-      message: "If an account exists for that email, a reset link has been sent.",
+      message: "If an account exists, a reset link has been sent to its email address.",
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
