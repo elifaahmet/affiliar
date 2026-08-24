@@ -436,6 +436,12 @@ export const REFER_API_URLS = {
   REFERRALS:  () => `${API_BASE_URL}api/refer/referrals`,
   REFERRAL:   (id: string) => `${API_BASE_URL}api/refer/referrals/${id}`,
   DELIVERIES: () => `${API_BASE_URL}api/refer/deliveries`,
+  DELIVERY_REPLAY: (id: string) => `${API_BASE_URL}api/refer/deliveries/${id}/replay`,
+
+  // Reward webhook, operator-managed (docs/refer-a-friend/WEBHOOK.md)
+  WEBHOOK:               (brandId: string) => `${API_BASE_URL}api/refer/config/${brandId}/webhook`,
+  WEBHOOK_ROTATE_SECRET: (brandId: string) => `${API_BASE_URL}api/refer/config/${brandId}/webhook/rotate-secret`,
+  WEBHOOK_TEST:          (brandId: string) => `${API_BASE_URL}api/refer/config/${brandId}/webhook/test`,
 
   // Crew admin surface
   TOP_REFERRERS:     () => `${API_BASE_URL}api/refer/admin/top-referrers`,

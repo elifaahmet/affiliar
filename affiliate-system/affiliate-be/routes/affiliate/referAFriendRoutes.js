@@ -42,11 +42,19 @@ router.get ("/config",                              operatorCtl.listConfigs);
 router.get ("/config/:brandId",                     operatorCtl.getConfig);
 router.put ("/config/:brandId",                     operatorCtl.upsertConfig);
 
+// Reward webhook, managed by the operator themselves (WEBHOOK.md §1).
+// Enabling one is additive to the pull endpoint below, never a replacement.
+router.get ("/config/:brandId/webhook",               operatorCtl.getWebhook);
+router.put ("/config/:brandId/webhook",               operatorCtl.upsertWebhook);
+router.post("/config/:brandId/webhook/rotate-secret", operatorCtl.rotateWebhookSecret);
+router.post("/config/:brandId/webhook/test",          operatorCtl.testWebhook);
+
 // ── Operator: activity (referrals + deliveries / ledger) ─────────────────────
 
 router.get ("/referrals",                operatorCtl.listReferrals);
 router.get ("/referrals/:id",            operatorCtl.getReferral);
 router.get ("/deliveries",               operatorCtl.listDeliveries);
+router.post("/deliveries/:id/replay",    operatorCtl.replayDelivery);
 
 // ── Operator: Crew admin (leaderboard, fraud, manual transitions) ────────────
 // Mounted under /admin/ to keep the surface tidy and to make it obvious in

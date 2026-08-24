@@ -163,6 +163,7 @@
           <a href="#raf-config"        class="nav-link">Config &amp; Reward Types</a>
           <a href="#raf-integration"   class="nav-link">Integration Endpoints</a>
           <a href="#raf-pull"          class="nav-link">Pull &amp; Claim Flow</a>
+          <a href="#raf-webhook"       class="nav-link">Reward Webhook</a>
           <a href="#raf-events"        class="nav-link">Event Types</a>
           <a href="#raf-crew-api"      class="nav-link">Crew (tiered) endpoint</a>
         </div>
@@ -928,7 +929,7 @@ NGR = GGR
         <section id="raf-overview">
           <h2 class="text-2xl font-bold text-gray-900 mb-2">Refer-a-Friend</h2>
           <p class="text-gray-500 mb-4">A player-to-player referral engine sits next to the affiliate program. Where the affiliate program tracks marketers, Refer-a-Friend tracks players inviting other players — separate config, separate fraud gates, separate payout ledger.</p>
-          <p class="text-gray-500 mb-4">The delivery model is <strong>pull-on-demand</strong>: Affiliar holds qualified rewards in a per-player ledger, and your casino backend reads from <code>/api/refer/player/&lt;id&gt;/rewards</code> whenever a player opens their "My Rewards" page. No webhook endpoint to host, no retry queue to monitor — the casino is in control of when it credits the wallet, and idempotency is guaranteed by an explicit ack step.</p>
+          <p class="text-gray-500 mb-4">The delivery model is <strong>pull-on-demand</strong>: Affiliar holds qualified rewards in a per-player ledger, and your casino backend reads from <code>/api/refer/player/&lt;id&gt;/rewards</code> whenever a player opens their "My Rewards" page. No webhook endpoint to host, no retry queue to monitor — the casino is in control of when it credits the wallet, and idempotency is guaranteed by an explicit ack step. If you would rather be pushed to than poll, you can <a href="#raf-webhook" class="text-violet-600 underline">enable a reward webhook</a> per brand; it runs alongside the pull ledger rather than replacing it.</p>
           <ul class="list-disc list-inside text-sm text-gray-600 space-y-1 mb-4">
             <li><strong>Per-brand config</strong> — every brand under your operator can have its own enable flag, reward formula, gates, and caps.</li>
             <li><strong>Two-sided rewards</strong> — pay the inviter plus an optional welcome bonus to the friend at qualification.</li>
@@ -1063,6 +1064,65 @@ NGR = GGR
           <p class="text-sm text-gray-500 mb-2">If you want to render a table of "people I invited and what I earned from each," call:</p>
           <pre><code><span class="tok-mth">GET</span> <span class="tok-url">/api/refer/player/&lt;playerId&gt;/referrals</span></code></pre>
           <p class="text-sm text-gray-500 mt-2">Returns one row per <code>PlayerReferral</code> where this player is the referrer, with <code>status</code>, the matching <code>pendingDeliveryId</code> (so an inline Claim button can pass it straight to <code>/rewards/claim</code>), and reward amount / kind.</p>
+        </section>
+
+        <hr class="border-gray-100" />
+
+        <!-- ─── REFER-A-FRIEND WEBHOOK ─────────────────────────────────────── -->
+        <section id="raf-webhook">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Reward Webhook</h2>
+          <p class="text-gray-500 mb-4">Optional push delivery, configured per brand in <strong>Refer-a-Friend &rarr; [Brand] &rarr; Reward webhook</strong>. When enabled, Affiliar POSTs each reward event to your HTTPS endpoint as it happens instead of waiting for you to poll.</p>
+          <div class="rounded-xl border border-violet-100 bg-violet-50/40 p-4 mb-4">
+            <p class="text-sm text-gray-600"><strong>It does not replace the pull ledger.</strong> Both paths read the same delivery rows, and whichever one lands first settles the reward and runs the state cascade. Enabling a webhook cannot double-credit a player, and if your endpoint is down the rewards simply stay claimable through <code>/rewards/claim</code> as before.</p>
+          </div>
+
+          <h3 class="font-semibold text-gray-900 mt-6 mb-2">Setup</h3>
+          <ol class="list-decimal list-inside text-sm text-gray-600 space-y-1 mb-4">
+            <li>Enter your HTTPS endpoint and tick <em>Deliver reward events to this endpoint</em>.</li>
+            <li>Copy the signing secret shown on save — it is displayed <strong>once</strong> and never retrievable afterwards. Only the last four characters are shown from then on.</li>
+            <li>Use <em>Send test event</em> to verify your handler before real traffic arrives. Test payloads carry <code>"test": true</code> and are never recorded.</li>
+          </ol>
+
+          <h3 class="font-semibold text-gray-900 mt-6 mb-2">Verifying the signature</h3>
+          <p class="text-gray-500 mb-3">Every request carries these headers:</p>
+          <div class="overflow-x-auto rounded-xl border border-gray-100 mb-4">
+            <table>
+              <thead><tr><th>Header</th><th>Meaning</th></tr></thead>
+              <tbody>
+                <tr><td><code>X-Affiliar-Event</code></td><td>Event type — branch on this.</td></tr>
+                <tr><td><code>X-Affiliar-Delivery</code></td><td>Unique per attempt. Dedupe on the event <code>id</code>, not this.</td></tr>
+                <tr><td><code>X-Affiliar-Timestamp</code></td><td>Unix seconds. Reject anything older than 5 minutes.</td></tr>
+                <tr><td><code>X-Affiliar-Signature</code></td><td><code>t=&lt;ts&gt;,v1=&lt;hex&gt;</code> — HMAC-SHA256, see below.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-gray-500 mb-3">Affiliar signs <code>&lt;timestamp&gt;.&lt;raw-body&gt;</code> with your secret. Compare against the <strong>raw request bytes</strong>, before any JSON parsing — re-serializing the body will change the digest.</p>
+          <pre class="rounded-xl bg-gray-900 text-gray-100 p-4 text-xs overflow-x-auto mb-4"><code>import hmac, hashlib, time
+
+def verify(headers, raw_body, secret, max_age=300):
+    parts = dict(p.split("=", 1) for p in headers["X-Affiliar-Signature"].split(","))
+    ts = int(parts["t"])
+    if abs(time.time() - ts) &gt; max_age:
+        raise ValueError("stale event")
+
+    expected = hmac.new(secret.encode(),
+                        f"{ts}.{raw_body}".encode(),
+                        hashlib.sha256).hexdigest()
+
+    # More than one v1= may be present during a secret rotation —
+    # accept the request if ANY of them matches.
+    sent = [v for k, v in (p.split("=", 1) for p in
+            headers["X-Affiliar-Signature"].split(",")) if k == "v1"]
+    if not any(hmac.compare_digest(expected, s) for s in sent):
+        raise ValueError("signature mismatch")</code></pre>
+
+          <h3 class="font-semibold text-gray-900 mt-6 mb-2">Rotating the secret</h3>
+          <p class="text-gray-500 mb-4">Hit <em>Rotate</em> to mint a new secret. The previous one keeps signing for <strong>48 hours</strong>, and during that window each request carries two <code>v1=</code> values — one per live secret. That is why your verifier must accept any match: it lets you deploy the new secret without a coordinated cutover and without dropping in-flight retries.</p>
+
+          <h3 class="font-semibold text-gray-900 mt-6 mb-2">Retries</h3>
+          <p class="text-gray-500 mb-3">Respond <code>2xx</code> to acknowledge. Anything else — including a timeout after 10s — is retried on this schedule:</p>
+          <p class="text-sm text-gray-600 mb-3"><code>immediate &rarr; 1m &rarr; 5m &rarr; 30m &rarr; 2h &rarr; 12h &rarr; 24h</code></p>
+          <p class="text-gray-500 mb-4">After the last attempt the delivery is marked <code>failed</code>. <strong>The reward is not lost</strong> — it stays in the ledger, and you can re-queue it with the <em>Retry</em> button on the reward ledger table. Answer fast and do your work asynchronously; a slow handler will time out and be retried, which your idempotency check must absorb.</p>
         </section>
 
         <hr class="border-gray-100" />

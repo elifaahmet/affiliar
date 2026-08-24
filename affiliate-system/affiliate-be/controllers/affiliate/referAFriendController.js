@@ -17,6 +17,10 @@ const mongoose           = require("mongoose");
 const Brand              = require("../../models/Brand");
 const { attachPlayerUsernames } = require("../../utils/playerNames");
 const ReferAFriendConfig = require("../../models/ReferAFriendConfig");
+const { encrypt } = require("../../utils/fieldEncryption");
+const { generateSecret, buildSignature, ROTATION_GRACE_MS } = require("../../utils/webhookSignature");
+const crypto             = require("crypto");
+const axios              = require("axios");
 const PlayerReferral     = require("../../models/PlayerReferral");
 const RewardDelivery     = require("../../models/RewardDelivery");
 const AffiliatePlayer    = require("../../models/AffiliatePlayer");
@@ -61,10 +65,32 @@ exports.listConfigs = async (req, res) => {
   if (!operatorId) return;
 
   const configs = await ReferAFriendConfig.find({ operatorId }).lean();
-  return res.status(200).json({ configs });
+  return res.status(200).json({ configs: configs.map(publicConfig) });
 };
 
 // GET /api/v1/refer/config/:brandId
+/**
+ * Strip webhook secrets from a config before it goes over the wire.
+ *
+ * The stored values are encrypted, but they're still credentials — the API
+ * never hands them back. Operators see each secret exactly once, at the moment
+ * it's minted; after that only the `hint` (last 4) identifies it.
+ */
+function publicConfig(config) {
+  if (!config) return config;
+  const webhook = config.webhook || {};
+  return {
+    ...config,
+    webhook: {
+      enabled: !!webhook.enabled,
+      url: webhook.url || "",
+      secrets: (webhook.secrets || []).map(({ hint, createdAt, retiredAt }) => ({
+        hint, createdAt, retiredAt,
+      })),
+    },
+  };
+}
+
 exports.getConfig = async (req, res) => {
   const operatorId = operatorOnly(req, res);
   if (!operatorId) return;
@@ -74,7 +100,7 @@ exports.getConfig = async (req, res) => {
   if (!ownership.ok) return res.status(ownership.status).json({ error: ownership.error });
 
   const config = await ReferAFriendConfig.findOne({ brandId }).lean();
-  return res.status(200).json({ config });
+  return res.status(200).json({ config: publicConfig(config) });
 };
 
 // PUT /api/v1/refer/config/:brandId — upsert. Pull model: no webhook
@@ -130,7 +156,7 @@ exports.upsertConfig = async (req, res) => {
     { upsert: true, new: true, setDefaultsOnInsert: true },
   ).lean();
 
-  return res.status(200).json({ config });
+  return res.status(200).json({ config: publicConfig(config) });
 };
 
 // ── Activity ──────────────────────────────────────────────────────────────────
@@ -447,4 +473,258 @@ exports.setReferralFrozen = async (req, res) => {
   }
   await referral.save();
   return res.status(200).json({ referral: referral.toObject() });
+};
+
+
+// ── Reward webhook, operator self-service ────────────────────────────────────
+// Contract the operator codes against: docs/refer-a-friend/WEBHOOK.md.
+// Enabling a webhook is additive — see jobs/rewardCallbackJob for why it can't
+// double-credit against the pull endpoint.
+
+/** Reject anything that isn't a plain HTTPS URL we're willing to POST to. */
+function validateWebhookUrl(raw) {
+  const url = String(raw || "").trim();
+  if (!url) return { ok: false, error: "Webhook URL is required." };
+
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return { ok: false, error: "Webhook URL is not a valid URL." };
+  }
+  // Payloads carry player ids and reward amounts, so plaintext is not an
+  // option the operator gets to choose.
+  if (parsed.protocol !== "https:") {
+    return { ok: false, error: "Webhook URL must use HTTPS." };
+  }
+  // Credentials in the URL would end up in our logs and attempt history.
+  if (parsed.username || parsed.password) {
+    return { ok: false, error: "Webhook URL must not contain credentials." };
+  }
+  return { ok: true, url: parsed.toString() };
+}
+
+// GET /api/v1/refer/config/:brandId/webhook
+exports.getWebhook = async (req, res) => {
+  const operatorId = operatorOnly(req, res);
+  if (!operatorId) return;
+
+  const { brandId } = req.params;
+  const ownership = await loadOwnedBrand(brandId, operatorId);
+  if (!ownership.ok) return res.status(ownership.status).json({ error: ownership.error });
+
+  const config = await ReferAFriendConfig.findOne({ brandId }).lean();
+  const webhook = publicConfig(config)?.webhook || { enabled: false, url: "", secrets: [] };
+  return res.status(200).json({ webhook });
+};
+
+// PUT /api/v1/refer/config/:brandId/webhook
+// Sets the URL and on/off state. The first time a brand turns this on we mint
+// its signing secret and return the plaintext — the only time it's readable.
+exports.upsertWebhook = async (req, res) => {
+  const operatorId = operatorOnly(req, res);
+  if (!operatorId) return;
+
+  const { brandId } = req.params;
+  const ownership = await loadOwnedBrand(brandId, operatorId);
+  if (!ownership.ok) return res.status(ownership.status).json({ error: ownership.error });
+
+  const { enabled, url } = req.body || {};
+  const wantEnabled = !!enabled;
+
+  const set = { "webhook.enabled": wantEnabled };
+
+  if (url !== undefined) {
+    // An operator turning the webhook off shouldn't be forced to keep a valid
+    // URL on file, so only validate when there's something to validate.
+    if (wantEnabled || String(url).trim()) {
+      const check = validateWebhookUrl(url);
+      if (!check.ok) return res.status(400).json({ error: check.error });
+      set["webhook.url"] = check.url;
+    } else {
+      set["webhook.url"] = "";
+    }
+  }
+
+  const existing = await ReferAFriendConfig.findOne({ brandId }).select("webhook");
+
+  if (wantEnabled && !set["webhook.url"] && !existing?.webhook?.url) {
+    return res.status(400).json({ error: "Set a webhook URL before enabling delivery." });
+  }
+
+  // Mint on first enable so the operator never has an active webhook whose
+  // signatures they can't verify.
+  let revealed = null;
+  if (wantEnabled && !(existing?.webhook?.secrets || []).some((e) => !e.retiredAt)) {
+    const { plain, hint } = generateSecret();
+    set["webhook.secrets"] = [
+      ...(existing?.webhook?.secrets || []).map((e) => e.toObject?.() ?? e),
+      { secret: encrypt(plain), createdAt: new Date(), retiredAt: null, hint },
+    ];
+    revealed = plain;
+  }
+
+  const config = await ReferAFriendConfig.findOneAndUpdate(
+    { brandId },
+    { $set: { operatorId, ...set }, $setOnInsert: { brandId } },
+    { upsert: true, new: true, setDefaultsOnInsert: true },
+  ).lean();
+
+  return res.status(200).json({
+    webhook: publicConfig(config).webhook,
+    // Present only on the request that created it.
+    ...(revealed ? { secret: revealed } : {}),
+  });
+};
+
+// POST /api/v1/refer/config/:brandId/webhook/rotate-secret
+// Mints a new signing secret and retires the current one. Retired secrets keep
+// signing for a grace window (utils/webhookSignature.ROTATION_GRACE_MS) so the
+// operator can deploy the new value without dropping in-flight retries.
+exports.rotateWebhookSecret = async (req, res) => {
+  const operatorId = operatorOnly(req, res);
+  if (!operatorId) return;
+
+  const { brandId } = req.params;
+  const ownership = await loadOwnedBrand(brandId, operatorId);
+  if (!ownership.ok) return res.status(ownership.status).json({ error: ownership.error });
+
+  const config = await ReferAFriendConfig.findOne({ brandId });
+  if (!config) return res.status(404).json({ error: "No Refer-a-Friend config for this brand." });
+
+  const now = new Date();
+  const { plain, hint } = generateSecret();
+
+  // Retire whatever was active; drop entries that already aged out so the
+  // array doesn't grow without bound across many rotations.
+  const kept = (config.webhook?.secrets || [])
+    .map((e) => (e.retiredAt ? e : { ...(e.toObject?.() ?? e), retiredAt: now }))
+    .filter((e) => now - new Date(e.retiredAt) < ROTATION_GRACE_MS);
+
+  config.webhook.secrets = [...kept, { secret: encrypt(plain), createdAt: now, retiredAt: null, hint }];
+  await config.save();
+
+  return res.status(200).json({
+    secret: plain,
+    webhook: publicConfig(config.toObject()).webhook,
+    graceHours: Math.round(ROTATION_GRACE_MS / 3600000),
+  });
+};
+
+// POST /api/v1/refer/config/:brandId/webhook/test
+// Delivers a synthetic event to the configured URL, signed exactly like a real
+// one, and reports back what the endpoint answered. Nothing is persisted — this
+// never creates a RewardDelivery or touches referral state.
+exports.testWebhook = async (req, res) => {
+  const operatorId = operatorOnly(req, res);
+  if (!operatorId) return;
+
+  const { brandId } = req.params;
+  const ownership = await loadOwnedBrand(brandId, operatorId);
+  if (!ownership.ok) return res.status(ownership.status).json({ error: ownership.error });
+
+  const eventType = req.body?.eventType || "referral.reward.issued";
+  const ALLOWED = [
+    "referral.reward.issued",
+    "referral.reward.reversed",
+    "referral.reward.referee.issued",
+    "referral.reward.recurring.issued",
+  ];
+  if (!ALLOWED.includes(eventType)) {
+    return res.status(400).json({ error: `Unsupported test event type: ${eventType}` });
+  }
+
+  const config = await ReferAFriendConfig.findOne({ brandId }).select("webhook").lean();
+  if (!config?.webhook?.url) {
+    return res.status(400).json({ error: "Set a webhook URL before sending a test event." });
+  }
+  if (!(config.webhook.secrets || []).length) {
+    return res.status(400).json({ error: "Enable the webhook to mint a signing secret first." });
+  }
+
+  const now = new Date();
+  const payload = {
+    id: `evt_test_${crypto.randomBytes(10).toString("hex")}`,
+    type: eventType,
+    createdAt: now.toISOString(),
+    // Marks the payload as synthetic so an operator's handler can no-op on it
+    // rather than crediting a fake player.
+    test: true,
+    data: {
+      brandId: String(brandId),
+      referralId: "000000000000000000000000",
+      referrerPlayerId: "p_test_referrer",
+      refereePlayerId: "p_test_referee",
+      rewardCents: 500,
+      rewardCurrency: "EUR",
+      rewardKind: "bonus",
+      qualifiedAt: now.toISOString(),
+      ftdCents: 5000,
+      ftdCurrency: "EUR",
+    },
+  };
+
+  const rawBody = JSON.stringify(payload);
+  const timestampSec = Math.floor(now.getTime() / 1000);
+  const started = Date.now();
+
+  try {
+    const response = await axios.post(config.webhook.url, rawBody, {
+      timeout: 10_000,
+      transformRequest: [(d) => d],
+      headers: {
+        "Content-Type": "application/json",
+        "X-Affiliar-Event": eventType,
+        "X-Affiliar-Delivery": crypto.randomUUID(),
+        "X-Affiliar-Timestamp": String(timestampSec),
+        "X-Affiliar-Signature": buildSignature(rawBody, config.webhook.secrets, timestampSec),
+      },
+      validateStatus: () => true,
+    });
+
+    const body = typeof response.data === "string"
+      ? response.data
+      : JSON.stringify(response.data ?? "");
+
+    return res.status(200).json({
+      ok: response.status >= 200 && response.status < 300,
+      statusCode: response.status,
+      latencyMs: Date.now() - started,
+      bodySnippet: body.slice(0, 256),
+      sentPayload: payload,
+    });
+  } catch (err) {
+    // A refused connection is a useful answer, not a server error — report it
+    // as a completed test with ok:false so the UI can show the reason.
+    return res.status(200).json({
+      ok: false,
+      statusCode: null,
+      latencyMs: Date.now() - started,
+      errorMessage: err?.message?.slice(0, 256) || "request failed",
+      sentPayload: payload,
+    });
+  }
+};
+
+// POST /api/v1/refer/deliveries/:id/replay
+// Re-queues a delivery that exhausted its retries (WEBHOOK.md §5: "operators
+// can replay any failed delivery from the dashboard").
+exports.replayDelivery = async (req, res) => {
+  const operatorId = operatorOnly(req, res);
+  if (!operatorId) return;
+
+  const delivery = await RewardDelivery.findOne({ _id: req.params.id, operatorId });
+  if (!delivery) return res.status(404).json({ error: "Delivery not found." });
+  if (delivery.status !== "failed") {
+    return res.status(400).json({ error: `Only failed deliveries can be replayed (this one is ${delivery.status}).` });
+  }
+
+  // Reset the ladder rather than the history — attemptHistory stays as the
+  // audit trail of why it failed the first time.
+  delivery.status = "pending";
+  delivery.attempts = 0;
+  delivery.nextAttemptAt = new Date();
+  await delivery.save();
+
+  return res.status(200).json({ ok: true, deliveryId: String(delivery._id), status: delivery.status });
 };

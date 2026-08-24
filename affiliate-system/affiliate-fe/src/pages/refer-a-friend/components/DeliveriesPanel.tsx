@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { useBaseQuery } from 'api/core/useBaseQuery';
+import { useBaseMutation } from 'api/core/useBaseMutation';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
 
@@ -94,6 +96,7 @@ export default function DeliveriesPanel({ brandId }: Props) {
                 <th className='px-3 py-2 font-semibold'>Recipient</th>
                 <th className='px-3 py-2 font-semibold'>Queued</th>
                 <th className='px-3 py-2 font-semibold'>Claimed</th>
+                <th className='px-3 py-2 font-semibold text-right'>Actions</th>
               </tr>
             </thead>
             <tbody className='divide-y divide-violet-50'>
@@ -129,6 +132,9 @@ export default function DeliveriesPanel({ brandId }: Props) {
                     <td className='px-3 py-2 text-gray-600' title={d.deliveredAt || ''}>
                       {formatRelative(d.deliveredAt)}
                     </td>
+                    <td className='px-3 py-2 text-right'>
+                      {d.status === 'failed' && <ReplayButton deliveryId={d._id} brandId={brandId} />}
+                    </td>
                   </tr>
                 );
               })}
@@ -137,5 +143,38 @@ export default function DeliveriesPanel({ brandId }: Props) {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Re-queues a delivery whose retries ran out. The reward itself was never lost
+ * — replaying just puts the row back at the front of the ladder so the webhook
+ * (or the next pull) can pick it up again.
+ */
+function ReplayButton({ deliveryId, brandId }: { deliveryId: string; brandId: string }) {
+  const queryClient = useQueryClient();
+  const [done, setDone] = useState(false);
+
+  const replay = useBaseMutation({
+    endpoint: REFER_API_URLS.DELIVERY_REPLAY(deliveryId),
+    method: 'post',
+    onSuccess: () => {
+      setDone(true);
+      queryClient.invalidateQueries({ queryKey: ['refer-deliveries', brandId] });
+    },
+  });
+
+  if (done) return <span className='text-[11px] text-gray-500'>Re-queued</span>;
+
+  return (
+    <button
+      type='button'
+      onClick={() => replay.mutate({})}
+      disabled={replay.isPending}
+      className='inline-flex items-center gap-1 rounded border border-violet-200 px-2 py-0.5 text-[11px] font-medium text-violet-700 hover:bg-violet-50 disabled:opacity-40'
+    >
+      <ArrowPathIcon className='h-3 w-3' />
+      {replay.isPending ? 'Retrying…' : 'Retry'}
+    </button>
   );
 }

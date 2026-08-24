@@ -229,6 +229,41 @@ const referAFriendConfigSchema = new mongoose.Schema(
       perBrandMonthlyCents: { type: Number, default: 0, min: 0 },
     },
 
+    // Outbound reward webhook for this brand. See docs/refer-a-friend/WEBHOOK.md
+    // for the contract operators code against.
+    //
+    // Delivery is opt-in per brand: with `enabled` false (or no url) reward
+    // events stay in the pull model — RewardDelivery rows sit `pending` until
+    // the operator claims them from GET /refer/deliveries. Turning this on adds
+    // push on top; whichever path lands first marks the row delivered and runs
+    // the referral cascade, so the two never double-credit a player.
+    webhook: {
+      enabled: { type: Boolean, default: false },
+      url:     { type: String,  default: "" },
+
+      // Newest first. The head signs outgoing requests; older entries are kept
+      // so a rotation doesn't break in-flight retries — every attempt sends a
+      // `v1=` per live secret and the receiver accepts any match (WEBHOOK.md
+      // §3). Entries past `retiredAt` + grace are dropped on rotation.
+      //
+      // Stored encrypted at rest (utils/fieldEncryption); the plaintext is
+      // shown once at creation and never read back by the API.
+      secrets: {
+        type: [
+          {
+            secret:    { type: String, required: true },
+            createdAt: { type: Date, default: Date.now },
+            retiredAt: { type: Date, default: null },
+            // Last 4 of the plaintext, so the UI can tell two secrets apart
+            // without us decrypting anything to render a list.
+            hint:      { type: String, default: "" },
+            _id: false,
+          },
+        ],
+        default: [],
+      },
+    },
+
   },
   { timestamps: true },
 );

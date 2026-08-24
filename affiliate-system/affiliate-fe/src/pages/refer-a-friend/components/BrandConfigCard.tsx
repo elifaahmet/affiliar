@@ -8,6 +8,7 @@ import StyledSelect from '@components/core-components/StyledSelect';
 import NumberField from '@components/core-components/number-field';
 import type { Brand, ReferConfig, CrewLevel } from '../types';
 import DeliveriesPanel from './DeliveriesPanel';
+import WebhookPanel from './WebhookPanel';
 import { useOperatorPlan } from 'hooks/useOperatorPlan';
 
 const DEFAULT_CREW_LEVELS: CrewLevel[] = [
@@ -534,6 +535,11 @@ export default function BrandConfigCard({ brand, existingConfig, onSaved }: Prop
 
           {/* Reward ledger — pending pickups + recently claimed */}
           <DeliveriesPanel brandId={brand._id} />
+
+          {/* Optional push delivery on top of the pull ledger above */}
+          <div className='rounded-lg border border-violet-100'>
+            <WebhookPanel brandId={brand._id} />
+          </div>
 
           {/* Save */}
           <div className='flex items-center gap-3 pt-2 border-t border-violet-100'>

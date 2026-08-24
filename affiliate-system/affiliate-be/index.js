@@ -202,4 +202,10 @@ app.listen(PORT, () => {
   // (enqueued by the raw Kafka consumer) to each affiliate's URL template.
   const { startPostbackDeliveryJob } = require("./jobs/postbackDeliveryJob");
   startPostbackDeliveryJob();
+
+  // Refer-a-Friend reward webhooks: push queued RewardDelivery rows to the
+  // brands that opted in (Settings → Refer-a-Friend → Webhook). Brands
+  // without one keep using the pull endpoint and are skipped entirely.
+  const { startRewardCallbackJob } = require("./jobs/rewardCallbackJob");
+  startRewardCallbackJob();
 });
