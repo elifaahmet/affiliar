@@ -687,6 +687,10 @@ function AddAffiliateTab() {
   const [result, setResult]     = useState<CreateResult | null>(null);
   const [error, setError]       = useState('');
   const [upgradeBanner, setUpgradeBanner] = useState<{ message: string; currentPlan: string; requiredPlan: string } | null>(null);
+  // The invite is refused until the brand has a website URL — it's the base
+  // of every tracking link, so an affiliate invited without one lands in a
+  // portal that can't build them anything.
+  const [brandUrlNotice, setBrandUrlNotice] = useState<string | null>(null);
 
   const { data: brandsData } = useBaseQuery<{ brands: { _id: string; name: string; url?: string }[] }>({
     endpoint: BRANDS_API_URLS.LIST(),
@@ -706,10 +710,17 @@ function AddAffiliateTab() {
     onSuccess: (data) => {
       setResult(data);
       setUpgradeBanner(null);
+      setBrandUrlNotice(null);
       setEmail(''); setUsername(''); setName(''); setPhone(''); setWebsite(''); setSelectedBrandIds([]);
     },
     onError: (e: any) => {
       const respData = e?.response?.data;
+      if (respData?.code === 'BRAND_URL_REQUIRED') {
+        setBrandUrlNotice(respData.error);
+        setUpgradeBanner(null);
+        setError('');
+        return;
+      }
       if (respData?.upgrade) {
         setUpgradeBanner({
           message: respData.error,
@@ -719,6 +730,7 @@ function AddAffiliateTab() {
         setError('');
       } else {
         setUpgradeBanner(null);
+        setBrandUrlNotice(null);
         setError(respData?.error ?? e?.message ?? 'Failed to create affiliate');
       }
     },
@@ -729,6 +741,7 @@ function AddAffiliateTab() {
     setError('');
     setResult(null);
     setUpgradeBanner(null);
+    setBrandUrlNotice(null);
     if (selectedBrandIds.length === 0) {
       setError('Select at least one brand');
       return;
@@ -788,6 +801,18 @@ function AddAffiliateTab() {
               currentPlan={upgradeBanner.currentPlan}
               requiredPlan={upgradeBanner.requiredPlan}
             />
+          )}
+
+          {brandUrlNotice && (
+            <div className='rounded-lg border border-amber-300 bg-amber-50 p-3'>
+              <p className='text-xs text-amber-800'>{brandUrlNotice}</p>
+              <a
+                href='/brands'
+                className='mt-1.5 inline-block text-xs font-medium text-amber-900 underline'
+              >
+                Go to Brands
+              </a>
+            </div>
           )}
 
           {error && <p className='text-xs text-red-500'>{error}</p>}

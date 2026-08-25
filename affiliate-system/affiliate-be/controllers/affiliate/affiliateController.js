@@ -67,6 +67,22 @@ async function createAffiliate(operatorUser, body) {
     brands = allBrands;
   }
 
+  // Every brand this affiliate is being given must have its public URL on
+  // file. It is the base of their tracking link — without it the portal has
+  // nothing to build on and the affiliate is left with a code they can't use.
+  // Refusing here is kinder than inviting someone into a broken portal.
+  const brandsWithoutUrl = brands.filter((b) => !String(b.url || "").trim());
+  if (brandsWithoutUrl.length > 0) {
+    const names = brandsWithoutUrl.map((b) => b.name).join(", ");
+    throw Object.assign(
+      new Error(
+        `Set the website URL for ${names} before inviting affiliates — it's the base of every tracking link. ` +
+          `Add it under Brands, then try again.`,
+      ),
+      { status: 400, code: "BRAND_URL_REQUIRED", brands: brandsWithoutUrl.map((b) => String(b._id)) },
+    );
+  }
+
   const existing = await User.findOne({
     $or: [{ email: email.toLowerCase() }, { username }],
     isDeleted: false,
@@ -281,7 +297,13 @@ const affiliateController = {
         user: { id: String(user._id), email: user.email, username: user.username, status: user.status },
       });
     } catch (err) {
-      return res.status(err.status || 500).json({ error: err.message });
+      return res.status(err.status || 500).json({
+        error: err.message,
+        // Lets the UI act on the specific precondition (e.g. deep-link to the
+        // brand that's missing a URL) instead of parsing the message.
+        ...(err.code ? { code: err.code } : {}),
+        ...(err.brands ? { brands: err.brands } : {}),
+      });
     }
   },
 
