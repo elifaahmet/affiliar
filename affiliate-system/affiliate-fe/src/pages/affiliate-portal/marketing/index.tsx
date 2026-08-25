@@ -159,7 +159,11 @@ export default function AffiliateMarketing() {
   function buildLink(rc: BrandReferralCode): string | null {
     const base = (rc.brandUrl || '').trim().replace(/\/+$/, '');
     if (!base) return null;
-    return `${base}/?affiliate=${rc.code}`;
+    // A brand URL may already carry query params — a casino that opens its
+    // signup modal from the query string, say. Appending "/?" to that would
+    // corrupt it, so join the way the rest of the builders do.
+    const joiner = base.includes('?') ? '&' : '/?';
+    return `${base}${joiner}affiliate=${rc.code}`;
   }
 
   // Brands the affiliate can generate codes for = distinct brands they're
