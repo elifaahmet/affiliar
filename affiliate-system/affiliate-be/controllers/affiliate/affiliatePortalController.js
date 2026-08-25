@@ -27,15 +27,43 @@ const {
   normCurrency,
 } = require("../../utils/payoutNetworks");
 
+/**
+ * The brand behind a legacy (brand-less) code, when there is only one it could
+ * belong to. An operator running several brands makes an unassigned code
+ * genuinely ambiguous, so we leave it unresolved rather than guess and send
+ * traffic to the wrong casino.
+ */
+async function resolveSoleBrand(profile) {
+  if (!profile?.operatorUser) return null;
+
+  const operatorUser = await User.findById(profile.operatorUser)
+    .select("operatorId")
+    .lean();
+  if (!operatorUser?.operatorId) return null;
+
+  const brands = await Brand.find({ operatorId: operatorUser.operatorId })
+    .select("_id name url")
+    .lean();
+  return brands.length === 1 ? brands[0] : null;
+}
+
 async function buildBrandCodes(profile) {
   const brandCodes = profile?.brandCodes ?? [];
   if (brandCodes.length === 0) {
-    // Legacy: no per-brand codes — return flat referralCodes with no brand info
-    return (profile?.referralCodes ?? []).map((code) => ({
+    // Legacy codes predate per-brand assignment, so they carry no brandId — but
+    // they still belong to exactly one operator. Returning a null brandUrl here
+    // left the portal with nothing to build on, and it fell back to its own
+    // origin, handing affiliates links that pointed at Affiliar instead of the
+    // casino. Resolve the operator's brand when it's unambiguous.
+    const legacyCodes = profile?.referralCodes ?? [];
+    if (legacyCodes.length === 0) return [];
+
+    const brand = await resolveSoleBrand(profile);
+    return legacyCodes.map((code) => ({
       code,
-      brandId:   null,
-      brandName: null,
-      brandUrl:  null,
+      brandId:   brand ? String(brand._id) : null,
+      brandName: brand?.name ?? null,
+      brandUrl:  brand?.url  ?? null,
     }));
   }
   const brandIds = brandCodes.map((bc) => bc.brandId);
@@ -53,6 +81,10 @@ async function buildBrandCodes(profile) {
     };
   });
 }
+
+// Exposed for testing — link construction is easy to break silently, and a
+// wrong base URL sends real player traffic to the wrong place.
+exports._internals = { buildBrandCodes, resolveSoleBrand };
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 

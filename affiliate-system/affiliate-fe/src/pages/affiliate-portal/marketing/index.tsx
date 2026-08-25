@@ -152,10 +152,13 @@ export default function AffiliateMarketing() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const fallbackBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-
-  function buildLink(rc: BrandReferralCode) {
-    const base = (rc.brandUrl || fallbackBaseUrl).replace(/\/+$/, '');
+  // Deliberately no fallback to our own origin. A tracking link has to point at
+  // the casino; defaulting to window.location.origin produced links to the
+  // Affiliar panel that looked valid, so affiliates copied and published them.
+  // With no brand URL on file we show what's missing instead of inventing one.
+  function buildLink(rc: BrandReferralCode): string | null {
+    const base = (rc.brandUrl || '').trim().replace(/\/+$/, '');
+    if (!base) return null;
     return `${base}/?affiliate=${rc.code}`;
   }
 
@@ -194,7 +197,8 @@ export default function AffiliateMarketing() {
   const builderLink = useMemo(() => {
     if (!builderRc) return '';
     const page = pagesForBrand.find((p) => p._id === builderPageId);
-    const rawBase = (page?.url || builderRc.brandUrl || fallbackBaseUrl).replace(/\/+$/, '');
+    const rawBase = String(page?.url || builderRc.brandUrl || '').trim().replace(/\/+$/, '');
+    if (!rawBase) return '';
     const customPairs = customParams
       .map((p) => [p.key.trim(), p.value.trim()] as [string, string])
       .filter(([k, v]) => k && v && k.toLowerCase() !== 'affiliate');
@@ -211,7 +215,7 @@ export default function AffiliateMarketing() {
     if (sub.trim()) sp.set('sub', sub.trim());
     sp.set('to', landing);
     return `${origin}/api/r/${builderRc.code}?${sp.toString()}`;
-  }, [builderRc, pagesForBrand, builderPageId, campaign, sub, customParams, fallbackBaseUrl]);
+  }, [builderRc, pagesForBrand, builderPageId, campaign, sub, customParams]);
 
   // Persist the current builder link so the affiliate can re-copy it later.
   const saveLink = async () => {
@@ -429,11 +433,19 @@ export default function AffiliateMarketing() {
                         Code: <span className='font-mono text-primary'>{rc.code}</span>
                       </p>
                     </div>
-                    <p className='text-xs text-gray-600 truncate font-mono'>{link}</p>
+                    {link ? (
+                      <p className='text-xs text-gray-600 truncate font-mono'>{link}</p>
+                    ) : (
+                      <p className='text-xs text-amber-700'>
+                        Your operator hasn&rsquo;t set this brand&rsquo;s website yet, so we can&rsquo;t
+                        build your link. Your code above still works &mdash; ask them to add it.
+                      </p>
+                    )}
                   </div>
                   <button
-                    onClick={() => copy(link)}
-                    className={`shrink-0 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    onClick={() => link && copy(link)}
+                    disabled={!link}
+                    className={`shrink-0 px-3 py-1.5 rounded-md text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                       isCopied
                         ? 'bg-green-100 text-green-700'
                         : 'bg-primary text-white hover:bg-primary-dark'
