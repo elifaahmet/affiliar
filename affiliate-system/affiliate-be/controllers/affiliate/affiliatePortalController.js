@@ -34,17 +34,33 @@ const {
  * traffic to the wrong casino.
  */
 async function resolveSoleBrand(profile) {
-  if (!profile?.operatorUser) return null;
+  const operatorId = await resolveOperatorId(profile);
+  if (!operatorId) return null;
 
-  const operatorUser = await User.findById(profile.operatorUser)
-    .select("operatorId")
-    .lean();
-  if (!operatorUser?.operatorId) return null;
-
-  const brands = await Brand.find({ operatorId: operatorUser.operatorId })
+  const brands = await Brand.find({ operatorId })
     .select("_id name url")
     .lean();
   return brands.length === 1 ? brands[0] : null;
+}
+
+/**
+ * Which operator an affiliate profile belongs to.
+ *
+ * Prefer the affiliate's own `operatorId` — it is the tenancy field the rest of
+ * the app gates on, and it is set on every account. `operatorUser` is only a
+ * fallback: profiles created before it existed still have it null, which is
+ * exactly the population this lookup has to serve.
+ */
+async function resolveOperatorId(profile) {
+  if (profile?.user) {
+    const affiliate = await User.findById(profile.user).select("operatorId").lean();
+    if (affiliate?.operatorId) return affiliate.operatorId;
+  }
+  if (profile?.operatorUser) {
+    const operator = await User.findById(profile.operatorUser).select("operatorId").lean();
+    if (operator?.operatorId) return operator.operatorId;
+  }
+  return null;
 }
 
 async function buildBrandCodes(profile) {
@@ -84,7 +100,7 @@ async function buildBrandCodes(profile) {
 
 // Exposed for testing — link construction is easy to break silently, and a
 // wrong base URL sends real player traffic to the wrong place.
-exports._internals = { buildBrandCodes, resolveSoleBrand };
+exports._internals = { buildBrandCodes, resolveSoleBrand, resolveOperatorId };
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 

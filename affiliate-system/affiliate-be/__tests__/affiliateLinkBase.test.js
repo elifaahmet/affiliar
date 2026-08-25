@@ -21,6 +21,7 @@ const { _internals } = require("../controllers/affiliate/affiliatePortalControll
 const { buildBrandCodes } = _internals;
 
 const OPERATOR_USER = "op-user-1";
+const AFFILIATE_USER = "aff-user-1";
 const BRAND = { _id: "brand-1", name: "Betamericano", url: "https://betamericano.com" };
 
 beforeEach(() => {
@@ -42,6 +43,7 @@ describe("affiliate link base", () => {
 
   test("a legacy code resolves the operator's brand when there is only one", async () => {
     const out = await buildBrandCodes({
+      user: AFFILIATE_USER,
       referralCodes: ["PNFBWMPW"],
       operatorUser: OPERATOR_USER,
     });
@@ -60,6 +62,7 @@ describe("affiliate link base", () => {
     );
 
     const out = await buildBrandCodes({
+      user: AFFILIATE_USER,
       referralCodes: ["PNFBWMPW"],
       operatorUser: OPERATOR_USER,
     });
@@ -72,14 +75,39 @@ describe("affiliate link base", () => {
   test("a brand with no URL on file yields null, never a placeholder", async () => {
     mockBrandFind.mockReturnValue(lean([{ ...BRAND, url: null }]));
     const out = await buildBrandCodes({
+      user: AFFILIATE_USER,
       referralCodes: ["PNFBWMPW"],
       operatorUser: OPERATOR_USER,
     });
     expect(out[0].brandUrl).toBeNull();
   });
 
-  test("an unattached legacy profile resolves nothing", async () => {
-    const out = await buildBrandCodes({ referralCodes: ["PNFBWMPW"], operatorUser: null });
+  // The population this fix exists for: older profiles never had operatorUser
+  // filled in, but the affiliate's own account always carries operatorId.
+  test("resolves from the affiliate's own operatorId when operatorUser is null", async () => {
+    const out = await buildBrandCodes({
+      user: AFFILIATE_USER,
+      referralCodes: ["PNFBWMPW"],
+      operatorUser: null,
+    });
+    expect(out[0].brandUrl).toBe("https://betamericano.com");
+  });
+
+  test("falls back to operatorUser when the affiliate carries no operatorId", async () => {
+    mockUserFindById
+      .mockReturnValueOnce(lean({ operatorId: null }))       // the affiliate
+      .mockReturnValueOnce(lean({ operatorId: "operator-1" })); // the operator
+
+    const out = await buildBrandCodes({
+      user: AFFILIATE_USER,
+      referralCodes: ["PNFBWMPW"],
+      operatorUser: OPERATOR_USER,
+    });
+    expect(out[0].brandUrl).toBe("https://betamericano.com");
+  });
+
+  test("a profile attached to nothing resolves nothing", async () => {
+    const out = await buildBrandCodes({ user: null, referralCodes: ["PNFBWMPW"], operatorUser: null });
     expect(out[0].brandUrl).toBeNull();
     expect(mockUserFindById).not.toHaveBeenCalled();
   });
