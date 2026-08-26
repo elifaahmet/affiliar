@@ -100,6 +100,17 @@ const operatorSchema = new mongoose.Schema(
       uppercase: true,
       trim: true,
     },
+    // How many months one paid period covers. Monthly is the default and what
+    // the self-serve checkout assumes; a negotiated deal can run quarterly or
+    // annually. Everything derives from this — the charge is the plan's monthly
+    // price times this many months, and paying advances `nextBillingDate` by
+    // the same span, so a quarterly operator isn't billed monthly or chased for
+    // payment two months early.
+    billingIntervalMonths: {
+      type: Number,
+      default: 1,
+      enum: [1, 3, 6, 12],
+    },
     billingCycle: {
       type: Date,
       default: null,

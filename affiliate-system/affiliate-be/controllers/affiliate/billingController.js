@@ -71,8 +71,10 @@ async function coinfluxCreateDeposit({ operatorId, amount, referenceId }) {
 //   fixed_fx  → amount = round(priceAmountCents/100 × FX(priceCurrency→USD))
 //               but ONLY on FIXED_FX_PLAN (the top tier). On any other plan
 //               the code is a transparent no-op — list price stands.
-async function resolvePlanAmount({ plan, discountCode }) {
+async function resolvePlanAmount({ plan, discountCode, intervalMonths = 1 }) {
   const planPrice = PLAN_PRICES_USD[plan];
+  // Guard the multiplier: a bad value here would silently over- or under-charge.
+  const months = Number.isInteger(intervalMonths) && intervalMonths > 0 ? intervalMonths : 1;
   if (!planPrice) {
     const err = new Error(
       `Invalid plan. Must be one of: ${Object.keys(PLAN_PRICES_USD).join(", ")}`,
@@ -82,7 +84,14 @@ async function resolvePlanAmount({ plan, discountCode }) {
   }
 
   if (!discountCode) {
-    return { planPrice, discountUsd: 0, amount: planPrice, resolvedCode: "", discountFx: null };
+    return {
+      planPrice,
+      discountUsd: 0,
+      amount: planPrice * months,
+      resolvedCode: "",
+      discountFx: null,
+      intervalMonths: months,
+    };
   }
 
   const resolved = await DiscountCode.resolve(discountCode);
@@ -104,9 +113,10 @@ async function resolvePlanAmount({ plan, discountCode }) {
       return {
         planPrice,
         discountUsd: 0,
-        amount: planPrice,
+        amount: planPrice * months,
         resolvedCode: "",
         discountFx: null,
+        intervalMonths: months,
       };
     }
     const fx = await fetchFxToUsd(codeDoc.priceCurrency);
@@ -118,12 +128,16 @@ async function resolvePlanAmount({ plan, discountCode }) {
       throw err;
     }
     // Whole-dollar rounding keeps the deposit amount integer-friendly.
-    const amount = Math.round((codeDoc.priceAmountCents / 100) * fx.value);
+    // The negotiated rate is a monthly one, so a longer period is a multiple of
+    // it — not a flat fee that happens to cover three months.
+    const monthlyAmount = Math.round((codeDoc.priceAmountCents / 100) * fx.value);
+    const amount = monthlyAmount * months;
     return {
       planPrice,
       discountUsd: 0,
       amount,
       resolvedCode: codeDoc.code,
+      intervalMonths: months,
       discountFx: {
         kind: "fixed_fx",
         baseAmountCents: codeDoc.priceAmountCents,
@@ -137,7 +151,14 @@ async function resolvePlanAmount({ plan, discountCode }) {
   // fixed_usd (default)
   const discountUsd = Math.min(codeDoc.amountUsd, planPrice);
   const amount = Math.max(0, planPrice - discountUsd);
-  return { planPrice, discountUsd, amount, resolvedCode: codeDoc.code, discountFx: null };
+  return {
+    planPrice,
+    discountUsd,
+    amount: amount * months,
+    resolvedCode: codeDoc.code,
+    discountFx: null,
+    intervalMonths: months,
+  };
 }
 
 const billingController = {
@@ -186,10 +207,12 @@ const billingController = {
       if (!user.operatorId) {
         return res.status(400).json({ error: "User is not linked to an operator" });
       }
+      const billingOperator = await Operator.findById(user.operatorId).select("billingIntervalMonths").lean();
       const { amount, planPrice, discountUsd, resolvedCode } =
         await resolvePlanAmount({
           plan: req.body.plan,
           discountCode: req.body.discountCode,
+          intervalMonths: billingOperator?.billingIntervalMonths ?? 1,
         });
 
       // Open a deposit and surface its address as the single wallet.
@@ -228,8 +251,10 @@ const billingController = {
         return res.status(400).json({ error: "walletId is required — pick a wallet first" });
       }
 
+      const checkoutOperator = await Operator.findById(user.operatorId).select("billingIntervalMonths").lean();
       const { amount, discountUsd, resolvedCode, discountFx } = await resolvePlanAmount({
         plan, discountCode,
+        intervalMonths: checkoutOperator?.billingIntervalMonths ?? 1,
       });
 
       const referenceId = `affiliar_${user.operatorId}_${Date.now()}`;
@@ -362,8 +387,13 @@ async function handleCoinfluxDeposit({ depositId, event, note }, res) {
       );
     }
     const now = new Date();
+    // Advance by the operator's own period, not a hardcoded month — a quarterly
+    // operator paying would otherwise come due again in four weeks.
+    const payer = await Operator.findById(transaction.operatorId)
+      .select("billingIntervalMonths")
+      .lean();
     const next = new Date(now);
-    next.setMonth(next.getMonth() + 1);
+    next.setMonth(next.getMonth() + (payer?.billingIntervalMonths ?? 1));
     await Operator.findByIdAndUpdate(transaction.operatorId, {
       plan: transaction.plan,
       billingStatus: "active",
@@ -389,3 +419,6 @@ async function handleCoinfluxDeposit({ depositId, event, note }, res) {
 }
 
 module.exports.handleCoinfluxDeposit = handleCoinfluxDeposit;
+// Exposed for testing — a wrong multiplier here over- or under-charges a
+// customer silently, and the discount paths each scale differently.
+module.exports._internals = { resolvePlanAmount };
