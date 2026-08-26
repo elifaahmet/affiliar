@@ -11,7 +11,7 @@ jest.mock("../utils/mailer", () => ({
   sendBillingSuspendedNotice: jest.fn(),
 }));
 
-const { pickStage } = require("../jobs/billingExpiryJob");
+const { pickStage, DUNNING_FILTER } = require("../jobs/billingExpiryJob");
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = new Date("2026-08-21T12:00:00Z");
@@ -124,5 +124,49 @@ describe("run time does not shift the calendar", () => {
   it("suspends on day 10 after the due date, not day 9", () => {
     expect(pickStage(DUE, new Date("2026-09-10T12:00:00Z"))).toBeNull();
     expect(pickStage(DUE, new Date("2026-09-11T00:00:00Z")).kind).toBe("suspended");
+  });
+});
+
+// Two kinds of operator must never be chased. Lifetime-free ones owe nothing;
+// offline-billed ones do pay, but never through us — no callback ever marks
+// their invoice settled, so left in the cadence they'd be emailed to pay,
+// flipped past due and suspended while fully paid up.
+describe("who the dunning cadence applies to", () => {
+  const matches = (operator) =>
+    Object.entries(DUNNING_FILTER).every(([field, rule]) => {
+      const value = operator[field];
+      if (rule && typeof rule === "object" && "$in" in rule) return rule.$in.includes(value);
+      if (rule && typeof rule === "object" && "$ne" in rule) return value !== rule.$ne;
+      return value === rule;
+    });
+
+  const base = {
+    isDeleted: false,
+    billingStatus: "active",
+    nextBillingDate: new Date("2026-11-01T00:00:00Z"),
+    lifetimeFree: false,
+    offlineBilling: false,
+  };
+
+  test("an ordinary self-serve operator is included", () => {
+    expect(matches(base)).toBe(true);
+  });
+
+  test("an offline-billed operator is excluded", () => {
+    expect(matches({ ...base, offlineBilling: true })).toBe(false);
+  });
+
+  test("a lifetime-free operator is excluded", () => {
+    expect(matches({ ...base, lifetimeFree: true })).toBe(false);
+  });
+
+  test("the flags default to absent, which must still mean included", () => {
+    // Operators predating either field have neither key set.
+    const legacy = { isDeleted: false, billingStatus: "active", nextBillingDate: base.nextBillingDate };
+    expect(matches(legacy)).toBe(true);
+  });
+
+  test("an already-suspended operator isn't chased further", () => {
+    expect(matches({ ...base, billingStatus: "suspended" })).toBe(false);
   });
 });

@@ -149,6 +149,17 @@ function alreadySent(operator, stage) {
   );
 }
 
+// Who the dunning cadence applies to. Named and exported because the two
+// exclusions are the whole safety story: getting either wrong emails or
+// suspends a customer who owes us nothing.
+const DUNNING_FILTER = {
+  isDeleted: false,
+  billingStatus: { $in: ["trial", "active", "past_due"] },
+  nextBillingDate: { $ne: null },
+  lifetimeFree: { $ne: true },
+  offlineBilling: { $ne: true },
+};
+
 // ── Per-operator processing ──────────────────────────────────────────────────
 
 async function processOperator(operator, now) {
@@ -283,13 +294,11 @@ async function runOnce({ now = new Date() } = {}) {
   // = trialEndsAt` so they flow through the same pipeline; suspended
   // operators have already been cut off and don't need further reminders.
   // Lifetime-free operators (e.g. our own Hexora tenant) bypass billing
-  // entirely — no reminders, no past_due flip, no suspend.
-  const cursor = Operator.find({
-    isDeleted: false,
-    billingStatus: { $in: ["trial", "active", "past_due"] },
-    nextBillingDate: { $ne: null },
-    lifetimeFree: { $ne: true },
-  }).cursor();
+  // entirely — no reminders, no past_due flip, no suspend. Operators billed
+  // offline are excluded for the opposite reason: they do pay, but never
+  // through us, so the system can't tell a settled invoice from an unpaid one
+  // and would suspend a paid-up customer on schedule.
+  const cursor = Operator.find(DUNNING_FILTER).cursor();
 
   for await (const operator of cursor) {
     stats.candidates++;
@@ -340,4 +349,4 @@ function stopBillingExpiryJob() {
   }
 }
 
-module.exports = { startBillingExpiryJob, stopBillingExpiryJob, runOnce, pickStage, accruedInterestCents };
+module.exports = { DUNNING_FILTER, startBillingExpiryJob, stopBillingExpiryJob, runOnce, pickStage, accruedInterestCents };

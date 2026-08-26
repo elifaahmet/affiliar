@@ -100,6 +100,17 @@ const operatorSchema = new mongoose.Schema(
       uppercase: true,
       trim: true,
     },
+    // Payment is collected outside the platform — cash, bank transfer, whatever
+    // was agreed — so nothing ever tells the system the invoice was settled.
+    // Left in the automation these operators would be emailed to "pay now",
+    // marked past due and suspended on schedule while fully paid up. The
+    // dunning cadence is skipped entirely for them; `nextBillingDate` still
+    // records when the period ends, and whoever collects the payment moves it.
+    offlineBilling: {
+      type: Boolean,
+      default: false,
+    },
+
     // How many months one paid period covers. Monthly is the default and what
     // the self-serve checkout assumes; a negotiated deal can run quarterly or
     // annually. Everything derives from this — the charge is the plan's monthly
