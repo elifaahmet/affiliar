@@ -36,6 +36,8 @@ const arg = (name, fallback = null) => {
   return i >= 0 ? process.argv[i + 1] : fallback;
 };
 const COMMIT = process.argv.includes("--commit");
+// Only for a re-run after the tenant's rows have actually been deleted.
+const FORCE = process.argv.includes("--force");
 const SINCE = new Date(arg("since", "2026-07-01T00:00:00Z"));
 const URI = process.env.BETROXY_MONGODB_URI;
 const BROKERS = (process.env.KAFKA_BROKERS || "localhost:9092").split(",");
@@ -49,11 +51,15 @@ const TOPIC = "affiliate.raw.events.betroxy.v1";
 /**
  * An event's id is derived from the source document, not generated.
  *
- * A backfill that cannot be re-run is one you run once and hope. Two months of
- * history will not import cleanly the first time — a field will turn out to
- * mean something else, a currency will be missing — and the fix is to correct
- * the mapping and run it again. With a random id every re-run doubles the
- * history and there is no way back short of dropping the tenant's rows.
+ * This does NOT make the backfill idempotent, and I claimed it did. Nothing
+ * downstream deduplicates on it: raw_events is a plain MergeTree, and
+ * activity_hourly_delta is a SummingMergeTree — it adds. A second run does not
+ * replace the first, it doubles every deposit, bet and win, silently and with
+ * no error anywhere.
+ *
+ * The id is still worth deriving: it makes a row traceable back to the exact
+ * source document, which is what you need when a number looks wrong. But the
+ * thing that makes a re-run safe is the guard below, not the id.
  */
 const eventId = (collection, docId, type) =>
   crypto.createHash("sha1").update(`betroxy:${collection}:${docId}:${type}`).digest("hex");
@@ -115,6 +121,32 @@ function toCents(dec) {
  */
 const isSuccess = (status) => String(status || "").trim().toLowerCase() === "success";
 
+/** How many raw events the destination already holds for this tenant inside
+ *  the window. Null when ClickHouse cannot be reached, which is different from
+ *  zero and has to stay different. */
+async function countExistingRows() {
+  const host = process.env.CLICKHOUSE_HOST || "http://localhost:8123";
+  const sql =
+    `SELECT count() FROM ${process.env.CLICKHOUSE_DATABASE || "affiliate"}.raw_events ` +
+    `WHERE tenant_id = '${TENANT_ID}' AND occurred_at >= toDateTime('${SINCE.toISOString().slice(0, 19).replace("T", " ")}')`;
+  try {
+    const res = await fetch(host, {
+      method: "POST",
+      headers: {
+        "X-ClickHouse-User": process.env.CLICKHOUSE_USERNAME || "affiliate",
+        "X-ClickHouse-Key": process.env.CLICKHOUSE_PASSWORD || "",
+        "Content-Type": "text/plain",
+      },
+      body: sql,
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return null;
+    return Number((await res.text()).trim());
+  } catch {
+    return null;
+  }
+}
+
 const envelope = ({ id, type, playerId, currency, occurredAt, data }) => ({
   eventId: id,
   eventType: type,
@@ -142,6 +174,42 @@ async function run() {
   console.log(`window: ${SINCE.toISOString().slice(0, 10)} → now`);
   console.log(`target: ${TOPIC} on ${BROKERS.join(",")}`);
   console.log(COMMIT ? "MODE: committing\n" : "MODE: dry run — nothing is produced\n");
+
+  /**
+   * Refuse to produce into a window that already has rows.
+   *
+   * Both destination tables accumulate, so producing over existing data is not
+   * a correction — it is a second copy added to the first. Betroxy already
+   * carries 2,941 events from a live integration test on 21 August, which sits
+   * inside any window starting 1 July.
+   *
+   * Checked against ClickHouse rather than tracked in a state file: the
+   * question is what the destination holds, and only the destination can
+   * answer it. --force exists for the case where the rows were deliberately
+   * deleted first, and says so out loud.
+   */
+  if (COMMIT && !FORCE) {
+    const existing = await countExistingRows();
+    if (existing === null) {
+      console.error("Could not reach ClickHouse to check for existing rows. Refusing to");
+      console.error("produce blind: both destination tables accumulate, so a second copy");
+      console.error("doubles every figure rather than replacing it.");
+      process.exit(1);
+    }
+    if (existing > 0) {
+      console.error(`\nRefusing: tenant ${TENANT_ID} already has ${existing} raw events in this window.`);
+      console.error("");
+      console.error("activity_hourly_delta is a SummingMergeTree — producing over these adds");
+      console.error("to them. Deposits, bets and wins would all read double, with nothing");
+      console.error("reporting an error.");
+      console.error("");
+      console.error("To redo the import, delete this tenant's rows first:");
+      console.error(`  ALTER TABLE affiliate.raw_events DELETE WHERE tenant_id = '${TENANT_ID}' SETTINGS mutations_sync = 1;`);
+      console.error(`  ALTER TABLE affiliate.activity_hourly_delta DELETE WHERE tenant_id = '${TENANT_ID}' SETTINGS mutations_sync = 1;`);
+      console.error("then run again. --force skips this check and is for exactly that case.");
+      process.exit(1);
+    }
+  }
 
   const kafka = new Kafka({ clientId: "betroxy-backfill", brokers: BROKERS, logLevel: logLevel.ERROR });
   const producer = kafka.producer({ idempotent: true });
