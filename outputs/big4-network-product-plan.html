@@ -1,0 +1,153 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Big4Partners — Development Proposal</title><style>
+    body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:1000px;margin:40px auto;padding:0 24px;color:#1a1a1a;line-height:1.55}
+    h1{font-size:28px;border-bottom:2px solid #222;padding-bottom:8px}
+    h2{font-size:21px;margin-top:32px;border-bottom:1px solid #ddd;padding-bottom:4px}
+    h3{font-size:17px;margin-top:24px}
+    table{border-collapse:collapse;width:100%;margin:16px 0;font-size:13px}
+    th,td{border:1px solid #cfcfcf;padding:7px 10px;text-align:left;vertical-align:top}
+    th{background:#f3f4f6;font-weight:600}
+    tr:nth-child(even) td{background:#fafafa}
+    code{background:#f0f0f0;padding:1px 5px;border-radius:4px;font-size:90%}
+    blockquote{border-left:4px solid #4a7bd6;background:#f6f9ff;margin:16px 0;padding:10px 16px;border-radius:0 6px 6px 0}
+    hr{border:none;border-top:1px solid #e2e2e2;margin:28px 0}
+    strong{font-weight:600}
+    </style></head><body>
+<h1>Affiliate Network Platform — Development Proposal</h1>
+<p><strong>Project:</strong> Big4Partners</p>
+<p><strong>Date:</strong> 18 June 2026  ·  <strong>Version:</strong> 1.0  ·  <strong>Validity:</strong> 30 days</p>
+<hr>
+<h2>1. Overview</h2>
+<p>This proposal covers the design and delivery of a purpose-built **affiliate management</p>
+<p>platform for the iGaming industry**, developed from the ground up. The platform manages</p>
+<p>the full affiliate lifecycle — operator and brand setup, affiliate onboarding, campaign</p>
+<p>discovery, conversion tracking, commission calculation, data reconciliation, and financial</p>
+<p>settlement.</p>
+<p>The platform implements the three-party network model: operators fund player acquisition,</p>
+<p>affiliates drive traffic, and the network tracks conversions, enforces deal terms, and</p>
+<p>settles payments to all parties — retaining a configurable margin on each marketing source.</p>
+<p>The system is delivered as a set of independent, horizontally scalable services with a</p>
+<p>modern web back-office and a dedicated affiliate portal.</p>
+<hr>
+<h2>2. Team</h2>
+<table>
+<thead><tr><th>Code</th><th>Role</th></tr></thead>
+<tbody>
+<tr><td><strong>SF</strong></td><td>Senior full-stack / tech lead — architecture, high-throughput services, integrations, code review</td></tr>
+<tr><td><strong>MF</strong></td><td>Mid-level full-stack — feature backend + integrations</td></tr>
+<tr><td><strong>JF</strong></td><td>Frontend engineer — web application, reporting UI</td></tr>
+<tr><td><strong>QA</strong> _(part-time)_</td><td>QA / tester — test plans, regression, UAT support; engaged across all phases, full-time during hardening</td></tr>
+</tbody></table>
+<hr>
+<h2>3. Service Architecture &amp; Technology</h2>
+<table>
+<thead><tr><th>#</th><th>Service</th><th>Responsibility</th><th>Tech</th><th>Owner</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><strong>API Gateway</strong></td><td>Routing, auth propagation, rate-limiting</td><td>Traefik / Fastify gateway</td><td>SF · QA</td></tr>
+<tr><td>2</td><td><strong>Identity &amp; Tenancy</strong></td><td>Auth, role-based access control (permission groups), operator, brand, admin, affiliate invite</td><td>Node.js (Express) + MongoDB + Redis</td><td>MF · SF · QA</td></tr>
+<tr><td>3</td><td><strong>Tracking &amp; Marketing Source</strong></td><td>Marketing-source entity, dual-deal/margin model, channel, tracker link, short link</td><td>Node.js (Express) + MongoDB</td><td>SF · MF · QA</td></tr>
+<tr><td>4</td><td><strong>Marketplace</strong></td><td>Campaign discovery, join-request, approval → auto-create marketing source</td><td>Node.js (Express) + MongoDB</td><td>MF · SF · QA</td></tr>
+<tr><td>5</td><td><strong>Ingestion &amp; Stats</strong></td><td>Tracker-ID postback endpoint (fact table) + aggregation + all stats/reporting queries. <strong>Dual-mode feed:</strong> real-time stream push OR nightly API pull.</td><td><strong>Go</strong> + ClickHouse + Kafka</td><td>SF · QA</td></tr>
+<tr><td>6</td><td><strong>ETL Adapter</strong></td><td>Pluggable operator back-office pull (Softswiss / EveryMatrix / Digitain…), scheduled jobs, encrypted credentials</td><td><strong>Go</strong> + MongoDB (job state)</td><td>SF · QA</td></tr>
+<tr><td>7</td><td><strong>Commission Engine</strong></td><td>CPA with monthly caps, Revenue Share with carry-over/baseline, Hybrid, dual-deal calculation, idempotent month-end batch</td><td>Node.js worker + MongoDB</td><td>SF · MF · QA</td></tr>
+<tr><td>8</td><td><strong>Reconciliation</strong></td><td>Data reconciliation: three-layer model, monthly snapshot lock, gap &amp; retroactive-change detection</td><td><strong>Go</strong> + ClickHouse</td><td>SF · QA</td></tr>
+<tr><td>9</td><td><strong>Billing &amp; Invoicing</strong></td><td>Operator invoices, affiliate payouts/statements, multi-currency</td><td>Node.js + MongoDB</td><td>MF · SF · QA</td></tr>
+<tr><td>10</td><td><strong>Payment</strong></td><td>Pluggable payment-provider (PSP) integration</td><td>Node.js + provider SDK</td><td>MF · SF · QA</td></tr>
+<tr><td>11</td><td><strong>Back-office Web App</strong></td><td>Operator/admin application</td><td>React + TypeScript + React Query</td><td>JF · SF · QA</td></tr>
+<tr><td>12</td><td><strong>Affiliate Portal</strong></td><td>Restricted affiliate-facing application</td><td>React + TypeScript + React Query</td><td>JF · SF · QA</td></tr>
+</tbody></table>
+<p><strong>Environments:</strong> two isolated deployments — <strong>Staging</strong> (every change is tested here first)</p>
+<p>and <strong>Production</strong>, with a promote-from-staging release flow. The architecture is decomposed</p>
+<p>into independent microservices to allow each to scale and deploy on its own.</p>
+<p><strong>Shared infrastructure:</strong> containerized services for staging↔production parity —</p>
+<p>Docker + Compose (staging) / Kubernetes or k3s (production), Kafka, MongoDB, ClickHouse,</p>
+<p>Redis, CI/CD (GitHub Actions) with automated staging deploy and gated promotion to production.</p>
+<blockquote><strong>Dual-mode ingestion — selected per operator account:</strong><br>1. <strong>Stream push</strong> — operators able to publish aggregated events stream them to a topic; the Go ingestion service consumes and writes to the fact table in real time.<br>2. <strong>Nightly API pull (ETL adapter)</strong> — operators integrated via encrypted-credential adapters that pull player/revenue data on a schedule.<br>Both modes land in the same ClickHouse fact table, so stats, commission, and<br>reconciliation are feed-agnostic. The network&#x27;s own attribution always arrives via the<br>Tracker-ID postback endpoint regardless of mode.</blockquote>
+<hr>
+<h2>4. Scope &amp; Work Breakdown</h2>
+<blockquote>SF (senior full-stack / tech lead) owns architecture and code review on **every module<br>across all phases**; the Owner column lists the primary implementer alongside SF.<br>QA/tester (part-time) is engaged <strong>across every phase</strong> for test coverage and regression,<br>and works full-time during the hardening phase.</blockquote>
+<table>
+<thead><tr><th>Phase</th><th>Module</th><th>Service</th><th>Owner</th><th>Tech</th><th>Effort (dev-wk)</th></tr></thead>
+<tbody>
+<tr><td><strong>P0 Foundation</strong></td><td>Monorepo, base CI, Docker images, local dev (Compose) bootstrap</td><td>infra</td><td>SF · QA</td><td>GH Actions, Docker</td><td>1</td></tr>
+<tr><td></td><td><strong>CI/CD + orchestration: per-service pipelines, k8s/k3s manifests, Staging + Production envs, promote-from-staging flow</strong></td><td>infra</td><td>SF · MF · QA</td><td>GH Actions, k8s/k3s, Compose</td><td>2</td></tr>
+<tr><td></td><td>API Gateway + auth propagation</td><td>1</td><td>SF · QA</td><td>Traefik/Fastify</td><td>1</td></tr>
+<tr><td></td><td>Auth + granular RBAC (permission groups)</td><td>2</td><td>MF · SF · QA</td><td>Node, Mongo</td><td>3</td></tr>
+<tr><td></td><td>Operator / Brand / admin login</td><td>2</td><td>MF · SF · QA</td><td>Node, Mongo</td><td>2</td></tr>
+<tr><td></td><td>Affiliate invite + onboarding</td><td>2</td><td>MF · SF · QA</td><td>Node</td><td>1</td></tr>
+<tr><td></td><td>Web app shell + design system + auth screens</td><td>11</td><td>JF · SF · QA</td><td>React, React Query</td><td>3</td></tr>
+<tr><td></td><td>Go ingestion+stats skeleton + stream consumer + postback endpoint + schema</td><td>5</td><td>SF · QA</td><td>Go, CH, Kafka</td><td>3</td></tr>
+<tr><td><strong>P1 Tracking</strong></td><td><strong>Marketing Source + dual-deal/margin</strong></td><td>3</td><td>SF · QA</td><td>Node, Mongo</td><td>2</td></tr>
+<tr><td></td><td>Channel registration + approval</td><td>3</td><td>MF · SF · QA</td><td>Node</td><td>1</td></tr>
+<tr><td></td><td>Tracker link + short-link generation</td><td>3</td><td>MF · SF · QA</td><td>Node, Rebrandly API</td><td>1</td></tr>
+<tr><td></td><td>Marketplace + approval → auto-create marketing source</td><td>4</td><td>MF · SF · QA</td><td>Node</td><td>2</td></tr>
+<tr><td></td><td>Status cascade (data-layer enforced)</td><td>3</td><td>SF · QA</td><td>Node</td><td>1</td></tr>
+<tr><td></td><td>Stats queries + reporting endpoints</td><td>5</td><td>SF · QA</td><td>Go, CH</td><td>2</td></tr>
+<tr><td></td><td>Reporting &amp; dashboard screens</td><td>11</td><td>JF · SF · QA</td><td>React</td><td>3</td></tr>
+<tr><td><strong>P2 Financial + Integration</strong></td><td>Commission engine (CPA cap / RS / Hybrid / dual)</td><td>7</td><td>SF · MF · QA</td><td>Node worker</td><td>3</td></tr>
+<tr><td></td><td>Account entity + encrypted credentials</td><td>6</td><td>MF · SF · QA</td><td>Node, KMS</td><td>1</td></tr>
+<tr><td></td><td><strong>ETL adapter framework + 1st adapter</strong></td><td>6</td><td>SF · QA</td><td>Go, Mongo</td><td>4</td></tr>
+<tr><td></td><td>Payment service + PSP integration</td><td>10</td><td>MF · SF · QA</td><td>Node, PSP SDK</td><td>2</td></tr>
+<tr><td></td><td>Operator invoicing (Draft→Sent→Acknowledged→Paid)</td><td>9</td><td>MF · SF · QA</td><td>Node</td><td>2</td></tr>
+<tr><td></td><td>Affiliate payouts + statements</td><td>9</td><td>MF · SF · QA</td><td>Node</td><td>2</td></tr>
+<tr><td></td><td>Multi-currency + historical FX</td><td>9</td><td>JF · SF · QA</td><td>Node</td><td>1</td></tr>
+<tr><td></td><td>CSV/PDF export</td><td>11</td><td>JF · SF · QA</td><td>React</td><td>1</td></tr>
+<tr><td><strong>P3 Reconciliation + Hardening</strong></td><td><strong>Reconciliation (three-layer, snapshots, gap detection)</strong></td><td>8</td><td>SF · QA</td><td>Go, CH</td><td>4</td></tr>
+<tr><td></td><td>Reconciliation review UI (player-level)</td><td>11</td><td>JF · SF · QA</td><td>React</td><td>2</td></tr>
+<tr><td></td><td>Impersonation + audit log</td><td>2</td><td>MF · SF · QA</td><td>Node</td><td>1</td></tr>
+<tr><td></td><td>Bulk operations + partial-failure handling</td><td>various</td><td>JF · SF · QA</td><td>React + Node</td><td>1</td></tr>
+<tr><td></td><td>Sub-affiliate commission cascade</td><td>7</td><td>MF · SF · QA</td><td>Node</td><td>1</td></tr>
+<tr><td></td><td>Affiliate portal</td><td>12</td><td>JF · SF · QA</td><td>React</td><td>3</td></tr>
+<tr><td></td><td>Security hardening, QA, UAT, bug-fix</td><td>all</td><td>QA · SF · MF · JF</td><td>—</td><td>3</td></tr>
+</tbody></table>
+<hr>
+<h2>5. Timeline</h2>
+<table>
+<thead><tr><th></th><th>Month 1</th><th>Month 2</th><th>Month 3</th><th>Month 4</th></tr></thead>
+<tbody>
+<tr><td><strong>SF</strong></td><td>Infra, gateway, Go ingestion (stream + postback)</td><td>Marketing source + dual-deal, cascade, stats</td><td>Commission engine, <strong>ETL adapter</strong></td><td><strong>Reconciliation</strong>, hardening</td></tr>
+<tr><td><strong>MF</strong></td><td>Auth/RBAC, operator/brand, invite</td><td>Channel, tracker link, marketplace</td><td>Account, payment, invoicing, payouts</td><td>Impersonation, sub-affiliate, QA</td></tr>
+<tr><td><strong>JF</strong></td><td>Web app shell + design system</td><td>Reporting/dashboard screens</td><td>FX, CSV/PDF export</td><td>Reconciliation UI, bulk, affiliate portal</td></tr>
+<tr><td><strong>QA</strong> _(part-time)_</td><td>Test plan setup</td><td>Tracking + commission test cycles</td><td>Financial flows + payment testing</td><td>Reconciliation, regression, UAT _(full-time)_</td></tr>
+</tbody></table>
+<blockquote><strong>Note — schedule contingency.</strong> The 4-month plan reflects focused development effort.<br>Allow an additional <strong>4–6 weeks</strong> for UAT feedback cycles, third-party integration<br>iterations, production stabilization, and post-launch maintenance/hardening. A realistic<br>end-to-end delivery window is therefore <strong>~5–5.5 months</strong>.</blockquote>
+<hr>
+<h2>6. Milestones &amp; Deliverables</h2>
+<table>
+<thead><tr><th>Milestone</th><th>Timing</th><th>Deliverable</th></tr></thead>
+<tbody>
+<tr><td><strong>M1 — Core platform</strong></td><td>End of Month 2</td><td>Operator/brand/affiliate management, marketing-source tracking, commission engine, reporting dashboards. Demo-ready.</td></tr>
+<tr><td><strong>M2 — Operational platform</strong></td><td>End of Month 3</td><td>Operator invoicing, affiliate payouts, payment integration, first back-office ETL adapter. One operator can run live.</td></tr>
+<tr><td><strong>M3 — Full platform</strong></td><td>End of Month 4</td><td>Data reconciliation, affiliate portal, impersonation, bulk operations, security hardening. Production-ready.</td></tr>
+</tbody></table>
+<hr>
+<h2>7. Assumptions &amp; Client Responsibilities</h2>
+<p>The following are required from the client and are <strong>prerequisites</strong> for the dependent</p>
+<p>modules. Delays in providing them shift only the affected modules (ETL adapter,</p>
+<p>reconciliation); the rest of the schedule is unaffected.</p>
+<ul>
+<li><strong>Hosting infrastructure for two environments (Staging + Production)</strong>, domain, SSL, and CDN/DNS (e.g. Cloudflare) are procured, owned, and paid for by the client (servers, DNS, certificates, Cloudflare plan, WAF/CDN). <strong>Server setup, configuration, orchestration, and deployment are performed by us</strong> on the client-provided infrastructure — the client grants the necessary access.</li>
+<li><strong>All third-party service costs</strong> (hosting, Cloudflare, URL-shortener, payment provider, email/SMS, and any operator-platform API fees) are borne by the client.</li>
+<li><strong>Operator API access &amp; sandbox</strong> for each back-office platform to be integrated, including documentation and test credentials.</li>
+<li><strong>Representative test data</strong> from the operator, required to validate the reconciliation module.</li>
+<li><strong>Chosen payment provider (PSP)</strong> confirmed before Month 3.</li>
+<li><strong>First back-office platform</strong> for the initial ETL adapter confirmed before Month 3 (e.g. Softswiss, EveryMatrix, Digitain).</li>
+<li>Each additional back-office platform is a separate adapter, scoped and quoted individually.</li>
+</ul>
+<hr>
+<h2>8. Engagement &amp; Pricing</h2>
+<p>The platform is delivered on a <strong>monthly development fee</strong> basis for a dedicated team</p>
+<p>(1 senior/tech lead + 1 mid-level full-stack + 1 frontend + 1 part-time QA/tester). Billing</p>
+<p>is monthly for the duration of the engagement.</p>
+<table>
+<thead><tr><th>Item</th><th>Basis</th><th>Duration</th></tr></thead>
+<tbody>
+<tr><td><strong>Environment setup</strong> — Staging + Production provisioning, orchestration, CI/CD pipelines (performed by the tech lead)</td><td>Monthly dev fee</td><td>~2–3 weeks</td></tr>
+<tr><td><strong>Core platform development</strong> — foundation, tracking &amp; marketing source, commission engine, billing &amp; invoicing, payment, reporting, affiliate portal</td><td>Monthly dev fee</td><td>~4 months</td></tr>
+<tr><td>Stabilization, UAT, security hardening</td><td>Included in the monthly fee</td><td>+4–6 weeks</td></tr>
+<tr><td><strong>Reconciliation module</strong></td><td>Extends the engagement</td><td>+~1 month (begins once operator test data is available)</td></tr>
+<tr><td><strong>ETL adapter — per back-office platform</strong></td><td>Extends the engagement</td><td>+~2–3 weeks per platform</td></tr>
+<tr><td><strong>Ongoing maintenance &amp; support</strong></td><td>Monthly retainer</td><td>After go-live, as needed</td></tr>
+</tbody></table>
+<p><strong>Monthly fee:</strong> <strong>$12,500 / month</strong> per development team.</p>
+<blockquote>The core build is a continuous monthly engagement (~4 months, ~5–5.5 with stabilization).<br>Modules that depend on operator/third-party readiness — reconciliation and each ETL<br>adapter — are not fixed-scope; they extend the engagement by additional month(s) and then<br>transition into ongoing maintenance. Each additional back-office platform added later is a<br>further adapter and additional development time.</blockquote>
+</body></html>
