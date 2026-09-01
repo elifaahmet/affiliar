@@ -25,7 +25,10 @@
 
 const path = require("path");
 const mongoose = require("mongoose");
-const { Kafka, logLevel } = require(path.join(__dirname, "../node_modules/kafkajs"));
+const { Kafka, logLevel } = // kafkajs lives in the consumer, not here: this tool produces to the same
+// topic that service reads, and installing a second copy of the client to do
+// it would be two versions of the wire protocol in one repo.
+require(path.join(__dirname, "../../affiliate-raw-kafka-consumer/node_modules/kafkajs"));
 const crypto = require("crypto");
 
 const arg = (name, fallback = null) => {
@@ -70,6 +73,13 @@ async function firstDepositByPlayer(db, collection, playerField, dateField) {
   const rows = await db
     .collection(collection)
     .aggregate([
+      // Successful deposits only. Their table is mostly failures — 11,500 of
+      // them against 6,253 successes since July — and a failed attempt is not
+      // a deposit. Taking the minimum across everything means a player who
+      // tried and failed in June and then succeeded in July has their real
+      // first deposit dated to the failure, so it is never marked FTD and the
+      // acquisition is never paid for.
+      { $match: { $expr: { $eq: [{ $toLower: { $trim: { input: "$status" } } }, "success"] } } },
       { $group: { _id: `$${playerField}`, firstAt: { $min: `$${dateField}` } } },
     ])
     .toArray();
@@ -77,26 +87,33 @@ async function firstDepositByPlayer(db, collection, playerField, dateField) {
 }
 
 /**
- * One source document to zero or more raw events.
+ * Decimal128 to integer cents.
  *
- * NOT WRITTEN YET, and deliberately so. Their field names, units (cents or
- * major units), currency handling, and which status counts as settled are all
- * unknown — the collection names came verbally. A mapping written against a
- * guess and run over two months produces numbers that look right and are not,
- * and once they are in ClickHouse the wrong ones are indistinguishable from
- * the right ones.
- *
- * Fill this in from the inspector's output, one collection at a time, and run
- * a --dry-run over a single day before anything else.
+ * Their amounts are Decimal128 and ours are integer cents. Going through
+ * Number() first is the obvious route and the wrong one: it is a float, and a
+ * float is exactly what Decimal128 exists to avoid. Converting from the decimal
+ * string keeps every digit, and rounding at the end is a stated rounding rather
+ * than whatever the binary representation happened to do.
  */
-function mapDocument() {
-  throw new Error(
-    "mapDocument() is unimplemented.\n" +
-    "Run tools/betroxy-inspect.mongosh.js on their server first, then write the\n" +
-    "mapping against what it prints rather than against what the collections are\n" +
-    "called."
-  );
+function toCents(dec) {
+  if (dec === null || dec === undefined) return 0;
+  const [whole, frac = ""] = String(dec).split(".");
+  const sign = whole.startsWith("-") ? -1 : 1;
+  const w = whole.replace("-", "") || "0";
+  const cents = BigInt(w) * 100n + BigInt((frac + "00").slice(0, 2));
+  // Third decimal onward decides the rounding, not the float.
+  const round = frac.length > 2 && Number(frac[2]) >= 5 ? 1n : 0n;
+  return Number((cents + round)) * sign;
 }
+
+/**
+ * Success, however it was spelled.
+ *
+ * The deposits carry both "Success" (4,888) and "success" (1,365) since 1 July.
+ * Matching the lowercase one takes 1,365 of 6,253 — it drops 78% of the real
+ * deposits and looks like a quiet month rather than a bug.
+ */
+const isSuccess = (status) => String(status || "").trim().toLowerCase() === "success";
 
 const envelope = ({ id, type, playerId, currency, occurredAt, data }) => ({
   eventId: id,
@@ -130,12 +147,124 @@ async function run() {
   const producer = kafka.producer({ idempotent: true });
   if (COMMIT) await producer.connect();
 
-  // Events are produced in occurredAt order. The consumer's streak, FTD and
-  // balance logic reads a sequence, and a July deposit arriving after an August
-  // withdrawal is a different history from the one that happened.
+  // Currency is stored two ways in the same database: deposits and withdrawals
+  // reference the currencies collection by ObjectId, casino and sportsbook
+  // rows carry the code as a string. One fact, two representations — resolved
+  // here so the rest of the mapping only ever sees a code.
+  const currencyById = new Map(
+    (await db.collection("currencies").find({}).toArray()).map((c) => [String(c._id), c.code])
+  );
+
+  // FTD across all of time, not across the window — see firstDepositByPlayer.
+  const firstDeposit = await firstDepositByPlayer(db, "deposittransactions", "playerId", "createdAt");
+  console.log(`first-deposit index: ${firstDeposit.size} players\n`);
+
+  const counts = {};
+  const bump = (k, n = 1) => { counts[k] = (counts[k] || 0) + n; };
+  let batch = [];
+
+  const emit = async (ev) => {
+    bump(ev.eventType);
+    if (!COMMIT) return;
+    batch.push({ key: ev.playerId, value: JSON.stringify(ev) });
+    if (batch.length >= 500) {
+      await producer.send({ topic: TOPIC, messages: batch });
+      batch = [];
+    }
+  };
+
+  // ── registrations ────────────────────────────────────────────────────────
+  // Emitted for every player with activity in the window, whatever their
+  // signup date. The consumer builds its player rows from this event, and a
+  // player who registered in May but bet in July still needs one or their
+  // activity arrives for somebody it has never heard of.
   //
-  // (The per-collection loop lands here once mapDocument is written.)
-  mapDocument();
+  // No affiliateCode: their database records none. marketingcodes and
+  // referralsettings are both empty and players carries no attribution field,
+  // so every player here is unattributed and no commission will compute on
+  // this history. That is the honest import, not a gap in the mapping.
+  const players = db.collection("players");
+  for await (const p of players.find({}, { projection: { _id: 1, createdAt: 1 } })) {
+    await emit(envelope({
+      id: eventId("players", p._id, "player.registered"),
+      type: "player.registered",
+      playerId: p._id,
+      currency: "INR",
+      occurredAt: p.createdAt || SINCE,
+      data: {},
+    }));
+  }
+
+  // ── deposits ─────────────────────────────────────────────────────────────
+  const deposits = db.collection("deposittransactions");
+  for await (const d of deposits.find({ createdAt: { $gte: SINCE } })) {
+    if (!isSuccess(d.status)) { bump("skipped:deposit_not_success"); continue; }
+    const first = firstDeposit.get(String(d.playerId));
+    await emit(envelope({
+      id: eventId("deposittransactions", d._id, "wallet.deposit.confirmed"),
+      type: "wallet.deposit.confirmed",
+      playerId: d.playerId,
+      currency: currencyById.get(String(d.currency)) || "INR",
+      occurredAt: d.createdAt,
+      data: {
+        amountCents: toCents(d.amount),
+        paymentMethod: d.method || undefined,
+        // True only when this IS the earliest deposit the player ever made.
+        isFirstDeposit: !!first && first.getTime() === new Date(d.createdAt).getTime(),
+      },
+    }));
+    if (first && first.getTime() === new Date(d.createdAt).getTime()) bump("of which FTD");
+  }
+
+  // ── withdrawals ──────────────────────────────────────────────────────────
+  const withdrawals = db.collection("withdrawaltransactions");
+  for await (const w of withdrawals.find({ createdAt: { $gte: SINCE } })) {
+    if (!isSuccess(w.status)) { bump("skipped:withdrawal_not_success"); continue; }
+    await emit(envelope({
+      id: eventId("withdrawaltransactions", w._id, "wallet.withdrawal.completed"),
+      type: "wallet.withdrawal.completed",
+      playerId: w.playerId,
+      currency: currencyById.get(String(w.currency)) || "INR",
+      occurredAt: w.createdAt,
+      data: { amountCents: toCents(w.amount) },
+    }));
+  }
+
+  // ── casino ───────────────────────────────────────────────────────────────
+  //
+  // `result` is a round's outcome, not a win: 222,880 of 348,490 carry zero,
+  // which are the rounds the player lost. Emitting those as wins would leave
+  // the win count matching the bet count and GGR computed from a game nobody
+  // ever loses. A zero result is a round that already had its bet event, so it
+  // needs no second event of its own.
+  const casino = db.collection("casinoTransactionsV2");
+  const TYPE_EVENT = { bet: "casino.bet.placed", result: "casino.win.settled", rollback: "casino.bet.rollback" };
+  for await (const t of casino.find({ createdAt: { $gte: SINCE } })) {
+    const type = TYPE_EVENT[t.type];
+    if (!type) { bump("skipped:casino_unknown_type:" + t.type); continue; }
+    // real_money_amount, not amount. They are identical in this data because
+    // bonus play is not in use yet — which is exactly why it has to be the one
+    // the mapping reads, so the day bonuses arrive the GGR does not quietly
+    // start counting bonus money as revenue.
+    const cents = toCents(t.real_money_amount ?? t.amount);
+    if (type === "casino.win.settled" && cents === 0) { bump("skipped:losing_round"); continue; }
+    const data = { roundId: String(t.round_id || t._id), gameId: t.game_code, providerId: t.aggregator };
+    if (type === "casino.win.settled") data.winCents = cents;
+    else data.betCents = cents;
+    await emit(envelope({
+      id: eventId("casinoTransactionsV2", t._id, type),
+      type,
+      playerId: t.player_id,
+      currency: t.currency || "INR",
+      occurredAt: t.createdAt,
+      data,
+    }));
+  }
+
+  if (COMMIT && batch.length) await producer.send({ topic: TOPIC, messages: batch });
+
+  console.log("— produced —");
+  Object.keys(counts).sort().forEach((k) => console.log(`  ${String(counts[k]).padStart(8)}  ${k}`));
 
   if (COMMIT) await producer.disconnect();
   await mongoose.disconnect();
