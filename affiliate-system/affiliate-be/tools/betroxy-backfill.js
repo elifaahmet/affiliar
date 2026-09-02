@@ -38,6 +38,9 @@ const arg = (name, fallback = null) => {
 const COMMIT = process.argv.includes("--commit");
 // Only for a re-run after the tenant's rows have actually been deleted.
 const FORCE = process.argv.includes("--force");
+// Every player, not just those who signed up inside the window. Only correct
+// for a first-ever import into an empty tenant.
+const ALL_REGISTRATIONS = process.argv.includes("--all-registrations");
 const SINCE = new Date(arg("since", "2026-07-01T00:00:00Z"));
 const URI = process.env.BETROXY_MONGODB_URI;
 const BROKERS = (process.env.KAFKA_BROKERS || "localhost:9092").split(",");
@@ -242,17 +245,28 @@ async function run() {
   };
 
   // ── registrations ────────────────────────────────────────────────────────
-  // Emitted for every player with activity in the window, whatever their
-  // signup date. The consumer builds its player rows from this event, and a
-  // player who registered in May but bet in July still needs one or their
-  // activity arrives for somebody it has never heard of.
+  //
+  // Scoped to the window by default, and that default matters more than it
+  // looks. The first import emitted one for EVERY player whatever their signup
+  // date — correct then, because a player who registered in May but bet in July
+  // still needs a row or their activity arrives for somebody the consumer has
+  // never heard of.
+  //
+  // On a gap run that same behaviour re-sends all of them. Nothing downstream
+  // deduplicates, and activity_hourly_delta sums `registrations`, so a second
+  // pass doubles the registration count for the whole brand — a figure that
+  // reads as growth and is arithmetic.
+  //
+  // --all-registrations restores the original behaviour, and is only right for
+  // a first-ever import into an empty tenant.
   //
   // No affiliateCode: their database records none. marketingcodes and
   // referralsettings are both empty and players carries no attribution field,
   // so every player here is unattributed and no commission will compute on
   // this history. That is the honest import, not a gap in the mapping.
   const players = db.collection("players");
-  for await (const p of players.find({}, { projection: { _id: 1, createdAt: 1 } })) {
+  const playerFilter = ALL_REGISTRATIONS ? {} : { createdAt: { $gte: SINCE } };
+  for await (const p of players.find(playerFilter, { projection: { _id: 1, createdAt: 1 } })) {
     await emit(envelope({
       id: eventId("players", p._id, "player.registered"),
       type: "player.registered",
